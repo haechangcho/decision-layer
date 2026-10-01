@@ -60,7 +60,7 @@ Claude, Codex 등 MCP를 지원하는 클라이언트에 `decision-layer-mcp`를
 
 현재 초기 개발 단계입니다. Cube 연결, Method 실행, Recipe 그래프 편집, 실행 기록 저장을 지원합니다.
 
-앞으로 Recipe 작성 과정을 단순화하고 기본값을 정리할 예정입니다. MCP 실행 기록을 Recipe 그래프 초안으로 만들고 사용자가 검토·승인하는 기능도 계획하고 있으며, 아직 구현되지는 않았습니다.
+다음에는 Recipe 미리보기, YAML 편집, 변경 비교를 보완합니다. MCP 실행 기록을 Recipe 그래프 초안으로 만들고 사용자가 검토·승인하는 기능도 계획하고 있으며, 아직 구현되지는 않았습니다.
 
 [Recipe 예제](examples/ecommerce/recipes/) · [Method 구현](src/decision_layer/methods/)
 

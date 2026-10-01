@@ -32,12 +32,15 @@ export default function RunPage() {
   const recipe = run.recipe_snapshot;
   const queries = run.steps.reduce((n, s) => n + s.result.provenance.queries.length, 0);
   const current = open ?? run.steps.length - 1;
+  const lastStatus = run.steps.at(-1)?.result.status;
+  const stopped = run.status === "open" && !run.running && (lastStatus === "refused" || lastStatus === "needs_input");
 
   const scope = run.plan.scope;
   const timeTitle = scope.time_dimension ? byRef.get(scope.time_dimension)?.title ?? scope.time_dimension : null;
   return <div className={styles.page}>
     <Link className={styles.back} href="/runs"><ArrowLeft size={15} />실행 기록</Link>
-    <div className={styles.heading}><div><p className={styles.eyebrow}>RUN · {run.id.slice(-10)}</p><h1>{run.plan.question || recipe?.name || "분석 실행"}</h1><p className={styles.intro}>{recipe?.name ?? run.steps[0]?.step.method ?? "단일 분석"}</p></div><span className={`${styles.badge} ${run.status === "failed" ? styles.badgeFailed : run.status === "open" ? styles.badgeOpen : ""}`}>{run.status === "completed" ? "완료" : run.status === "failed" ? "실패" : "진행 중"}</span></div>
+    <div className={styles.heading}><div><p className={styles.eyebrow}>RUN · {run.id.slice(-10)}</p><h1>{run.plan.question || recipe?.description || recipe?.name || "분석 실행"}</h1><p className={styles.intro}>{recipe?.name ?? run.steps[0]?.step.method ?? "단일 분석"}</p></div><span className={`${styles.badge} ${run.status === "failed" || stopped ? styles.badgeFailed : run.status === "open" ? styles.badgeOpen : ""}`}>{run.status === "completed" ? "완료" : run.status === "failed" ? "실패" : stopped ? lastStatus === "needs_input" ? "입력 필요" : "중단" : "진행 중"}</span></div>
+    {recipe && !run.running && <Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}`}>{stopped || run.status === "failed" ? "분석 조건을 바꿔 다시 실행" : "다른 기간으로 실행"}</Link>}
     <dl className={styles.runMeta}>
       <div><dt>시작</dt><dd>{new Date(run.created_at).toLocaleString()}</dd></div><div><dt>분석 단계</dt><dd>{run.steps.length}{recipe ? ` / ${recipe.limits.max_steps}` : ""}</dd></div><div><dt>조회 횟수</dt><dd>{queries}{recipe ? ` / ${recipe.limits.max_queries}` : ""}</dd></div><div><dt>기간</dt><dd>{scope.date_range?.join(" ~ ") || "전체 기간"}</dd></div>
     </dl>
@@ -55,7 +58,7 @@ export default function RunPage() {
         <section className={styles.formPanel}>
           <h2 className={styles.panelTitle}>분석 단계</h2>
           {run.steps.length ? <ol className={styles.stepList}>{run.steps.map((step, index) => <li key={index}><button className={`${styles.stepButton} ${index === current ? styles.active : ""}`} aria-pressed={index === current} onClick={() => setOpen(index)}><span className={styles.stepNumber}>{index + 1}</span><span className={styles.stepName}>{step.step.method}</span><span className={styles.badge}>{step.result.status === "success" ? "완료" : step.result.status === "failed" ? "실패" : step.result.status === "refused" ? "중단" : "입력 필요"}</span></button></li>)}</ol> : <p className={styles.description}>아직 완료된 분석 단계가 없습니다.</p>}
-          {mine && run.status === "open" && !run.running && manifests && <NextStep run={run} manifests={manifests} objects={objects} onDone={() => { setOpen(null); reload(); }} />}
+          {mine && run.status === "open" && !run.running && manifests && recipe?.mode !== "pipeline" && <NextStep run={run} manifests={manifests} objects={objects} onDone={() => { setOpen(null); reload(); }} />}
         </section>
       </div>
       <section className={styles.resultPanel} aria-live="polite"><h2 className={styles.panelTitle}>{run.steps[current] ? run.steps[current].step.method : "결과"}</h2>{run.steps[current] ? <ResultView result={run.steps[current].result} titles={byRef} /> : <div className={styles.placeholder}><History size={20} />실행된 단계의 결과와 근거가 여기에 표시됩니다.</div>}</section>

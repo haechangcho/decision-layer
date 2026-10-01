@@ -60,7 +60,7 @@ Install the MCP adapter with `pip install '.[mcp]'` from the repository root, th
 
 Early development. Cube integration, Method execution, Recipe graph editing and Run storage are available.
 
-Next: simpler Recipe authoring, consistent defaults, and turning MCP execution records into Recipe graph drafts that users review and approve. The approval flow is not implemented yet.
+Next: Recipe previews, YAML editing, change review, and turning MCP execution records into Recipe graph drafts that users review and approve. The approval flow is not implemented yet.
 
 [Example Recipes](examples/ecommerce/recipes/) · [Method implementations](src/decision_layer/methods/)
 

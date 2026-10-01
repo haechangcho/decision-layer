@@ -42,11 +42,11 @@ export default function RecipePage() {
   const [runError, setRunError] = useState("");
 
   const timeDimensions = useMemo(() => objects.filter((object) => object.kind === "time_dimension"), [objects]);
-  const selectedTime = timeDimension || timeDimensions[0]?.ref || "";
+  const selectedTime = timeDimension || (timeDimensions.length === 1 ? timeDimensions[0].ref : "");
   const needsTime = !!recipe && (recipe.mode === "pipeline"
     ? recipe.steps.some((step) => step.method === "query.trend")
     : recipe.allowed_methods.includes("query.trend"));
-  const missingPeriod = needsTime && (!dates[0] || !dates[1] || !selectedTime);
+  const missingPeriod = (needsTime && (!dates[0] || !dates[1])) || (!!dates[0] && !!dates[1] && !selectedTime);
   const metric = recipe ? titleFor(recipe.semantic_scope.primary_metric, objects) : "";
 
   async function run() {
@@ -73,14 +73,14 @@ export default function RecipePage() {
 
   return <div className={styles.page}>
     <Link className={styles.back} href="/recipes"><ArrowLeft size={15} />Recipe 목록</Link>
-    <div className={styles.heading}><div><p className={styles.eyebrow}>분석 절차 · v{recipe.version}</p><h1>{recipe.name}</h1><p className={styles.intro}>{recipe.description}</p></div><Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}/edit`}>Recipe 편집 <ArrowRight size={15} /></Link></div>
+    <div className={styles.heading}><div><p className={styles.eyebrow}>분석 절차 · v{recipe.version}</p><h1>{recipe.description || recipe.name}</h1></div><Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}/edit`}>Recipe 편집 <ArrowRight size={15} /></Link></div>
     <div className={styles.recipeRunGrid}>
       <section className={styles.recipeRunPanel}>
         <h2>분석 조건</h2>
         <dl className={styles.meta}><div className={styles.metaRow}><dt>중심 지표</dt><dd>{metric}</dd></div></dl>
         {needsTime && timeDimensions.length === 0 && <p className={styles.error} role="alert">이 Recipe에는 시간 분석이 있지만 Cube에서 시간 차원을 찾지 못했습니다. Sources 설정과 Cube 모델을 확인해 주세요.</p>}
         {timeDimensions.length > 0 && <label className={styles.runField}>날짜 기준
-          <select aria-label="날짜 기준" value={selectedTime} onChange={(event) => setTimeDimension(event.target.value)}>{timeDimensions.map((object) => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
+          <select aria-label="날짜 기준" value={selectedTime} onChange={(event) => setTimeDimension(event.target.value)}><option value="">날짜 기준 선택</option>{timeDimensions.map((object) => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
         </label>}
         <div className={styles.fieldHeading}><label htmlFor="run-start">분석 기간</label><CalendarDays size={15} /></div>
         <div className={styles.datePresets} role="group" aria-label="기간 빠른 선택">
@@ -90,7 +90,7 @@ export default function RecipePage() {
         </div>
         <div className={styles.dateFields}><label className={styles.runField} htmlFor="run-start">시작일<input id="run-start" type="date" value={dates[0]} onChange={(event) => setDates([event.target.value, dates[1]])} /></label><label className={styles.runField} htmlFor="run-end">종료일<input id="run-end" type="date" value={dates[1]} onChange={(event) => setDates([dates[0], event.target.value])} /></label></div>
         {needsTime && <p className="hint">시간 분석에는 분석 기간과 날짜 기준이 필요합니다.</p>}
-        <label className={styles.runField} htmlFor="run-question">분석 메모 <span>선택</span><input id="run-question" value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="예: 지난 분기 반품률이 오른 이유" /></label>
+        <label className={styles.runField} htmlFor="run-question">분석 메모 <span>선택</span><input id="run-question" value={question} onChange={(event) => setQuestion(event.target.value)} /></label>
         {recipe.semantic_scope.preferred_dimensions.length > 0 && <div className={styles.runContext}><strong>살펴보는 분류</strong><p>{recipe.semantic_scope.preferred_dimensions.map((ref) => titleFor(ref, objects)).join(" · ")}</p></div>}
         {runError && <p className={styles.error} role="alert">{runError}<br />연결 상태와 분석 권한을 확인한 뒤 다시 시도하세요.</p>}
         <button className={styles.runPrimary} type="button" disabled={busy || (needsTime && timeDimensions.length === 0) || missingPeriod || dates[0] > dates[1]} onClick={run}><Play size={16} />{busy ? "분석을 시작하는 중…" : "이 Recipe로 분석"}</button>
