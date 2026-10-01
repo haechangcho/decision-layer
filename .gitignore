@@ -8,6 +8,15 @@ __pycache__/
 *.pem
 *.key
 /docs/internal/
+/docs/MVP_PLAN.md
+/docs/REFERENCES.md
+/docs/GETTING_STARTED.md
+/docs/PRODUCT_UX_IMPLEMENTATION_PLAN.ko.md
+/docs/PRODUCT_UX_MILESTONES.ko.md
+/docs/SOURCE_CONNECTION_DESIGN.ko.md
+/docs/design/
+/docs/research/
+/docs/assets/README.md
 dist/
 build/
 /data/

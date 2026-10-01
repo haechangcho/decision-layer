@@ -27,6 +27,21 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
+  onboarding:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build --wait
+      - name: check Web and API proxy
+        run: |
+          curl --fail --silent http://localhost:3000/sources > /dev/null
+          curl --fail --silent http://localhost:3000/api/health
+          curl --fail --silent http://localhost:8000/sources/current
+      - if: failure()
+        run: docker compose logs --tail=100
+      - if: always()
+        run: docker compose down
+
   example:
     # the whole stack from examples/ecommerce against official Cube OSS, checked against EXPECTED.md
     runs-on: ubuntu-latest

@@ -15,8 +15,10 @@ Always read these files before proposing or implementing non-trivial changes:
 - `docs/PRODUCT_CONTEXT.md`
 - `docs/ARCHITECTURE.md`
 - `docs/DECISIONS.md`
-- `docs/REFERENCES.md`
-- `docs/MVP_PLAN.md`
+
+When available locally, also read `docs/REFERENCES.md` and `docs/MVP_PLAN.md`.
+Internal research, design proposals and milestone checklists are local working
+documents and are not required to contribute to the public repository.
 
 Treat those documents as the current source of truth.
 

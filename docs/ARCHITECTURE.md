@@ -806,6 +806,11 @@ Do not create one MCP tool per Method.
 
 The Web app should be schema-driven.
 
+The root `compose.yaml` runs the API and Web as separate containers for local
+onboarding against an existing Cube. The Web proxies `/api/*` to the API;
+SQLite and Recipe YAML persist in separate named volumes. Default published
+ports bind to localhost. The sample-data stack remains under `examples/`.
+
 ### Core pages
 
 ```text

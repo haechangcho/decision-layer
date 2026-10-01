@@ -1,6 +1,6 @@
 # Decision Layer
 
-[English](README.md) · [한국어](README.ko.md) · [Getting started](docs/GETTING_STARTED.md) · [Contributing](CONTRIBUTING.md)
+[English](README.md) · [한국어](README.ko.md) · [Contributing](CONTRIBUTING.md)
 
 **Make your team's analytical knowledge executable.**
 
@@ -34,33 +34,19 @@ See [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/DECISIONS.md) for the c
 
 ## Get started
 
-You need Python 3.11+, Node.js 22, and an existing Cube API with metrics available.
-
-From a terminal:
+You need Docker with Compose and an existing Cube API.
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
 cd decision-layer
-python3.11 -m venv .venv
-.venv/bin/pip install -e '.[mcp]'
-mkdir -p recipes
-DL_RECIPES_DIR=./recipes DL_RECIPE_ADMIN_TOKEN=local-recipe-key \
-  .venv/bin/uvicorn decision_layer.api.app:app --port 8000
+docker compose up -d --build --wait
 ```
 
-In a second terminal, from the repository root:
+Open **http://localhost:3000/sources**, enter your **Cube API URL and access token**, then test and save the connection. If Cube runs on your computer at port 4000, use `http://host.docker.internal:4000/cubejs-api/v1`. Explore your metrics and create a Recipe; the local Recipe editing key is `local-recipe-key`.
 
-```bash
-cd web
-npm ci
-DL_API_URL=http://localhost:8000 npm run dev
-```
+The first start builds the images; Python and Node.js are included. Recipes and execution records persist in Docker volumes. `docker compose down` stops the app without deleting them. The default setup is local-only; use private administrator keys and your own deployment configuration for a shared server.
 
-Open **http://localhost:5210/sources**, enter your **Cube API URL and access token**, then test and save the connection. Explore your metrics and create a Recipe. For this local setup, the Recipe editing key is `local-recipe-key`.
-
-These commands start a local development instance. Use your own credentials and deployment configuration for a shared server. [Setup details and MCP configuration →](docs/GETTING_STARTED.md)
-
-Docker is optional. To try the product without an existing Cube, use the separate [sample-data demo](examples/ecommerce/README.md).
+Port in use? Run `WEB_PORT=3010 API_PORT=8010 docker compose up -d --build --wait` instead. No Cube yet? Try the [sample-data demo](examples/ecommerce/README.md). For source installation, see [Contributing](CONTRIBUTING.md).
 
 ## Use with AI agents
 
@@ -68,7 +54,7 @@ Connect Claude, Codex or another MCP client to `decision-layer-mcp`. The client 
 
 When a Recipe fits the question, the client is instructed to use it. Otherwise, it can invoke registered Methods. Tokens are passed to Cube so its access rules apply.
 
-[MCP setup →](docs/GETTING_STARTED.md#mcp)
+Install the MCP adapter with `pip install '.[mcp]'` from the repository root, then configure your client to run `decision-layer-mcp` with `DL_API_URL=http://localhost:8000` and `DL_TOKEN` set to your Cube access token. Use the same Cube identity in Web and MCP to access the same Runs.
 
 ## Project status
 
@@ -76,7 +62,7 @@ Early development. Cube integration, Method execution, Recipe graph editing and 
 
 Next: simpler Recipe authoring, consistent defaults, and turning MCP execution records into Recipe graph drafts that users review and approve. The approval flow is not implemented yet.
 
-[Milestones (Korean)](docs/PRODUCT_UX_MILESTONES.ko.md) · [Example Recipes](examples/ecommerce/recipes/) · [Method implementations](src/decision_layer/methods/)
+[Example Recipes](examples/ecommerce/recipes/) · [Method implementations](src/decision_layer/methods/)
 
 ## Contributing
 

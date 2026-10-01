@@ -1,0 +1,46 @@
+name: decision-layer
+
+services:
+  api:
+    build: .
+    environment:
+      DL_DATABASE_URL: sqlite:////data/decision_layer.db
+      DL_RECIPES_DIR: /recipes
+      DL_RECIPE_ADMIN_TOKEN: ${DL_RECIPE_ADMIN_TOKEN:-local-recipe-key}
+      DL_SOURCE_ADMIN_TOKEN: ${DL_SOURCE_ADMIN_TOKEN:-}
+      DL_SOURCE_CONFIG_KEY: ${DL_SOURCE_CONFIG_KEY:-}
+      DL_ALLOW_SERVICE_CREDENTIALS: ${DL_ALLOW_SERVICE_CREDENTIALS:-false}
+    volumes:
+      - data:/data
+      - recipes:/recipes
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  web:
+    build:
+      context: web
+      args:
+        DL_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  data:
+  recipes:

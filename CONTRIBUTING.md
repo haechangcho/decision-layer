@@ -17,7 +17,9 @@ python3.11 -m venv .venv
 Start the API in one terminal. Supply your Cube URL and caller token through your deployment/client configuration; the API does not need a live Cube to start.
 
 ```bash
-.venv/bin/uvicorn decision_layer.api.app:app --reload --port 8000
+mkdir -p recipes
+DL_RECIPES_DIR=./recipes DL_RECIPE_ADMIN_TOKEN=local-recipe-key \
+  .venv/bin/uvicorn decision_layer.api.app:app --reload --port 8000
 ```
 
 Start the Web in another terminal:
@@ -29,6 +31,13 @@ DL_API_URL=http://localhost:8000 npm run dev
 ```
 
 Open http://localhost:5210. Configure a Cube connection through Sources or environment variables. For a complete model and data, use the [Docker example](examples/ecommerce/README.md).
+
+For the Docker setup in the README, the API is at http://localhost:8000. Use
+`docker compose logs --tail=100` to inspect startup problems. Change host ports
+with `WEB_PORT` and `API_PORT` if needed. `docker compose down` preserves data;
+`docker compose down -v` deletes the Recipe and database volumes. To use a
+Git-managed Recipe directory, create `recipes/` and replace `recipes:/recipes`
+with `./recipes:/recipes` in `compose.yaml`.
 
 ## Verification
 

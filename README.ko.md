@@ -1,6 +1,6 @@
 # Decision Layer
 
-[English](README.md) · [한국어](README.ko.md) · [실행 가이드](docs/GETTING_STARTED.md) · [기여 안내](CONTRIBUTING.md)
+[English](README.md) · [한국어](README.ko.md) · [기여 안내](CONTRIBUTING.md)
 
 **분석가의 노하우를 팀과 AI가 함께 쓰는 분석 절차로.**
 
@@ -34,33 +34,19 @@ Decision Layer는 시맨틱 레이어 위에서 동작하는 오픈소스 분석
 
 ## 시작하기
 
-Python 3.11 이상, Node.js 22, 지표가 준비된 Cube API가 필요합니다.
-
-터미널에서 저장소를 내려받고 API 서버를 실행합니다.
+Docker와 Compose, 연결할 Cube API가 있으면 됩니다.
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
 cd decision-layer
-python3.11 -m venv .venv
-.venv/bin/pip install -e '.[mcp]'
-mkdir -p recipes
-DL_RECIPES_DIR=./recipes DL_RECIPE_ADMIN_TOKEN=local-recipe-key \
-  .venv/bin/uvicorn decision_layer.api.app:app --port 8000
+docker compose up -d --build --wait
 ```
 
-다른 터미널에서 저장소 루트로 이동한 뒤 웹 앱을 실행합니다.
+**http://localhost:3000/sources** 에서 **Cube API URL과 access token**을 입력하고 연결을 확인·저장하세요. 내 컴퓨터의 4000번 포트에서 Cube를 실행 중이라면 `http://host.docker.internal:4000/cubejs-api/v1`을 입력하면 됩니다. 연결된 지표를 살펴보고 Recipe를 만드세요. 로컬 실행 설정의 Recipe 편집 키는 `local-recipe-key`입니다.
 
-```bash
-cd web
-npm ci
-DL_API_URL=http://localhost:8000 npm run dev
-```
+처음 실행할 때 이미지를 빌드하며, Python과 Node.js는 이미지에 포함됩니다. Recipe와 실행 기록은 Docker 볼륨에 저장됩니다. `docker compose down`으로 종료해도 데이터는 유지됩니다. 기본 구성은 로컬용이며, 공유 서버에는 별도의 관리자 키와 배포 설정을 사용하세요.
 
-**http://localhost:5210/sources** 에서 **Cube API URL과 access token**을 입력하고 연결을 확인·저장하세요. 연결된 지표를 살펴보고 Recipe를 만들 수 있습니다. 위 로컬 실행 설정의 Recipe 편집 키는 `local-recipe-key`입니다.
-
-위 명령은 로컬 개발용입니다. 공유 서버에는 별도의 자격 증명과 배포 설정을 사용하세요. [상세 실행 방법과 MCP 설정 →](docs/GETTING_STARTED.md)
-
-Docker는 필수가 아닙니다. 아직 Cube가 없다면 [샘플 데이터가 포함된 데모](examples/ecommerce/README.md)로 먼저 사용해 볼 수 있습니다.
+포트가 사용 중이면 `WEB_PORT=3010 API_PORT=8010 docker compose up -d --build --wait`로 실행하세요. 아직 Cube가 없다면 [샘플 데이터 데모](examples/ecommerce/README.md)로 시작할 수 있습니다. 소스에서 직접 실행하는 방법은 [기여 안내](CONTRIBUTING.md)에 있습니다.
 
 ## AI에서 사용하기
 
@@ -68,7 +54,7 @@ Claude, Codex 등 MCP를 지원하는 클라이언트에 `decision-layer-mcp`를
 
 질문에 맞는 Recipe가 있으면 우선 사용하도록 안내합니다. Recipe가 없으면 등록된 Method로 분석할 수 있습니다. 토큰은 Cube로 전달되며, 데이터 접근 권한은 Cube의 설정을 따릅니다.
 
-[MCP 연결 방법 →](docs/GETTING_STARTED.md#mcp)
+저장소 루트에서 `pip install '.[mcp]'`로 MCP 어댑터를 설치한 뒤, 클라이언트가 `decision-layer-mcp`를 실행하도록 설정하세요. 환경변수 `DL_API_URL=http://localhost:8000`과 `DL_TOKEN`에 Cube access token을 지정합니다. 웹과 MCP에서 같은 실행 기록을 보려면 같은 Cube 사용자로 접속해야 합니다.
 
 ## 개발 현황
 
@@ -76,7 +62,7 @@ Claude, Codex 등 MCP를 지원하는 클라이언트에 `decision-layer-mcp`를
 
 앞으로 Recipe 작성 과정을 단순화하고 기본값을 정리할 예정입니다. MCP 실행 기록을 Recipe 그래프 초안으로 만들고 사용자가 검토·승인하는 기능도 계획하고 있으며, 아직 구현되지는 않았습니다.
 
-[개발 마일스톤](docs/PRODUCT_UX_MILESTONES.ko.md) · [Recipe 예제](examples/ecommerce/recipes/) · [Method 구현](src/decision_layer/methods/)
+[Recipe 예제](examples/ecommerce/recipes/) · [Method 구현](src/decision_layer/methods/)
 
 ## 기여하기
 
