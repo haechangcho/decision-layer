@@ -1,5 +1,7 @@
 # Decision Layer
 
+[English](README.md) | [한국어](README.ko.md)
+
 Reusable analysis procedures for semantic layers and AI agents.
 
 [Quickstart](#quickstart) · [Architecture](#architecture) · [MCP](#connect-an-ai-client) · [Contributing](CONTRIBUTING.md)
