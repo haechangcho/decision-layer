@@ -1,0 +1,1151 @@
+{
+ "cubes": [
+  {
+   "name": "ecom_customer",
+   "type": "cube",
+   "title": "고객",
+   "isVisible": true,
+   "public": true,
+   "description": "고객 마스터.",
+   "connectedComponent": 1,
+   "measures": [],
+   "dimensions": [
+    {
+     "name": "ecom_customer.customer_id",
+     "title": "고객 고객",
+     "type": "string",
+     "shortTitle": "고객",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": true
+    },
+    {
+     "name": "ecom_customer.gender",
+     "title": "고객 성별",
+     "type": "string",
+     "shortTitle": "성별",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_customer.age_band",
+     "title": "고객 연령대",
+     "type": "string",
+     "shortTitle": "연령대",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_customer.region",
+     "title": "고객 지역",
+     "type": "string",
+     "shortTitle": "지역",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_customer.member_grade",
+     "title": "고객 회원 등급",
+     "type": "string",
+     "shortTitle": "회원 등급",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_customer.signup_dt",
+     "title": "고객 가입일자",
+     "type": "time",
+     "shortTitle": "가입일자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    }
+   ],
+   "segments": [],
+   "hierarchies": [],
+   "folders": [],
+   "nestedFolders": []
+  },
+  {
+   "name": "ecom_delivery",
+   "type": "cube",
+   "title": "배송",
+   "isVisible": true,
+   "public": true,
+   "description": "주문별 배송 정보. 주문과 1:1.",
+   "connectedComponent": 1,
+   "measures": [
+    {
+     "name": "ecom_delivery.count",
+     "title": "배송 배송 수",
+     "shortTitle": "배송 수",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "count",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecom_delivery.late_count",
+     "title": "배송 지연 배송 수",
+     "shortTitle": "지연 배송 수",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "count",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecom_delivery.avg_delivery_days",
+     "title": "배송 평균 배송 소요일",
+     "shortTitle": "평균 배송 소요일",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "avg",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    }
+   ],
+   "dimensions": [
+    {
+     "name": "ecom_delivery.order_id",
+     "title": "배송 Order Id",
+     "type": "string",
+     "shortTitle": "Order Id",
+     "suggestFilterValues": true,
+     "isVisible": false,
+     "public": false,
+     "primaryKey": true
+    },
+    {
+     "name": "ecom_delivery.carrier_nm",
+     "title": "배송 택배사",
+     "type": "string",
+     "shortTitle": "택배사",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_delivery.warehouse_nm",
+     "title": "배송 출고센터",
+     "type": "string",
+     "shortTitle": "출고센터",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_delivery.ship_dt",
+     "title": "배송 출고일자",
+     "type": "time",
+     "shortTitle": "출고일자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_delivery.promised_dt",
+     "title": "배송 도착약속일자",
+     "type": "time",
+     "shortTitle": "도착약속일자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_delivery.delivered_dt",
+     "title": "배송 배송완료일자",
+     "type": "time",
+     "shortTitle": "배송완료일자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_delivery.is_late",
+     "title": "배송 지연 여부",
+     "type": "boolean",
+     "shortTitle": "지연 여부",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_delivery.delivery_days",
+     "title": "배송 배송 소요일",
+     "type": "number",
+     "shortTitle": "배송 소요일",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    }
+   ],
+   "segments": [],
+   "hierarchies": [],
+   "folders": [],
+   "nestedFolders": []
+  },
+  {
+   "name": "ecom_order",
+   "type": "cube",
+   "title": "주문",
+   "isVisible": true,
+   "public": true,
+   "description": "이커머스 주문 기준 큐브. grain은 주문(order_id) 1건이며 주문당 상품 1종이다. 반품률·지연배송률·객단가 등 이커머스 KPI의 기준 큐브. synthetic 데이터(examples/ecommerce/data/ecom.sql).\n",
+   "connectedComponent": 1,
+   "measures": [
+    {
+     "name": "ecom_order.count",
+     "title": "주문 주문 수",
+     "shortTitle": "주문 수",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "count",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecom_order.total_order_amount",
+     "title": "주문 주문금액 합계(원)",
+     "shortTitle": "주문금액 합계(원)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "sum",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecom_order.avg_order_value",
+     "title": "주문 객단가(원)",
+     "description": "주문 1건당 평균 주문금액.",
+     "shortTitle": "객단가(원)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "avg",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecom_order.return_rate",
+     "title": "주문 반품률(%)",
+     "description": "전체 주문 중 반품된 주문의 비율.",
+     "shortTitle": "반품률(%)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "number",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecom_order.return_amount_rate",
+     "title": "주문 금액 기준 반품률(%)",
+     "description": "전체 주문금액 중 환불금액의 비율. 분모가 주문 수가 아니라 금액이다.",
+     "shortTitle": "금액 기준 반품률(%)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "number",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecom_order.late_delivery_rate",
+     "title": "주문 지연배송률(%)",
+     "description": "배송된 주문 중 약속일보다 늦게 도착한 주문의 비율.",
+     "shortTitle": "지연배송률(%)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "number",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    }
+   ],
+   "dimensions": [
+    {
+     "name": "ecom_order.order_id",
+     "title": "주문 주문번호",
+     "type": "string",
+     "shortTitle": "주문번호",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": true
+    },
+    {
+     "name": "ecom_order.order_dt",
+     "title": "주문 주문일자",
+     "type": "time",
+     "shortTitle": "주문일자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_order.seller_id",
+     "title": "주문 판매자",
+     "type": "string",
+     "shortTitle": "판매자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_order.md_team_nm",
+     "title": "주문 MD팀",
+     "type": "string",
+     "description": "주문 시점에 판매자가 소속된 MD팀. 판매자가 팀을 옮기면 기간에 따라 값이 다르다.",
+     "shortTitle": "MD팀",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_order.channel",
+     "title": "주문 주문 채널",
+     "type": "string",
+     "description": "app, web, mobile_web, marketplace, live_commerce(2026-09 신규)",
+     "shortTitle": "주문 채널",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_order.quantity",
+     "title": "주문 주문 수량",
+     "type": "number",
+     "shortTitle": "주문 수량",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_order.coupon_used",
+     "title": "주문 쿠폰 사용 여부",
+     "type": "boolean",
+     "shortTitle": "쿠폰 사용 여부",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_order.is_free_shipping",
+     "title": "주문 무료배송 여부",
+     "type": "boolean",
+     "shortTitle": "무료배송 여부",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_order.order_amount",
+     "title": "주문 주문금액(원)",
+     "type": "number",
+     "shortTitle": "주문금액(원)",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    }
+   ],
+   "segments": [],
+   "hierarchies": [
+    {
+     "name": "ecom_order.seller_org",
+     "title": "MD팀 > 판매자",
+     "levels": [
+      "ecom_order.md_team_nm",
+      "ecom_order.seller_id"
+     ],
+     "public": true
+    }
+   ],
+   "folders": [],
+   "nestedFolders": []
+  },
+  {
+   "name": "ecom_product",
+   "type": "cube",
+   "title": "상품",
+   "isVisible": true,
+   "public": true,
+   "description": "상품과 카테고리. 상품은 카테고리 하나에 속한다.",
+   "connectedComponent": 1,
+   "measures": [],
+   "dimensions": [
+    {
+     "name": "ecom_product.product_id",
+     "title": "상품 상품",
+     "type": "string",
+     "shortTitle": "상품",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": true
+    },
+    {
+     "name": "ecom_product.product_nm",
+     "title": "상품 상품명",
+     "type": "string",
+     "shortTitle": "상품명",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_product.category_l1",
+     "title": "상품 대분류",
+     "type": "string",
+     "shortTitle": "대분류",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_product.category_nm",
+     "title": "상품 카테고리",
+     "type": "string",
+     "shortTitle": "카테고리",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_product.list_price",
+     "title": "상품 정가(원)",
+     "type": "number",
+     "shortTitle": "정가(원)",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    }
+   ],
+   "segments": [],
+   "hierarchies": [
+    {
+     "name": "ecom_product.category_tree",
+     "title": "대분류 > 카테고리 > 상품",
+     "levels": [
+      "ecom_product.category_l1",
+      "ecom_product.category_nm",
+      "ecom_product.product_id"
+     ],
+     "public": true
+    }
+   ],
+   "folders": [],
+   "nestedFolders": []
+  },
+  {
+   "name": "ecom_return",
+   "type": "cube",
+   "title": "반품",
+   "isVisible": true,
+   "public": true,
+   "description": "반품된 주문만 존재한다. 주문과 1:1(반품이 없으면 행 없음).",
+   "connectedComponent": 1,
+   "measures": [
+    {
+     "name": "ecom_return.count",
+     "title": "반품 반품 수",
+     "shortTitle": "반품 수",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "count",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecom_return.total_refund_amount",
+     "title": "반품 환불금액 합계(원)",
+     "shortTitle": "환불금액 합계(원)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "sum",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "isVisible": true,
+     "public": true
+    }
+   ],
+   "dimensions": [
+    {
+     "name": "ecom_return.order_id",
+     "title": "반품 Order Id",
+     "type": "string",
+     "shortTitle": "Order Id",
+     "suggestFilterValues": true,
+     "isVisible": false,
+     "public": false,
+     "primaryKey": true
+    },
+    {
+     "name": "ecom_return.return_dt",
+     "title": "반품 반품일자",
+     "type": "time",
+     "shortTitle": "반품일자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_return.return_reason",
+     "title": "반품 반품 사유",
+     "type": "string",
+     "shortTitle": "반품 사유",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    }
+   ],
+   "segments": [],
+   "hierarchies": [],
+   "folders": [],
+   "nestedFolders": []
+  },
+  {
+   "name": "ecom_seller",
+   "type": "cube",
+   "title": "판매자",
+   "isVisible": true,
+   "public": true,
+   "description": "판매자 마스터. md_team_nm은 현재 소속이다(주문 시점 소속은 ecom_order.md_team_nm).",
+   "connectedComponent": 1,
+   "measures": [],
+   "dimensions": [
+    {
+     "name": "ecom_seller.seller_id",
+     "title": "판매자 판매자",
+     "type": "string",
+     "shortTitle": "판매자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": true
+    },
+    {
+     "name": "ecom_seller.seller_nm",
+     "title": "판매자 판매자명",
+     "type": "string",
+     "shortTitle": "판매자명",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_seller.category_l1",
+     "title": "판매자 주력 대분류",
+     "type": "string",
+     "shortTitle": "주력 대분류",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_seller.seller_grade",
+     "title": "판매자 판매자 등급",
+     "type": "string",
+     "shortTitle": "판매자 등급",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    },
+    {
+     "name": "ecom_seller.join_dt",
+     "title": "판매자 입점일자",
+     "type": "time",
+     "shortTitle": "입점일자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false
+    }
+   ],
+   "segments": [],
+   "hierarchies": [],
+   "folders": [],
+   "nestedFolders": []
+  },
+  {
+   "name": "ecommerce_kpi",
+   "type": "view",
+   "title": "이커머스 KPI",
+   "isVisible": true,
+   "public": true,
+   "description": "이커머스 운영 KPI 통합 뷰. ecom_order를 기준으로 상품·판매자·고객·배송·반품을 연결한다. Decision Graph는 repo root의 decision-graph/ecommerce/*.yml에 base cube.measure 기준으로 등록한다.\n",
+   "measures": [
+    {
+     "name": "ecommerce_kpi.order_count",
+     "title": "이커머스 KPI 주문 수",
+     "shortTitle": "주문 수",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "count",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_order.count",
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecommerce_kpi.total_order_amount",
+     "title": "이커머스 KPI 주문금액 합계(원)",
+     "shortTitle": "주문금액 합계(원)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "sum",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_order.total_order_amount",
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecommerce_kpi.avg_order_value",
+     "title": "이커머스 KPI 객단가(원)",
+     "description": "주문 1건당 평균 주문금액.",
+     "shortTitle": "객단가(원)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "avg",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_order.avg_order_value",
+     "meta": {
+      "preAggregation": {
+       "granularity": "month",
+       "range": [
+        "2026-01-01",
+        "2026-09-30"
+       ],
+       "timeDimension": "order_dt"
+      }
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecommerce_kpi.return_rate",
+     "title": "이커머스 KPI 반품률(%)",
+     "description": "전체 주문 중 반품된 주문의 비율.",
+     "shortTitle": "반품률(%)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "number",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_order.return_rate",
+     "meta": {
+      "preAggregation": {
+       "granularity": "month",
+       "range": [
+        "2026-01-01",
+        "2026-09-30"
+       ],
+       "timeDimension": "order_dt"
+      }
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecommerce_kpi.return_amount_rate",
+     "title": "이커머스 KPI 금액 기준 반품률(%)",
+     "description": "전체 주문금액 중 환불금액의 비율. 분모가 주문 수가 아니라 금액이다.",
+     "shortTitle": "금액 기준 반품률(%)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "number",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_order.return_amount_rate",
+     "meta": {
+      "preAggregation": {
+       "granularity": "month",
+       "range": [
+        "2026-01-01",
+        "2026-09-30"
+       ],
+       "timeDimension": "order_dt"
+      }
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecommerce_kpi.late_delivery_rate",
+     "title": "이커머스 KPI 지연배송률(%)",
+     "description": "배송된 주문 중 약속일보다 늦게 도착한 주문의 비율.",
+     "shortTitle": "지연배송률(%)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "number",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_order.late_delivery_rate",
+     "meta": {
+      "preAggregation": {
+       "granularity": "month",
+       "range": [
+        "2026-01-01",
+        "2026-09-30"
+       ],
+       "timeDimension": "order_dt"
+      }
+     },
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecommerce_kpi.late_count",
+     "title": "이커머스 KPI 지연 배송 수",
+     "shortTitle": "지연 배송 수",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "count",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_delivery.late_count",
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecommerce_kpi.avg_delivery_days",
+     "title": "이커머스 KPI 평균 배송 소요일",
+     "shortTitle": "평균 배송 소요일",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "avg",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_delivery.avg_delivery_days",
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecommerce_kpi.return_count",
+     "title": "이커머스 KPI 반품 수",
+     "shortTitle": "반품 수",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "count",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_return.count",
+     "isVisible": true,
+     "public": true
+    },
+    {
+     "name": "ecommerce_kpi.refund_amount",
+     "title": "이커머스 KPI 환불금액 합계(원)",
+     "shortTitle": "환불금액 합계(원)",
+     "cumulativeTotal": false,
+     "cumulative": false,
+     "type": "number",
+     "aggType": "sum",
+     "drillMembers": [],
+     "drillMembersGrouped": {
+      "measures": [],
+      "dimensions": []
+     },
+     "aliasMember": "ecom_return.total_refund_amount",
+     "isVisible": true,
+     "public": true
+    }
+   ],
+   "dimensions": [
+    {
+     "name": "ecommerce_kpi.order_dt",
+     "title": "이커머스 KPI 주문일자",
+     "type": "time",
+     "shortTitle": "주문일자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_order.order_dt"
+    },
+    {
+     "name": "ecommerce_kpi.seller_id",
+     "title": "이커머스 KPI 판매자",
+     "type": "string",
+     "shortTitle": "판매자",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_order.seller_id"
+    },
+    {
+     "name": "ecommerce_kpi.md_team_nm",
+     "title": "이커머스 KPI MD팀",
+     "type": "string",
+     "description": "주문 시점에 판매자가 소속된 MD팀. 판매자가 팀을 옮기면 기간에 따라 값이 다르다.",
+     "shortTitle": "MD팀",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_order.md_team_nm"
+    },
+    {
+     "name": "ecommerce_kpi.channel",
+     "title": "이커머스 KPI 주문 채널",
+     "type": "string",
+     "description": "app, web, mobile_web, marketplace, live_commerce(2026-09 신규)",
+     "shortTitle": "주문 채널",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_order.channel"
+    },
+    {
+     "name": "ecommerce_kpi.quantity",
+     "title": "이커머스 KPI 주문 수량",
+     "type": "number",
+     "shortTitle": "주문 수량",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_order.quantity"
+    },
+    {
+     "name": "ecommerce_kpi.coupon_used",
+     "title": "이커머스 KPI 쿠폰 사용 여부",
+     "type": "boolean",
+     "shortTitle": "쿠폰 사용 여부",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_order.coupon_used"
+    },
+    {
+     "name": "ecommerce_kpi.is_free_shipping",
+     "title": "이커머스 KPI 무료배송 여부",
+     "type": "boolean",
+     "shortTitle": "무료배송 여부",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_order.is_free_shipping"
+    },
+    {
+     "name": "ecommerce_kpi.order_amount",
+     "title": "이커머스 KPI 주문금액(원)",
+     "type": "number",
+     "shortTitle": "주문금액(원)",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_order.order_amount"
+    },
+    {
+     "name": "ecommerce_kpi.product_id",
+     "title": "이커머스 KPI 상품",
+     "type": "string",
+     "shortTitle": "상품",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_product.product_id"
+    },
+    {
+     "name": "ecommerce_kpi.category_l1",
+     "title": "이커머스 KPI 대분류",
+     "type": "string",
+     "shortTitle": "대분류",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_product.category_l1"
+    },
+    {
+     "name": "ecommerce_kpi.category_nm",
+     "title": "이커머스 KPI 카테고리",
+     "type": "string",
+     "shortTitle": "카테고리",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_product.category_nm"
+    },
+    {
+     "name": "ecommerce_kpi.list_price",
+     "title": "이커머스 KPI 정가(원)",
+     "type": "number",
+     "shortTitle": "정가(원)",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_product.list_price"
+    },
+    {
+     "name": "ecommerce_kpi.seller_grade",
+     "title": "이커머스 KPI 판매자 등급",
+     "type": "string",
+     "shortTitle": "판매자 등급",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_seller.seller_grade"
+    },
+    {
+     "name": "ecommerce_kpi.age_band",
+     "title": "이커머스 KPI 연령대",
+     "type": "string",
+     "shortTitle": "연령대",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_customer.age_band"
+    },
+    {
+     "name": "ecommerce_kpi.region",
+     "title": "이커머스 KPI 지역",
+     "type": "string",
+     "shortTitle": "지역",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_customer.region"
+    },
+    {
+     "name": "ecommerce_kpi.member_grade",
+     "title": "이커머스 KPI 회원 등급",
+     "type": "string",
+     "shortTitle": "회원 등급",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_customer.member_grade"
+    },
+    {
+     "name": "ecommerce_kpi.carrier_nm",
+     "title": "이커머스 KPI 택배사",
+     "type": "string",
+     "shortTitle": "택배사",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_delivery.carrier_nm"
+    },
+    {
+     "name": "ecommerce_kpi.warehouse_nm",
+     "title": "이커머스 KPI 출고센터",
+     "type": "string",
+     "shortTitle": "출고센터",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_delivery.warehouse_nm"
+    },
+    {
+     "name": "ecommerce_kpi.is_late",
+     "title": "이커머스 KPI 지연 여부",
+     "type": "boolean",
+     "shortTitle": "지연 여부",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_delivery.is_late"
+    },
+    {
+     "name": "ecommerce_kpi.delivery_days",
+     "title": "이커머스 KPI 배송 소요일",
+     "type": "number",
+     "shortTitle": "배송 소요일",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_delivery.delivery_days"
+    },
+    {
+     "name": "ecommerce_kpi.return_reason",
+     "title": "이커머스 KPI 반품 사유",
+     "type": "string",
+     "shortTitle": "반품 사유",
+     "suggestFilterValues": true,
+     "isVisible": true,
+     "public": true,
+     "primaryKey": false,
+     "aliasMember": "ecom_return.return_reason"
+    }
+   ],
+   "segments": [],
+   "hierarchies": [
+    {
+     "title": "MD팀 > 판매자",
+     "name": "ecommerce_kpi.seller_org",
+     "levels": [
+      "ecommerce_kpi.md_team_nm",
+      "ecommerce_kpi.seller_id"
+     ],
+     "aliasMember": "ecom_order.seller_org",
+     "public": true
+    },
+    {
+     "title": "대분류 > 카테고리 > 상품",
+     "name": "ecommerce_kpi.category_tree",
+     "levels": [
+      "ecommerce_kpi.category_l1",
+      "ecommerce_kpi.category_nm",
+      "ecommerce_kpi.product_id"
+     ],
+     "aliasMember": "ecom_product.category_tree",
+     "public": true
+    }
+   ],
+   "folders": [],
+   "nestedFolders": []
+  }
+ ]
+}

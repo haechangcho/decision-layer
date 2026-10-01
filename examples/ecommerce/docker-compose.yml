@@ -1,0 +1,64 @@
+# Self-contained Decision Layer demo: Postgres with synthetic data → Cube → Decision Layer API + web.
+#
+#   cd examples/ecommerce && docker compose up --build
+#   web  http://localhost:3000     API  http://localhost:8000/docs     Cube playground  http://localhost:4000
+#   (ports: WEB_PORT, API_PORT, CUBE_PORT)
+#
+# Local demo only: fixed secrets, and requests without a token use service credentials.
+name: decision-layer-example
+
+services:
+  postgres:
+    # 14.x: random() changed in PostgreSQL 15, and the expected answers depend on the seeded sequence
+    image: postgres:14.10
+    environment:
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: sampledb
+    volumes:
+      - ./data/ecom.sql:/docker-entrypoint-initdb.d/ecom.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "psql -U postgres -d sampledb -tAc \"select count(*) from ecom.fact_order\" | grep -q '^[1-9]'"]
+      interval: 5s
+      retries: 60
+
+  cube:
+    image: cubejs/cube:v1.6.25
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      CUBEJS_DB_TYPE: postgres
+      CUBEJS_DB_HOST: postgres
+      CUBEJS_DB_NAME: sampledb
+      CUBEJS_DB_USER: postgres
+      CUBEJS_DB_PASS: example
+      CUBEJS_API_SECRET: example-secret-change-me-0123456789
+      CUBEJS_DEV_MODE: "true"
+    volumes:
+      - ./cube/model:/cube/conf/model:ro
+    ports: ["127.0.0.1:${CUBE_PORT:-4000}:4000"]
+
+  api:
+    build: {context: ../.., dockerfile: Dockerfile}
+    depends_on: [cube]
+    environment:
+      CUBE_API_URL: http://cube:4000/cubejs-api/v1
+      CUBE_INSTANCE: local
+      CUBE_API_SECRET: example-secret-change-me-0123456789
+      DL_SOURCE_ADMIN_TOKEN: ${DL_SOURCE_ADMIN_TOKEN:-local-demo-change-me}
+      DL_RECIPE_ADMIN_TOKEN: ${DL_RECIPE_ADMIN_TOKEN:-local-demo-change-me}
+      DL_SOURCE_CONFIG_KEY: ${DL_SOURCE_CONFIG_KEY:-}
+      DL_ALLOW_SERVICE_CREDENTIALS: "true"
+      DL_RECIPES_DIR: /app/recipes
+      DL_DATABASE_URL: sqlite:////data/decision_layer.db
+    volumes:
+      - ./recipes:/app/recipes
+      - runs:/data
+    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
+
+  web:
+    build: {context: ../../web, args: {DL_API_URL: "http://api:8000"}}
+    depends_on: [api]
+    ports: ["127.0.0.1:${WEB_PORT:-3000}:3000"]
+
+volumes:
+  runs:

@@ -1,0 +1,30 @@
+name: sales-change-diagnosis
+version: 1.1.0
+description: >
+  매출(주문금액 합계) 변화를 진단한다. 직전 같은 길이 기간과 비교해 변화가 유의한지, 일수 효과인지, 곱셈 요인
+  (주문 수 × 객단가, 수량 × 단가) 중 무엇이 움직였는지 보고, 카테고리·채널별 기여를 계산한다. 세 단계가 한 번에 실행된다.
+routing:
+  use_for: [매출 변화, 매출이 왜 늘었나/줄었나, 주문금액 변화, 수량·단가·할인율 같이 보기]
+  do_not_use_for: [반품률, 배송]
+semantic_scope:
+  primary_metric: ecom_order.total_order_amount
+  related_metrics: [ecom_order.count, ecom_order.total_quantity, ecom_order.avg_order_value,
+                    ecom_order.avg_unit_price, ecom_order.discount_rate, ecom_order.return_rate]
+  preferred_dimensions: [ecom_product.category_nm, ecom_order.channel]
+mode: pipeline
+steps:
+  - id: overview
+    method: query.trend
+    bindings: {metric: $scope.primary_metric, related: $scope.related_metrics}
+    params: {vs_previous: true, granularity: month}
+  - id: by_category
+    method: query.drilldown
+    bindings: {metric: $scope.primary_metric, dimensions: [ecom_product.category_nm]}
+    params: {vs_previous: true}
+  - id: by_channel
+    method: query.drilldown
+    bindings: {metric: $scope.primary_metric, dimensions: [ecom_order.channel]}
+    params: {vs_previous: true}
+limits: {max_steps: 8, max_queries: 30}
+validators:
+  - name: complete_period

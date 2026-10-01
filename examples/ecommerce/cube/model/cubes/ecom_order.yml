@@ -1,0 +1,181 @@
+cubes:
+  - name: ecom_order
+    public: true
+    sql_table: ecom.fact_order
+    data_source: default
+
+    title: 주문
+    description: >
+      이커머스 주문 기준 큐브. grain은 주문(order_id) 1건이며 주문당 상품 1종이다.
+      반품률·지연배송률·객단가 등 이커머스 KPI의 기준 큐브.
+      synthetic 데이터(examples/ecommerce/data/ecom.sql).
+
+    joins:
+      - name: ecom_product
+        relationship: many_to_one
+        sql: "{CUBE}.product_id = {ecom_product}.product_id"
+
+      - name: ecom_seller
+        relationship: many_to_one
+        sql: "{CUBE}.seller_id = {ecom_seller}.seller_id"
+
+      - name: ecom_customer
+        relationship: many_to_one
+        sql: "{CUBE}.customer_id = {ecom_customer}.customer_id"
+
+      - name: ecom_delivery
+        relationship: one_to_one
+        sql: "{CUBE}.order_id = {ecom_delivery}.order_id"
+
+      - name: ecom_return
+        relationship: one_to_one
+        sql: "{CUBE}.order_id = {ecom_return}.order_id"
+
+    dimensions:
+      - name: order_id
+        sql: order_id
+        type: string
+        primary_key: true
+        public: true
+        title: 주문번호
+
+      - name: order_dt
+        sql: order_dt
+        type: time
+        title: 주문일자
+
+      - name: seller_id
+        sql: seller_id
+        type: string
+        title: 판매자
+
+      - name: md_team_nm
+        sql: md_team_nm
+        type: string
+        title: MD팀
+        description: 주문 시점에 판매자가 소속된 MD팀. 판매자가 팀을 옮기면 기간에 따라 값이 다르다.
+
+      - name: channel
+        sql: channel
+        type: string
+        title: 주문 채널
+        description: app, web, mobile_web, marketplace, live_commerce(2026-09 신규)
+
+      - name: quantity
+        sql: quantity
+        type: number
+        title: 주문 수량
+
+      - name: coupon_used
+        sql: coupon_used
+        type: boolean
+        title: 쿠폰 사용 여부
+
+      - name: is_free_shipping
+        sql: is_free_shipping
+        type: boolean
+        title: 무료배송 여부
+
+      - name: order_amount
+        sql: order_amount
+        type: number
+        title: 주문금액(원)
+
+    measures:
+      - name: count
+        type: count
+        title: 주문 수
+
+      - name: total_order_amount
+        sql: order_amount
+        type: sum
+        title: 주문금액 합계(원)
+
+      - name: avg_order_value
+        sql: order_amount
+        type: avg
+        title: 객단가(원)
+        description: 주문 1건당 평균 주문금액.
+        # ratio parts let analysis tools decompose changes (mix vs rate) without re-deriving SQL
+        meta:
+          numerator: total_order_amount
+          denominator: count
+
+      - name: return_rate
+        type: number
+        title: 반품률(%)
+        description: 전체 주문 중 반품된 주문의 비율.
+        sql: "100.0 * {ecom_return.count} / NULLIF({count}, 0)"
+        meta:
+          numerator: ecom_return.count
+          denominator: count
+
+      - name: return_amount_rate
+        type: number
+        title: 금액 기준 반품률(%)
+        description: 전체 주문금액 중 환불금액의 비율. 분모가 주문 수가 아니라 금액이다.
+        sql: "100.0 * {ecom_return.total_refund_amount} / NULLIF({total_order_amount}, 0)"
+        meta:
+          numerator: ecom_return.total_refund_amount
+          denominator: total_order_amount
+
+      - name: late_delivery_rate
+        type: number
+        title: 지연배송률(%)
+        description: 배송된 주문 중 약속일보다 늦게 도착한 주문의 비율.
+        sql: "100.0 * {ecom_delivery.late_count} / NULLIF({ecom_delivery.count}, 0)"
+        meta:
+          numerator: ecom_delivery.late_count
+          denominator: ecom_delivery.count
+
+      - name: total_quantity
+        sql: quantity
+        type: sum
+        title: 판매 수량
+        description: 주문 수량 합계.
+
+      - name: avg_quantity_per_order
+        type: number
+        title: 주문당 수량
+        description: 주문 1건당 평균 수량.
+        sql: "1.0 * {total_quantity} / NULLIF({count}, 0)"
+        meta:
+          numerator: total_quantity
+          denominator: count
+
+      - name: avg_unit_price
+        type: number
+        title: 평균 판매 단가(원)
+        description: 수량 1개당 실제 판매금액(할인 후). 주문금액 합계 / 판매 수량.
+        sql: "1.0 * {total_order_amount} / NULLIF({total_quantity}, 0)"
+        meta:
+          numerator: total_order_amount
+          denominator: total_quantity
+
+      - name: total_list_amount
+        sql: "{ecom_product.list_price} * {CUBE}.quantity"
+        type: sum
+        title: 정가 기준 금액 합계(원)
+        description: 할인 전 금액(상품 정가 × 수량) 합계.
+
+      - name: total_discount_amount
+        sql: "{ecom_product.list_price} * {CUBE}.quantity - {CUBE}.order_amount"
+        type: sum
+        title: 할인금액 합계(원)
+        description: 정가 기준 금액 − 실제 주문금액.
+
+      - name: discount_rate
+        type: number
+        title: 할인율(%)
+        description: 정가 기준 금액 중 할인된 금액의 비율 (쿠폰 등).
+        sql: "100.0 * {total_discount_amount} / NULLIF({total_list_amount}, 0)"
+        meta:
+          numerator: total_discount_amount
+          denominator: total_list_amount
+
+    hierarchies:
+      - name: seller_org
+        title: MD팀 > 판매자
+        levels:
+          - md_team_nm
+          - seller_id

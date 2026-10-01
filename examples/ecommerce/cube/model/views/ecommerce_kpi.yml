@@ -1,0 +1,81 @@
+views:
+  - name: ecommerce_kpi
+    title: 이커머스 KPI
+    description: >
+      이커머스 운영 KPI 통합 뷰. ecom_order를 기준으로 상품·판매자·고객·배송·반품을 연결한다.
+      Decision Layer 검증용 synthetic 데이터 (examples/ecommerce/data/ecom.sql).
+
+    cubes:
+      - join_path: ecom_order
+        includes:
+          - name: count
+            alias: order_count
+          - order_dt
+          - seller_id
+          - md_team_nm
+          - channel
+          - quantity
+          - coupon_used
+          - is_free_shipping
+          - order_amount
+          - total_order_amount
+          - name: avg_order_value
+            meta:
+              pre_aggregation:
+                time_dimension: order_dt
+                granularity: month
+                range: ["2026-01-01", "2026-09-30"]
+          - name: return_rate
+            meta:
+              pre_aggregation:
+                time_dimension: order_dt
+                granularity: month
+                range: ["2026-01-01", "2026-09-30"]
+          - name: return_amount_rate
+            meta:
+              pre_aggregation:
+                time_dimension: order_dt
+                granularity: month
+                range: ["2026-01-01", "2026-09-30"]
+          - name: late_delivery_rate
+            meta:
+              pre_aggregation:
+                time_dimension: order_dt
+                granularity: month
+                range: ["2026-01-01", "2026-09-30"]
+          - seller_org
+
+      - join_path: ecom_order.ecom_product
+        includes:
+          - product_id
+          - category_l1
+          - category_nm
+          - list_price
+          - category_tree
+
+      - join_path: ecom_order.ecom_seller
+        includes:
+          - seller_grade
+
+      - join_path: ecom_order.ecom_customer
+        includes:
+          - age_band
+          - region
+          - member_grade
+
+      - join_path: ecom_order.ecom_delivery
+        includes:
+          - carrier_nm
+          - warehouse_nm
+          - is_late
+          - delivery_days
+          - late_count
+          - avg_delivery_days
+
+      - join_path: ecom_order.ecom_return
+        includes:
+          - return_reason
+          - name: count
+            alias: return_count
+          - name: total_refund_amount
+            alias: refund_amount

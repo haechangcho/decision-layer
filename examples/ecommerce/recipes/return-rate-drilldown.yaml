@@ -1,0 +1,22 @@
+name: return-rate-drilldown
+version: 1.0.0
+description: >
+  반품률이 가장 높은 카테고리를 찾고, 그 카테고리 안에서 판매자까지 내려간다 (두 단계 자동 실행).
+routing:
+  use_for: [반품률 높은 카테고리와 판매자, 반품률 드릴다운]
+semantic_scope:
+  primary_metric: ecom_order.return_rate
+  preferred_dimensions: [ecom_product.category_nm, ecom_order.seller_id]
+mode: pipeline
+steps:
+  - id: by_category
+    method: query.drilldown
+    bindings: {metric: $scope.primary_metric, dimensions: $scope.preferred_dimensions}
+  - id: by_seller
+    method: query.drilldown
+    bindings: {metric: $scope.primary_metric, dimensions: $scope.preferred_dimensions}
+    params:
+      drill_path: $steps.by_category.primary.data.next_candidates.0.drill_path
+limits: {max_steps: 4, max_queries: 12}
+validators:
+  - name: complete_period

@@ -1,0 +1,50 @@
+cubes:
+  - name: ecom_product
+    public: true
+    sql: >
+      SELECT p.product_id, p.product_nm, p.seller_id, p.list_price,
+             c.category_id, c.category_l1, c.category_nm
+      FROM ecom.dim_product p
+      JOIN ecom.dim_category c ON c.category_id = p.category_id
+    data_source: default
+
+    title: 상품
+    description: 상품과 카테고리. 상품은 카테고리 하나에 속한다.
+
+    joins: []
+
+    dimensions:
+      - name: product_id
+        sql: product_id
+        type: string
+        primary_key: true
+        public: true
+        title: 상품
+
+      - name: product_nm
+        sql: product_nm
+        type: string
+        title: 상품명
+
+      - name: category_l1
+        sql: category_l1
+        type: string
+        title: 대분류
+
+      - name: category_nm
+        sql: category_nm
+        type: string
+        title: 카테고리
+
+      - name: list_price
+        sql: list_price
+        type: number
+        title: 정가(원)
+
+    hierarchies:
+      - name: category_tree
+        title: 대분류 > 카테고리 > 상품
+        levels:
+          - category_l1
+          - category_nm
+          - product_id

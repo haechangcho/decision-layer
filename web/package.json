@@ -1,0 +1,29 @@
+{
+  "name": "decision-layer-web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev -p 5210",
+    "build": "next build",
+    "start": "next start -p 5210",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:design": "npm run test:e2e"
+  },
+  "dependencies": {
+    "@fluentui/react-components": "^9.74.9",
+    "@xyflow/react": "^12.12.0",
+    "lucide-react": "^1.49.0",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "recharts": "^3.10.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5.9"
+  }
+}

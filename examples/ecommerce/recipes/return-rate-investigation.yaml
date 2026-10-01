@@ -1,0 +1,28 @@
+name: return-rate-investigation
+version: 1.2.0
+description: >
+  반품률이 왜 높은지, 왜 변했는지 조사한다. 변화 크기 확인 → 어느 그룹이 변화를 만들었는지 →
+  문제 그룹으로 드릴다운 → 조건을 맞춘 비교(원인 후보 검증) 순서로 진행한다.
+routing:
+  use_for: [반품률 원인, 반품률 상승/하락, 반품이 많은 카테고리·판매자, 반품률에 영향을 주는 요인]
+  do_not_use_for: [금액 기준 반품률(return_amount_rate), 환불금액 분석]
+semantic_scope:
+  primary_metric: ecom_order.return_rate
+  related_metrics: [ecom_order.count, ecom_return.count, ecom_order.late_delivery_rate, ecom_order.avg_order_value,
+                    ecom_delivery.avg_delivery_days]
+  preferred_dimensions: [ecom_product.category_nm, ecom_order.seller_id, ecom_order.channel, ecom_order.is_free_shipping]
+mode: investigation
+allowed_methods: [query.trend, query.drilldown, causal.cem]
+limits: {max_steps: 12, max_queries: 60}
+validators:
+  - name: complete_period
+  - name: freshness
+instructions: >
+  기간 변화를 묻는 질문이면 먼저 query.trend(current·comparison 또는 vs_previous)로 변화가 유의한지 확인한다.
+  유의하지 않으면 원인을 찾지 말고 그렇게 답한다. 유의하면 query.drilldown 기간 모드로 어느 그룹이 변화를 만들었는지 본다.
+  문제 그룹은 preferred_dimensions 순서로 query.drilldown해 좁힌다. 판매자 수준의 결론은
+  selection 보정 후에도 유의한 경우에만 말한다.
+  요인(무료배송 여부, 택배사, 배송 소요일 등)이 반품률과 관련 있는지는 causal.cem으로 조건을 맞춰 비교한다.
+  주문 요인의 기본 조건은 카테고리(ecom_product.category_nm)·채널(ecom_order.channel)·주문금액(ecom_order.order_amount,
+  구간 [30000, 100000, 300000])이다. 조건을 맞춘 결과가 있을 때만
+  '조건을 맞춰도 관련이 있다'고 말하고, 맞추지 않은 요인이 남아 있다는 한계를 함께 밝힌다.

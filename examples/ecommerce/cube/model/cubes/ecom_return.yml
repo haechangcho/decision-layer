@@ -1,0 +1,37 @@
+cubes:
+  - name: ecom_return
+    public: true
+    sql_table: ecom.fact_return
+    data_source: default
+
+    title: 반품
+    description: 반품된 주문만 존재한다. 주문과 1:1(반품이 없으면 행 없음).
+
+    joins: []
+
+    dimensions:
+      - name: order_id
+        sql: order_id
+        type: string
+        primary_key: true
+        public: false
+
+      - name: return_dt
+        sql: return_dt
+        type: time
+        title: 반품일자
+
+      - name: return_reason
+        sql: return_reason
+        type: string
+        title: 반품 사유
+
+    measures:
+      - name: count
+        type: count
+        title: 반품 수
+
+      - name: total_refund_amount
+        sql: refund_amount
+        type: sum
+        title: 환불금액 합계(원)

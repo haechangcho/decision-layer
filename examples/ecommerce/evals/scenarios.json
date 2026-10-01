@@ -1,0 +1,131 @@
+{
+  "note": "Expected values: ../EXPECTED.md (synthetic data in ../data/ecom.sql); recipes in ../recipes.",
+  "scenarios": [
+    {
+      "id": "drill-category-seller",
+      "question": "2026-01-01~2026-09-30 반품률이 높은 카테고리를 찾고, 그 안에서 문제 판매자까지 좁혀줘.",
+      "must_call": [
+        "query.drilldown"
+      ],
+      "expect_status": [
+        "success"
+      ],
+      "expect_numbers": [
+        22.81
+      ],
+      "must_mention": [
+        "S017"
+      ]
+    },
+    {
+      "id": "cem-free-shipping",
+      "question": "무료배송 주문이 반품률을 높이는지, 카테고리·채널·주문금액(3만/10만/30만 원 구간)을 맞춰서 비교해줘. 기간은 2026-01-01~2026-09-30.",
+      "must_call": [
+        "causal.cem"
+      ],
+      "expect_status": [
+        "success"
+      ],
+      "expect_numbers": [
+        1.57
+      ],
+      "must_not_mention": [
+        "무료배송이 원인",
+        "무료배송 때문에 반품",
+        "반품률을 높입니다"
+      ]
+    },
+    {
+      "id": "cem-carrier-asks",
+      "question": "2026-01-01~2026-09-30 B택배의 지연배송률이 정말 높은지 지역과 출고센터를 맞춰서 비교해줘.",
+      "must_call": [
+        "causal.cem"
+      ],
+      "expect_status": [
+        "needs_input"
+      ],
+      "must_ask_user": true,
+      "user_replies": [
+        "A택배와 비교해줘"
+      ],
+      "expect_numbers": [
+        1.96
+      ]
+    },
+    {
+      "id": "cem-carrier-no-difference",
+      "question": "C택배는 원래 지연이 많다고 하던데, 지역·출고센터가 같은 A택배와 비교해도 그런지 봐줘. 2026-01-01~2026-09-30, 지연배송률 기준.",
+      "must_call": [
+        "causal.cem"
+      ],
+      "expect_status": [
+        "success"
+      ],
+      "expect_numbers": [
+        0.03
+      ],
+      "must_mention_any": [
+        "유의하지 않",
+        "차이가 없",
+        "구분되지 않",
+        "0을 포함",
+        "우연"
+      ]
+    },
+    {
+      "id": "cem-delivery-days",
+      "question": "배송 소요일이 3일 이상인 주문이 3일 미만보다 반품률이 높은지, 카테고리·채널·주문금액(3만/10만/30만 원 구간)을 맞춰 비교해줘. 2026-01-01~2026-09-30.",
+      "must_call": [
+        "causal.cem"
+      ],
+      "expect_status": [
+        "success"
+      ],
+      "expect_numbers": [
+        1.81
+      ]
+    },
+    {
+      "id": "sales-change-days",
+      "question": "3분기(2026-07-01~2026-09-30) 매출이 2분기(2026-04-01~2026-06-30)보다 늘었는데 왜 늘었는지 수량·단가·주문 수로 설명해줘.",
+      "expect_status": [
+        "success"
+      ],
+      "must_mention_any": [
+        "일수",
+        "하루 평균",
+        "92일"
+      ],
+      "must_call_any": [
+        "query.trend",
+        "recipe:sales-change-diagnosis"
+      ]
+    },
+    {
+      "id": "not-comparable",
+      "question": "2026-09-28~2026-09-30 판매자 S017 주문만 놓고 무료배송이 반품률에 영향을 줬는지 카테고리·채널을 맞춰 비교해줘.",
+      "must_call": [
+        "causal.cem"
+      ],
+      "must_mention_any": [
+        "비교할 수 없",
+        "기준",
+        "부족",
+        "적어",
+        "미만"
+      ]
+    },
+    {
+      "id": "warning-not-extrapolated",
+      "question": "2026-07-01부터 오늘까지 반품률을 직전 같은 기간과 비교해줘.",
+      "expect_status": [
+        "success"
+      ],
+      "must_not_mention": [
+        "덜 잡혔",
+        "늦게 들어",
+        "반품이 아직"
+      ]
+    }
+  ]
+}

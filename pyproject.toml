@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "decision-layer"
+version = "0.1.0"
+description = "Governed analysis methods, recipes and runs on top of a semantic layer (Cube first)"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+dependencies = [
+    "pydantic>=2.7,<3",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "pyjwt>=2.8",
+    "pyyaml>=6.0",
+    "psycopg[binary]>=3.2",
+    "numpy>=1.26",
+    "cryptography>=44,<47",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=2.2,<3"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21", "mcp>=2.2,<3"]
+
+[project.scripts]
+decision-layer-mcp = "decision_layer.mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/decision_layer"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = ["cube: needs a running Cube with the ecommerce model — run with -m cube"]
+addopts = "-m 'not cube'"

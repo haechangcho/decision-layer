@@ -1,0 +1,68 @@
+cubes:
+  - name: ecom_delivery
+    public: true
+    sql_table: ecom.fact_delivery
+    data_source: default
+
+    title: 배송
+    description: 주문별 배송 정보. 주문과 1:1.
+
+    joins: []
+
+    dimensions:
+      - name: order_id
+        sql: order_id
+        type: string
+        primary_key: true
+        public: false
+
+      - name: carrier_nm
+        sql: carrier_nm
+        type: string
+        title: 택배사
+
+      - name: warehouse_nm
+        sql: warehouse_nm
+        type: string
+        title: 출고센터
+
+      - name: ship_dt
+        sql: ship_dt
+        type: time
+        title: 출고일자
+
+      - name: promised_dt
+        sql: promised_dt
+        type: time
+        title: 도착약속일자
+
+      - name: delivered_dt
+        sql: delivered_dt
+        type: time
+        title: 배송완료일자
+
+      - name: is_late
+        sql: is_late
+        type: boolean
+        title: 지연 여부
+
+      - name: delivery_days
+        sql: delivery_days
+        type: number
+        title: 배송 소요일
+
+    measures:
+      - name: count
+        type: count
+        title: 배송 수
+
+      - name: late_count
+        type: count
+        title: 지연 배송 수
+        filters:
+          - sql: "{CUBE}.is_late"
+
+      - name: avg_delivery_days
+        sql: delivery_days
+        type: avg
+        title: 평균 배송 소요일

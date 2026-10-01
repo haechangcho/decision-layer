@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -e '.[dev]'
+      - run: pytest            # unit tests, incl. domain-neutral and i18n guards
+
+  web:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: web}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22", cache: npm, cache-dependency-path: web/package-lock.json}
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+  example:
+    # the whole stack from examples/ecommerce against official Cube OSS, checked against EXPECTED.md
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -e '.[dev]'
+      - run: docker compose -f examples/ecommerce/docker-compose.yml up -d --build --wait postgres cube api
+        env: {WEB_PORT: "3000"}
+      - name: wait for cube
+        run: for i in $(seq 1 60); do curl -sf localhost:4000/readyz && break; sleep 5; done
+      - run: pytest -m cube
+        env:
+          CUBE_API_URL: http://localhost:4000/cubejs-api/v1
+          CUBE_API_SECRET: example-secret-change-me-0123456789
+      - if: failure()
+        run: docker compose -f examples/ecommerce/docker-compose.yml logs --tail 100

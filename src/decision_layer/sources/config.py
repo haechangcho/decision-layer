@@ -1,0 +1,146 @@
+"""Environment-overridable source settings; persisted secrets are always encrypted."""
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from typing import Literal
+
+from cryptography.fernet import Fernet, InvalidToken
+from pydantic import AnyHttpUrl, BaseModel, ConfigDict, Field, SecretStr, field_validator
+
+from ..core.errors import DecisionLayerError
+from .store import SourceStore
+
+
+class SourceConfigError(DecisionLayerError):
+    def __init__(self, code: str, message: str, status: int = 400) -> None:
+        super().__init__(message)
+        self.code, self.http_status = code, status
+
+
+class SourceConfigInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    api_url: str
+    auth_method: Literal["token", "api_secret", "none"] = "token"
+    api_secret: SecretStr | None = None
+    clear_secret: bool = False
+    service_groups: list[str] = Field(default_factory=list)
+
+    @field_validator("api_url")
+    @classmethod
+    def valid_cube_url(cls, value: str) -> str:
+        raw = value.strip()
+        try:
+            parsed = AnyHttpUrl(raw)
+        except ValueError as exc:
+            raise ValueError("Enter a valid http or https Cube API URL") from exc
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError("Cube URL must use http or https")
+        if parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError("Cube URL must not contain credentials, query parameters or a fragment")
+        return raw.rstrip("/")
+
+    @field_validator("service_groups")
+    @classmethod
+    def clean_groups(cls, values: list[str]) -> list[str]:
+        return list(dict.fromkeys(v.strip() for v in values if v.strip()))
+
+
+@dataclass(frozen=True)
+class EffectiveSource:
+    api_url: str
+    instance: str
+    auth_method: Literal["token", "api_secret", "none"]
+    api_secret: str | None
+    service_groups: tuple[str, ...]
+    environment_overrides: dict[str, bool]
+    saved_secret: bool
+
+
+class SourceConfigManager:
+    def __init__(self, store: SourceStore, settings) -> None:
+        self.store, self.settings = store, settings
+
+    def _fernet(self) -> Fernet:
+        key = self.settings.source_config_key
+        if not key:
+            raise SourceConfigError("SOURCE_ENCRYPTION_NOT_CONFIGURED",
+                                    "Set DL_SOURCE_CONFIG_KEY before saving a Cube API secret.", 503)
+        try:
+            return Fernet(key.encode("ascii"))
+        except (ValueError, UnicodeEncodeError) as exc:
+            raise SourceConfigError("SOURCE_ENCRYPTION_KEY_INVALID",
+                                    "DL_SOURCE_CONFIG_KEY must be a valid Fernet key.", 503) from exc
+
+    async def effective(self, *, resolve_secret: bool = True) -> EffectiveSource:
+        saved = await self.store.get() or {}
+        env_url = os.environ.get("CUBE_API_URL")
+        env_instance = os.environ.get("CUBE_INSTANCE")
+        env_secret = os.environ.get("CUBE_API_SECRET")
+        env_method = os.environ.get("CUBE_AUTH_METHOD")
+        env_groups = os.environ.get("CUBE_SERVICE_GROUPS")
+        encrypted = saved.get("api_secret_ciphertext")
+        saved_secret = bool(encrypted)
+        secret = env_secret or self.settings.cube_api_secret or None
+        if resolve_secret and secret is None and encrypted:
+            try:
+                secret = self._fernet().decrypt(encrypted.encode("ascii")).decode("utf-8")
+            except (InvalidToken, ValueError, UnicodeDecodeError) as exc:
+                raise SourceConfigError("SOURCE_SECRET_UNREADABLE",
+                                        "The saved Cube secret cannot be decrypted. Check DL_SOURCE_CONFIG_KEY.", 503) from exc
+        if env_method and env_method not in ("token", "api_secret", "none"):
+            raise SourceConfigError("SOURCE_AUTH_METHOD_INVALID", "CUBE_AUTH_METHOD must be token, api_secret or none.", 503)
+        method = env_method or ("api_secret" if env_secret else saved.get("auth_method") or
+                                ("api_secret" if secret else "token"))
+        groups = env_groups.split(",") if env_groups is not None else saved.get(
+            "service_groups", list(self.settings.cube_service_groups))
+        return EffectiveSource(
+            api_url=env_url or saved.get("api_url") or self.settings.cube_api_url,
+            instance=env_instance or self.settings.cube_instance,
+            auth_method=method,
+            api_secret=secret,
+            service_groups=tuple(g.strip() for g in groups if g.strip()),
+            environment_overrides={"api_url": bool(env_url), "instance": bool(env_instance),
+                                   "auth_method": bool(env_method or env_secret),
+                                   "api_secret": bool(env_secret), "service_groups": env_groups is not None},
+            saved_secret=saved_secret or bool(env_secret),
+        )
+
+    async def view(self) -> dict:
+        current = await self.effective(resolve_secret=False)
+        return {"provider": "cube", "instance": current.instance, "api_url": current.api_url,
+                "auth_method": current.auth_method, "api_secret_configured": current.saved_secret,
+                "service_groups": list(current.service_groups),
+                "environment_overrides": current.environment_overrides,
+                "service_credentials_allowed": self.settings.allow_service_credentials,
+                "admin_configured": bool(self.settings.source_admin_token),
+                # editing the shared connection needs the admin key only on a shared deployment
+                "admin_required": bool(self.settings.source_admin_token),
+                # a field is editable in the UI only when no environment variable fixes it
+                "editable": not all(current.environment_overrides.get(k) for k in
+                                    ("api_url", "auth_method", "service_groups")),
+                "encryption_configured": bool(self.settings.source_config_key)}
+
+    async def save(self, value: SourceConfigInput) -> None:
+        if value.auth_method != "token" and not self.settings.allow_service_credentials:
+            raise SourceConfigError("SOURCE_DEV_AUTH_DISABLED", "Development authentication is disabled on this deployment.", 403)
+        effective = await self.effective(resolve_secret=False)
+        field_map = {"api_url": "api_url", "auth_method": "auth_method",
+                     "api_secret": "api_secret", "service_groups": "service_groups"}
+        blocked = [key for key, env_key in field_map.items() if effective.environment_overrides[env_key]
+                   and (key == "api_secret" and (value.api_secret or value.clear_secret)
+                        or key == "service_groups" and value.service_groups != list(effective.service_groups)
+                        or key == "api_url" and value.api_url.rstrip("/") != effective.api_url.rstrip("/")
+                        or key == "auth_method" and value.auth_method != effective.auth_method)]
+        if blocked:
+            raise SourceConfigError("SOURCE_ENV_OVERRIDDEN",
+                                    "These settings are fixed by environment variables: " + ", ".join(blocked), 409)
+        prior = await self.store.get() or {}
+        ciphertext = prior.get("api_secret_ciphertext")
+        if value.clear_secret:
+            ciphertext = None
+        elif value.api_secret and value.api_secret.get_secret_value():
+            ciphertext = self._fernet().encrypt(value.api_secret.get_secret_value().encode()).decode("ascii")
+        await self.store.save({"api_url": value.api_url, "auth_method": value.auth_method,
+                               "api_secret_ciphertext": ciphertext,
+                               "service_groups": value.service_groups})
