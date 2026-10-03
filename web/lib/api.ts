@@ -40,6 +40,8 @@ export interface ParamSpec {
   enum?: string[] | null;
   default?: unknown;
   required: boolean;
+  minimum?: number | null;
+  maximum?: number | null;
   description: string;
   ui_group?: "basic" | "advanced";
 }
@@ -57,7 +59,7 @@ export interface MethodManifest {
 }
 
 export interface Artifact { type: string; title?: string | null; data: unknown }
-export interface Validation { validator: string; status: "pass" | "warning" | "fail"; code: string; message: string }
+export interface Validation { validator: string; status: "pass" | "warning" | "fail"; code: string; message: string; details?: Record<string, unknown> }
 
 export interface Result {
   status: "success" | "needs_input" | "refused" | "failed";
@@ -71,21 +73,26 @@ export interface Result {
   run_id?: string | null;
 }
 
-export interface PlanStep { id?: string | null; method: string; bindings: Record<string, unknown>; params: Record<string, unknown> }
+export interface PlanStep { id?: string | null; method: string; purpose?: string | null; bindings: Record<string, unknown>; params: Record<string, unknown> }
 
 export interface Recipe {
   name: string;
   version: string;
   description: string;
+  status?: "draft" | "published";
+  origin_runs?: string[];
   routing: { use_for: string[]; do_not_use_for: string[] };
   semantic_scope: { primary_metric: string; related_metrics: string[]; preferred_dimensions: string[]; required_filters: unknown[] };
   mode: "pipeline" | "investigation";
   steps: PlanStep[];
   allowed_methods: string[];
+  method_parameters?: Record<string, { fixed: Record<string, unknown>; runtime_allowed?: string[] | null }>;
   limits: { max_steps: number; max_queries: number };
   validators: { name: string }[];
   instructions?: string | null;
 }
+
+export interface RecipeCandidate { recipe: Recipe; source_run_id: string; selected_steps: number[]; review_notes: string[] }
 
 export interface Running { run_id: string; status: "running"; running: { kind: string; method?: string | null; started_at: string } | null; poll: string }
 
@@ -106,9 +113,12 @@ export async function resultWhenDone(runId: string, onTick?: (seconds: number) =
 
 export interface Run {
   id: string;
+  origin?: "unknown" | "python" | "api" | "web" | "mcp";
+  preview?: boolean;
   plan: { question?: string | null; scope: Scope; recipe?: string | null };
   recipe_snapshot?: Recipe | null;
-  steps: { step: PlanStep; method: string; result: Result; started_at: string; finished_at: string }[];
+  steps: { step: PlanStep; method: string; result: Result; started_at: string; finished_at: string;
+    parameter_sources?: Record<string, "method_default" | "recipe" | "recipe_fixed" | "request"> }[];
   caller: { subject?: string | null; groups: string[] };
   shared_with: string[];
   status: "open" | "completed" | "failed";
@@ -151,7 +161,7 @@ export interface ReadinessMetric {
   metric: SemanticObject & { entity?: string | null };
   checks: {
     decomposition: { status: "ready" | "missing" | "not_applicable"; parts: string[]; impact: string | null };
-    time: { status: "ready" | "missing"; dimensions: string[]; impact: string | null };
+    time: { status: "ready" | "unknown" | "missing"; dimensions: string[]; impact: string | null };
     entity_key: { status: "ready" | "missing"; ref: string | null; impact: string | null };
   };
 }
@@ -195,12 +205,11 @@ export function setSourceCallerToken(token: string): void {
   try { token ? sessionStorage.setItem(SOURCE_CALLER_TOKEN, token) : sessionStorage.removeItem(SOURCE_CALLER_TOKEN); } catch { /* private mode */ }
 }
 
-export async function api<T>(path: string, init?: { method?: string; body?: unknown; admin?: boolean; callerToken?: string; recipeKey?: string }): Promise<T> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+export async function api<T>(path: string, init?: { method?: string; body?: unknown; admin?: boolean; callerToken?: string }): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json", "X-Decision-Layer-Client": "web" };
   headers["Accept-Language"] = storedLocale();
   const token = init?.callerToken ?? getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (init?.recipeKey) headers["X-Recipe-Admin-Key"] = init.recipeKey;
   if (init?.admin) {
     const key = getSourceAdminKey();
     if (key) headers["X-Decision-Layer-Admin-Key"] = key;

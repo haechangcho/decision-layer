@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Database, Info, LockKeyhole, Save, ShieldCheck, Wifi } from "lucide-react";
 
 import { api, getSourceAdminKey, getSourceCallerToken, setSourceAdminKey, setToken, type SourceConfig, type SourceReadiness, type SourceTestResult } from "@/lib/api";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import { useT } from "@/lib/i18n";
 import styles from "./sources.module.css";
 
@@ -81,7 +82,7 @@ export default function SourcesPage() {
     setBusy("save"); setError(""); setMessage("");
     try {
       const config = await api<SourceConfig>("/sources/current", { method: "PUT", admin: source?.admin_required, body: editBody() });
-      applyConfig(config); setSecret(""); setToken(auth === "token" ? callerToken.trim() : ""); setMessage(t("Connection settings saved.")); setSaved(true);
+      applyConfig(config); setSecret(""); setToken(auth === "token" ? callerToken.trim() : ""); window.dispatchEvent(new Event("decision-layer.source-updated")); setMessage(t("Connection settings saved.")); setSaved(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : t("Could not save the connection settings.")); }
     finally { setBusy(null); }
   }
@@ -112,7 +113,7 @@ export default function SourcesPage() {
         <div className={styles.actions}>
           <button className={styles.testButton} onClick={() => void testConnection()}
             disabled={busy !== null || (!envManaged && !canEdit) || (auth === "token" && !callerToken.trim() && !envManaged)}>
-            {busy === "test" ? <><span className={styles.spinner} />{t("Testing…")}</> : <><Wifi size={16} />{t("Test connection")}</>}</button>
+            {busy === "test" ? <><LoadingIndicator />{t("Testing…")}</> : <><Wifi size={16} />{t("Test connection")}</>}</button>
           {canEdit && <button className={styles.saveButton} onClick={() => void saveSettings()} disabled={busy !== null || !test || saved}>
             {busy === "save" ? t("Saving…") : <><Save size={15} />{t("Save settings")}</>}</button>}
         </div>
@@ -168,7 +169,7 @@ export default function SourcesPage() {
         <div className={styles.sectionHeading}><h2><ShieldCheck size={17} />{t("Metric readiness")}</h2><span>{t("{count} metrics", { count: readiness.metrics.length })}</span></div>
         {readiness.metrics.length === 0 ? <p>{t("No metrics are visible to the current user. Check the Cube model and access permissions.")}</p>
         : readiness.metrics.map((item) => <article className={styles.readinessRow} key={item.metric.ref}>
-          <div><strong>{item.metric.title}</strong><code>{item.metric.ref}</code></div>
+          <div><strong>{item.metric.title}</strong></div>
           <div>{([["Decomposition", item.checks.decomposition.status], ["Time", item.checks.time.status], ["Primary key", item.checks.entity_key.status]] as const).map(([label, state]) =>
             <span className={state === "missing" ? styles.warn : styles.ok} key={label}>{state === "missing" ? <Info size={13} /> : <Check size={13} />}{t(label)} · {state === "ready" ? t("available") : state === "not_applicable" ? t("not applicable") : t("needs attention")}</span>)}</div>
           {[item.checks.decomposition.impact, item.checks.time.impact, item.checks.entity_key.impact].filter(Boolean).length > 0 && <p>{[item.checks.decomposition.impact, item.checks.time.impact, item.checks.entity_key.impact].filter(Boolean).join(" ")}</p>}

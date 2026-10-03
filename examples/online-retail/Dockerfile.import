@@ -1,0 +1,8 @@
+FROM python:3.11-slim
+
+WORKDIR /example
+RUN pip install --no-cache-dir openpyxl==3.1.5 "psycopg[binary]==3.3.6"
+COPY load.py ./load.py
+COPY evals/verify.py ./verify.py
+COPY evals/cases.json ./cases.json
+CMD ["python", "load.py"]

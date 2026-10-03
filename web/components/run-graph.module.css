@@ -1,0 +1,21 @@
+.section { margin: 18px 0 0; border: 1px solid var(--line); background: #fff; min-width: 0; }
+.heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.heading h2 { margin: 0; color: var(--text); font-size: 15px; }
+.heading span { color: var(--muted); font-size: 11px; }
+.canvas { width: 100%; min-width: 0; background: #f7fafb; }
+.canvas :global(.react-flow__node) { visibility: visible !important; }
+.metricNode { width: 220px; min-height: 95px; display: grid; align-content: center; gap: 12px; padding: 18px; border: 1px solid #9dbbc7; border-left: 3px solid var(--accent); border-radius: 4px; background: #fff; color: var(--text); box-shadow: 0 3px 9px #243c4610; }
+.metricNode strong { font-size: 15px; line-height: 1.4; overflow-wrap: anywhere; }
+.node { width: 270px; min-height: 165px; border: 1px solid #bccbd0; border-radius: 4px; background: #fff; color: var(--text); box-shadow: 0 3px 9px #243c4610; }
+.node:hover { border-color: var(--accent); }
+.selected { border: 2px solid var(--accent); }
+.nodeButton { display: grid; gap: 9px; align-content: start; width: 100%; min-height: 163px; padding: 16px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.selected .nodeButton { padding: 15px; }
+.nodeButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.nodeButton strong { font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.eyebrow { display: flex; align-items: center; gap: 6px; color: var(--accent); font-size: 11px; font-weight: 700; }
+.finding { padding-top: 8px; border-top: 1px solid #e8eef0; color: var(--text); font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+.status { color: #61747c; font-size: 11px; }
+.draftChoice { display: flex; align-items: center; gap: 8px; padding: 0 16px 12px; font-size: 12px; cursor: pointer; }
+.draftChoice input { accent-color: var(--accent); width: 16px; height: 16px; }
+@media (max-width: 700px) { .heading { align-items: flex-start; flex-direction: column; gap: 3px; padding: 12px 14px; } }

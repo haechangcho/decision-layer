@@ -1,0 +1,16 @@
+name: Bug report
+description: Report a reproducible setup, UI or analytical issue.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Commands or steps, versions, and sanitized logs. For analytical bugs, include Method, grain and expected values using public or synthetic data. Never include tokens or private data.
+    validations:
+      required: true

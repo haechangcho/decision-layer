@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 import hmac
-from typing import Annotated
+from typing import Annotated, Literal
+
+import yaml
 
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.responses import JSONResponse
@@ -11,7 +13,7 @@ from fastapi.responses import JSONResponse
 from .. import __version__
 from ..auth import credentials, identify
 from ..i18n import _, negotiate, set_locale
-from ..core.errors import DecisionLayerError, ProviderAccessDenied, ProviderError
+from ..core.errors import DecisionLayerError, ProviderAccessDenied, ProviderError, UnknownSemanticObject
 from ..core.models import (
     CallerInfo, Dataset, DatasetSpec, MethodManifest, PlanStep, ProviderCapabilities, Recipe, Result, Run, SemanticCatalog,
     SemanticObject,
@@ -23,16 +25,22 @@ from ..semantic.providers.cube.provider import CubeProvider
 from ..sources.config import EffectiveSource, SourceConfigError, SourceConfigInput, SourceConfigManager
 from ..sources.provider import ConfiguredCubeProvider
 from ..sources.store import open_source_store
-from ..recipes.loader import RecipeStore
+from ..recipes.loader import RecipeStore, parse_recipe
+from ..recipes.from_run import RecipeCandidate, candidate_from_run
 from ..runs.engine import RunEngine
 from ..runs.jobs import JobRunner
 from ..runs.store import RunStore, open_store
-from ..service import MethodRunRequest, RecipeSaveRequest, RunCompleteRequest, RunShareRequest, RunStartRequest, RunStepRequest
+from ..service import MethodRunRequest, RecipePreviewRequest, RecipePublishRequest, RecipeSaveRequest, RecipeYamlRequest, RunCompleteRequest, RunShareRequest, RunStartRequest, RunStepRequest
 from ..settings import Settings
 from ..i18n import _
 
 PREVIEW_ROWS = 1000
 MAX_WAIT_SECONDS = 300
+
+
+def run_origin(request: Request) -> Literal["api", "web", "mcp"]:
+    hint = request.headers.get("X-Decision-Layer-Client")
+    return hint if hint in ("web", "mcp") else "api"
 
 
 class JobFailed(DecisionLayerError):
@@ -202,6 +210,7 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
             entity_ref = metric.entity
             related = [obj for obj in public if entity_ref and obj.entity == entity_ref]
             times = [obj for obj in related if obj.kind == "time_dimension"]
+            any_times = any(obj.kind == "time_dimension" for obj in public)
             has_key = bool(entity_ref and any(obj.ref == entity_ref for obj in public))
             ratio_parts = metric.ratio_parts
             ratio_ok = bool(ratio_parts and all(any(obj.ref == ref and obj.kind == "measure" for obj in public)
@@ -210,8 +219,10 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
                 "decomposition": {"status": "ready" if ratio_ok else ("missing" if metric.metric_kind == "ratio" else "not_applicable"),
                                   "parts": list(ratio_parts) if ratio_parts else [],
                                   "impact": None if ratio_ok or metric.metric_kind != "ratio" else "This ratio cannot be decomposed into its declared numerator and denominator."},
-                "time": {"status": "ready" if times else "missing", "dimensions": [o.ref for o in times],
-                         "impact": None if times else "Time-series analysis is unavailable."},
+                "time": {"status": "ready" if times else ("unknown" if any_times else "missing"),
+                         "dimensions": [o.ref for o in times],
+                         "impact": None if times else ("A related time dimension could not be confirmed from metadata. Select and verify one when running."
+                                                       if any_times else "Time-series analysis is unavailable: no time dimension is visible.")},
                 "entity_key": {"status": "ready" if has_key else "missing", "ref": entity_ref,
                                "impact": None if has_key else "Matched/entity-level comparisons may be unavailable."},
             }
@@ -245,67 +256,121 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
         return localized(registry.get(name).manifest)
 
     @app.post("/methods/{name}:run", response_model=Result, responses={202: {"description": "still running"}})
-    async def method_run(name: str, req: MethodRunRequest, creds: Creds, caller: Caller,
+    async def method_run(name: str, req: MethodRunRequest, creds: Creds, caller: Caller, request: Request,
                          wait: float | None = None):
         """Ad-hoc Method run, stored as a single-step Run owned by the caller. Answers the Result when it
         finishes within `wait` seconds, else 202 {run_id, poll} — then poll GET /runs/{run_id}/result."""
         run, result = await engine.adhoc(creds, caller, PlanStep(method=name, bindings=req.bindings, params=req.params),
-                                         req.scope.as_dict(), wait=waited(wait))
+                                         req.scope.as_dict(), wait=waited(wait), origin=run_origin(request), question=req.question)
         return result if result is not None else accepted(run)
 
     @app.get("/recipes", response_model=list[Recipe])
     async def recipes_list(_caller: Caller) -> list[Recipe]:
         return recipes.list()
 
+    @app.get("/recipes:drafts", response_model=list[Recipe])
+    async def recipe_drafts(_caller: Caller) -> list[Recipe]:
+        return recipes.list_drafts()
+
+    @app.post("/recipes:format")
+    async def recipe_format(recipe: Recipe, _caller: Caller) -> dict[str, str]:
+        recipes.validate(recipe)
+        return {"yaml": yaml.safe_dump(recipe.model_dump(mode="json"), allow_unicode=True, sort_keys=False)}
+
+    @app.post("/recipes:parse", response_model=Recipe)
+    async def recipe_parse(req: RecipeYamlRequest, _caller: Caller) -> Recipe:
+        from ..recipes.authoring import RecipeEditError
+
+        try:
+            document = yaml.safe_load(req.yaml)
+            if not isinstance(document, dict):
+                raise RecipeEditError(_("Recipe YAML must be a mapping."))
+            parsed = parse_recipe(document, provider.name, provider.instance)
+        except yaml.YAMLError as error:
+            raise RecipeEditError(_("Recipe YAML syntax is invalid: {error}", error=error)) from error
+        except ValueError as error:
+            raise RecipeEditError(_("Recipe YAML structure is invalid: {error}", error=error)) from error
+        recipes.validate(parsed)
+        return parsed
+
+    async def check_recipe_semantics(recipe: Recipe, creds: Creds) -> None:
+        paths: dict[str, str] = {}
+
+        def collect(value, path: str) -> None:
+            if isinstance(value, str) and value.startswith("cube://"):
+                paths.setdefault(value, path)
+            elif isinstance(value, dict):
+                for key, child in value.items():
+                    collect(child, f"{path}.{key}" if path else key)
+            elif isinstance(value, list):
+                for index, child in enumerate(value):
+                    collect(child, f"{path}[{index}]")
+
+        collect(recipe.model_dump(mode="json"), "")
+        try:
+            await provider.resolve(sorted(paths), creds)
+        except UnknownSemanticObject as error:
+            if field := paths.get(error.details.get("ref")):
+                error.details["field"] = field
+            raise
+
     @app.post("/recipes:validate")
     async def recipe_validate(recipe: Recipe, _caller: Caller, creds: Creds, live: bool = False) -> dict[str, bool]:
         """Validate the shared static contract and, optionally, caller-visible semantic references."""
         recipes.validate(recipe)
         if live:
-            refs: set[str] = set()
-
-            def collect(value) -> None:
-                if isinstance(value, str) and value.startswith("cube://"):
-                    refs.add(value)
-                elif isinstance(value, dict):
-                    for child in value.values():
-                        collect(child)
-                elif isinstance(value, list):
-                    for child in value:
-                        collect(child)
-
-            collect(recipe.model_dump(mode="json"))
-            await provider.resolve(sorted(refs), creds)
+            await check_recipe_semantics(recipe, creds)
         return {"valid": True, "semantic_checked": live}
+
+    @app.post("/recipes:preview", response_model=Run, responses={202: {"description": "preview still running"}})
+    async def recipe_preview(req: RecipePreviewRequest, creds: Creds, caller: Caller, request: Request, wait: float | None = None):
+        """Execute an unsaved pipeline prefix with normal validation, access and query limits."""
+        recipes.validate(req.recipe)
+        run = await engine.preview(creds, caller, req.recipe, req.step_index, req.scope.as_dict(), wait=waited(wait), origin=run_origin(request))
+        return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
+
+    @app.get("/recipes/{name}/edit", response_model=Recipe)
+    async def recipe_edit(name: str, _caller: Caller) -> Recipe:
+        return recipes.get(name, include_drafts=True)
+
+    @app.post("/recipes/{name}/publish", response_model=Recipe)
+    async def recipe_publish(name: str, req: RecipePublishRequest, _caller: Caller, creds: Creds) -> Recipe:
+        draft = recipes.get(name, req.base_version, include_drafts=True)
+        recipes.validate(draft)
+        await check_recipe_semantics(draft, creds)
+        return recipes.publish(name, req.base_version)
 
     @app.get("/recipes/{name}", response_model=Recipe)
     async def recipe_get(name: str, _caller: Caller) -> Recipe:
         return recipes.get(name)
 
     @app.put("/recipes/{name}", response_model=Recipe)
-    async def recipe_save(name: str, req: RecipeSaveRequest, _caller: Caller,
-                          x_recipe_admin_key: Annotated[str | None, Header()] = None) -> Recipe:
+    async def recipe_save(name: str, req: RecipeSaveRequest, _caller: Caller) -> Recipe:
         from ..recipes.authoring import RecipeEditError
 
-        if not settings.recipe_admin_token or not hmac.compare_digest(
-                x_recipe_admin_key or "", settings.recipe_admin_token):
-            raise ProviderAccessDenied("Recipe editing requires DL_RECIPE_ADMIN_TOKEN (X-Recipe-Admin-Key).")
         if req.recipe.name != name:
             raise RecipeEditError("Recipe name must match the URL.")
         return recipes.save(req.recipe, req.base_version)
 
     @app.post("/runs", response_model=Run, responses={202: {"description": "pipeline still running"}})
-    async def run_start(req: RunStartRequest, creds: Creds, caller: Caller, wait: float | None = None):
+    async def run_start(req: RunStartRequest, creds: Creds, caller: Caller, request: Request, wait: float | None = None):
         """Start a Run. A pipeline Recipe executes right away (202 with the run while it is still running);
         an investigation Recipe waits for steps."""
         run = await engine.start(creds, caller, recipe=req.recipe, question=req.question, scope=req.scope.as_dict(),
-                                 wait=waited(wait))
+                                 wait=waited(wait), origin=run_origin(request))
         return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
 
     @app.get("/runs", response_model=list[Run])
     async def runs_list(caller: Caller, limit: int = 50, recipe: str | None = None) -> list[Run]:
         """The caller's own runs, newest first."""
         return await engine.list(caller, limit, recipe)
+
+    @app.get("/runs/{run_id}/recipe-candidate", response_model=RecipeCandidate)
+    async def run_recipe_candidate(run_id: str, creds: Creds, caller: Caller, indices: list[int] = Query(...)) -> RecipeCandidate:
+        run = await engine.get(creds, caller, run_id)
+        candidate = candidate_from_run(run, indices)
+        await check_recipe_semantics(candidate.recipe, creds)
+        return candidate
 
     @app.get("/runs/{run_id}", response_model=Run)
     async def run_get(run_id: str, creds: Creds, caller: Caller) -> Run:

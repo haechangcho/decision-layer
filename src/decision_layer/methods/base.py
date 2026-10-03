@@ -8,6 +8,9 @@ Result. It never knows organisation-specific rules — that is a Recipe's job.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from copy import deepcopy
+from datetime import date
+from math import isfinite
 from typing import Any
 
 from .. import __version__
@@ -65,7 +68,7 @@ class MethodRegistry:
     async def run(self, name: str, ctx: ExecutionContext, bindings: dict[str, Any],
                   params: dict[str, Any] | None = None) -> Result:
         method = self.get(name)
-        params = self._params(method, params or {})
+        params = self.resolve_params(name, params or {})
         refs = self._check_bindings(method, ctx, bindings)
         first_query = len(ctx.queries)
         provenance = lambda: Provenance(  # noqa: E731
@@ -88,20 +91,64 @@ class MethodRegistry:
         )
 
     # ── checks ────────────────────────────────────────────────────────────
+    def resolve_params(self, name: str, params: dict[str, Any]) -> dict[str, Any]:
+        return self._params(self.get(name), params)
+
     @staticmethod
     def _params(method: Method, params: dict[str, Any]) -> dict[str, Any]:
         spec = method.manifest.parameters
         unknown = set(params) - set(spec)
         if unknown:
             raise InvalidBinding(_("Unknown parameters: {names}", names=sorted(unknown)), allowed=sorted(spec))
-        out = {k: p.default for k, p in spec.items()}
+        out = {k: deepcopy(p.default) for k, p in spec.items()}
         out.update(params)
         missing = [k for k, p in spec.items() if p.required and out.get(k) is None]
         if missing:
             raise InvalidBinding(_("Missing required parameters: {names}", names=missing))
         for k, p in spec.items():
-            if p.type == "enum" and out.get(k) is not None and out[k] not in (p.enum or []):
+            value = out.get(k)
+            if value is None:
+                if p.default is not None:
+                    raise InvalidBinding(_("{name} must be a {type}", name=k, type=p.type))
+                continue
+            if p.type == "enum" and value not in (p.enum or []):
                 raise InvalidBinding(_("{name} must be one of {values}", name=k, values=p.enum))
+            if p.type == "boolean" and not isinstance(value, bool):
+                raise InvalidBinding(_("{name} must be a {type}", name=k, type=p.type))
+            if p.type == "integer" and (isinstance(value, bool) or not isinstance(value, int)):
+                raise InvalidBinding(_("{name} must be a {type}", name=k, type=p.type))
+            if p.type == "number" and (isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value)):
+                raise InvalidBinding(_("{name} must be a {type}", name=k, type=p.type))
+            if p.type == "string" and not isinstance(value, str):
+                raise InvalidBinding(_("{name} must be a {type}", name=k, type=p.type))
+            if p.type == "date_range" and (not isinstance(value, (list, tuple)) or len(value) != 2
+                                           or not all(isinstance(day, str) for day in value)):
+                raise InvalidBinding(_("{name} has an invalid structure", name=k))
+            if p.type == "date_range":
+                try:
+                    start, end = (date.fromisoformat(day) for day in value)
+                    if start > end:
+                        raise ValueError
+                except ValueError as exc:
+                    raise InvalidBinding(_("{name} has an invalid structure", name=k)) from exc
+            if p.type == "drill_path" and (not isinstance(value, list) or any(
+                    not isinstance(item, dict) or not isinstance(item.get("member"), str) or "value" not in item
+                    for item in value)):
+                raise InvalidBinding(_("{name} has an invalid structure", name=k))
+            if p.type == "number_list" and (not isinstance(value, list) or any(
+                    isinstance(item, bool) or not isinstance(item, (int, float)) or not isfinite(item)
+                    for item in value)):
+                raise InvalidBinding(_("{name} has an invalid structure", name=k))
+            if p.type == "ref_list" and (not isinstance(value, list) or any(not isinstance(item, str) for item in value)):
+                raise InvalidBinding(_("{name} has an invalid structure", name=k))
+            if p.type == "ranges" and (not isinstance(value, dict) or any(
+                    not isinstance(edges, list) or any(isinstance(edge, bool) or not isinstance(edge, (int, float))
+                    or not isfinite(edge) for edge in edges) for edges in value.values())):
+                raise InvalidBinding(_("{name} has an invalid structure", name=k))
+            if p.minimum is not None and value < p.minimum:
+                raise InvalidBinding(_("{name} must be at least {minimum}", name=k, minimum=p.minimum))
+            if p.maximum is not None and value > p.maximum:
+                raise InvalidBinding(_("{name} must be at most {maximum}", name=k, maximum=p.maximum))
         return out
 
     @staticmethod

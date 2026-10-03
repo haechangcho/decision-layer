@@ -25,3 +25,4 @@ examples/*/evals/results/
 /web/playwright-report/
 /web/.next-local/
 /web/.next-hc-cube/
+/web/.next-empty/

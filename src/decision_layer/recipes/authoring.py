@@ -55,6 +55,27 @@ def validate_recipe(recipe: Recipe) -> None:
             registry.get(method)
         except InvalidBinding as e:
             raise _invalid(e.message, "allowed_methods") from e
+    available = set(recipe.allowed_methods if recipe.mode == "investigation" else (step.method for step in recipe.steps))
+    for method, policy in recipe.method_parameters.items():
+        field = f"method_parameters.{method}"
+        if method not in available:
+            raise _invalid("Parameter policy refers to a Method outside this Recipe.", field)
+        manifest = registry.get(method).manifest
+        for name, value in policy.fixed.items():
+            if name not in manifest.parameters:
+                raise _invalid(f"Unknown Method parameter: {name}.", f"{field}.fixed.{name}")
+            if isinstance(value, str) and value.startswith("$"):
+                raise _invalid("Fixed parameters must be literal values.", f"{field}.fixed.{name}")
+            try:
+                registry.resolve_params(method, {name: value})
+            except InvalidBinding as e:
+                raise _invalid(e.message, f"{field}.fixed.{name}") from e
+        if policy.runtime_allowed is not None:
+            if len(policy.runtime_allowed) != len(set(policy.runtime_allowed)):
+                raise _invalid("Runtime parameter names must be unique.", f"{field}.runtime_allowed")
+            for name in policy.runtime_allowed:
+                if name not in manifest.parameters or name in policy.fixed:
+                    raise _invalid(f"Parameter cannot be selected at runtime: {name}.", f"{field}.runtime_allowed")
     for i, step in enumerate(recipe.steps):
         try:
             manifest = registry.get(step.method).manifest
@@ -78,6 +99,14 @@ def validate_recipe(recipe: Recipe) -> None:
                 continue
             if value is not None and param.type == "enum" and value not in (param.enum or []):
                 raise _invalid(f"Invalid value for {key}.", f"steps[{i}].params.{key}")
+            fixed = recipe.method_parameters.get(step.method)
+            if fixed and key in fixed.fixed and key in step.params and step.params[key] != fixed.fixed[key]:
+                raise _invalid(f"{key} conflicts with the Recipe's fixed value.", f"steps[{i}].params.{key}")
+            if key in step.params and not (isinstance(value, str) and value.startswith("$")):
+                try:
+                    registry.resolve_params(step.method, {key: value})
+                except InvalidBinding as e:
+                    raise _invalid(e.message, f"steps[{i}].params.{key}") from e
         expressions(step.bindings, f"steps[{i}].bindings")
         expressions(step.params, f"steps[{i}].params")
         if step.id:

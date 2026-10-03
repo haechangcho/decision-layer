@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowRight, CheckCircle2, Database, Info, Search, ShieldCheck } from "lucide-react";
+import { Activity, ArrowRight, Database, Info, Search, ShieldCheck, X } from "lucide-react";
 
 import { api, getSourceCallerToken, type SemanticCatalog, type SemanticObject, type SourceReadiness } from "@/lib/api";
+import { LoadingIndicator } from "@/components/loading-indicator";
 import styles from "../catalog.module.css";
 
 type CatalogMetric = SemanticObject & { cube: string; checks?: SourceReadiness["metrics"][number]["checks"] };
@@ -22,6 +23,7 @@ function statusFor(metric: CatalogMetric) {
 export default function CatalogPage() {
   const [metrics, setMetrics] = useState<CatalogMetric[]>([]);
   const [selected, setSelected] = useState<CatalogMetric | null>(null);
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "ready" | "attention">("all");
   const [loading, setLoading] = useState(true);
@@ -52,6 +54,12 @@ export default function CatalogPage() {
   }
 
   useEffect(() => { void loadCatalog(); }, []);
+  useEffect(() => {
+    if (!mobileDetailOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileDetailOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [mobileDetailOpen]);
 
   const shown = useMemo(() => metrics.filter((metric) => {
     const status = statusFor(metric);
@@ -72,7 +80,7 @@ export default function CatalogPage() {
 
   return <div className={styles.page}>
     <div className={styles.heading}>
-      <div><p className={styles.eyebrow}>SEMANTIC CATALOG</p><h1>지표 탐색</h1><p className={styles.intro}>Cube에서 관리하는 지표를 찾고, 분석 준비 상태를 확인하세요.</p></div>
+      <div><h1>지표 탐색</h1><p className={styles.intro}>Cube에서 관리하는 지표를 찾고, 분석 준비 상태를 확인하세요.</p></div>
       <Link className={styles.sourceLink} href="/sources"><Database size={16} />데이터 연결 설정</Link>
     </div>
 
@@ -80,7 +88,7 @@ export default function CatalogPage() {
       <Info size={22} /><h2>카탈로그에 연결할 수 없습니다</h2><p>{error}</p>
       <p>Cube 주소와 사용자 토큰을 확인한 다음 다시 시도해 주세요.</p>
       <div className={styles.actions}><Link className={styles.primaryButton} href="/sources">연결 설정 열기 <ArrowRight size={16} /></Link><button className={styles.secondaryButton} onClick={() => void loadCatalog()}>다시 시도</button></div>
-    </section> : loading ? <div className={styles.loading} role="status"><span className={styles.spinner} />Cube 카탈로그를 불러오는 중…</div> : metrics.length === 0 ? <section className={styles.empty}>
+    </section> : loading ? <div className={styles.loading} role="status"><LoadingIndicator />Cube 카탈로그를 불러오는 중…</div> : metrics.length === 0 ? <section className={styles.empty}>
       <Database size={24} /><h2>공개된 지표가 없습니다</h2><p>Cube 모델에 measure를 추가하고, 현재 사용자에게 공개되어 있는지 확인해 주세요.</p>
       <Link className={styles.primaryButton} href="/sources">Cube 연결 확인 <ArrowRight size={16} /></Link>
     </section> : <div className={styles.workspace}>
@@ -93,9 +101,9 @@ export default function CatalogPage() {
           <h2><Database size={15} />{cube}<span>{items.length}</span></h2>
           {items.map((metric) => {
             const status = statusFor(metric);
-            return <button key={metric.ref} className={`${styles.row} ${selected?.ref === metric.ref ? styles.selected : ""}`} onClick={() => setSelected(metric)} aria-pressed={selected?.ref === metric.ref}>
+            return <button key={metric.ref} className={`${styles.row} ${selected?.ref === metric.ref ? styles.selected : ""}`} onClick={() => { setSelected(metric); setMobileDetailOpen(true); }} aria-pressed={selected?.ref === metric.ref}>
               <span className={styles.metricIcon}><Activity size={17} /></span>
-              <span className={styles.metricCopy}><strong>{metric.title}</strong><small>{metric.description || metric.ref}</small></span>
+              <span className={styles.metricCopy}><strong>{metric.title}</strong>{metric.description && <small>{metric.description}</small>}</span>
               <span className={styles.kind}>{metric.metric_kind ?? "측정값"}</span>
               <span className={`${styles.status} ${status.ready ? styles.ready : styles.warning}`}><i />{status.label}</span>
             </button>;
@@ -104,19 +112,20 @@ export default function CatalogPage() {
         {shown.length === 0 && <div className={styles.noResults}><Search size={22} /><strong>조건에 맞는 지표가 없습니다</strong><button onClick={() => { setSearch(""); setFilter("all"); }}>필터 초기화</button></div>}
       </section>
 
-      <aside className={styles.detail} aria-label="지표 상세">
+      {mobileDetailOpen && <button type="button" className={styles.mobileBackdrop} onClick={() => setMobileDetailOpen(false)} aria-label="지표 상세 닫기" />}
+      <aside className={`${styles.detail} ${mobileDetailOpen ? styles.detailMobileOpen : ""}`} aria-label="지표 상세">
         {selected ? <>
-          <div className={styles.detailHeader}><span className={styles.largeIcon}><Activity size={20} /></span><span className={styles.kindTag}>{selected.metric_kind ?? "측정값"}</span></div>
+          <div className={styles.detailHeader}><span className={styles.largeIcon}><Activity size={20} /></span><span className={styles.kindTag}>{selected.metric_kind ?? "측정값"}</span><button type="button" className={styles.mobileClose} onClick={() => setMobileDetailOpen(false)} aria-label="닫기"><X size={19} /></button></div>
           <h2>{selected.title}</h2><p className={styles.description}>{selected.description || "Cube에 설명이 등록되지 않았습니다."}</p>
-          <div className={styles.reference}><span>Cube 참조</span><code>{selected.ref}</code></div>
+          <details className={styles.technicalDetails}><summary>기술 정보</summary><div className={styles.reference}><span>Cube 참조</span><code>{selected.ref}</code></div>
+            {selected.ratio_parts?.length ? <div className={styles.reference}><span>분자 / 분모</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
+            {selected.entity && <div className={styles.reference}><span>Entity key</span><code>{selected.entity}</code></div>}</details>
           <div className={styles.readinessTitle}><ShieldCheck size={16} /><strong>분석 준비 상태</strong></div>
           {!selected.checks ? <p className={styles.help}>준비 상태를 확인할 수 없어요. 연결 권한과 Cube 응답을 점검해 주세요.</p> : <ul className={styles.checks}>
             <li className={selected.checks.time.status === "missing" ? styles.checkWarning : ""}><span>시간 추이</span><strong>{selected.checks.time.status === "ready" ? "가능" : "확인 필요"}</strong></li>
             <li className={selected.checks.decomposition.status === "missing" ? styles.checkWarning : ""}><span>구성 분해</span><strong>{selected.checks.decomposition.status === "ready" ? "가능" : selected.checks.decomposition.status === "not_applicable" ? "해당 없음" : "확인 필요"}</strong></li>
             <li className={selected.checks.entity_key.status === "missing" ? styles.checkWarning : ""}><span>기본 키</span><strong>{selected.checks.entity_key.status === "ready" ? "가능" : "확인 필요"}</strong></li>
           </ul>}
-          {selected.ratio_parts?.length ? <div className={styles.reference}><span>분자 / 분모</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
-          {selected.entity && <div className={styles.reference}><span>Entity key</span><code>{selected.entity}</code></div>}
           {selected.checks && [selected.checks.time.impact, selected.checks.decomposition.impact, selected.checks.entity_key.impact].filter(Boolean).map((impact) => <p className={styles.impact} key={impact}>{impact}</p>)}
           <Link className={styles.primaryButton} href={methodHref(selected)}>Recipe 만들기 <ArrowRight size={16} /></Link>
           <p className={styles.footnote}>분석 정의와 접근 권한은 Cube에서 관리합니다.</p>

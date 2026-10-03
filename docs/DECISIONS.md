@@ -534,6 +534,8 @@ Cube aggregates each cube's measures by that cube's primary key before joining (
 
 Decision Layer is intended to be open source. Code under `src/` — Method manifests, MCP server instructions, validator and limitation messages, comments — uses structural language only (measure, dimension, unit, count × per-count value), never a business domain's vocabulary. Domain material (Recipes, eval scenarios with expected values, semantic model notes) lives under `examples/<domain>/`; tests may use an example domain because its expected values are known. `tests/unit/test_domain_neutral.py` guards `src/`.
 
+**Example clarification (2026-10-03):** `examples/chinook/` is the multi-table developer onboarding example, with an upstream release/checksum pin, PostgreSQL source tables, standard Cube joins/view, empty initial Recipes and independent SQL reference cases. `examples/online-retail/` is a larger real-transaction regression example; synthetic ecommerce remains useful for planted effects. Sample data is downloaded rather than committed. These are isolated development stacks, not bundled production data services or AI accuracy benchmarks. Canonical semantic references still name base members; the Cube provider selects a covering view without creating duplicate metrics.
+
 ---
 
 ## ADR-029 — Runs belong to their caller; identity comes from a provider-accepted token
@@ -632,7 +634,7 @@ This decision captured an incorrect UI placement. It is retained as history; its
 
 Methods are fixed registry entries. The Recipe editor composes them into an ordered pipeline or declares methods available to an investigation, then stores method roles and parameters in the Recipe's canonical `PlanStep` format. Web, API, Python and MCP execution continue through the same Recipe and Run engine.
 
-The editor saves immutable new YAML versions under `DL_RECIPES_DIR`. Writes require a distinct `DL_RECIPE_ADMIN_TOKEN`, validate registered methods, declared roles/parameters, version and backward-only step expressions, and reject stale base versions. No database Recipe shadow is created. This is a Recipe authoring surface; it does not add a separate graph execution engine or alter semantic ownership.
+The editor saves immutable new YAML versions under `DL_RECIPES_DIR`. Writes validate registered methods, declared roles/parameters, version and backward-only step expressions, and reject stale base versions. No database Recipe shadow is created. This is a Recipe authoring surface; it does not add a separate graph execution engine or alter semantic ownership. The `DL_RECIPE_ADMIN_TOKEN` write requirement was removed by ADR-038.
 
 **UX clarification (2026-10-01):** Recipe authors first describe purpose, select semantic inputs and compose analytical steps. Canonical pipeline/investigation modes remain supported, but are not a mandatory initial UI choice. New Web Recipes use pipeline; existing investigations remain editable, and the editor does not convert modes destructively. The manifest controls basic versus advanced parameters. Routine parameters such as result count, ranking and minimum group size live in advanced settings; restoring a default removes only that explicit override. Existing inputs and investigation definitions survive editing. This authoring behavior is implemented and tested.
 
@@ -660,3 +662,94 @@ Source setup displays the Cube API URL and authentication mode. Only that URL is
 Connection tests and execution use the same credential selector. In `token` mode a missing or rejected bearer token fails without service-secret fallback. `none` explicitly selects an anonymous development identity and never derives a user identity from an unverified incoming token. `none` and `api_secret` require `DL_ALLOW_SERVICE_CREDENTIALS=true`. Existing secret-based development deployments retain service fallback, while an explicitly provided caller token continues to pass through in authenticated modes.
 
 Tests verify catalog access, not successful data queries. The UI invalidates the test when connection inputs change and exposes catalog navigation after saving. Authentik OIDC, token renewal and separation of application identity from service query identity are not implemented.
+
+## ADR-038 — Defer Recipe author authorization to application login
+
+**Status:** Accepted (2026-10-01); supersedes the Recipe write-key requirement in ADR-035.
+
+The Web no longer asks for a Recipe editing key, and `PUT /recipes/{name}` no longer checks `DL_RECIPE_ADMIN_TOKEN`. A writable `DL_RECIPES_DIR` remains required. The endpoint still resolves a Cube-accepted caller identity (or the explicitly enabled local service identity), validates the canonical Recipe contract and rejects stale base versions. This is **authentication through Cube, not Recipe author authorization**: any caller who can reach this API with valid Cube credentials can write Recipe files. In local anonymous/service mode, anyone who can reach the API can write them.
+
+Until application login exists, deploy the Web and API only on localhost or a trusted private network; do not expose Recipe writes to an untrusted audience. Source administration retains its separate policy and key. The next authorization decision must integrate Authentik/OIDC, identify the application user independently of the Cube query identity, and require an author/editor role for Recipe writes across Web and direct REST/MCP callers. Read and execution permissions, logout/session handling, and audit attribution need explicit tests before public deployment. Do not reintroduce a shared Recipe key as a substitute for user authorization.
+
+TODO before shared deployment:
+- [ ] Integrate Authentik login and server-verified sessions; separate app identity from Cube query credentials.
+- [ ] Enforce Recipe author/editor roles on Web, REST and MCP writes, including proposal approval.
+- [ ] Test unauthorized writes, read-only users, session expiry and audit attribution end to end.
+
+## ADR-039 — Record resolved Method parameters in each Run step
+
+**Status:** Accepted (2026-10-01).
+
+The common Run engine resolves omitted parameters from the registered Method manifest and stores the applied values in each executed `StepRecord.step.params`. `StepRecord.parameter_sources` records whether each value came from the Method default, a pipeline Recipe step or an explicit runtime request. A user-initiated step after a pipeline stops is a runtime request, even though the Run retains a Recipe snapshot. The Web exposes these values under Run evidence; older Runs without source metadata show an unknown source rather than a guessed one.
+
+This is execution provenance, not a new override policy. Recipe-fixed versus runtime-selectable parameter contracts, minimum sample protections and AI override restrictions remain open U3 work and must be validated before those controls are offered. Method version remains in each StepRecord so historical values can be understood even after a manifest changes.
+
+## ADR-040 — Readiness does not infer cross-cube time compatibility
+
+**Status:** Accepted (2026-10-01).
+
+Source readiness can confirm a time dimension when it shares the metric's canonical entity. It cannot conclude that time analysis is impossible merely because this local relation is absent: a Cube view or join can provide a usable date from another cube. The time check therefore reports `unknown` when other visible time dimensions exist but none can be confirmed by the local relation; `missing` means no time dimension is visible at all. Neither state authorizes a query. The Recipe run form offers visible date dimensions for explicit selection when metadata is inconclusive, and the provider verifies the actual query. This avoids treating a heuristic as semantic truth while preserving the Cube model as the owner of joins.
+
+## ADR-041 — Recipe parameter policy is enforced by the shared engine
+
+**Status:** Accepted (2026-10-02).
+
+Registered Method manifests own parameter types, defaults and numeric bounds. The common Method registry validates these before execution; Web number controls use the same bounds. A Recipe may optionally declare `method_parameters.<method>.fixed` and `runtime_allowed`. Fixed literal values are merged into every invocation of that Method in the Recipe and cannot be overridden. When `runtime_allowed` is present, an explicit investigation/continuation step may supply only those parameter names; `null` means the existing unrestricted behavior and `[]` means no runtime-selectable parameters. Pipeline step parameters remain authored configuration, subject to fixed-value conflicts. The resolved Run step records `recipe_fixed` separately from Method defaults, Recipe step values and runtime requests.
+
+Old Recipe files without this policy retain their behavior. The policy does not grant new semantic access, authorize arbitrary code or introduce a separate Web execution path. It does not yet solve step-specific policies for repeated uses of one Method, an organisation-wide policy service, or Run warnings for server-side row limits and exclusions. Those require separate evidence and contracts before broadening U3.
+
+## ADR-042 — Unsaved Recipe previews are identifiable Runs
+
+**Status:** Accepted (2026-10-02).
+
+`POST /recipes:preview` takes an unsaved canonical pipeline Recipe, a target step index and a normal execution scope. It statically validates the Recipe, then the shared Run engine executes the prefix through that step with the caller's Cube credentials, Recipe filters, validators, parameter policy and query budget. Long previews use the ordinary background job/202 and Run polling behavior. The Recipe file is not written. The resulting Run is marked `preview`, owned by the caller and retains the candidate Recipe snapshot, steps, queries, validation and provenance. Runs lists and details label it as a preview; a preview does not offer a link to an unpublished Recipe or allow continuation.
+
+Persisting previews gives a recoverable evidence trail and avoids a second ephemeral execution engine. It also means frequent previews consume Run storage; retention and pagination are U5 operations work, and previews must not be mistaken for approved Recipes or final analyses. Investigation Recipes have no fixed prefix and cannot use this endpoint. Promotion of preview or MCP Runs to Recipe still requires the separate U4 review/approval contract.
+
+## ADR-043 — Draft Recipe versions are files and cannot execute
+
+**Status:** Accepted (2026-10-02).
+
+Recipe YAML gains a `status` of `draft` or `published`; missing status means `published` so existing files and API clients remain compatible. Every saved version stays immutable. The Web saves a draft version, then explicitly publishes it as a new immutable version after static and caller-visible semantic validation. A draft is returned by the dedicated editor/draft-list endpoints, but omitted from the default Recipe list and rejected by both named and version-pinned Run execution. Unsaved draft previews continue through ADR-042.
+
+The file store is still the only Recipe source of truth (ADR-025). A publish request supplies the draft base version; a stale or already-published draft fails with 409 under the same file lock used for writes. Direct trusted `PUT /recipes/{name}` remains available for automation and may publish immediately for compatibility; the staged Web workflow does not imply application authorisation. Until ADR-038's Authentik roles are implemented, keep writes and publish endpoints on localhost or a trusted private network. Draft status is not an approval attestation. Git commits, PR review and multi-author approval remain separate future decisions.
+
+## ADR-044 — Run steps become reviewable Recipe candidates
+
+**Status:** Accepted (2026-10-02).
+
+A caller who can read a non-preview Run may select successful steps in execution order and request a Recipe candidate. The API constructs a canonical draft Recipe; it does not save or publish it. The candidate keeps Method names, governed semantic bindings and explicitly sourced step parameters, while omitting the Run's period, shared filters, Method defaults and absolute comparison dates. Fixed drill paths require an explicit review note. The Web opens this candidate in the ordinary Recipe editor so the author must inspect and save it as a draft before publication.
+
+The candidate records `origin_runs` as a traceable reference, not proof of approval or permission to read the source Run later. The endpoint rechecks current semantic access; invalid or failed steps cannot be promoted. This is a manual conversion of recorded execution, not an automatic proposal, graph dependency inference or a new execution path. Cross-user proposal inboxes, review roles, retention and source-Run deletion behavior remain U5 work and must follow ADR-038's application identity decision before shared deployment.
+
+## ADR-045 — Run origin is an informational client hint
+
+**Status:** Accepted (2026-10-02).
+
+The canonical Run stores an `origin` (`web`, `mcp`, `api`, `python`, or `unknown`). Web and MCP send `X-Decision-Layer-Client` to the same REST API; the API accepts only `web` or `mcp` as hints, otherwise records `api`. Direct Python engine calls record `python`. Existing stored Runs without this field deserialize as `unknown`. Runs UI can label and filter MCP exploration without changing the shared execution engine.
+
+This header is **not authenticated provenance**: any REST client can claim it, so it must never grant access, approve a Recipe, or identify an accountable human. Run ownership still follows ADR-029. MCP clients do not currently supply a trustworthy conversation/session ID; grouping Runs into a conversation is deferred rather than approximated with a process lifetime or timestamp. Proposal review and approval require the separate application identity and authorization contract in ADR-038.
+
+## ADR-046 — Preserve the original question for ad hoc Method Runs
+
+**Status:** Accepted (2026-10-02).
+
+An ad hoc Method request may include the user's original question. REST and MCP pass it to the shared Run engine, which stores it in `AnalysisPlan.question` alongside the executed Method and semantic bindings. It is optional for existing API clients and historical Runs. The Web shows a missing-question label for older Runs instead of inferring a question from the Method or metric. MCP tool guidance asks the client to send the original question, but a client may omit it; this is user-provided context, not verified intent.
+
+Run details lead with question, governed metric, Method, period, date basis and result. Query specs, semantic references, Method versions and resolved parameter sources remain available as folded execution evidence. Hiding raw evidence from the first view does not remove it from the Run record or weaken validation. This adds no LLM to the Web and does not let the question redefine semantic objects or execution contracts.
+
+## ADR-047 — Group Recipe-free MCP exploration by question
+
+**Status:** Accepted (2026-10-02).
+
+When no Recipe fits, MCP may start a Recipe-free Run with the original question and scope using `start_analysis`, execute registered Methods through `run_step`, and finish with `complete_run`. This exposes the existing REST/Run engine lifecycle rather than creating a second execution path. The Run records each Method result, semantic binding, validation and query as a separate ordered step, so the Web can show the full exploration under one question. A one-off `run_method` remains available and still produces its own completed Run.
+
+No Recipe means no organization-authored Method or metric allow-list; normal Method contracts, Cube access, query/step budgets and fail-closed validation still apply. The MCP client's Method choice and final narrative are not independently verified or approved. The step graph denotes execution order only, not causal or data dependencies. Turning such a Run into a Recipe remains the explicit review flow of ADR-044, not automatic publication.
+
+## ADR-048 — Record step purpose separately from analytical evidence
+
+**Status:** Accepted (2026-10-02).
+
+`PlanStep.purpose` is optional, short client-authored text describing which part of the original question the Method is intended to answer. MCP passes it through the canonical Run step request; the shared engine stores it with the executed step. The Run UI may use this text to explain Method selection, but must label it as intent rather than a validated finding. Older Runs and Recipes without a purpose remain valid. The Web can fall back to a generic Method description, not fabricate question-specific reasoning.
+
+The Run detail leads with the question, answer, and a read-only metric-to-Method graph; selecting a step reveals its result and advanced evidence. The graph describes semantic bindings and execution order, not an editable Recipe or causal dependencies. Promotion still requires deliberate Recipe draft review under ADR-044. This changes presentation and optional provenance context, not Method execution or semantic ownership.

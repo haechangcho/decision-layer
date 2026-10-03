@@ -105,7 +105,13 @@ class RecipeStore:
 
     def list(self) -> list[Recipe]:
         self.reload()
-        return [self._latest(name) for name in sorted(self._recipes)]
+        return [recipe for name in sorted(self._recipes)
+                if (recipe := self._latest_published(name)) is not None]
+
+    def list_drafts(self) -> list[Recipe]:
+        self.reload()
+        return [recipe for name in sorted(self._recipes)
+                if (recipe := self._latest(name)).status == "draft"]
 
     @staticmethod
     def validate(recipe: Recipe) -> None:
@@ -129,22 +135,45 @@ class RecipeStore:
                 raise RecipeConflict("Recipe changed. Reload the latest version before saving.")
             if latest and tuple(map(int, recipe.version.split('.'))) <= tuple(map(int, latest.version.split('.'))):
                 raise RecipeConflict("Save a new version; existing Recipe versions are immutable.")
-            target = self.directory / f"{recipe.name}@{recipe.version}.yaml"
-            with tempfile.NamedTemporaryFile(mode="w", dir=self.directory, suffix=".tmp", delete=False) as f:
-                temporary = Path(f.name)
-                try:
-                    f.write(yaml.safe_dump(recipe.model_dump(mode="json"), allow_unicode=True, sort_keys=False))
-                    f.flush()
-                    os.fsync(f.fileno())
-                    os.link(temporary, target)
-                except FileExistsError:
-                    raise RecipeConflict("This Recipe version already exists. Reload before saving.") from None
-                finally:
-                    temporary.unlink(missing_ok=True)
+            self._write_version(recipe)
             self._recipes.setdefault(recipe.name, {})[recipe.version] = recipe.model_copy(deep=True)
             return recipe
 
-    def get(self, name: str, version: str | None = None) -> Recipe:
+    def publish(self, name: str, base_version: str) -> Recipe:
+        from .authoring import RecipeConflict, RecipeEditError
+
+        if not self._writable:
+            raise RecipeEditError(_("Configure DL_RECIPES_DIR to publish Recipes."))
+        with self._lock, (self.directory / ".decision-layer.lock").open("w") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            self._recipes = self._read_all()
+            latest = self._latest(name) if name in self._recipes else None
+            if latest is None or latest.version != base_version or latest.status != "draft":
+                raise RecipeConflict(_("The draft changed or was already published. Reload before publishing."))
+            major, minor, patch = (int(part) for part in latest.version.split("."))
+            published = latest.model_copy(update={"version": f"{major}.{minor}.{patch + 1}", "status": "published"})
+            self.validate(published)
+            self._write_version(published)
+            self._recipes[name][published.version] = published.model_copy(deep=True)
+            return published
+
+    def _write_version(self, recipe: Recipe) -> None:
+        from .authoring import RecipeConflict
+
+        target = self.directory / f"{recipe.name}@{recipe.version}.yaml"
+        with tempfile.NamedTemporaryFile(mode="w", dir=self.directory, suffix=".tmp", delete=False) as f:
+            temporary = Path(f.name)
+            try:
+                f.write(yaml.safe_dump(recipe.model_dump(mode="json"), allow_unicode=True, sort_keys=False))
+                f.flush()
+                os.fsync(f.fileno())
+                os.link(temporary, target)
+            except FileExistsError:
+                raise RecipeConflict("This Recipe version already exists. Reload before saving.") from None
+            finally:
+                temporary.unlink(missing_ok=True)
+
+    def get(self, name: str, version: str | None = None, *, include_drafts: bool = False) -> Recipe:
         self.reload()
         name = name.removeprefix("recipe://")
         if "@" in name:
@@ -153,12 +182,22 @@ class RecipeStore:
         if not versions:
             raise UnknownRecipe(_("Unknown recipe: {name}", name=name), available=sorted(self._recipes))
         if version is None:
-            return self._latest(name)
+            selected = self._latest(name) if include_drafts else self._latest_published(name)
+            if selected is None:
+                raise UnknownRecipe(_("Unknown recipe: {name}", name=name), available=sorted(self._recipes))
+            return selected
         if version not in versions:
             raise UnknownRecipe(_("{name} has no version {version}", name=name, version=version), versions=sorted(versions))
-        return versions[version]
+        recipe = versions[version]
+        if recipe.status == "draft" and not include_drafts:
+            raise UnknownRecipe(_("{name} has no version {version}", name=name, version=version), versions=sorted(versions))
+        return recipe
 
     def _latest(self, name: str) -> Recipe:
         versions = self._recipes[name]
         version = max(versions, key=lambda v: tuple(int(x) for x in v.split(".")))
         return versions[version]
+
+    def _latest_published(self, name: str) -> Recipe | None:
+        versions = [recipe for recipe in self._recipes[name].values() if recipe.status == "published"]
+        return max(versions, key=lambda recipe: tuple(int(x) for x in recipe.version.split("."))) if versions else None

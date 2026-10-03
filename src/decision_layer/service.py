@@ -18,6 +18,7 @@ class ScopeIn(BaseModel):
 
 
 class MethodRunRequest(BaseModel):
+    question: str | None = None
     bindings: dict[str, str | list[str]] = Field(default_factory=dict)
     params: dict[str, Any] = Field(default_factory=dict)
     scope: ScopeIn = Field(default_factory=ScopeIn)
@@ -34,9 +35,24 @@ class RecipeSaveRequest(BaseModel):
     base_version: str | None = None
 
 
+class RecipePublishRequest(BaseModel):
+    base_version: str
+
+
+class RecipeYamlRequest(BaseModel):
+    yaml: str
+
+
+class RecipePreviewRequest(BaseModel):
+    recipe: Recipe
+    step_index: int = Field(ge=0)
+    scope: ScopeIn = Field(default_factory=ScopeIn)
+
+
 class RunStepRequest(BaseModel):
     id: str | None = None
     method: str
+    purpose: str | None = Field(default=None, max_length=240)
     bindings: dict[str, Any] = Field(default_factory=dict)
     params: dict[str, Any] = Field(default_factory=dict)
 

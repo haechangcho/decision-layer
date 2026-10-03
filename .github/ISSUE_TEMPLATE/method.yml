@@ -1,0 +1,22 @@
+name: Method proposal
+description: Discuss a new analytical capability before implementation.
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Business question
+      description: What question should this answer? Why are existing Methods or a Recipe insufficient?
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Proposed contract
+      description: Input roles, grain, outputs, assumptions, validation and interpretation limits.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Verification plan
+      description: Public or synthetic data, independent reference values and tests. Do not include private data.

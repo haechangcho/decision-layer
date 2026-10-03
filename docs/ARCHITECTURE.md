@@ -810,6 +810,11 @@ The root `compose.yaml` runs the API and Web as separate containers for local
 onboarding against an existing Cube. The Web proxies `/api/*` to the API;
 SQLite and Recipe YAML persist in separate named volumes. Default published
 ports bind to localhost. The sample-data stack remains under `examples/`.
+Recipe writes currently require a provider-accepted caller but no author role
+(ADR-038). Keep the API private until Authentik-backed application authorization
+is implemented; Cube identity and data permissions do not grant editing rights.
+Each executed Run step stores the effective Method parameters and per-parameter
+source (Method default, Recipe, or runtime request), following ADR-039.
 
 ### Core pages
 

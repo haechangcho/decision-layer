@@ -1,0 +1,106 @@
+cubes:
+  - name: retail_line
+    public: true
+    sql_table: retail.invoice_line
+    data_source: default
+    title: Retail invoice lines
+    description: >
+      One source row per invoice line from UCI Online Retail II. line_id is an import
+      surrogate, not a business invoice identifier. Amounts are in GBP.
+
+    dimensions:
+      - name: line_id
+        sql: line_id
+        type: number
+        primary_key: true
+        title: Invoice line ID
+
+      - name: invoice_no
+        sql: invoice_no
+        type: string
+        title: Invoice number
+
+      - name: invoice_at
+        sql: invoice_at
+        type: time
+        title: Invoice date
+
+      - name: country
+        sql: country
+        type: string
+        title: Customer country
+
+      - name: stock_code
+        sql: stock_code
+        type: string
+        title: Product code
+
+      - name: product_description
+        sql: description
+        type: string
+        title: Product description
+
+      - name: customer_id
+        sql: customer_id
+        type: string
+        title: Customer ID
+        description: Missing for some source rows; do not count anonymous rows as unique customers.
+
+      - name: is_cancellation
+        sql: "UPPER(LEFT({CUBE}.invoice_no, 1)) = 'C'"
+        type: boolean
+        title: Cancellation invoice
+        description: Source invoice number beginning with C; not a matched refund event.
+
+    measures:
+      - name: count
+        type: count
+        title: Invoice lines
+
+      - name: invoice_count
+        sql: invoice_no
+        type: count_distinct
+        title: Distinct invoices
+
+      - name: canceled_invoice_count
+        sql: "CASE WHEN UPPER(LEFT({CUBE}.invoice_no, 1)) = 'C' THEN {CUBE}.invoice_no END"
+        type: count_distinct
+        title: Cancellation invoices
+
+      - name: cancellation_invoice_rate
+        type: number
+        sql: "100.0 * {canceled_invoice_count} / NULLIF({invoice_count}, 0)"
+        title: Cancellation invoice share (%)
+        description: Distinct cancellation invoices divided by all distinct invoices in the same slice.
+        meta:
+          numerator: canceled_invoice_count
+          denominator: invoice_count
+
+      - name: recorded_line_value
+        sql: "{CUBE}.quantity * {CUBE}.unit_price"
+        type: sum
+        title: Recorded line value (GBP)
+        description: Signed quantity times price over all source rows, including cancellations and adjustments.
+
+      - name: positive_sale_value
+        sql: "CASE WHEN UPPER(LEFT({CUBE}.invoice_no, 1)) <> 'C' AND {CUBE}.quantity > 0 AND {CUBE}.unit_price > 0 THEN {CUBE}.quantity * {CUBE}.unit_price ELSE 0 END"
+        type: sum
+        title: Positive sale value (GBP)
+        description: Positive non-cancellation lines only; not net revenue or profit.
+
+      - name: cancellation_line_value
+        sql: "CASE WHEN UPPER(LEFT({CUBE}.invoice_no, 1)) = 'C' AND {CUBE}.quantity < 0 AND {CUBE}.unit_price > 0 THEN -{CUBE}.quantity * {CUBE}.unit_price ELSE 0 END"
+        type: sum
+        title: Cancellation line value (GBP)
+        description: Absolute value of negative cancellation lines; cannot be matched to original purchases.
+
+      - name: positive_units
+        sql: "CASE WHEN UPPER(LEFT({CUBE}.invoice_no, 1)) <> 'C' AND {CUBE}.quantity > 0 THEN {CUBE}.quantity ELSE 0 END"
+        type: sum
+        title: Positive sale units
+
+      - name: missing_customer_lines
+        sql: "CASE WHEN {CUBE}.customer_id IS NULL THEN 1 ELSE 0 END"
+        type: sum
+        title: Lines without customer ID
+        description: Source rows without Customer ID; do not infer unique customers from them.

@@ -1,72 +1,67 @@
 # Decision Layer
 
-[English](README.md) · [한국어](README.ko.md) · [Contributing](CONTRIBUTING.md)
+[English](README.md) · [한국어](README.ko.md) · [Documentation](docs/README.md) · [Contributing](CONTRIBUTING.md)
 
 **Make your team's analytical knowledge executable.**
 
-Decision Layer is an open-source analysis layer for semantic models. Analysts turn recurring investigations into reusable **Recipes**. People and AI agents run those Recipes against the same governed metrics, with the results and evidence recorded.
+Decision Layer connects governed metrics to reusable analysis procedures. Analysts combine registered **Methods** into **Recipes**; people and AI agents execute them through Web or MCP. Every **Run** records the question, results, queries and validation.
 
-![Decision Layer: metrics become reusable analysis recipes with recorded evidence](docs/assets/decision-layer-overview.png)
+![From governed metrics to reusable analysis and recorded evidence](docs/assets/decision-layer-overview.png)
 
-## Why Decision Layer?
+## Start
 
-A semantic layer defines what a metric means. Your team still needs to know how to analyze it.
-
-For a question like "Why did revenue fall?", an experienced analyst might compare periods, examine product and regional contributions, then investigate the largest changes. Decision Layer captures that procedure so others can repeat it.
-
-- **Reuse the procedure.** Combine registered analysis Methods into a versioned Recipe.
-- **Keep existing definitions.** Use Cube's metrics, dimensions and access rules.
-- **Run through Web or MCP.** Give people and AI clients the same execution engine.
-- **Check the evidence.** Inspect inputs, results, queries, validation and warnings in each Run.
-
-## How it works
-
-| | Owns |
-| --- | --- |
-| **Cube** | Metric definitions, dimensions, joins and data access |
-| **Method** | One analytical capability, such as a trend, drill-down or matched comparison |
-| **Recipe** | The team's procedure, composed from Methods and semantic references |
-| **Run** | What was executed, what it returned and the evidence behind it |
-
-Web, REST and MCP share the same specifications and Python execution engine. Recipes are YAML files; Runs are stored in SQLite or PostgreSQL. AI clients select registered tools; Decision Layer does not host an LLM or execute AI-generated analysis code.
-
-See [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/DECISIONS.md) for the contracts and current decisions.
-
-## Get started
-
-You need Docker with Compose and an existing Cube API.
+Try the music-store example with 11 related tables. You need Docker with Compose; no existing database, Cube account or local token setup is required.
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer
+cd decision-layer/examples/chinook
 docker compose up -d --build --wait
 ```
 
-Open **http://localhost:3000/sources**, enter your **Cube API URL and access token**, then test and save the connection. If Cube runs on your computer at port 4000, use `http://host.docker.internal:4000/cubejs-api/v1`. Explore your metrics and create a Recipe; the local Recipe editing key is `local-recipe-key`.
+Open **http://localhost:3000/catalog**. PostgreSQL, Cube, the API and Web start together, with the connection configured and Recipes empty. The first start builds images and downloads pinned sample data.
 
-The first start builds the images; Python and Node.js are included. Recipes and execution records persist in Docker volumes. `docker compose down` stops the app without deleting them. The default setup is local-only; use private administrator keys and your own deployment configuration for a shared server.
+Already have Cube? Use the [existing Cube guide](docs/guides/cube.md) instead. See the [sample guide](examples/chinook/README.md) for ports, offline import, data provenance and stopping the stack.
 
-Port in use? Run `WEB_PORT=3010 API_PORT=8010 docker compose up -d --build --wait` instead. No Cube yet? Try the [sample-data demo](examples/ecommerce/README.md). For source installation, see [Contributing](CONTRIBUTING.md).
+## Connect an AI client
 
-## Use with AI agents
+Keep the sample running. From the **repository root**, install the MCP adapter with Python 3.11+:
 
-Connect Claude, Codex or another MCP client to `decision-layer-mcp`. The client can discover metrics, find Recipes, run analysis and retrieve the same execution records shown in the Web.
+```bash
+python3.11 -m venv .venv
+.venv/bin/pip install -e '.[mcp]'
+codex mcp add decision-layer --env DL_API_URL=http://localhost:8000 -- "$(pwd)/.venv/bin/decision-layer-mcp"
+```
 
-When a Recipe fits the question, the client is instructed to use it. Otherwise, it can invoke registered Methods. Tokens are passed to Cube so its access rules apply.
+Using Claude or another client? Follow the [MCP guide](docs/guides/mcp.md). The adapter uses stdio and calls the same REST API as Web; Decision Layer does not host an LLM.
 
-Install the MCP adapter with `pip install '.[mcp]'` from the repository root, then configure your client to run `decision-layer-mcp` with `DL_API_URL=http://localhost:8000` and `DL_TOKEN` set to your Cube access token. Use the same Cube identity in Web and MCP to access the same Runs.
+Ask your connected client:
 
-## Project status
+> What were purchased-track sales in 2023, and which genre contributed the most? Show the analysis steps and evidence.
 
-Early development. Cube integration, Method execution, Recipe graph editing and Run storage are available.
+The sample reference answer is **469.58**, with **Rock contributing 156.42**. Open **http://localhost:3000/runs** to inspect the question, metric graph and results. Review successful steps as a Recipe draft, then save and publish it for reuse. These reference checks verify execution, not an improvement in AI accuracy.
 
-Next: Recipe previews, YAML editing, change review, and turning MCP execution records into Recipe graph drafts that users review and approve. The approval flow is not implemented yet.
+## How it works
 
-[Example Recipes](examples/ecommerce/recipes/) · [Method implementations](src/decision_layer/methods/)
+| Object | Responsibility |
+| --- | --- |
+| **Semantic layer** | Metrics, dimensions, joins, grain and data access. Cube is the first supported provider. |
+| **Method** | One typed analytical capability, with validation and structured results. |
+| **Recipe** | A versioned procedure composed from Methods and semantic references. Stored as YAML. |
+| **Run** | The executed question, steps, versions, queries, results and warnings. Stored in SQLite or PostgreSQL. |
 
-## Contributing
+Web, Python, REST and MCP share the same specifications and execution engine. AI clients use a suitable Recipe or explore with registered Methods; they cannot execute generated analysis code. Decision Layer is not a BI tool, semantic layer or scheduler.
 
-Contributions to Methods, Recipes, documentation and usability are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
+## Develop and contribute
+
+- [Develop locally](docs/guides/development.md): editable API and Web, with a shared sample source.
+- [Run tests](docs/guides/testing.md): unit tests, browser tests and live MCP-to-Cube checks.
+- [Add a Method](docs/guides/methods.md): contracts, registration, validation and contribution tests.
+- [Contribute](CONTRIBUTING.md): changes, issues and pull requests.
+- [Architecture](docs/ARCHITECTURE.md) and [decisions](docs/DECISIONS.md): ownership and execution contracts.
+
+## Status
+
+Early development. Cube integration, Recipe graph editing, previews, draft/publish versions and Run-to-Recipe review are available. Application login, author roles and a shared approval inbox are not implemented. The default setup is local-only; do not expose it as a shared public service. Sample credentials are for development only.
 
 ## License
 

@@ -45,7 +45,6 @@ services:
       CUBE_INSTANCE: local
       CUBE_API_SECRET: example-secret-change-me-0123456789
       DL_SOURCE_ADMIN_TOKEN: ${DL_SOURCE_ADMIN_TOKEN:-local-demo-change-me}
-      DL_RECIPE_ADMIN_TOKEN: ${DL_RECIPE_ADMIN_TOKEN:-local-demo-change-me}
       DL_SOURCE_CONFIG_KEY: ${DL_SOURCE_CONFIG_KEY:-}
       DL_ALLOW_SERVICE_CREDENTIALS: "true"
       DL_RECIPES_DIR: /app/recipes

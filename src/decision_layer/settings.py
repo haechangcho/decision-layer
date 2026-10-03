@@ -30,7 +30,6 @@ class Settings:
         "DL_DATABASE_URL", f"sqlite:///{_REPO / 'data' / 'decision_layer.db'}"))
     # organisation-specific Recipes live outside the code; none are loaded unless configured
     recipes_dir: str | None = field(default_factory=lambda: env("DL_RECIPES_DIR") or None)
-    recipe_admin_token: str | None = field(default_factory=lambda: os.environ.get("DL_RECIPE_ADMIN_TOKEN") or None)
     # Source administration is separate from Cube query access (ADR-033).
     source_admin_token: str | None = field(default_factory=lambda: os.environ.get("DL_SOURCE_ADMIN_TOKEN") or None)
     # Fernet key, provisioned outside the database; empty disables secret writes.

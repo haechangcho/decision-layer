@@ -52,8 +52,8 @@ class Drilldown(Method):
                                  description="Rank by metric value, difference from the rest, or count"),
             "direction": ParamSpec(type="enum", enum=["desc", "asc"], default="desc",
                                    description="desc = highest first, asc = lowest first"),
-            "top_n": ParamSpec(type="integer", default=10, description="Groups to show"),
-            "min_count": ParamSpec(type="integer", default=30,
+            "top_n": ParamSpec(type="integer", default=10, minimum=1, maximum=MAX_GROUPS, description="Groups to show"),
+            "min_count": ParamSpec(type="integer", default=30, minimum=1,
                                    description="Groups below this count are left out of the ranking and next candidates"),
             "current": ParamSpec(type="date_range", description="Current period for period mode. Defaults to the scope's period"),
             "comparison": ParamSpec(type="date_range", description="Comparison period (turns on period mode)"),
@@ -139,6 +139,8 @@ class Drilldown(Method):
             warnings.append(_("More than {limit} groups; only part were fetched", limit=MAX_GROUPS))
         if small:
             warnings.append(_("{groups} groups below {minimum} were left out of the ranking", groups=len(small), minimum=min_count))
+        if len(eligible) > top_n:
+            warnings.append(_("Only {shown} of {total} ranked groups are shown", shown=top_n, total=len(eligible)))
         if not proportion:
             warnings.append(_("Not a count-based proportion, so no interval against the rest was computed"))
 
@@ -146,7 +148,8 @@ class Drilldown(Method):
             primary=Artifact(type="breakdown_table", title=f"{ctx.obj(metric).title} by {ctx.obj(dim).title}", data={
                 "metric": metric, "dimension": dim, "drill_path": path,
                 "rank_by": key, "direction": params["direction"], "selected_among": n_eligible,
-                "rows": eligible[:top_n], "excluded_small": len(small),
+                "rows": eligible[:top_n], "total_groups": len(rows), "ranked_groups": len(eligible),
+                "shown_groups": min(top_n, len(eligible)), "excluded_small": len(small),
                 "next_dimension": remaining[0] if remaining else None, "next_candidates": candidates,
             }),
             artifacts=artifacts, warnings=warnings,
@@ -170,12 +173,16 @@ class Drilldown(Method):
         } for r in rows[:NEXT_CANDIDATES] if remaining]
         warnings = [] if kind else [_("'{title}' has no declared numerator and denominator, so group changes are "
                                       "shown without splitting the overall change", title=ctx.obj(metric).title)]
+        if len(rows) >= MAX_GROUPS:
+            warnings.append(_("More than {limit} groups; only part were fetched", limit=MAX_GROUPS))
+        if len(rows) > top_n:
+            warnings.append(_("Only {shown} of {total} ranked groups are shown", shown=top_n, total=len(rows)))
         return MethodOutput(
             primary=Artifact(type="contribution_table", title=_("Contribution to the change of {metric} by {dimension}",
                                                                  metric=ctx.obj(metric).title, dimension=ctx.obj(dim).title),
                              data={"metric": metric, "dimension": dim, "drill_path": path, "decomposition": kind,
                                    "current_period": list(current), "comparison_period": list(comparison),
-                                   "rows": rows[:top_n], "groups": len(rows),
+                                   "rows": rows[:top_n], "groups": len(rows), "shown_groups": min(top_n, len(rows)),
                                    # what the hidden groups add, so shown rows + this = the whole change
                                    "other_contribution": rnd(sum(r.get(key) or 0 for r in rows[top_n:])) if kind else None,
                                    "next_dimension": remaining[0] if remaining else None,

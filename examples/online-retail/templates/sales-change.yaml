@@ -1,0 +1,24 @@
+name: retail-sales-change
+version: 1.0.0
+description: Compare a complete sales period with the prior period, then inspect the country breakdown.
+routing:
+  use_for: [sales changed, sales increased, sales decreased, 판매액 변화]
+  do_not_use_for: [profit, margin, causal effect, 이익률, 인과 효과]
+semantic_scope:
+  primary_metric: retail_line.positive_sale_value
+  related_metrics: [retail_line.positive_units, retail_line.invoice_count]
+  preferred_dimensions: [retail_line.country]
+mode: pipeline
+steps:
+  - id: trend
+    method: query.trend
+    purpose: Compare positive sales with the previous equally long period.
+    bindings: {metric: $scope.primary_metric, related: $scope.related_metrics}
+    params: {vs_previous: true, granularity: month}
+  - id: country
+    method: query.drilldown
+    purpose: Identify countries contributing to the selected period's positive sales.
+    bindings: {metric: $scope.primary_metric, dimensions: [retail_line.country]}
+limits: {max_steps: 6, max_queries: 20}
+validators:
+  - name: complete_period

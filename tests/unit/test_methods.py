@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from decision_layer.api.app import create_app
-from decision_layer.core.errors import ProviderAccessDenied
+from decision_layer.core.errors import ProviderAccessDenied, UnknownSemanticObject
 from decision_layer.core.models import Column, Dataset, DatasetSpec, QueryProvenance
 from decision_layer.methods import registry
 from decision_layer.methods.base import InvalidBinding
@@ -85,6 +85,16 @@ class FakeProvider:
             return self.catalog.model_copy(update={"objects": [o for o in self.catalog.objects if o.ref != RR]})
         return self.catalog
 
+    async def resolve(self, refs, credentials):
+        catalog = await self.discover(credentials)
+        objects = []
+        for ref in refs:
+            obj = catalog.get(ref)
+            if obj is None:
+                raise UnknownSemanticObject(f"'{ref}' was not found or you don't have access to it", ref=ref)
+            objects.append(obj)
+        return objects
+
     async def execute(self, spec: DatasetSpec, credentials, *, with_sql=False) -> Dataset:
         self.calls += 1
         rows = self.orders
@@ -151,6 +161,20 @@ async def test_drilldown_refuses_when_no_dimension_left(provider):
     r = await registry.run("query.drilldown", ctx(provider), {"metric": RR, "dimensions": [CAT]},
                            {"drill_path": [{"member": CAT, "value": "A"}]})
     assert r.status == "refused"
+
+
+async def test_drilldown_reports_hidden_ranked_groups(provider):
+    regular = await registry.run("query.drilldown", ctx(provider), {"metric": RR, "dimensions": [CAT]},
+                                 {"top_n": 1})
+    assert regular.primary.data["total_groups"] == 2
+    assert regular.primary.data["ranked_groups"] == 2
+    assert regular.primary.data["shown_groups"] == 1
+    assert any("1 of 2" in warning for warning in regular.warnings)
+
+    compared = await registry.run("query.drilldown", ctx(provider), {"metric": RR, "dimensions": [CAT]},
+                                  {"top_n": 1, "comparison": list(Q2)})
+    assert compared.primary.data["shown_groups"] == 1
+    assert any("1 of 2" in warning for warning in compared.warnings)
 
 
 

@@ -135,6 +135,9 @@ def test_readiness_uses_canonical_entity_relations_not_cube_ref_format():
                 SemanticObject(ref="metricflow://warehouse/customers/segment", kind="dimension",
                                data_type="string", title="Customer segment",
                                entity="metricflow://warehouse/customers/customer_id"),
+                SemanticObject(ref="metricflow://warehouse/customers/lifetime_value", kind="measure",
+                               data_type="number", title="Lifetime value",
+                               entity="metricflow://warehouse/customers/customer_id"),
             ])
 
     settings = Settings(database_url="memory", allow_service_credentials=True, cube_api_secret="test-secret")
@@ -149,6 +152,10 @@ def test_readiness_uses_canonical_entity_relations_not_cube_ref_format():
     assert metric["checks"]["entity_key"]["status"] == "ready"
     assert metric["checks"]["decomposition"]["status"] == "ready"
     assert metric["checks"]["time"]["dimensions"] == ["metricflow://warehouse/orders/created_at"]
+    other = next(row for row in readiness["metrics"]
+                 if row["metric"]["ref"] == "metricflow://warehouse/customers/lifetime_value")
+    assert other["checks"]["time"]["status"] == "unknown"
+    assert other["checks"]["time"]["dimensions"] == []
 
 
 @pytest.mark.parametrize("mode,allowed,token,status", [

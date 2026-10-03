@@ -1,0 +1,104 @@
+cubes:
+  - name: artist
+    title: Artists
+    sql_table: chinook.artist
+    dimensions:
+      - {name: artist_id, sql: artist_id, type: number, primary_key: true}
+      - {name: artist_name, sql: name, type: string, title: Artist}
+
+  - name: album
+    title: Albums
+    sql_table: chinook.album
+    joins:
+      - {name: artist, relationship: many_to_one, sql: "{CUBE}.artist_id = {artist}.artist_id"}
+    dimensions:
+      - {name: album_id, sql: album_id, type: number, primary_key: true}
+      - {name: album_title, sql: title, type: string, title: Album}
+
+  - name: genre
+    title: Genres
+    sql_table: chinook.genre
+    dimensions:
+      - {name: genre_id, sql: genre_id, type: number, primary_key: true}
+      - {name: genre_name, sql: name, type: string, title: Genre}
+
+  - name: media_type
+    title: Media formats
+    sql_table: chinook.media_type
+    dimensions:
+      - {name: media_type_id, sql: media_type_id, type: number, primary_key: true}
+      - {name: format_name, sql: name, type: string, title: Media format}
+
+  - name: track
+    title: Tracks
+    description: One row per catalog track. List price is not the historical purchase price.
+    sql_table: chinook.track
+    joins:
+      - {name: album, relationship: many_to_one, sql: "{CUBE}.album_id = {album}.album_id"}
+      - {name: genre, relationship: many_to_one, sql: "{CUBE}.genre_id = {genre}.genre_id"}
+      - {name: media_type, relationship: many_to_one, sql: "{CUBE}.media_type_id = {media_type}.media_type_id"}
+    dimensions:
+      - {name: track_id, sql: track_id, type: number, primary_key: true}
+      - {name: track_name, sql: name, type: string, title: Track}
+      - {name: list_price, sql: unit_price, type: number, title: Current list price}
+    measures:
+      - {name: count, type: count, title: Catalog tracks}
+
+  - name: employee
+    title: Support representatives
+    sql_table: chinook.employee
+    dimensions:
+      - {name: employee_id, sql: employee_id, type: number, primary_key: true}
+      - {name: rep_name, sql: "{CUBE}.first_name || ' ' || {CUBE}.last_name", type: string, title: Support representative}
+      - {name: job_title, sql: title, type: string, title: Job title}
+
+  - name: customer
+    title: Customers
+    description: One row per fictitious customer; contact details are not exposed in the semantic catalog.
+    sql_table: chinook.customer
+    joins:
+      - {name: employee, relationship: many_to_one, sql: "{CUBE}.support_rep_id = {employee}.employee_id"}
+    dimensions:
+      - {name: customer_id, sql: customer_id, type: number, primary_key: true, title: Customer ID}
+      - {name: country, sql: country, type: string, title: Customer country}
+    measures:
+      - {name: count, type: count, title: Registered customers}
+
+  - name: invoice
+    title: Invoices
+    description: One row per invoice. Source currency is unspecified; totals are not profit.
+    sql_table: chinook.invoice
+    joins:
+      - {name: customer, relationship: many_to_one, sql: "{CUBE}.customer_id = {customer}.customer_id"}
+    dimensions:
+      - {name: invoice_id, sql: invoice_id, type: number, primary_key: true, title: Invoice ID}
+      - {name: invoice_date, sql: invoice_date, type: time, title: Invoice date}
+      - {name: billing_country, sql: billing_country, type: string, title: Billing country}
+    measures:
+      - {name: count, type: count, title: Invoice count}
+      - {name: sales, sql: total, type: sum, title: Invoice sales}
+      - name: average_invoice_value
+        title: Average invoice value
+        type: number
+        sql: "{sales} / NULLIF({count}, 0)"
+        meta: {numerator: sales, denominator: count}
+
+  - name: invoice_line
+    title: Purchased tracks
+    description: One row per purchased invoice line. Historical price times quantity; source currency is unspecified.
+    sql_table: chinook.invoice_line
+    joins:
+      - {name: invoice, relationship: many_to_one, sql: "{CUBE}.invoice_id = {invoice}.invoice_id"}
+      - {name: track, relationship: many_to_one, sql: "{CUBE}.track_id = {track}.track_id"}
+    dimensions:
+      - {name: invoice_line_id, sql: invoice_line_id, type: number, primary_key: true, title: Purchase line ID}
+    measures:
+      - {name: count, type: count, title: Purchase lines}
+      - {name: sales, sql: "{CUBE}.unit_price * {CUBE}.quantity", type: sum, title: Track sales}
+      - {name: units, sql: quantity, type: sum, title: Purchased units}
+      - {name: invoice_count, sql: invoice_id, type: count_distinct, title: Distinct purchase invoices}
+      - name: average_unit_price
+        title: Average paid unit price
+        type: number
+        sql: "{sales} / NULLIF({units}, 0)"
+        meta: {numerator: sales, denominator: units}

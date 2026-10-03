@@ -11,7 +11,7 @@ curl localhost:8000/health       # API      (docs at /docs)
 ```
 
 The local-only connection screen uses `local-demo-change-me` as its source-admin key. Set
-`DL_SOURCE_ADMIN_TOKEN` and `DL_RECIPE_ADMIN_TOKEN` before starting Compose to replace them. The example's Cube URL and service
+`DL_SOURCE_ADMIN_TOKEN` before starting Compose to replace it. Recipe editing has no separate key; keep this demo private. The example's Cube URL and service
 secret are fixed by environment variables, so the UI labels them as locked. For a non-demo deployment,
 set a private `DL_SOURCE_CONFIG_KEY` (Fernet key) before saving an API secret; never rotate or lose
 that key without first replacing the encrypted secret.

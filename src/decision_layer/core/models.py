@@ -141,6 +141,8 @@ class ParamSpec(BaseModel):
     enum: list[str] | None = None
     default: Any = None
     required: bool = False
+    minimum: float | None = None
+    maximum: float | None = None
     description: str = ""
     ui_group: Literal["basic", "advanced"] = "advanced"
 
@@ -185,8 +187,14 @@ class Limits(BaseModel):
 class PlanStep(BaseModel):
     id: str | None = None                          # lets later steps reference this one: $steps.<id>.…
     method: str                                    # "query.drilldown"
+    purpose: str | None = Field(default=None, max_length=240)  # intended question for this step, not evidence
     bindings: dict[str, Any] = Field(default_factory=dict)  # refs, or $expressions in Recipes (checked at run)
     params: dict[str, Any] = Field(default_factory=dict)
+
+
+class MethodParameterPolicy(BaseModel):
+    fixed: dict[str, Any] = Field(default_factory=dict)
+    runtime_allowed: list[str] | None = None  # None preserves existing Recipes' unrestricted requests
 
 
 class ValidatorRef(BaseModel):
@@ -198,11 +206,14 @@ class Recipe(BaseModel):
     name: str
     version: str
     description: str
+    status: Literal["draft", "published"] = "published"  # legacy files remain executable
+    origin_runs: list[str] = Field(default_factory=list)  # reviewed source Runs, never execution inputs
     routing: Routing = Field(default_factory=Routing)
     semantic_scope: SemanticScope
     mode: Literal["pipeline", "investigation"]
     steps: list[PlanStep] = Field(default_factory=list)          # pipeline
     allowed_methods: list[str] = Field(default_factory=list)     # investigation
+    method_parameters: dict[str, MethodParameterPolicy] = Field(default_factory=dict)
     limits: Limits = Field(default_factory=Limits)
     validators: list[ValidatorRef] = Field(default_factory=list)
     instructions: str | None = None                # bounded free text; never overrides semantics
@@ -272,11 +283,12 @@ class StepRecord(BaseModel):
     result: Result
     started_at: datetime
     finished_at: datetime
+    parameter_sources: dict[str, Literal["method_default", "recipe", "recipe_fixed", "request"]] = Field(default_factory=dict)
 
 
 class RunningJob(BaseModel):
     """Work executing in the background for a run (ADR-030)."""
-    kind: Literal["adhoc", "pipeline", "step"]
+    kind: Literal["adhoc", "pipeline", "step", "preview"]
     method: str | None = None
     started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -284,7 +296,9 @@ class RunningJob(BaseModel):
 class Run(BaseModel):
     id: str
     plan: AnalysisPlan
+    origin: Literal["unknown", "python", "api", "web", "mcp"] = "unknown"
     recipe_snapshot: Recipe | None = None          # immutable copy, not a pointer (MVP_PLAN §15)
+    preview: bool = False                           # unsaved Recipe snapshot, executed through the same engine
     steps: list[StepRecord] = Field(default_factory=list)
     caller: CallerInfo = Field(default_factory=CallerInfo)      # the owner
     shared_with: list[str] = Field(default_factory=list)        # subjects with read access ("*": any caller)

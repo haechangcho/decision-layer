@@ -1,86 +1,34 @@
-# Contributing to Decision Layer
+# Contributing
 
-Contributions to analytical methods, Recipe examples, provider contracts, documentation and usability are welcome. Open an issue for a bug or a proposed change; discuss changes to execution or semantic ownership before implementing them.
+Contributions to Methods, Recipe examples, documentation and usability are welcome. Small fixes can go straight to a pull request. For a new Method or a change to execution contracts, open an issue to discuss the analytical question and scope first.
 
-Read [AGENTS.md](AGENTS.md), [product context](docs/PRODUCT_CONTEXT.md), [architecture](docs/ARCHITECTURE.md) and [ADRs](docs/DECISIONS.md) first. ADRs take precedence over older proposals.
+## Development
 
-## Local development
+1. Follow [local development](docs/guides/development.md) to install the API and Web.
+2. Run the [test suite](docs/guides/testing.md). Unit and mocked browser tests do not need Cube.
+3. Use the [Chinook sample](examples/chinook/README.md) for reproducible live integration checks.
 
-Use Python 3.11+ and Node.js 22. From the repository root:
+## Choose the right contribution
 
-```bash
-python3.11 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
-.venv/bin/pytest
-```
+| Change | Start here |
+| --- | --- |
+| New analytical capability | [Method contribution guide](docs/guides/methods.md) |
+| Procedure using existing Methods | [Sample Recipe](examples/chinook/templates/music-sales.yaml) and Recipe editor |
+| Web interaction or presentation | `web/app/`, `web/components/` and `web/tests/product/` |
+| Provider or execution contract | [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/DECISIONS.md) |
+| Setup or documentation | The relevant task guide under `docs/guides/` |
 
-Start the API in one terminal. Supply your Cube URL and caller token through your deployment/client configuration; the API does not need a live Cube to start.
-
-```bash
-mkdir -p recipes
-DL_RECIPES_DIR=./recipes DL_RECIPE_ADMIN_TOKEN=local-recipe-key \
-  .venv/bin/uvicorn decision_layer.api.app:app --reload --port 8000
-```
-
-Start the Web in another terminal:
-
-```bash
-cd web
-npm ci
-DL_API_URL=http://localhost:8000 npm run dev
-```
-
-Open http://localhost:5210. Configure a Cube connection through Sources or environment variables. For a complete model and data, use the [Docker example](examples/ecommerce/README.md).
-
-For the Docker setup in the README, the API is at http://localhost:8000. Use
-`docker compose logs --tail=100` to inspect startup problems. Change host ports
-with `WEB_PORT` and `API_PORT` if needed. `docker compose down` preserves data;
-`docker compose down -v` deletes the Recipe and database volumes. To use a
-Git-managed Recipe directory, create `recipes/` and replace `recipes:/recipes`
-with `./recipes:/recipes` in `compose.yaml`.
-
-## Verification
-
-```bash
-.venv/bin/pytest
-```
-
-The default suite excludes live Cube tests. To run those against the example stack:
-
-```bash
-CUBE_API_URL=http://localhost:4000/cubejs-api/v1 \
-CUBE_API_SECRET=example-secret-change-me-0123456789 \
-.venv/bin/pytest -m cube
-```
-
-From `web/`:
-
-```bash
-npm run typecheck
-npm run build
-```
-
-Browser tests use Playwright and a running Web server. Some existing journey tests are being updated alongside Recipe UX changes; do not describe a mocked API test as a live integration test.
-
-```bash
-npx playwright install chromium
-PLAYWRIGHT_BASE_URL=http://localhost:5210 npm run test:e2e
-```
-
-## Add a Method or Recipe
-
-A Method is an atomic analytical capability. A Recipe combines existing Methods into a reusable procedure. Prefer a Recipe when existing Methods are sufficient.
-
-1. Read `methods/base.py`, the registry in `methods/__init__.py`, and an existing implementation under `methods/query/` or `methods/causal/`.
-2. Declare typed roles, parameters, defaults, interpretation and outputs in the Method manifest.
-3. Request data through the shared execution context and semantic provider. Do not redefine metric SQL, joins or access policy inside a Method.
-4. Return structured artifacts, validation and warnings, including refusal when required assumptions cannot be checked.
-5. Register the Method and add focused tests for valid inputs, missing data, invalid inputs and interpretation limits. Include an example and explain its assumptions in the pull request.
-
-Methods are reviewed Python code installed with the server. A separate downloadable plugin runtime or automatic plugin installer is not implemented. Web, REST and MCP must use the same contract.
+Read [AGENTS.md](AGENTS.md) before changing product or architecture behavior. The semantic layer owns definitions, joins, grain and permissions; Decision Layer owns analytical procedures and their evidence. All interfaces must use the same engine.
 
 ## Pull requests
 
-Describe the user problem, the behavior change and the checks you ran. Keep changes scoped. Record architecture changes in `docs/DECISIONS.md` and distinguish implemented features from planned work.
+- Explain the user problem and behavior change. Include screenshots for UI changes.
+- Add focused tests and list the commands you ran. Distinguish mocked checks from live integration and AI-client evaluation.
+- Keep changes scoped. Update guides when commands or behavior change; record architectural decisions in `docs/DECISIONS.md`.
+- Use synthetic or public data with documented source, permission and version. Do not commit tokens, private models, customer results, local databases or infrastructure notes.
 
-Use synthetic data in examples. Do not commit credentials, private models, query results from customer data, local databases or internal infrastructure notes. The Docker example contains clearly labeled development credentials only.
+Methods are reviewed Python code shipped with the server, not scripts uploaded by users. Recipe drafts require review before publication; neither a draft nor a client-origin label proves approval.
+
+## Bug reports
+
+Include the command or user journey, expected and actual behavior, versions and sanitized logs. For analytical issues, include the Method, semantic grain, expected result and a public or synthetic reproducer. Never attach access tokens or private data.

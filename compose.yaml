@@ -6,7 +6,6 @@ services:
     environment:
       DL_DATABASE_URL: sqlite:////data/decision_layer.db
       DL_RECIPES_DIR: /recipes
-      DL_RECIPE_ADMIN_TOKEN: ${DL_RECIPE_ADMIN_TOKEN:-local-recipe-key}
       DL_SOURCE_ADMIN_TOKEN: ${DL_SOURCE_ADMIN_TOKEN:-}
       DL_SOURCE_CONFIG_KEY: ${DL_SOURCE_CONFIG_KEY:-}
       DL_ALLOW_SERVICE_CREDENTIALS: ${DL_ALLOW_SERVICE_CREDENTIALS:-false}

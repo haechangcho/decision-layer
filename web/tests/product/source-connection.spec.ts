@@ -14,6 +14,8 @@ test("env-managed connection shows status and a test button only", async ({ page
   await page.route("**/api/sources/current", route => route.fulfill({ json: source }));
   await page.route("**/api/sources/current:test", route => route.fulfill({
     json: { status: "connected", provider: "cube", instance: "local", measures: 17, dimensions: 27, time_dimensions: 7, objects: 51 } }));
+  await page.route("**/api/sources/current/readiness", route => route.fulfill({ json: { metrics: [{ metric: {
+    ref: "cube://local/dim_customer/count", title: "고객 수" }, checks: { decomposition: { status: "not_applicable" }, time: { status: "ready" }, entity_key: { status: "ready" } } }] } }));
   await page.goto("/sources");
   await expect(page.getByRole("heading", { name: "Cube connection" })).toBeVisible();
   // the real URL is shown, with the env var that fixes it
@@ -27,6 +29,9 @@ test("env-managed connection shows status and a test button only", async ({ page
   await page.getByRole("button", { name: "Test connection" }).click();
   await expect(page.getByText(/Catalog access verified/)).toBeVisible();
   await expect(page.getByRole("link", { name: /Explore metrics/ })).toBeVisible();
+  await page.getByRole("button", { name: "Check readiness" }).click();
+  await expect(page.getByText("고객 수")).toBeVisible();
+  await expect(page.getByText("cube://local/dim_customer/count")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath("source-env.png"), fullPage: true });
 });
@@ -89,6 +94,6 @@ test("live env-managed connection tests and reports readiness", async ({ page },
   await page.getByRole("button", { name: "Check readiness" }).click();
   await expect(page.getByRole("heading", { name: /Metric readiness/ })).toBeVisible({ timeout: 30000 });
   // the real ecommerce metric and its readiness badges
-  await expect(page.getByText("cube://local/ecom_order/return_rate")).toBeVisible();
+  await expect(page.getByText("cube://local/ecom_order/return_rate")).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("source-live.png"), fullPage: true });
 });

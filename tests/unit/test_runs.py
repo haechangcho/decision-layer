@@ -40,10 +40,32 @@ async def test_pipeline_feeds_earlier_results_forward(provider, tmp_path):
     assert run.plan.recipe == "recipe://return-rate-drilldown@1.0.0" and run.recipe_snapshot.name == "return-rate-drilldown"
     second = run.steps[1]
     assert second.step.params["drill_path"] == [{"member": CAT, "value": "A"}]   # resolved from step 1
+    assert second.parameter_sources["drill_path"] == "recipe"
+    assert second.parameter_sources["top_n"] == "method_default"
+    assert second.step.params["top_n"] == 10
     assert second.result.primary.data["rows"][0]["value"] == "S1"
     stored = await e.store.get(run.id)                                          # round-trips through sqlite
     assert stored.model_dump() == run.model_dump()
     assert [r.id for r in await e.store.list(recipe="recipe://return-rate")] == [run.id]
+
+
+async def test_unsaved_recipe_preview_uses_the_same_pipeline_and_preserves_evidence(provider):
+    e = engine(provider)
+    recipe = e.recipes.get("return-rate-drilldown")
+    preview = await e.preview(CREDS, ME, recipe, 1, SCOPE)
+    assert preview.preview and preview.status == "completed" and len(preview.steps) == 2
+    assert preview.plan.recipe is None and preview.recipe_snapshot == recipe
+    assert preview.steps[1].result.provenance.queries
+    assert preview.steps[1].step.params["drill_path"] == [{"member": CAT, "value": "A"}]
+    assert (await e.store.get(preview.id)).model_dump() == preview.model_dump()
+
+
+async def test_preview_rejects_an_unconfigured_step(provider):
+    e = engine(provider)
+    recipe = e.recipes.get("return-rate-drilldown")
+    from decision_layer.runs.engine import PreviewStepInvalid
+    with pytest.raises(PreviewStepInvalid):
+        await e.preview(CREDS, ME, recipe, 2, SCOPE)
 
 
 async def test_investigation_is_enforced(provider):
@@ -54,6 +76,9 @@ async def test_investigation_is_enforced(provider):
 
     _, result = await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", bindings={"metric": RR}))
     assert result.status == "success" and result.run_id == run.id
+    recorded = (await e.store.get(run.id)).steps[0]
+    assert recorded.step.params["granularity"] == "month"
+    assert recorded.parameter_sources["granularity"] == "method_default"
     with pytest.raises(MethodNotAllowed):
         await e.step(CREDS, ME, run.id, PlanStep(method="query.unknown", bindings={"metric": RR}))
     with pytest.raises(InvalidBinding):                                          # not in the recipe's metric scope
@@ -63,6 +88,62 @@ async def test_investigation_is_enforced(provider):
     assert done.status == "completed" and done.summary and len(done.steps) == 1
     with pytest.raises(RunClosed):
         await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", bindings={"metric": RR}))
+
+
+async def test_adhoc_explicit_parameter_source(provider):
+    e = engine(provider)
+    run, result = await e.adhoc(CREDS, ME, PlanStep(method="query.trend", bindings={"metric": RR},
+                                                 params={"granularity": "week"}), SCOPE)
+    assert result.status == "success"
+    assert run.steps[0].step.params["granularity"] == "week"
+    assert run.steps[0].parameter_sources["granularity"] == "request"
+    assert run.steps[0].parameter_sources["vs_previous"] == "method_default"
+
+
+async def test_recipe_free_question_keeps_multiple_methods_in_one_run(provider, tmp_path):
+    e = engine(provider, SqliteRunStore(str(tmp_path / "runs.db")), recipes_dir=tmp_path / "empty")
+    assert e.recipes.list() == []
+    run = await e.start(CREDS, ME, recipe=None, question="반품률이 어떻게 변했고 어느 범주가 높은가?", scope=SCOPE,
+                        origin="mcp")
+    assert run.status == "open" and run.recipe_snapshot is None
+    await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", purpose="기간별 반품률을 확인", bindings={"metric": RR}))
+    await e.step(CREDS, ME, run.id, PlanStep(method="query.drilldown", bindings={"metric": RR, "dimensions": [CAT]}))
+    done = await e.complete(ME, run.id, "두 분석 단계의 결과를 확인함")
+    stored = await e.store.get(run.id)
+    assert done.status == "completed" and stored.origin == "mcp"
+    assert stored.plan.question == "반품률이 어떻게 변했고 어느 범주가 높은가?"
+    assert [record.step.method for record in stored.steps] == ["query.trend", "query.drilldown"]
+    assert stored.steps[0].step.purpose == "기간별 반품률을 확인"
+    assert all(record.result.provenance.queries for record in stored.steps)
+
+
+async def test_recipe_fixed_parameters_apply_to_steps_and_reject_runtime_overrides(provider, tmp_path):
+    e = engine(provider, recipes_dir=write_recipe(tmp_path, """
+name: governed-trend
+version: 1.0.0
+description: Governed trend
+semantic_scope: {primary_metric: ecom_order.return_rate}
+mode: investigation
+allowed_methods: [query.trend]
+method_parameters:
+  query.trend:
+    fixed: {granularity: week}
+    runtime_allowed: [vs_previous]
+"""))
+    run = await e.start(CREDS, ME, recipe="governed-trend", question=None, scope=SCOPE)
+    with pytest.raises(InvalidBinding, match="fixed"):
+        await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", bindings={"metric": RR},
+                                                params={"granularity": "month"}))
+    with pytest.raises(InvalidBinding, match="runtime"):
+        await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", bindings={"metric": RR},
+                                                params={"comparison": ["2026-01-01", "2026-03-31"]}))
+    _, result = await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", bindings={"metric": RR},
+                                                         params={"vs_previous": True}))
+    assert result.status == "success"
+    recorded = (await e.store.get(run.id)).steps[0]
+    assert recorded.step.params["granularity"] == "week"
+    assert recorded.parameter_sources["granularity"] == "recipe_fixed"
+    assert recorded.parameter_sources["vs_previous"] == "request"
 
 
 async def test_step_and_query_limits(provider, tmp_path):
@@ -129,7 +210,9 @@ def test_api_runs(provider):
                  allow_service_credentials=True)
     c = TestClient(create_app(s, provider))
     assert {r["name"] for r in c.get("/recipes").json()} >= {"return-rate-investigation", "sales-change-diagnosis"}
-    run = c.post("/runs", json={"recipe": "return-rate-investigation", "question": "왜?", "scope": SCOPE}).json()
+    run = c.post("/runs", json={"recipe": "return-rate-investigation", "question": "왜?", "scope": SCOPE},
+                 headers={"X-Decision-Layer-Client": "web"}).json()
+    assert run["origin"] == "web"
     step = c.post(f"/runs/{run['id']}/steps", json={"method": "query.trend", "bindings": {"metric": RR}}).json()
     assert step["status"] == "success" and step["run_id"] == run["id"]
     r = c.post(f"/runs/{run['id']}/steps", json={"method": "query.unknown", "bindings": {"metric": RR}})
@@ -137,4 +220,65 @@ def test_api_runs(provider):
     assert c.post(f"/runs/{run['id']}:complete", json={"summary": "끝"}).json()["status"] == "completed"
     adhoc = c.post("/methods/query.trend:run", json={"bindings": {"metric": RR}, "scope": SCOPE}).json()
     assert adhoc["run_id"] and len(c.get("/runs").json()) == 2
-    assert c.get(f"/runs/{adhoc['run_id']}").json()["steps"][0]["step"]["method"] == "query.trend"
+    adhoc_step = c.get(f"/runs/{adhoc['run_id']}").json()["steps"][0]
+    assert adhoc_step["step"]["method"] == "query.trend"
+    assert adhoc_step["step"]["params"]["granularity"] == "month"
+    assert adhoc_step["parameter_sources"]["granularity"] == "method_default"
+    assert c.get(f"/runs/{adhoc['run_id']}").json()["origin"] == "api"
+    mcp = c.post("/methods/query.trend:run", json={"question": "Why did returns change?", "bindings": {"metric": RR}, "scope": SCOPE},
+                 headers={"X-Decision-Layer-Client": "mcp"}).json()
+    assert c.get(f"/runs/{mcp['run_id']}").json()["origin"] == "mcp"
+    assert c.get(f"/runs/{mcp['run_id']}").json()["plan"]["question"] == "Why did returns change?"
+    candidate = c.get(f"/runs/{adhoc['run_id']}/recipe-candidate", params={"indices": 0})
+    assert candidate.status_code == 200, candidate.json()
+    assert candidate.json()["recipe"]["status"] == "draft"
+    assert candidate.json()["recipe"]["origin_runs"] == [adhoc["run_id"]]
+    assert "granularity" not in candidate.json()["recipe"]["steps"][0]["params"]
+    assert c.get(f"/runs/{adhoc['run_id']}/recipe-candidate", params={"indices": 1}).status_code == 422
+
+
+def test_api_enforces_recipe_parameter_policy(provider, tmp_path):
+    recipes_dir = write_recipe(tmp_path, """
+name: governed-trend
+version: 1.0.0
+description: Governed trend
+semantic_scope: {primary_metric: ecom_order.return_rate}
+mode: investigation
+allowed_methods: [query.trend]
+method_parameters:
+  query.trend:
+    fixed: {granularity: week}
+    runtime_allowed: [vs_previous]
+""")
+    settings = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="s",
+                        cube_service_groups=("ecommerce",), database_url="memory", recipes_dir=str(recipes_dir),
+                        allow_service_credentials=True)
+    client = TestClient(create_app(settings, provider))
+    run = client.post("/runs", json={"recipe": "governed-trend", "scope": SCOPE}).json()
+    bad = client.post(f"/runs/{run['id']}/steps", json={"method": "query.trend", "bindings": {"metric": RR},
+                                                      "params": {"granularity": "month"}})
+    assert bad.status_code == 400 and bad.json()["error"]["code"] == "INVALID_BINDING"
+    good = client.post(f"/runs/{run['id']}/steps", json={"method": "query.trend", "bindings": {"metric": RR},
+                                                       "params": {"vs_previous": True}})
+    assert good.status_code == 200
+    stored = client.get(f"/runs/{run['id']}").json()["steps"][0]
+    assert stored["step"]["params"]["granularity"] == "week"
+    assert stored["parameter_sources"]["granularity"] == "recipe_fixed"
+
+
+def test_api_previews_an_unsaved_recipe_without_publishing_it(provider):
+    settings = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="s",
+                        cube_service_groups=("ecommerce",), database_url="memory", recipes_dir=str(REPO_RECIPES),
+                        allow_service_credentials=True)
+    client = TestClient(create_app(settings, provider))
+    original = RecipeStore(REPO_RECIPES, "cube", "local").get("return-rate-drilldown")
+    draft = original.model_copy(update={"name": "preview-only", "description": "Unsaved preview"})
+    response = client.post("/recipes:preview", json={"recipe": draft.model_dump(mode="json"),
+                                                      "step_index": 1, "scope": SCOPE},
+                           headers={"X-Decision-Layer-Client": "web"})
+    assert response.status_code == 200
+    run = response.json()
+    assert run["preview"] and run["recipe_snapshot"]["name"] == "preview-only"
+    assert run["origin"] == "web"
+    assert len(run["steps"]) == 2 and run["steps"][1]["result"]["provenance"]["queries"]
+    assert "preview-only" not in {item["name"] for item in client.get("/recipes").json()}
