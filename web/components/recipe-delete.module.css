@@ -1,0 +1,13 @@
+.trigger { display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; flex-shrink:0; padding:0; color:var(--muted); background:transparent; border:0; border-radius:4px; cursor:pointer; }
+.trigger:hover { color:var(--bad); background:#ffebe9; }
+.trigger:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.dialog { width:440px; max-width:calc(100vw - 32px); margin:auto; padding:24px; border:1px solid var(--line); border-radius:6px; color:var(--text); background:#fff; box-shadow:0 12px 40px #0003; }
+.dialog::backdrop { background:#0006; }
+.dialog h2 { margin:0 0 16px; font-size:19px; }
+.dialog p { font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
+.name { font-weight:600; }
+.error { color:var(--bad); }
+.actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; margin-top:24px; }
+.actions button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:36px; padding:6px 12px; border:1px solid var(--line); border-radius:4px; background:#fff; color:var(--text); cursor:pointer; }
+.actions .danger { color:#fff; background:#c42b1c; border-color:#c42b1c; }
+.actions button:disabled { opacity:.5; cursor:default; }

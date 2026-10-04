@@ -145,8 +145,7 @@ test("find a Recipe, run it with its recommended time dimension, and inspect evi
   await page.getByRole("button", { name: "이 Recipe로 분석" }).click();
   await expect(page).toHaveURL(/\/runs\/journey-run$/);
   await expect(page.getByRole("region", { name: "실행 그래프" }).getByText("매출 추이")).toBeVisible();
-  await page.getByText("표와 실행 근거 보기").click();
-  await page.locator("summary").filter({ hasText: /^실행 근거/ }).click();
+  await page.getByRole("tab", { name: /쿼리/ }).click();
   await expect(page.getByText("SELECT revenue")).toBeVisible();
   expect(requestScope?.time_dimension).toBe("cube://local/ecom_order/created_at");
 });

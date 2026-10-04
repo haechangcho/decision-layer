@@ -42,6 +42,19 @@ def test_ad_hoc_method_forwards_the_original_question(monkeypatch):
     assert seen["question"] == "Why did revenue change?"
 
 
+def test_semantic_search_forwards_provider_date_hints_without_domain_assumptions(monkeypatch):
+    s = load(monkeypatch)
+
+    async def fake_call(_method, _path, **kwargs):
+        return {"objects": [{"ref": "cube://production/manufacturing/inspection_date", "kind": "time_dimension",
+            "title": "Inspection date", "metadata": {"suggestedDateRange": ["2025-01-01", "2025-06-30"],
+                                                     "calendarType": "mapped", "unrelated": "not forwarded"}}]}
+
+    monkeypatch.setattr(s, "_call", fake_call)
+    result = asyncio.run(s.search_semantic(kind="time_dimension"))
+    assert result["objects"][0]["metadata"] == {"suggestedDateRange": ["2025-01-01", "2025-06-30"], "calendarType": "mapped"}
+
+
 def test_recipe_free_analysis_starts_one_open_run(monkeypatch):
     s = load(monkeypatch)
     seen = {}

@@ -1,0 +1,21 @@
+:root {
+  /* Heartcount base.css: coral actions, neutral surfaces, cobalt data marks. */
+  --dl-brand: #f9423a;
+  --dl-action: #d73730;
+  --dl-action-hover: #bb2c26;
+  --dl-action-soft: #fff2f2;
+  --dl-ink: #27272a;
+  --dl-muted: #64646d;
+  --dl-subtle: #85858e;
+  --dl-surface: #ffffff;
+  --dl-canvas: #f7f7f8;
+  --dl-hover: #f0f0f2;
+  --dl-border: #e4e4e7;
+  --dl-border-strong: #c9c9cf;
+  --dl-data: #3d7be0;
+  --dl-data-soft: #edf3fc;
+  --dl-success: #35855d;
+  --dl-warning: #936000;
+  --dl-danger: #c70800;
+  --dl-shadow: 0 2px 6px #18181b06, 0 1px 2px #18181b05;
+}

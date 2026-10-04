@@ -4,7 +4,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from ..core.errors import DecisionLayerError
-from ..core.models import PlanStep, Recipe, Run, SemanticScope
+from ..core.models import Filter, PlanStep, Recipe, Run, RunDefaults, SemanticScope
 from ..i18n import _
 from .authoring import validate_recipe
 
@@ -38,19 +38,20 @@ def candidate_from_run(run: Run, indices: list[int]) -> RecipeCandidate:
     primary = metrics[0]
     related = list(dict.fromkeys(value for value in metrics[1:] if isinstance(value, str) and value.startswith("cube://") and value != primary))
     steps: list[PlanStep] = []
-    review_notes = [_("The Run's period and shared filters were not copied. Choose them when executing the Recipe.")]
+    review_notes = []
     for index, record in enumerate(selected):
-        params = {name: value for name, value in record.step.params.items()
-                  if record.parameter_sources.get(name) not in ("method_default", None)
-                  and name not in ("current", "comparison")}
-        if params.get("drill_path"):
-            review_notes.append(_("Step {step} has a fixed drill path from the Run. Review it before publishing.", step=index + 1))
+        params = record.step.params.copy()
         steps.append(PlanStep(id=f"step_{index + 1}", method=record.step.method,
-                              bindings=record.step.bindings, params=params))
-    recipe = Recipe(name=f"analysis-{run.id[-8:]}", version="1.0.0", status="draft",
+                              method_version=record.method.rpartition("@")[2] or None,
+                              purpose=record.step.purpose, bindings=record.step.bindings, params=params))
+    recipe = Recipe(name=f"analysis-{run.id[-8:].lower()}", version="1.0.0", status="draft",
                     description=run.plan.question or _("Analysis from Run {run_id}", run_id=run.id),
                     origin_runs=[run.id],
-                    semantic_scope=SemanticScope(primary_metric=primary, related_metrics=related),
+                    semantic_scope=SemanticScope(primary_metric=primary, related_metrics=related,
+                                                 required_filters=[Filter.model_validate(f) for f in run.plan.scope.get("filters") or []]),
+                    default_scope=RunDefaults(date_range=run.plan.scope.get("date_range"), time_dimension=run.plan.scope.get("time_dimension")),
+                    validators=run.recipe_snapshot.validators if run.recipe_snapshot else [],
                     mode="pipeline", steps=steps)
+    recipe.limits.max_queries = max(recipe.limits.max_queries, sum(len(record.result.provenance.queries) for record in selected))
     validate_recipe(recipe)
     return RecipeCandidate(recipe=recipe, source_run_id=run.id, selected_steps=indices, review_notes=review_notes)

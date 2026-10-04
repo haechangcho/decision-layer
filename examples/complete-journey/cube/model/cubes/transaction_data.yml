@@ -1,0 +1,62 @@
+cubes:
+- name: transaction
+  sql: SELECT row_number() OVER () AS line_id, * FROM journey.transaction_data
+  title: Retail transactions
+  joins:
+  - name: product
+    sql: '{CUBE}.product_id = {product}.product_id'
+    relationship: many_to_one
+  - name: household
+    sql: '{CUBE}.household_key = {household}.household_key'
+    relationship: many_to_one
+  dimensions:
+  - name: id
+    sql: line_id
+    type: number
+    primary_key: true
+    public: false
+  - name: store
+    sql: store_id
+    type: string
+    title: Store
+  - name: day_index
+    sql: day::integer
+    type: number
+    title: Source day index
+  - name: analysis_date
+    sql: transaction_date
+    type: time
+    title: Transaction date
+    description: Fixed example calendar (day 1 = 2000-01-01), not the actual purchase year. Available from 2000-01-01 to 2001-12-11.
+    meta:
+      suggestedDateRange: ['2000-01-01', '2001-12-11']
+      calendarType: mapped
+  measures:
+  - name: count
+    type: count
+    title: Transaction lines
+  - name: receipts
+    sql: sales_value::numeric
+    type: sum
+    title: Retailer receipts
+    description: Amount received by retailer; not profit or necessarily customer cash paid
+  - name: units
+    sql: quantity::numeric
+    type: sum
+    title: Units purchased
+  - name: baskets
+    sql: basket_id
+    type: count_distinct
+    title: Purchase baskets
+  - name: coupon_lines
+    type: count
+    title: Lines with coupon discount
+    filters:
+    - sql: '{CUBE}.coupon_disc::numeric < 0'
+  - name: coupon_line_rate
+    sql: 100.0 * {coupon_lines} / NULLIF({count}, 0)
+    type: number
+    title: Coupon line rate (%)
+    meta:
+      numerator: coupon_lines
+      denominator: count

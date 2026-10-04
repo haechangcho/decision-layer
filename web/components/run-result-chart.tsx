@@ -22,11 +22,11 @@ export function RunResultChart({ artifact }: { artifact?: Artifact | null }) {
     return <div className={s.chart} role="img" aria-label={`기간별 지표 값 그래프, ${points.length}개 기간`}>
       <ResponsiveContainer width="100%" height="100%">
         {points.length === 1 ? <BarChart data={points} margin={{ top: 14, right: 16, bottom: 4, left: 8 }}>
-          <CartesianGrid vertical={false} stroke="#e6edf0" /><XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} /><YAxis tickFormatter={compactNumber} tickLine={false} axisLine={false} fontSize={11} width={64} />
-          <Tooltip formatter={(value) => typeof value === "number" ? value.toLocaleString("ko-KR") : String(value)} /><Bar dataKey="value" name="지표 값" fill="#1581cb" maxBarSize={110} radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <CartesianGrid vertical={false} stroke="var(--line)" /><XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} /><YAxis tickFormatter={compactNumber} tickLine={false} axisLine={false} fontSize={11} width={64} />
+          <Tooltip formatter={(value) => typeof value === "number" ? value.toLocaleString("ko-KR") : String(value)} /><Bar dataKey="value" name="지표 값" fill="var(--dl-data)" maxBarSize={110} radius={[3, 3, 0, 0]} isAnimationActive={false} />
         </BarChart> : <LineChart data={points} margin={{ top: 14, right: 16, bottom: 4, left: 8 }}>
-          <CartesianGrid vertical={false} stroke="#e6edf0" /><XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} /><YAxis tickFormatter={compactNumber} tickLine={false} axisLine={false} fontSize={11} width={64} />
-          <Tooltip formatter={(value) => typeof value === "number" ? value.toLocaleString("ko-KR") : String(value)} /><Line type="monotone" dataKey="value" name="지표 값" stroke="#1581cb" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+          <CartesianGrid vertical={false} stroke="var(--line)" /><XAxis dataKey="name" tickLine={false} axisLine={false} fontSize={11} /><YAxis tickFormatter={compactNumber} tickLine={false} axisLine={false} fontSize={11} width={64} />
+          <Tooltip formatter={(value) => typeof value === "number" ? value.toLocaleString("ko-KR") : String(value)} /><Line type="monotone" dataKey="value" name="지표 값" stroke="var(--dl-data)" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} isAnimationActive={false} />
         </LineChart>}
       </ResponsiveContainer>
     </div>;
@@ -38,9 +38,9 @@ export function RunResultChart({ artifact }: { artifact?: Artifact | null }) {
     return <div className={s.chart} role="img" aria-label={`그룹별 지표 값 그래프, ${points.length}개 그룹`} style={{ height: Math.max(220, points.length * 40 + 42) }}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={points} layout="vertical" margin={{ top: 4, right: 18, bottom: 4, left: 0 }}>
-          <CartesianGrid horizontal={false} stroke="#e6edf0" /><XAxis type="number" tickFormatter={compactNumber} tickLine={false} axisLine={false} fontSize={11} />
-          <YAxis type="category" dataKey="name" width={110} tickLine={false} axisLine={false} fontSize={11} tick={{ fill: "#33434c" }} />
-          <Tooltip formatter={(value) => typeof value === "number" ? value.toLocaleString("ko-KR") : String(value)} /><Bar dataKey="value" name="지표 값" fill="#1581cb" maxBarSize={21} radius={[0, 3, 3, 0]} isAnimationActive={false} />
+          <CartesianGrid horizontal={false} stroke="var(--line)" /><XAxis type="number" tickFormatter={compactNumber} tickLine={false} axisLine={false} fontSize={11} />
+          <YAxis type="category" dataKey="name" width={110} tickLine={false} axisLine={false} fontSize={11} tick={{ fill: "var(--muted)" }} />
+          <Tooltip formatter={(value) => typeof value === "number" ? value.toLocaleString("ko-KR") : String(value)} /><Bar dataKey="value" name="지표 값" fill="var(--dl-data)" maxBarSize={21} radius={[0, 3, 3, 0]} isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>;

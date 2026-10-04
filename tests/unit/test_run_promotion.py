@@ -10,7 +10,7 @@ DIMENSION = "cube://local/ecom_order/channel"
 
 def run():
     def step(method, bindings, params, sources):
-        return {"step": {"method": method, "bindings": bindings, "params": params},
+        return {"step": {"method": method, "purpose": "Recorded purpose", "bindings": bindings, "params": params},
                 "method": f"method://{method}@1.0.0", "result": {"status": "success"},
                 "parameter_sources": sources,
                 "started_at": "2026-10-01T10:00:00Z", "finished_at": "2026-10-01T10:00:01Z"}
@@ -24,15 +24,19 @@ def run():
                        {"top_n": "request", "min_count": "method_default", "drill_path": "request"})]})
 
 
-def test_selected_run_steps_make_a_reviewable_draft_without_scope_or_defaults():
-    candidate = candidate_from_run(run(), [0, 1])
+def test_selected_run_steps_preserve_recorded_settings_and_scope():
+    source = run()
+    candidate = candidate_from_run(source, [0, 1])
     recipe = candidate.recipe
     assert recipe.status == "draft" and recipe.mode == "pipeline"
     assert recipe.semantic_scope.primary_metric == METRIC
-    assert recipe.semantic_scope.required_filters == []
-    assert recipe.steps[0].params == {}
-    assert recipe.steps[1].params == {"top_n": 5, "drill_path": [{"member": DIMENSION, "value": "retail"}]}
-    assert len(candidate.review_notes) == 2
+    assert recipe.semantic_scope.required_filters[0].model_dump() == source.plan.scope["filters"][0]
+    assert list(recipe.default_scope.date_range) == source.plan.scope["date_range"]
+    for original, copied in zip(source.steps, recipe.steps):
+        assert copied.params == original.step.params
+        assert copied.bindings == original.step.bindings
+        assert copied.purpose == original.step.purpose
+        assert copied.method_version == original.method.rpartition("@")[2]
 
 
 def test_preview_and_unsuccessful_steps_cannot_be_promoted():

@@ -232,6 +232,8 @@ test("preview an unsaved step, poll a 202 job, and inspect its result", async ({
   } }));
   await page.goto("/recipes/insurance-review/edit");
   await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await expect(page.getByLabel("미리보기 시작일")).not.toBeVisible();
+  await page.getByLabel("미리보기 기간 지정").check();
   await page.getByLabel("미리보기 날짜 기준").selectOption("cube://local/fact_accident/payment_dt");
   await page.getByLabel("미리보기 시작일").fill("2026-06-01");
   await page.getByLabel("미리보기 종료일").fill("2026-06-30");

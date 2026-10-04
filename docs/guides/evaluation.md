@@ -4,7 +4,7 @@ Public sample questions are regression checks, not a blind benchmark. Complete J
 
 ## Actual AI-client trial
 
-Start the [sample](../../examples/complete-journey/README.md), install the MCP adapter and sign in to Claude Code. From the repository root:
+Start the [sample](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md), install the MCP adapter and sign in to Claude Code. From the repository root:
 
 ```bash
 DL_API_URL=http://127.0.0.1:8000 .venv/bin/python evals/run_eval.py \

@@ -11,6 +11,8 @@ import { useApi, useCatalog } from "@/lib/hooks";
 import { methodName } from "@/lib/method-name";
 import { ResultView, ValidationList } from "@/components/result";
 import { recipeChanges } from "@/lib/recipe-changes";
+import { RecipeDelete } from "./recipe-delete";
+import { suggestedDateRange, suggestedTimeDimension } from "@/lib/semantic-dates";
 import s from "./analysis-canvas.module.css";
 
 const blank = (): Recipe => ({ name: "", version: "1.0.0", description: "", status: "draft", mode: "pipeline", routing: { use_for: [], do_not_use_for: [] }, semantic_scope: { primary_metric: "", related_metrics: [], preferred_dimensions: [], required_filters: [] }, steps: [], allowed_methods: [], validators: [], limits: { max_steps: 12, max_queries: 30 } });
@@ -213,9 +215,11 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const [yamlDirty, setYamlDirty] = useState(false);
   const [yamlBusy, setYamlBusy] = useState(false);
   const [yamlError, setYamlError] = useState("");
-  const [reviewNotes, setReviewNotes] = useState<string[]>([]);
-  const [previewRange, setPreviewRange] = useState<[string, string]>(previewDates);
-  const [previewTimeDimension, setPreviewTimeDimension] = useState("");
+  const [previewRange, setPreviewRange] = useState<[string, string]>(() => initial?.default_scope?.date_range ?? previewDates());
+  const previewDatesTouched = useRef(false);
+  function choosePreviewDates(value: [string, string]) { previewDatesTouched.current = true; setPreviewRange(value); }
+  const [previewTimeDimension, setPreviewTimeDimension] = useState(initial?.default_scope?.time_dimension ?? "");
+  const [previewLimited, setPreviewLimited] = useState(!!initial?.default_scope?.date_range);
   const [previewRun, setPreviewRun] = useState<Run | null>(null);
   const [previewIndex, setPreviewIndex] = useState(-1);
   const [previewBusy, setPreviewBusy] = useState(false);
@@ -237,9 +241,18 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
     : allTimes.filter(object => !!metricEntity && object.entity === metricEntity);
   const timeOptions = relatedTimes.length ? relatedTimes : allTimes;
   const selectedTime = timeOptions.some(object => object.ref === previewTimeDimension) ? previewTimeDimension
-    : timeOptions.length === 1 ? timeOptions[0].ref : "";
-  const previewNeedsTime = timeOptions.length > 0 || (pipeline && selected >= 0 && steps.slice(0, selected + 1).some(step => step.method === "query.trend"));
-  const previewDatesInvalid = timeOptions.length > 0 && (!previewRange[0] || !previewRange[1] || previewRange[0] > previewRange[1]);
+    : timeOptions.length === 1 ? timeOptions[0].ref : suggestedTimeDimension(timeOptions, recipe.semantic_scope.primary_metric)?.ref ?? "";
+  const recommendedPeriod = suggestedDateRange(byRef.get(selectedTime));
+  const recommendedPeriodKey = recommendedPeriod?.join("/");
+  useEffect(() => {
+    if (recipe.default_scope != null || previewDatesTouched.current || !recommendedPeriod) return;
+    setPreviewRange(recommendedPeriod);
+  }, [selectedTime, recommendedPeriodKey]);
+  const previewRequiresPeriod = pipeline && selected >= 0 && steps.slice(0, selected + 1).some(step => step.method === "query.trend" || step.params.vs_previous === true);
+  const previewWithPeriod = previewLimited || previewRequiresPeriod;
+  const previewDatesInvalid = previewWithPeriod && (!previewRange[0] || !previewRange[1] || previewRange[0] > previewRange[1]);
+  const activeManifest = methods?.find(method => method.name === active?.method);
+  const missingRoles = activeManifest ? Object.entries(activeManifest.roles).filter(([name, role]) => role.required && (!active.bindings[name] || (Array.isArray(active.bindings[name]) && !(active.bindings[name] as unknown[]).length))) : [];
   const stoppedPreviewStep = previewRun && !previewRun.running && previewRun.steps.length < previewIndex + 1
     ? previewRun.steps.at(-1)?.result.status !== "success" && previewRun.steps.length ? previewRun.steps.length - 1
       : previewRun.error && previewRun.steps.length ? previewRun.steps.length : null
@@ -253,7 +266,9 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       const query = new URLSearchParams();
       for (const index of indices) query.append("indices", index);
       void api<RecipeCandidate>(`/runs/${encodeURIComponent(sourceRun)}/recipe-candidate?${query}`).then(candidate => {
-        setRecipe(candidate.recipe); setReviewNotes(candidate.review_notes);
+        setRecipe(candidate.recipe);
+        if (candidate.recipe.default_scope?.date_range) { setPreviewRange(candidate.recipe.default_scope.date_range); setPreviewLimited(true); }
+        setPreviewTimeDimension(candidate.recipe.default_scope?.time_dimension ?? "");
       }).catch(cause => setError(explainError(cause)));
       return;
     }
@@ -317,7 +332,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
     try {
       const run = await api<Run>("/recipes:preview", { body: {
         recipe, step_index: selected,
-        scope: { date_range: selectedTime && !previewDatesInvalid ? previewRange : null, time_dimension: selectedTime || null },
+        scope: { date_range: previewWithPeriod && selectedTime && !previewDatesInvalid ? previewRange : null, time_dimension: selectedTime || null },
       } });
       setPreviewRun(run);
     } catch (cause) { setPreviewError(explainError(cause)); }
@@ -393,10 +408,11 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       {dirty && steps.length > 0 && <button disabled={busy || !recipe.semantic_scope.primary_metric} onClick={() => { setError(""); setDialog(true); }}><Save size={16} />초안 저장</button>}
       {!dirty && saved?.status === "draft" && <button disabled={busy} onClick={() => { setError(""); setPublishDialog(true); }}><Check size={16} />발행 검토</button>}
       {!dirty && saved?.status !== "draft" && saved && <button disabled={busy} onClick={() => router.push(`/recipes/${encodeURIComponent(recipe.name)}`)}><Play size={16} />분석 실행</button>}
+      {saved && !busy && <RecipeDelete recipe={saved} onDeleted={() => { setSaved(undefined); setRecipe(blank()); router.push("/recipes"); }} />}
     </div></header>
     {(catalogError || methodsError) && <p className={s.error} role="alert">{catalogError?.message || methodsError?.message} <Link href="/sources">연결 확인</Link></p>}
     {error && !dialog && <p className={s.error} role="alert">{error}</p>}
-    {!!recipe.origin_runs?.length && <div className={s.reviewNotice}><strong>실행 기록에서 만든 초안</strong><Link href={`/runs/${recipe.origin_runs[0]}`}>원본 실행 보기 <ArrowRight size={14} /></Link><p>실행 당시 기간과 공통 필터는 복사하지 않았습니다. 발행 전에 단계별 고정값을 확인하세요.</p>{reviewNotes.filter(note => note.includes("drill path") || note.includes("드릴 경로")).map(note => <p key={note}>{note}</p>)}</div>}
+    {!!recipe.origin_runs?.length && <div className={s.reviewNotice}><strong>실행 기록에서 가져온 분석 절차</strong><Link href={`/runs/${recipe.origin_runs[0]}`}>원본 실행 보기 <ArrowRight size={14} /></Link><p>{recipe.steps.length}단계 · {recipe.default_scope?.date_range?.join(" ~ ") || "전체 기간"} · 공통 필터 {recipe.semantic_scope.required_filters.length}개</p></div>}
     {fieldError && <p className={s.error} role="alert">저장 전 확인이 필요합니다: {fieldError.message}</p>}
     <div className={s.toolbar}><span className={s.recipeMode}>{pipeline ? `분석 절차 · ${steps.length}단계` : `탐색에 사용할 분석 · ${steps.length}개`}</span>{steps.length > 0 && <button disabled={!recipe.semantic_scope.primary_metric} onClick={() => { setAdding(true); setSearch(""); }}><Plus size={16} />{pipeline ? "분석 단계 추가" : "허용할 방법 추가"}</button>}</div>
     <div className={s.workspace}>
@@ -428,15 +444,18 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
             <button className={s.icon} title="단계 삭제" aria-label="단계 삭제" onClick={() => pipeline ? updateSteps(recipe.steps.filter((_, i) => i !== selected)) : change({ ...recipe, allowed_methods: recipe.allowed_methods.filter((_, i) => i !== selected) })}><Trash2 size={16} /></button>
           </div></div>
           <h2>{methodName(active.method)}</h2><span className={s.nodeStatus}>{active.method}</span>
+          {pipeline && activeManifest ? <StepSettings key={`${selected}-${active.method}`} step={active} manifest={activeManifest} objects={objects} recipe={recipe} stepIndex={selected} fieldError={fieldError} onChange={step => change({ ...recipe, steps: recipe.steps.map((s, i) => i === selected ? step : s) })} /> : !pipeline ? <p className={s.dependency}>MCP에서 이 Recipe를 선택하면 실행 결과에 따라 다음 분석과 입력을 정합니다.</p> : <p role="status">분석 설정을 불러오는 중…</p>}
           {pipeline && <section className={s.previewSection} aria-label="단계 미리보기"><h3>단계 미리보기</h3>
-            {timeOptions.length > 0 && <label>날짜 기준<select aria-label="미리보기 날짜 기준" value={selectedTime} onChange={event => setPreviewTimeDimension(event.target.value)}><option value="">선택하세요</option>{timeOptions.map(object => <option value={object.ref} key={object.ref}>{object.title}</option>)}</select></label>}
-            {timeOptions.length > 0 && <div className={s.previewDates}><label>시작일<input type="date" aria-label="미리보기 시작일" value={previewRange[0]} onChange={event => setPreviewRange([event.target.value, previewRange[1]])} /></label><label>종료일<input type="date" aria-label="미리보기 종료일" value={previewRange[1]} onChange={event => setPreviewRange([previewRange[0], event.target.value])} /></label></div>}
+            {!previewRequiresPeriod && timeOptions.length > 0 && <label className={s.check}><input type="checkbox" checked={previewLimited} onChange={event => setPreviewLimited(event.target.checked)} />미리보기 기간 지정</label>}
+            {previewWithPeriod && timeOptions.length > 0 && <label>날짜 기준<select aria-label="미리보기 날짜 기준" value={selectedTime} onChange={event => setPreviewTimeDimension(event.target.value)}><option value="">선택하세요</option>{timeOptions.map(object => <option value={object.ref} key={object.ref}>{object.title}</option>)}</select></label>}
+            {previewWithPeriod && timeOptions.length > 0 && <div className={s.previewDates}><label>시작일<input type="date" aria-label="미리보기 시작일" value={previewRange[0]} onChange={event => choosePreviewDates([event.target.value, previewRange[1]])} /></label><label>종료일<input type="date" aria-label="미리보기 종료일" value={previewRange[1]} onChange={event => choosePreviewDates([previewRange[0], event.target.value])} /></label></div>}
+            {previewWithPeriod && recommendedPeriod && <p className={s.nodeStatus}>추천 분석 기간: {recommendedPeriod.join(" ~ ")}{byRef.get(selectedTime)?.metadata?.calendarType === "mapped" ? " · 변환된 달력" : ""}</p>}
             {previewDatesInvalid && <p className={s.error} role="alert">시작일과 종료일을 확인해 주세요.</p>}
-            {previewNeedsTime && !selectedTime && <p className={s.nodeStatus}>미리보기에 사용할 날짜 기준을 선택해 주세요.</p>}
-            <button type="button" disabled={previewBusy || !recipe.semantic_scope.primary_metric || previewDatesInvalid || (previewNeedsTime && !selectedTime)} onClick={startPreview}><Play size={15} />{previewBusy ? "시작 중…" : "이 단계까지 미리보기"}</button>
+            {previewWithPeriod && !selectedTime && <p className={s.nodeStatus}>미리보기에 사용할 날짜 기준을 선택해 주세요.</p>}
+            {missingRoles.length > 0 && <p className={s.nodeStatus}>{missingRoles.map(([name]) => roleLabels[name] || name).join(", ")}을 선택해 주세요.</p>}
+            <button type="button" disabled={previewBusy || !activeManifest || missingRoles.length > 0 || !recipe.semantic_scope.primary_metric || previewDatesInvalid || (previewWithPeriod && !selectedTime)} onClick={startPreview}><Play size={15} />{previewBusy ? "시작 중…" : "이 단계까지 미리보기"}</button>
             {previewError && <p className={s.error} role="alert">{previewError} <Link href="/sources">연결 확인</Link></p>}
           </section>}
-          {pipeline && methods?.find(method => method.name === active.method) ? <StepSettings key={`${selected}-${active.method}`} step={active} manifest={methods.find(method => method.name === active.method)!} objects={objects} recipe={recipe} stepIndex={selected} fieldError={fieldError} onChange={step => change({ ...recipe, steps: recipe.steps.map((s, i) => i === selected ? step : s) })} /> : !pipeline ? <p className={s.dependency}>MCP에서 이 Recipe를 선택하면 실행 결과에 따라 다음 분석과 입력을 정합니다.</p> : <p role="status">분석 설정을 불러오는 중…</p>}
         </div>}
       </aside>
     </div>

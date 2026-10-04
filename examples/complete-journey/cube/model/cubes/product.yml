@@ -1,0 +1,26 @@
+cubes:
+- name: product
+  sql_table: journey.product
+  title: Products
+  dimensions:
+  - name: id
+    sql: product_id
+    type: string
+    primary_key: true
+    public: false
+  - name: department
+    sql: department
+    type: string
+    title: Department
+  - name: brand
+    sql: brand
+    type: string
+    title: Brand type
+  - name: commodity
+    sql: commodity_desc
+    type: string
+    title: Product category
+  measures:
+  - name: count
+    type: count
+    title: Products

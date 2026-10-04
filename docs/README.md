@@ -1,5 +1,14 @@
 # Documentation
 
+Read these pages as a searchable documentation site from the repository root:
+
+```bash
+npm ci
+npm run docs:dev
+```
+
+Open the URL shown by VitePress. `npm run docs:build` checks the static site and links. The documentation site is separate from the Decision Layer Web app and does not add a service to the sample Docker stack.
+
 | Goal | Guide |
 | --- | --- |
 | Try the complete sample | [Complete Journey](../examples/complete-journey/README.md) · [한국어](../examples/complete-journey/README.ko.md) |

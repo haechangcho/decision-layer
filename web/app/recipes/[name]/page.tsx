@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarDays, Play } from "lucide-react";
 
 import { api, ApiError, type Recipe, type Run, type SemanticObject, type SourceReadiness } from "@/lib/api";
 import { RecipeEditor } from "@/components/recipe-editor";
+import { RecipeDelete } from "@/components/recipe-delete";
+import { suggestedDateRange, suggestedTimeDimension } from "@/lib/semantic-dates";
 import { useApi, useCatalog } from "@/lib/hooks";
 import styles from "../../library.module.css";
 
@@ -14,8 +16,8 @@ function formatDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function datePreset(preset: "month" | "quarter" | "year"): [string, string] {
-  const today = new Date();
+function datePreset(preset: "month" | "quarter" | "year", referenceDate?: string): [string, string] {
+  const today = referenceDate ? new Date(`${referenceDate}T12:00:00`) : new Date();
   let start = new Date(today.getFullYear(), today.getMonth(), 1);
   let end = today;
   if (preset === "quarter") {
@@ -37,10 +39,19 @@ export default function RecipePage() {
   const { data: readiness } = useApi<SourceReadiness>(name === "new" ? null : "/sources/current/readiness");
   const { objects } = useCatalog();
   const [dates, setDates] = useState<[string, string]>(() => datePreset("month"));
+  const datesTouched = useRef(false);
+  function chooseDates(value: [string, string]) { datesTouched.current = true; setDates(value); }
   const [timeDimension, setTimeDimension] = useState("");
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [runError, setRunError] = useState<Error | null>(null);
+  const [allDates, setAllDates] = useState(false);
+  useEffect(() => {
+    if (recipe?.default_scope == null || datesTouched.current) return;
+    setDates(recipe.default_scope.date_range ?? ["", ""]);
+    setAllDates(!recipe.default_scope.date_range);
+    setTimeDimension(recipe.default_scope.time_dimension ?? "");
+  }, [recipe]);
 
   const timeDimensions = useMemo(() => {
     if (!recipe) return [];
@@ -52,11 +63,18 @@ export default function RecipePage() {
     return sameEntity.length ? sameEntity : all;
   }, [objects, readiness, recipe]);
   const recommendedTime = readiness?.metrics.find((item) => item.metric.ref === recipe?.semantic_scope.primary_metric)?.checks.time.dimensions.length;
-  const selectedTime = timeDimensions.some((object) => object.ref === timeDimension) ? timeDimension : (timeDimensions.length === 1 ? timeDimensions[0].ref : "");
+  const selectedTime = timeDimensions.some((object) => object.ref === timeDimension) ? timeDimension : (timeDimensions.length === 1 ? timeDimensions[0].ref : suggestedTimeDimension(timeDimensions, recipe?.semantic_scope.primary_metric ?? "")?.ref ?? "");
+  const recommendedPeriod = suggestedDateRange(timeDimensions.find(object => object.ref === selectedTime));
+  const recommendedPeriodKey = recommendedPeriod?.join("/");
+  useEffect(() => {
+    if (!recipe || recipe.default_scope != null || datesTouched.current || !recommendedPeriod) return;
+    setDates(recommendedPeriod);
+  }, [recipe, selectedTime, recommendedPeriodKey]);
   const needsTime = !!recipe && (recipe.mode === "pipeline"
-    ? recipe.steps.some((step) => step.method === "query.trend")
+    ? recipe.steps.some((step) => step.method === "query.trend" || step.params.vs_previous === true)
     : recipe.allowed_methods.includes("query.trend"));
-  const missingPeriod = (needsTime && (!dates[0] || !dates[1] || !selectedTime)) || (timeDimensions.length > 0 && !!dates[0] && !!dates[1] && !selectedTime);
+  const useAllDates = allDates && !needsTime;
+  const missingPeriod = !useAllDates && ((needsTime && (!dates[0] || !dates[1] || !selectedTime)) || (timeDimensions.length > 0 && !!dates[0] && !!dates[1] && !selectedTime));
   const metric = recipe ? titleFor(recipe.semantic_scope.primary_metric, objects) : "";
 
   async function run() {
@@ -67,7 +85,7 @@ export default function RecipePage() {
       const result = await api<Run | { run_id: string }>("/runs", { body: {
         recipe: `${recipe.name}@${recipe.version}`,
         question: question.trim() || null,
-        scope: { date_range: selectedTime && dates[0] && dates[1] ? dates : null, time_dimension: selectedTime || null },
+        scope: { date_range: !useAllDates && selectedTime && dates[0] && dates[1] ? dates : null, time_dimension: selectedTime || null },
       } });
       const runId = "id" in result ? result.id : result.run_id;
       router.push(`/runs/${runId}`);
@@ -83,24 +101,27 @@ export default function RecipePage() {
 
   return <div className={styles.page}>
     <Link className={styles.back} href="/recipes"><ArrowLeft size={15} />Recipe 목록</Link>
-    <div className={styles.heading}><div><p className={styles.eyebrow}>분석 절차 · v{recipe.version}</p><h1>{recipe.description || recipe.name}</h1></div><Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}/edit`}>Recipe 편집 <ArrowRight size={15} /></Link></div>
+    <div className={styles.heading}><div><p className={styles.eyebrow}>분석 절차 · v{recipe.version}</p><h1>{recipe.description || recipe.name}</h1></div><div className={styles.recipeActions}><Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}/edit`}>Recipe 편집 <ArrowRight size={15} /></Link><RecipeDelete recipe={recipe} onDeleted={() => router.push("/recipes")} /></div></div>
     {recipe.mode === "investigation" && <p className={styles.runNotice}>이 Recipe는 결과를 보고 다음 단계를 정하는 탐색형 절차입니다. Claude·Codex에서는 Recipe 이름 <strong>{recipe.name}</strong>을 지정해 사용할 수 있습니다. 웹에서는 아래에서 직접 단계를 선택하며 진행합니다.</p>}
     <div className={styles.recipeRunGrid}>
       <section className={styles.recipeRunPanel}>
         <h2>분석 조건</h2>
         <dl className={styles.meta}><div className={styles.metaRow}><dt>중심 지표</dt><dd>{metric}</dd></div></dl>
         {needsTime && timeDimensions.length === 0 && <p className={styles.error} role="alert">이 지표와 연결된 날짜 기준을 찾지 못했습니다. Cube 모델의 시간 차원을 확인하거나 <Link href="/catalog">다른 지표를 선택하세요.</Link></p>}
-        {timeDimensions.length > 0 && <label className={styles.runField}>날짜 기준
+        {!needsTime && <label className="check"><input type="checkbox" checked={allDates} onChange={event => { setAllDates(event.target.checked); if (!event.target.checked && !dates[0]) chooseDates(recommendedPeriod ?? datePreset("month")); }} />전체 기간</label>}
+        {!useAllDates && timeDimensions.length > 0 && <label className={styles.runField}>날짜 기준
           <select aria-label="날짜 기준" value={selectedTime} onChange={(event) => setTimeDimension(event.target.value)}><option value="">날짜 기준 선택</option>{timeDimensions.map((object) => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
         </label>}
         {needsTime && timeDimensions.length > 1 && recommendedTime === 0 && <p className="hint">Cube 메타데이터만으로 관련 날짜를 확인할 수 없어 직접 선택해야 합니다.</p>}
-        {(timeDimensions.length > 0 || needsTime) && <><div className={styles.fieldHeading}><label htmlFor="run-start">분석 기간</label><CalendarDays size={15} /></div>
+        {!useAllDates && (timeDimensions.length > 0 || needsTime) && <><div className={styles.fieldHeading}><label htmlFor="run-start">분석 기간</label><CalendarDays size={15} /></div>
         <div className={styles.datePresets} role="group" aria-label="기간 빠른 선택">
-          <button type="button" onClick={() => setDates(datePreset("month"))}>이번 달</button>
-          <button type="button" onClick={() => setDates(datePreset("quarter"))}>지난 분기</button>
-          <button type="button" onClick={() => setDates(datePreset("year"))}>올해</button>
+          {recommendedPeriod && <button type="button" onClick={() => chooseDates(recommendedPeriod)}>추천 기간</button>}
+          <button type="button" onClick={() => chooseDates(datePreset("month", recommendedPeriod?.[1]))}>{recommendedPeriod ? "최근 월" : "이번 달"}</button>
+          <button type="button" onClick={() => chooseDates(datePreset("quarter", recommendedPeriod?.[1]))}>지난 분기</button>
+          <button type="button" onClick={() => chooseDates(datePreset("year", recommendedPeriod?.[1]))}>{recommendedPeriod ? `${recommendedPeriod[1].slice(0, 4)}년` : "올해"}</button>
         </div>
-        <div className={styles.dateFields}><label className={styles.runField} htmlFor="run-start">시작일<input id="run-start" type="date" value={dates[0]} onChange={(event) => setDates([event.target.value, dates[1]])} /></label><label className={styles.runField} htmlFor="run-end">종료일<input id="run-end" type="date" value={dates[1]} onChange={(event) => setDates([dates[0], event.target.value])} /></label></div></>}
+        <div className={styles.dateFields}><label className={styles.runField} htmlFor="run-start">시작일<input id="run-start" type="date" value={dates[0]} onChange={(event) => chooseDates([event.target.value, dates[1]])} /></label><label className={styles.runField} htmlFor="run-end">종료일<input id="run-end" type="date" value={dates[1]} onChange={(event) => chooseDates([dates[0], event.target.value])} /></label></div></>}
+        {!useAllDates && recommendedPeriod && <p className="hint">추천 분석 기간: {recommendedPeriod.join(" ~ ")}{timeDimensions.find(object => object.ref === selectedTime)?.metadata?.calendarType === "mapped" ? " · 변환된 달력" : ""}</p>}
         {dates[0] > dates[1] && <p className={styles.error} role="alert">종료일은 시작일보다 늦어야 합니다. 날짜를 다시 선택하세요.</p>}
         {needsTime && !selectedTime && timeDimensions.length > 0 && <p className="hint">분석을 시작하려면 날짜 기준을 선택하세요.</p>}
         <label className={styles.runField} htmlFor="run-question">분석 메모 <span>선택</span><input id="run-question" value={question} onChange={(event) => setQuestion(event.target.value)} /></label>

@@ -8,13 +8,13 @@ Methods are reviewed Python implementations installed with the server. There is 
 
 Read the working examples:
 
-- [Runnable contribution template](../../examples/method-template/README.md), including a standalone contract test.
+- [Runnable contribution template](https://github.com/haechangcho/decision-layer/blob/main/examples/method-template/README.md), including a standalone contract test.
 
-- [Base contract and registry](../../src/decision_layer/methods/base.py).
-- [Execution context](../../src/decision_layer/methods/context.py).
-- [Trend implementation](../../src/decision_layer/methods/query/trend.py).
-- [Typed models](../../src/decision_layer/core/models.py).
-- [Tests and fake provider](../../tests/unit/test_methods.py).
+- [Base contract and registry](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/base.py).
+- [Execution context](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/context.py).
+- [Trend implementation](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/query/trend.py).
+- [Typed models](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/core/models.py).
+- [Tests and fake provider](https://github.com/haechangcho/decision-layer/blob/main/tests/unit/test_methods.py).
 
 ## Implement
 
@@ -22,8 +22,8 @@ Read the working examples:
 2. Subclass `Method`. Define a `MethodManifest` with name, version, description, typed roles, parameters, execution mode, interpretation and output types.
 3. Implement `async run(ctx, bindings, params) -> MethodOutput`. Request required columns and grain through `ctx.dataset(DatasetSpec(...))` to preserve budgets and provenance.
 4. Return a primary artifact, supporting artifacts, validation and warnings. Refuse when required assumptions or capabilities are missing.
-5. Register with `registry.register(...)` and import the module in [methods/__init__.py](../../src/decision_layer/methods/__init__.py).
-6. Use existing localization helpers and add Korean user-facing messages in [ko.json](../../src/decision_layer/i18n/ko.json).
+5. Register with `registry.register(...)` and import the module in [methods/__init__.py](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/__init__.py).
+6. Use existing localization helpers and add Korean user-facing messages in [ko.json](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/i18n/ko.json).
 
 Keep metric SQL, joins and access semantics in Cube. Do not bypass the context with raw source queries. Methods must work through the canonical API, not only a Web screen.
 
@@ -46,11 +46,11 @@ Add focused tests for valid inputs, missing roles, invalid parameters, empty dat
 .venv/bin/pytest
 ```
 
-Follow [Testing](testing.md) for integration checks. Where Complete Journey supports the question, extend its [independent SQL verifier](../../examples/complete-journey/verify.py) and [live MCP test](../../tests/provider/test_complete_journey_live.py). Do not use the Method's own output as its reference. Causal Methods need suitable data and assumptions; this observational sample does not establish causal effects. Keep deterministic statistical and causal contract tests independent of the live dataset.
+Follow [Testing](testing.md) for integration checks. Where Complete Journey supports the question, extend its [independent SQL verifier](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/verify.py) and [live MCP test](https://github.com/haechangcho/decision-layer/blob/main/tests/provider/test_complete_journey_live.py). Do not use the Method's own output as its reference. Causal Methods need suitable data and assumptions; this observational sample does not establish causal effects. Keep deterministic statistical and causal contract tests independent of the live dataset.
 
 ## Recipes
 
-Start with a recorded analysis in the Complete Journey sample. Select successful Run steps, review the Recipe candidate in the editor, save a draft, and publish only after checking its semantic bindings and parameters. Reference existing Methods and semantic objects; explain the question and steps without embedding semantic SQL. Export the reviewed YAML for a contribution. Keep optional templates separate from the initially empty runtime Recipe folder.
+Start with a recorded analysis in the Complete Journey sample. Review its question, steps, settings and queries, then register the completed procedure as a Recipe. To change it first, choose Edit before saving and review the draft in the editor. Both paths preserve the recorded settings, scope and Method versions. Reference existing Methods and semantic objects; explain the question and steps without embedding semantic SQL. Export the reviewed YAML for a contribution. Keep optional templates separate from the initially empty runtime Recipe folder.
 
 Downloadable plugins, external Method catalogs and compatibility negotiation would need a separate design and security decision. They are not prerequisites for contributing today.
 

@@ -1,22 +1,24 @@
+@import "../styles/tokens.css";
+
 :root {
-  --bg: #f6f8fa;
-  --panel: #ffffff;
-  --text: #1f2328;
-  --muted: #57606a;
-  --line: #d0d7de;
-  --accent: #0969da;
-  --accent-hover: #0550ae;
-  --brand: #0969da;
-  --accent-soft: #ddf4ff;
-  --link: #0969da;
-  --link-soft: #ddf4ff;
-  --ok: #1a7f37;
-  --success: #1a7f37;
-  --warn: #9a6700;
-  --warning: #9a6700;
-  --bad: #cf222e;
-  --chip: #f6f8fa;
-  --hover: #f3f5f7;
+  --bg: var(--dl-canvas);
+  --panel: var(--dl-surface);
+  --text: var(--dl-ink);
+  --muted: var(--dl-muted);
+  --line: var(--dl-border);
+  --accent: var(--dl-action);
+  --accent-hover: var(--dl-action-hover);
+  --brand: var(--dl-brand);
+  --accent-soft: var(--dl-action-soft);
+  --link: var(--dl-action);
+  --link-soft: var(--dl-action-soft);
+  --ok: var(--dl-success);
+  --success: var(--dl-success);
+  --warn: var(--dl-warning);
+  --warning: var(--dl-warning);
+  --bad: var(--dl-danger);
+  --chip: var(--dl-canvas);
+  --hover: var(--dl-hover);
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Pretendard", "Apple SD Gothic Neo", -apple-system, system-ui, sans-serif; }
@@ -29,7 +31,7 @@ main { max-width: 1400px; margin: 0 auto; padding: 16px; }
 .app-token-form { display:flex; align-items:center; gap:6px; }.app-token-form input { width:min(280px,35vw); height:32px; padding:5px 8px; border:1px solid var(--line); border-radius:4px; background:var(--panel); font-size:11px; }.app-token-form button { background:var(--accent); color:white; border-color:var(--accent); }
 .app-locale { min-width:54px; height:32px; padding:3px 7px; border:1px solid var(--line); border-radius:4px; color:var(--text); background:var(--panel); font-size:11px; }
 .app-sidebar { grid-column:1; grid-row:2; display:flex; flex-direction:column; min-width:0; padding:20px 10px 14px; border-right:1px solid var(--line); background:var(--panel); }
-.app-nav-links { display:grid; gap:3px; }.app-sidebar a:not(.app-brand) { display:flex; align-items:center; gap:11px; min-height:38px; padding:0 12px; border-radius:6px; color:var(--muted); font-size:13px; font-weight:500; text-decoration:none; }.app-sidebar a:not(.app-brand):hover { color:var(--text); background:var(--hover); }.app-sidebar a.active { color:var(--accent-hover); background:var(--accent-soft); font-weight:650; }.app-sidebar-bottom { margin-top:auto; padding-top:14px; border-top:1px solid var(--line); }
+.app-nav-links { display:grid; gap:3px; }.app-sidebar a:not(.app-brand) { display:flex; align-items:center; gap:11px; min-height:38px; padding:0 12px; border-radius:6px; color:var(--muted); font-size:13px; font-weight:500; text-decoration:none; }.app-sidebar a:not(.app-brand):hover { color:var(--text); background:var(--hover); }.app-sidebar a.active { color:var(--text); background:var(--hover); font-weight:650; }.app-sidebar a.active svg { color:var(--brand); }.app-sidebar-bottom { margin-top:auto; padding-top:14px; border-top:1px solid var(--line); }
 .app-nav-label-short { display:none; }
 .app-main { grid-column:2; grid-row:2; width:100%; min-width:0; max-width:none; margin:0; padding:0; background:var(--bg); }
 h1 { font-size: 20px; margin: 8px 0 12px; }

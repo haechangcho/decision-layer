@@ -1,0 +1,29 @@
+cubes:
+- name: redemption
+  sql: SELECT row_number() OVER () AS redemption_id, * FROM journey.coupon_redempt
+  title: Coupon redemptions
+  joins:
+  - name: campaign
+    sql: '{CUBE}.campaign = {campaign}.campaign'
+    relationship: many_to_one
+  - name: household
+    sql: '{CUBE}.household_key = {household}.household_key'
+    relationship: many_to_one
+  dimensions:
+  - name: id
+    sql: redemption_id
+    type: number
+    primary_key: true
+    public: false
+  - name: analysis_date
+    sql: redemption_date
+    type: time
+    title: Redemption date
+    description: Fixed example calendar (day 1 = 2000-01-01), not actual redemption dates.
+    meta:
+      suggestedDateRange: ['2000-08-12', '2001-12-04']
+      calendarType: mapped
+  measures:
+  - name: count
+    type: count
+    title: Coupon redemptions

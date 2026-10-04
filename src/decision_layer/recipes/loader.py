@@ -57,6 +57,8 @@ def _expand(value: Any, provider: str, instance: str, keys: set[str] | None = No
 def parse_recipe(doc: dict[str, Any], provider: str, instance: str) -> Recipe:
     doc = dict(doc)
     doc["semantic_scope"] = _expand(doc.get("semantic_scope") or {}, provider, instance)
+    if doc.get("default_scope"):
+        doc["default_scope"] = _expand(doc["default_scope"], provider, instance, keys={"time_dimension"})
     steps = []
     for step in doc.get("steps") or []:
         step = dict(step)
@@ -156,6 +158,26 @@ class RecipeStore:
             self._write_version(published)
             self._recipes[name][published.version] = published.model_copy(deep=True)
             return published
+
+    def delete(self, name: str, base_version: str) -> None:
+        from .authoring import RecipeConflict, RecipeEditError
+
+        if not self._writable:
+            raise RecipeEditError("Configure DL_RECIPES_DIR to delete Recipes.")
+        if not self.directory.exists():
+            raise UnknownRecipe(_("Unknown recipe: {name}", name=name))
+        with self._lock, (self.directory / ".decision-layer.lock").open("w") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            self._recipes = self._read_all()
+            if name not in self._recipes:
+                raise UnknownRecipe(_("Unknown recipe: {name}", name=name))
+            if self._latest(name).version != base_version:
+                raise RecipeConflict("Recipe changed. Reload the latest version before deleting.")
+            paths = [path for path in self.directory.rglob("*.y*ml")
+                     if parse_recipe(yaml.safe_load(path.read_text()), self.provider, self.instance).name == name]
+            for path in paths:
+                path.unlink()
+            del self._recipes[name]
 
     def _write_version(self, recipe: Recipe) -> None:
         from .authoring import RecipeConflict

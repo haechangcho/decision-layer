@@ -5,6 +5,7 @@
 
 import type { Artifact, Result, SemanticObject, Validation } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { RunQueries, RunSources } from "./run-evidence";
 
 type Titles = Map<string, SemanticObject>;
 
@@ -92,7 +93,7 @@ function Value({ value, titles, depth = 0 }: { value: unknown; titles: Titles; d
   return <span>{fmt(value, titles)}</span>;
 }
 
-export function ArtifactView({ artifact, titles }: { artifact: Artifact; titles: Titles }) {
+export function ArtifactView({ artifact, titles, expanded = false }: { artifact: Artifact; titles: Titles; expanded?: boolean }) {
   if (artifact.type === "time_series" && artifact.data && typeof artifact.data === "object") {
     const data = artifact.data as Record<string, unknown>;
     const rows = Array.isArray(data.rows) ? data.rows.filter((row): row is Record<string, unknown> => !!row && typeof row === "object" && !Array.isArray(row)) : [];
@@ -105,7 +106,7 @@ export function ArtifactView({ artifact, titles }: { artifact: Artifact; titles:
       return [column, typeof unitRef === "string" ? titles.get(unitRef)?.title ?? "건수" : "건수"];
     }));
     return <section className="artifact"><h4>{metricTitle} · 기간별 값</h4>
-      {rows.length === 1 && typeof rows[0][metric] === "number" && <p className="result-lead">해당 기간 값 <strong>{fmt(rows[0][metric], titles)}</strong></p>}
+      {!expanded && rows.length === 1 && typeof rows[0][metric] === "number" && <p className="result-lead">해당 기간 값 <strong>{fmt(rows[0][metric], titles)}</strong></p>}
       {rows.length === 1 && <p className="result-note">기간이 하나뿐이라 증가·감소 추이는 판단할 수 없습니다.</p>}
       {rows.length ? <DataTable rows={rows} titles={titles} columns={columns} columnLabels={columnLabels} /> : <p className="result-note">표시할 기간 데이터가 없습니다.</p>}
     </section>;
@@ -116,7 +117,7 @@ export function ArtifactView({ artifact, titles }: { artifact: Artifact; titles:
     if (isRowList(rows)) return <section className="artifact">
       <h4>{artifact.title || artifact.type}</h4>
       <DataTable rows={rows} titles={titles} columns={["value", "metric", "count", "share_of_count", "difference_from_subject"].filter((key) => key in rows[0])} />
-      <details className="artifact-details"><summary>전체 결과 보기</summary><Value value={data} titles={titles} /></details>
+      {!expanded && <details className="artifact-details"><summary>전체 결과 보기</summary><Value value={data} titles={titles} /></details>}
     </section>;
   }
   return (
@@ -133,14 +134,14 @@ export function ValidationList({ items }: { items: Validation[] }) {
   return (
     <ul className="validation">
       {important.map((v, i) => (
-        <li key={i} className={v.status}><b>{v.validator === "freshness" ? "데이터 최신성" : v.validator}</b> {v.code === "DATA_STALE" && typeof v.details?.latest === "string" && typeof v.details?.end === "string"
+        <li key={i} className={v.status}><b>{({ freshness: "데이터 최신성", complete_period: "분석 기간", non_empty: "데이터 유무", min_count: "표본 수", overlap: "집단 비교 가능성" } as Record<string, string>)[v.validator] ?? v.validator.replaceAll("_", " ")}</b> {v.code === "DATA_STALE" && typeof v.details?.latest === "string" && typeof v.details?.end === "string"
           ? `데이터가 ${v.details.latest}까지만 있어 선택한 종료일(${v.details.end})까지의 결과가 불완전할 수 있습니다.` : v.message}</li>
       ))}
     </ul>
   );
 }
 
-export function ResultView({ result, titles, showRunLink = true }: { result: Result; titles: Titles; showRunLink?: boolean }) {
+export function ResultView({ result, titles, showRunLink = true, showEvidence = true, expanded = false }: { result: Result; titles: Titles; showRunLink?: boolean; showEvidence?: boolean; expanded?: boolean }) {
   const t = useT();
   const statusLabel = { success: "분석 완료", needs_input: "추가 입력 필요", refused: "비교 불가", failed: "실패" }[result.status];
   const breakdown = result.primary?.type === "breakdown_table" && result.primary.data && typeof result.primary.data === "object"
@@ -153,7 +154,7 @@ export function ResultView({ result, titles, showRunLink = true }: { result: Res
         <span className={`status ${result.status}`}>{statusLabel}</span>
         {showRunLink && result.run_id && <a href={`/runs/${result.run_id}`}>{t("Open run")}</a>}
       </div>
-      {leading && <p className="result-lead">{breakdown?.subject ? "비교 대상" : "대표 그룹"} <strong>{fmt(leading.value, titles)}</strong>{leading.metric != null && <span> · 지표 값 {fmt(leading.metric, titles)}</span>}</p>}
+      {!expanded && leading && <p className="result-lead">{breakdown?.subject ? "비교 대상" : "대표 그룹"} <strong>{fmt(leading.value, titles)}</strong>{leading.metric != null && <span> · 지표 값 {fmt(leading.metric, titles)}</span>}</p>}
       {result.needs_input && (
         <div className="notice">
           <b>{result.needs_input.question}</b> <span className="muted">({result.needs_input.field})</span>
@@ -164,19 +165,18 @@ export function ResultView({ result, titles, showRunLink = true }: { result: Res
         </div>
       )}
       {result.warnings.length > 0 && <ul className="warnings">{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
-      <ValidationList items={result.validation} />
-      {result.primary && <ArtifactView artifact={result.primary} titles={titles} />}
-      {supportingArtifacts.length > 0 && <details className="artifact-details">
+      {!expanded && <ValidationList items={result.validation} />}
+      {result.primary && <ArtifactView artifact={result.primary} titles={titles} expanded={expanded} />}
+      {!expanded && supportingArtifacts.length > 0 && <details className="artifact-details">
         <summary>추가 분석 결과</summary>
         {supportingArtifacts.map((a, i) => <ArtifactView key={i} artifact={a} titles={titles} />)}
       </details>}
-      {(result.provenance.method || result.provenance.semantic_refs.length || result.provenance.queries.length) ? <details>
+      {showEvidence && (result.provenance.method || result.provenance.semantic_refs.length || result.provenance.queries.length) ? <details>
         <summary>실행 근거{result.provenance.queries.length > 0 ? ` · 쿼리 ${result.provenance.queries.length}개` : ""}</summary>
         {result.interpretation && <p className="muted">해석 범위: {result.interpretation === "descriptive" ? "기술 분석" : result.interpretation}</p>}
         {result.validation.filter((item) => item.status === "pass").length > 0 && <p className="muted">통과한 검증: {result.validation.filter((item) => item.status === "pass").map((item) => item.validator).join(", ")}</p>}
-        {result.provenance.method && <p className="muted">분석 방법 버전: {result.provenance.method}</p>}
-        {result.provenance.semantic_refs.length > 0 && <p className="muted">지표 참조: {result.provenance.semantic_refs.join(", ")}</p>}
-        {result.provenance.queries.length > 0 && <pre>{JSON.stringify(result.provenance.queries.map((q) => q.native_query), null, 2)}</pre>}
+        <RunSources result={result} titles={titles} />
+        <RunQueries result={result} />
       </details> : null}
     </div>
   );

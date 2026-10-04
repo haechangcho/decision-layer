@@ -75,6 +75,8 @@ class RunEngine:
                     scope: dict[str, Any], wait: float | None = None,
                     origin: Literal["python", "api", "web", "mcp"] = "python") -> Run:
         rec = self.recipes.get(recipe) if recipe else None
+        if rec and rec.default_scope is not None:
+            scope = {**rec.default_scope.model_dump(mode="json"), **scope}
         filters = [*(rec.semantic_scope.required_filters if rec else []),
                    *(Filter.model_validate(f) for f in scope.get("filters") or [])]
         run = Run(id=new_id("run"), caller=caller, origin=origin,
@@ -97,6 +99,8 @@ class RunEngine:
                       origin: Literal["python", "api", "web", "mcp"] = "python") -> Run:
         if recipe.mode != "pipeline" or step_index < 0 or step_index >= len(recipe.steps):
             raise PreviewStepInvalid(_("Choose an existing pipeline step to preview"), step_index=step_index)
+        if recipe.default_scope is not None:
+            scope = {**recipe.default_scope.model_dump(mode="json"), **scope}
         filters = [*recipe.semantic_scope.required_filters,
                    *(Filter.model_validate(value) for value in scope.get("filters") or [])]
         run = Run(id=new_id("run"), caller=caller, origin=origin, preview=True, recipe_snapshot=recipe,
@@ -178,6 +182,12 @@ class RunEngine:
         run.shared_with = sorted(set(subjects))
         await self.store.save(run)
         return run
+
+    async def delete(self, caller: CallerInfo, run_id: str) -> None:
+        run = await self._owned(run_id, caller)
+        if run.running:
+            raise RunBusy(_("Wait for the current analysis to finish before deleting its run"), run_id=run_id)
+        await self.store.delete(run_id)
 
     async def _owned(self, run_id: str, caller: CallerInfo) -> Run:
         run = await self.store.get(run_id)
@@ -274,6 +284,10 @@ class RunEngine:
 
     async def _execute(self, creds: Credentials, run: Run, step: PlanStep,
                        origin: Literal["recipe", "request"] = "request") -> Result:
+        installed = self.registry.get(step.method).manifest.version
+        if step.method_version and step.method_version != installed:
+            raise InvalidBinding("The recorded Method version is not installed. Review the Recipe before changing its version.",
+                                 recorded=step.method_version, installed=installed)
         results = {s.step.id: s.result for s in run.steps if s.step.id}
         resolved = step.model_copy(update={"bindings": resolve(step.bindings, run.recipe_snapshot, results),
                                            "params": resolve(step.params, run.recipe_snapshot, results)})

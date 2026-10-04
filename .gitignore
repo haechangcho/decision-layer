@@ -31,3 +31,6 @@ examples/*/recipes/*
 /web/.next-local/
 /web/.next-hc-cube/
 /web/.next-empty/
+node_modules/
+/docs/.vitepress/cache/
+/docs/.vitepress/dist/

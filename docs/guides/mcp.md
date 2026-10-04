@@ -54,15 +54,15 @@ Restart the client. Other stdio clients use the same executable and environment,
 
 ## Ask and review
 
-With the [Complete Journey sample](../../examples/complete-journey/README.md) running, ask:
+With the [Complete Journey sample](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md) running, ask:
 
 > Across all available data, which product department has the largest retailer receipts? Show the analysis steps and evidence.
 
-The reference leader is GROCERY at 4,093,814.14 retailer receipts. Source days are relative, not actual calendar dates. Ask the client to preserve your original question, explain each step's purpose and return the Run ID. Open `/runs` in Web to inspect the graph, results and folded execution evidence.
+The reference leader is GROCERY at 4,093,814.14 retailer receipts. Source day indices are mapped to example calendar dates, not actual purchase years. Ask the client to preserve your original question, explain each step's purpose and return the Run ID. Open `/runs` in Web to inspect the graph, results, settings, queries and sources.
 
 A suitable Recipe should be used first. Otherwise, the client can discover semantic objects and registered Methods, then use `start_analysis`, `run_step` and `complete_run` to record exploration under one question. Tool selection and narrative are the client's responsibility, not verified evidence.
 
-Select successful steps in the Run and review them as a new Recipe candidate. This does not save or approve anything automatically. Check bindings, parameters and interpretation in the editor, save a draft, then publish deliberately. Adding to an existing Recipe and a shared approval inbox are not implemented.
+Use **Register as Recipe** on a completed Run to save its procedure for immediate reuse. This explicit action preserves step purposes, resolved parameters, Method versions, filters and default dates. Use **Edit before saving** to change the procedure first. There is no automatic background registration. Adding to an existing Recipe and a shared approval inbox are not implemented. Reusing a saved procedure does not freeze the underlying data; a recorded Method version that is no longer installed requires review.
 
 ## Authentication
 

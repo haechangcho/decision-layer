@@ -1,5 +1,6 @@
 """Independent SQL references; does not call a Decision Layer Method."""
 import json
+from datetime import date, timedelta
 from decimal import Decimal
 import os
 import psycopg
@@ -12,6 +13,21 @@ with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
         cursor.execute("SELECT count(*), sum(sales_value::numeric), min(day::integer), max(day::integer) FROM journey.transaction_data")
         rows, sales, lo, hi = cursor.fetchone()
         assert rows == dict(tables)["transaction_data"]
+        cursor.execute("""SELECT table_name, column_name, data_type, is_generated FROM information_schema.columns
+            WHERE table_schema = 'journey' AND (table_name, column_name) IN
+            (('transaction_data', 'transaction_date'), ('coupon_redempt', 'redemption_date'),
+             ('campaign_desc', 'start_date'), ('campaign_desc', 'end_date'))""")
+        columns = cursor.fetchall()
+        assert len(columns) == 4 and all(kind == 'date' and generated == 'ALWAYS' for _, _, kind, generated in columns)
+        cursor.execute("SELECT min(transaction_date), max(transaction_date) FROM journey.transaction_data")
+        date_lo, date_hi = cursor.fetchone()
+        assert (date_lo, date_hi) == (date(2000, 1, 1) + timedelta(days=lo - 1), date(2000, 1, 1) + timedelta(days=hi - 1))
+        cursor.execute("""SELECT
+            (SELECT count(*) FROM journey.transaction_data WHERE transaction_date IS NULL OR transaction_date != DATE '2000-01-01' + (day::integer - 1)) +
+            (SELECT count(*) FROM journey.coupon_redempt WHERE redemption_date IS NULL OR redemption_date != DATE '2000-01-01' + (day::integer - 1)) +
+            (SELECT count(*) FROM journey.campaign_desc WHERE start_date IS NULL OR end_date IS NULL OR
+              start_date != DATE '2000-01-01' + (start_day::integer - 1) OR end_date != DATE '2000-01-01' + (end_day::integer - 1) OR end_date < start_date)""")
+        assert cursor.fetchone()[0] == 0, "Calendar conversion must preserve every source day and campaign window"
         cursor.execute("SELECT count(*) FROM journey.transaction_data t LEFT JOIN journey.product p USING(product_id)")
         assert cursor.fetchone()[0] == rows, "Product join must not multiply transaction lines"
         cursor.execute("SELECT count(*) FROM journey.household")
@@ -27,4 +43,5 @@ with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
         subject_rate = cursor.fetchone()[0]
         print(json.dumps({"tables": dict(tables), "households": households, "retailer_receipts": str(sales),
                           "source_day_range": [lo, hi], "top_department": department, "department_receipts": str(amount),
+                          "transaction_date_range": [date_lo.isoformat(), date_hi.isoformat()],
                           "store_364_grocery_coupon_line_rate": str(subject_rate)}))

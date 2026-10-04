@@ -14,7 +14,7 @@ class ScopeIn(BaseModel):
     filters: list[Filter] = Field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
-        return self.model_dump(mode="json")
+        return self.model_dump(mode="json", exclude_unset=True)
 
 
 class MethodRunRequest(BaseModel):

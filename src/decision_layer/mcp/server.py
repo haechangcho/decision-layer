@@ -118,6 +118,10 @@ async def search_semantic(query: str | None = None, kind: str | None = None) -> 
             item["ratio_parts"] = o["ratio_parts"]
         if o.get("description"):
             item["description"] = o["description"][:160]
+        hints = {key: value for key, value in (o.get("metadata") or {}).items()
+                 if key in ("suggestedDateRange", "calendarType")}
+        if hints:
+            item["metadata"] = hints
         items.append(item)
     return {"count": len(items), "objects": items}
 
@@ -212,7 +216,8 @@ async def list_recipes() -> dict:
 async def start_run(recipe: str, question: str, date_range: list[str] | None = None,
                     time_dimension: str | None = None, filters: list[dict[str, Any]] | None = None) -> dict:
     body = {"recipe": recipe, "question": question,
-            "scope": {"date_range": date_range, "time_dimension": time_dimension, "filters": filters or []}}
+            "scope": {key: value for key, value in {"date_range": date_range, "time_dimension": time_dimension,
+                                                    "filters": filters}.items() if value is not None}}
     return _running_or(await _call("POST", "/runs", json=body, params={"wait": WAIT_SECONDS}), _compact_run)
 
 

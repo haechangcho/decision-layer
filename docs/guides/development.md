@@ -1,6 +1,6 @@
 # Local development
 
-Use **Python 3.11+**, **Node.js 22**, and Docker with Compose for live sample data. Docker-only users can stay with the [quickstart](../../README.md).
+Use **Python 3.11+**, **Node.js 22**, and Docker with Compose for live sample data. Docker-only users can stay with the [quickstart](../index.md).
 
 ## Install
 
@@ -78,4 +78,4 @@ The sample's PostgreSQL stores source data, not Runs. The native API uses its ow
 | Run execution and storage | `src/decision_layer/runs/` |
 | Web routes and shared UI | `web/app/`, `web/components/` |
 
-Next: [test a change](testing.md), [add a Method](methods.md), or [submit a contribution](../../CONTRIBUTING.md).
+Next: [test a change](testing.md), [add a Method](methods.md), or [submit a contribution](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md).

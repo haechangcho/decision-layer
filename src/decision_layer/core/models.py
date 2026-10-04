@@ -187,6 +187,7 @@ class Limits(BaseModel):
 class PlanStep(BaseModel):
     id: str | None = None                          # lets later steps reference this one: $steps.<id>.…
     method: str                                    # "query.drilldown"
+    method_version: str | None = None              # optional replay pin from a recorded Run
     purpose: str | None = Field(default=None, max_length=240)  # intended question for this step, not evidence
     bindings: dict[str, Any] = Field(default_factory=dict)  # refs, or $expressions in Recipes (checked at run)
     params: dict[str, Any] = Field(default_factory=dict)
@@ -202,12 +203,18 @@ class ValidatorRef(BaseModel):
     params: dict[str, Any] = Field(default_factory=dict)
 
 
+class RunDefaults(BaseModel):
+    date_range: tuple[str, str] | None = None
+    time_dimension: SemanticRefStr | None = None
+
+
 class Recipe(BaseModel):
     name: str
     version: str
     description: str
     status: Literal["draft", "published"] = "published"  # legacy files remain executable
     origin_runs: list[str] = Field(default_factory=list)  # reviewed source Runs, never execution inputs
+    default_scope: RunDefaults | None = None
     routing: Routing = Field(default_factory=Routing)
     semantic_scope: SemanticScope
     mode: Literal["pipeline", "investigation"]

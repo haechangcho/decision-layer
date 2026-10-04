@@ -13,8 +13,9 @@ SHA-256: 5e0a3d72fe8562fe0ab995f70fb58b74359e8ec4bbccd1521e2b137da0558f9a
 
 The current official archive uses coded demographic classifications. We preserve these codes,
 rather than label them with age or income bands from an older dataset version.
-Source DAY is a relative index. Cube maps day 1 to 2000-01-01 solely for calendar-query compatibility;
-these are artificial dates, not actual purchase dates.
+Source DAY is a relative index. The importer retains it and adds PostgreSQL DATE columns,
+mapping day 1 to 2000-01-01 with a fixed example calendar. Cube references those columns.
+These are artificial dates, not actual purchase dates; campaign and redemption dates use the same mapping.
 SALES_VALUE is retailer receipts, not necessarily customer cash paid or profit.
 Coupon redemption is not a purchase-line attribution, and campaign targeting is not randomized assignment.
 No known causal ground truth is supplied. The name causal_data denotes promotion placement information,

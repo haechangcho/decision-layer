@@ -33,7 +33,7 @@ Default product tests use mocked API responses on desktop and mobile. They need 
 
 ## Live Complete Journey
 
-Start the [default sample](../../examples/complete-journey/README.md) with Recipes empty. From its directory:
+Start the [default sample](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md) with Recipes empty. From its directory:
 
 ```bash
 docker compose run --rm --no-deps import python verify.py

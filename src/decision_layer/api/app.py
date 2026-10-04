@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 import yaml
 
 from fastapi import Depends, FastAPI, Header, Query, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from .. import __version__
 from ..auth import credentials, identify
@@ -26,7 +26,7 @@ from ..sources.config import EffectiveSource, SourceConfigError, SourceConfigInp
 from ..sources.provider import ConfiguredCubeProvider
 from ..sources.store import open_source_store
 from ..recipes.loader import RecipeStore, parse_recipe
-from ..recipes.from_run import RecipeCandidate, candidate_from_run
+from ..recipes.from_run import RecipeCandidate, RunPromotionError, candidate_from_run
 from ..runs.engine import RunEngine
 from ..runs.jobs import JobRunner
 from ..runs.store import RunStore, open_store
@@ -352,6 +352,11 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
             raise RecipeEditError("Recipe name must match the URL.")
         return recipes.save(req.recipe, req.base_version)
 
+    @app.delete("/recipes/{name}", status_code=204)
+    async def recipe_delete(name: str, _caller: Caller, base_version: str = Query(...)) -> Response:
+        recipes.delete(name, base_version)
+        return Response(status_code=204)
+
     @app.post("/runs", response_model=Run, responses={202: {"description": "pipeline still running"}})
     async def run_start(req: RunStartRequest, creds: Creds, caller: Caller, request: Request, wait: float | None = None):
         """Start a Run. A pipeline Recipe executes right away (202 with the run while it is still running);
@@ -372,9 +377,36 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
         await check_recipe_semantics(candidate.recipe, creds)
         return candidate
 
+    @app.post("/runs/{run_id}/recipe", response_model=Recipe)
+    async def run_recipe_register(run_id: str, creds: Creds, caller: Caller) -> Recipe:
+        run = await engine.get(creds, caller, run_id)
+        if run.status != "completed" or run.running:
+            raise RunPromotionError("Complete the analysis before registering its procedure.")
+        candidate = candidate_from_run(run, list(range(len(run.steps))))
+        recipe = candidate.recipe.model_copy(update={"name": f"analysis-from-{run.id.lower()}", "status": "published"})
+        for step in recipe.steps:
+            if step.method_version and registry.get(step.method).manifest.version != step.method_version:
+                raise RunPromotionError("The recorded Method version is not installed. Edit the candidate before registering it.")
+        await check_recipe_semantics(recipe, creds)
+        # A repeated click returns the same version instead of making another Recipe.
+        from ..recipes.loader import UnknownRecipe
+        try:
+            existing = recipes.get(recipe.name, include_drafts=True)
+        except UnknownRecipe:
+            return recipes.save(recipe, None)
+        if existing.origin_runs != [run.id] or existing.status != "published":
+            from ..recipes.authoring import RecipeConflict
+            raise RecipeConflict("A different Recipe already uses this name.")
+        return existing
+
     @app.get("/runs/{run_id}", response_model=Run)
     async def run_get(run_id: str, creds: Creds, caller: Caller) -> Run:
         return await engine.get(creds, caller, run_id)
+
+    @app.delete("/runs/{run_id}", status_code=204)
+    async def run_delete(run_id: str, caller: Caller) -> Response:
+        await engine.delete(caller, run_id)
+        return Response(status_code=204)
 
     @app.get("/runs/{run_id}/result", response_model=Result, responses={202: {"description": "still running"}})
     async def run_result(run_id: str, creds: Creds, caller: Caller):

@@ -39,7 +39,10 @@ product department/brand, household codes and store identifiers; campaign contac
 Campaigns and redemptions are separate facts, not joined onto every transaction line.
 The raw promotion and coupon-product bridge remain loaded for later modeling; they are not blindly joined to sales.
 
-**Important:** source DAY is relative. The model maps day 1 to 2000-01-01 for time queries, not an actual year.
+The importer adds PostgreSQL `DATE` columns: `transaction_date`, `redemption_date`, `start_date` and `end_date`.
+The source day indices are preserved. Day 1 maps to 2000-01-01 using a fixed example calendar, not the actual purchase year.
+Transactions span **2000-01-01 to 2001-12-11**. Cube exposes these columns as time dimensions;
+Web starts with the provider's suggested period, and MCP receives the dates and calendar description through the catalog.
 The official 2023 package has coded demographic fields; codes are not inferred to be actual ages/incomes.
 Retailer receipts are not profit or necessarily customer out-of-pocket spend. Read [NOTICE](NOTICE.md).
 
@@ -51,8 +54,10 @@ Install and connect using the [MCP guide](../../docs/guides/mcp.md), with `DL_AP
 
 > Compare the coupon-line rate of one store with the other stores in the same product department and with the overall accessible population.
 
-For a time query, explicitly use the mapped example dates and the transaction date dimension.
-Open Runs to inspect the question, graph and results. Review selected steps as a Recipe draft before saving.
+> How did retailer receipts change between July and September 2001? Show the monthly trend and break it down by product department.
+
+Use **Transaction date** for purchase-period questions. Campaign start/end and redemption dates describe separate events.
+Open Runs to inspect the question, graph, settings and queries. **Register as Recipe** saves the completed procedure with its recorded settings; **Edit before saving** opens a candidate for changes first.
 
 The dataset supports observational investigation, not a guaranteed campaign causal effect.
 Do not equate coupon users with randomized treatment or condition on redemption to define a causal control group.
@@ -69,6 +74,13 @@ docker compose down
 The verifier reports independent SQL totals and checks a product join does not multiply lines.
 `down` preserves named data/cache/Run volumes and local Recipe files; `down -v` deletes named volumes.
 The importer records a digest and row counts transactionally; interrupted imports roll back rather than presenting partial data.
+Existing volumes are upgraded on the next import without reloading or deleting source rows:
+
+```bash
+docker compose build import
+docker compose run --rm --no-deps import
+docker compose restart cube api
+```
 
 See [local development](../../docs/guides/development.md), [Method contribution](../../docs/guides/methods.md)
 and [tests](../../docs/guides/testing.md). Keep the source data private to your environment; review publisher terms before redistribution.

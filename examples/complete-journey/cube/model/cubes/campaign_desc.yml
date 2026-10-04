@@ -1,0 +1,40 @@
+cubes:
+- name: campaign
+  sql_table: journey.campaign_desc
+  title: Campaigns
+  dimensions:
+  - name: id
+    sql: campaign
+    type: string
+    primary_key: true
+    title: Campaign
+  - name: kind
+    sql: description
+    type: string
+    title: Campaign type
+  - name: start_day
+    sql: start_day::integer
+    type: number
+    title: Start day index
+  - name: end_day
+    sql: end_day::integer
+    type: number
+    title: End day index
+  - name: start_date
+    sql: start_date
+    type: time
+    title: Campaign start date
+    description: Fixed example calendar (day 1 = 2000-01-01), not the actual campaign year.
+    meta:
+      calendarType: mapped
+  - name: end_date
+    sql: end_date
+    type: time
+    title: Campaign end date
+    description: Fixed example calendar (day 1 = 2000-01-01), not the actual campaign year.
+    meta:
+      calendarType: mapped
+  measures:
+  - name: count
+    type: count
+    title: Campaigns

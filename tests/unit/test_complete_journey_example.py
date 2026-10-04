@@ -23,7 +23,13 @@ def test_corrupt_archive_refused(tmp_path):
 def test_source_and_semantic_boundaries():
     assert len(loader.HEADERS) == 8
     assert "classification_1" in loader.HEADERS["hh_demographic"]
-    model = yaml.safe_load((FOLDER / "cube/model/cubes/retail.yml").read_text())
-    transactions = model["cubes"][0]
+    cubes = [cube for path in (FOLDER / "cube/model/cubes").glob("*.yml") for cube in yaml.safe_load(path.read_text())["cubes"]]
+    assert len(cubes) == len({cube["name"] for cube in cubes}) == 6
+    transactions = next(cube for cube in cubes if cube["name"] == "transaction")
     assert {join["name"] for join in transactions["joins"]} == {"product", "household"}
-    assert "2000-01-01" in transactions["sql"]
+    time = next(item for item in transactions["dimensions"] if item["name"] == "analysis_date")
+    assert time["sql"] == "transaction_date" and time["type"] == "time"
+    assert time["meta"]["suggestedDateRange"] == ["2000-01-01", "2001-12-11"]
+    assert time["meta"]["calendarType"] == "mapped"
+    campaign = next(cube for cube in cubes if cube["name"] == "campaign")
+    assert {item["sql"] for item in campaign["dimensions"] if item["type"] == "time"} == {"start_date", "end_date"}

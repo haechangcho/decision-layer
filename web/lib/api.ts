@@ -69,11 +69,11 @@ export interface Result {
   warnings: string[];
   validation: Validation[];
   needs_input?: { question: string; field: string; candidates: { value: unknown; label: string; count?: number }[] } | null;
-  provenance: { method?: string | null; semantic_refs: string[]; queries: { native_query: unknown; rows: number; elapsed_ms: number }[] };
+  provenance: { method?: string | null; recipe?: string | null; runtime?: Record<string, string>; semantic_refs: string[]; queries: { provider?: string; instance?: string; native_query: unknown; compiled_sql?: unknown; rows: number; elapsed_ms: number }[] };
   run_id?: string | null;
 }
 
-export interface PlanStep { id?: string | null; method: string; purpose?: string | null; bindings: Record<string, unknown>; params: Record<string, unknown> }
+export interface PlanStep { id?: string | null; method: string; method_version?: string | null; purpose?: string | null; bindings: Record<string, unknown>; params: Record<string, unknown> }
 
 export interface Recipe {
   name: string;
@@ -81,6 +81,7 @@ export interface Recipe {
   description: string;
   status?: "draft" | "published";
   origin_runs?: string[];
+  default_scope?: { date_range?: [string, string] | null; time_dimension?: string | null } | null;
   routing: { use_for: string[]; do_not_use_for: string[] };
   semantic_scope: { primary_metric: string; related_metrics: string[]; preferred_dimensions: string[]; required_filters: unknown[] };
   mode: "pipeline" | "investigation";

@@ -44,6 +44,7 @@ export function recipeChanges(before: Recipe | undefined, after: Recipe, title: 
     return changes;
   }
   if (before.description !== after.description) changes.push(`분석 목적 · ${display(before.description, title)} → ${display(after.description, title)}`);
+  if (!equal(before.default_scope, after.default_scope)) changes.push(`기본 실행 범위 · ${display(after.default_scope, title)}`);
   const scopeFields: [keyof Recipe["semantic_scope"], string][] = [
     ["primary_metric", "분석 지표"], ["related_metrics", "함께 볼 지표"], ["preferred_dimensions", "분류 기준"], ["required_filters", "필수 필터"],
   ];

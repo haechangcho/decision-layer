@@ -1,0 +1,21 @@
+cubes:
+- name: campaign_contact
+  sql: SELECT row_number() OVER () AS contact_id, * FROM journey.campaign_table
+  title: Campaign contacts
+  joins:
+  - name: campaign
+    sql: '{CUBE}.campaign = {campaign}.campaign'
+    relationship: many_to_one
+  - name: household
+    sql: '{CUBE}.household_key = {household}.household_key'
+    relationship: many_to_one
+  dimensions:
+  - name: id
+    sql: contact_id
+    type: number
+    primary_key: true
+    public: false
+  measures:
+  - name: count
+    type: count
+    title: Household campaign contacts

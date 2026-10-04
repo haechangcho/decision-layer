@@ -24,6 +24,7 @@ class UnknownRun(DecisionLayerError):
 class RunStore(Protocol):
     async def save(self, run: Run) -> None: ...
     async def get(self, run_id: str) -> Run: ...
+    async def delete(self, run_id: str) -> None: ...
     async def list(self, limit: int = 50, recipe: str | None = None, subject: str | None = None) -> list[Run]: ...
     async def running(self) -> list[Run]: ...
 
@@ -44,6 +45,10 @@ class MemoryRunStore:
         if run_id not in self._runs:
             raise UnknownRun(_("Run not found: {run_id}", run_id=run_id))
         return Run.model_validate_json(self._runs[run_id])
+
+    async def delete(self, run_id: str) -> None:
+        if self._runs.pop(run_id, None) is None:
+            raise UnknownRun(_("Run not found: {run_id}", run_id=run_id))
 
     async def list(self, limit: int = 50, recipe: str | None = None, subject: str | None = None) -> list[Run]:
         runs = [Run.model_validate_json(d) for d in self._runs.values()]
@@ -75,6 +80,13 @@ class SqliteRunStore:
         if not row:
             raise UnknownRun(_("Run not found: {run_id}", run_id=run_id))
         return Run.model_validate_json(row[0])
+
+    async def delete(self, run_id: str) -> None:
+        with self._lock:
+            cursor = self._db.execute("DELETE FROM runs WHERE id = ?", (run_id,))
+            self._db.commit()
+        if cursor.rowcount == 0:
+            raise UnknownRun(_("Run not found: {run_id}", run_id=run_id))
 
     async def list(self, limit: int = 50, recipe: str | None = None, subject: str | None = None) -> list[Run]:
         where, args = _where(recipe, subject, "?")
@@ -123,6 +135,13 @@ class PostgresRunStore:
             raise UnknownRun(_("Run not found: {run_id}", run_id=run_id))
         return Run.model_validate(row[0])
 
+    async def delete(self, run_id: str) -> None:
+        async with await self._conn() as conn:
+            row = await (await conn.execute(
+                "DELETE FROM decision_layer.runs WHERE id = %s RETURNING id", (run_id,))).fetchone()
+        if not row:
+            raise UnknownRun(_("Run not found: {run_id}", run_id=run_id))
+
     async def list(self, limit: int = 50, recipe: str | None = None, subject: str | None = None) -> list[Run]:
         where, args = _where(recipe, subject, "%s")
         async with await self._conn() as conn:
@@ -156,4 +175,3 @@ def open_store(url: str | None) -> RunStore:
     if url.startswith(("postgresql://", "postgres://")):
         return PostgresRunStore(url)
     raise ValueError(f"Unsupported DL_DATABASE_URL scheme: {url.split('://')[0]}://…")
-

@@ -71,6 +71,30 @@ def test_recipe_save_is_disabled_without_a_configured_directory():
         RecipeStore(None, "cube", "local").save(recipe(), None)
 
 
+def test_delete_removes_all_versions_and_hand_authored_files_only_for_the_recipe(tmp_path):
+    import yaml
+
+    store = RecipeStore(tmp_path, "cube", "local")
+    first = store.save(recipe(), None)
+    draft = first.model_copy(update={"version": "1.0.1", "status": "draft"})
+    folder = tmp_path / "team"
+    folder.mkdir()
+    (folder / "hand-authored.yml").write_text(yaml.safe_dump(draft.model_dump(mode="json")))
+    other = first.model_copy(update={"name": "other-recipe"})
+    store.save(other, None)
+    with pytest.raises(RecipeConflict):
+        store.delete(first.name, "1.0.0")
+    assert store.get(first.name, include_drafts=True) == draft
+    store.delete(first.name, "1.0.1")
+    assert not (folder / "hand-authored.yml").exists()
+    assert RecipeStore(tmp_path, "cube", "local").list() == [other]
+    assert store.list_drafts() == []
+    with pytest.raises(UnknownRecipe):
+        store.get(first.name, "1.0.0")
+    with pytest.raises(UnknownRecipe):
+        store.delete(first.name, "1.0.1")
+
+
 @pytest.mark.parametrize("method,params", [
     ("query.drilldown", {"top_n": 0}),
     ("query.drilldown", {"min_count": -1}),

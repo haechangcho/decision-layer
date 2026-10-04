@@ -1,5 +1,5 @@
 FROM python:3.11-slim
 WORKDIR /example
 RUN pip install --no-cache-dir "psycopg[binary]==3.3.6"
-COPY load.py verify.py ./
+COPY load.py verify.py calendar.sql ./
 CMD ["python", "load.py"]

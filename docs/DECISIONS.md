@@ -773,3 +773,35 @@ The official archive's demographic codes remain codes. Relative DAY is mapped to
 ### Sample consolidation (2026-10-04)
 
 Complete Journey is the sole deployable sample. Chinook, Online Retail and synthetic ecommerce stacks, loaders, domain-specific live tests and their CI references are removed to avoid competing onboarding paths. Historical ADR references above describe earlier experiments, not currently available files; their results are not Complete Journey benchmark evidence. Local downloaded data, personal Recipes and Docker volumes are not deleted. Self-contained synthetic metadata and deterministic unit/causal tests remain contract fixtures, not another sample environment. The runnable Method contribution template remains independent of the sample.
+
+## ADR-050 — Register a recorded procedure with its execution settings
+
+**Status:** Accepted (2026-10-04); supersedes ADR-044's lossy candidate conversion and mandatory draft-only Web path.
+
+Run-to-Recipe conversion preserves every recorded parameter (including resolved defaults and absolute comparison dates), semantic bindings, step purposes, shared filters and Method versions. Recipe `default_scope` records the source period and time dimension; omitted execution fields inherit these defaults across REST, Python and MCP, while explicit REST null clears a default. Shared filters become Recipe required filters. A pinned step refuses execution if its recorded Method version is no longer installed. Replaying a procedure does not freeze source data or semantic definitions.
+
+`POST /runs/{id}/recipe` validates a completed, non-preview Run's successful steps and current semantic access, then saves a published Recipe through the canonical file store. The explicit **Register as Recipe** action authorizes this publication; repeated calls return the same source-Run Recipe. No background promotion occurs. The existing candidate endpoint remains available for editing or selecting successful steps before saving. Both paths use the same lossless conversion. Existing file-version conflict protection and ADR-038's local-only authorization boundary still apply.
+
+Run details put registration beside the question and expose results, applied settings, queries and readable source names as peer views. Raw identifiers remain inspectable. Required Method inputs precede optional preview controls in the editor; a drill-down can preview all data without choosing an arbitrary date range. Cube sample models are split by source table without changing governed members, joins or metric definitions.
+
+## ADR-051 — Delete a Recipe without deleting its Runs
+
+**Status:** Accepted (2026-10-04).
+
+An explicit, confirmed Web action or `DELETE /recipes/{name}?base_version=...` removes every published and draft YAML version of a Recipe from the configured file store. This is an exception to version retention, not permission to overwrite a version. The latest version is checked under the existing file lock; stale requests return 409. Files are matched by their declared Recipe name, including hand-authored files in subdirectories. Recorded Runs retain their Recipe snapshots, results and provenance. Deleted Recipes disappear from discovery and cannot start new executions. Git-backed installations record ordinary file deletions; repository commits remain externally managed. Authorization follows the existing local authoring boundary in ADR-038.
+
+## ADR-052 — Typed sample dates and provider-owned period hints
+
+**Status:** Accepted (2026-10-04); refines ADR-049's example calendar storage.
+
+The Complete Journey importer adds stored generated PostgreSQL DATE columns for purchases, redemptions and campaign start/end, retaining source day indices. The fixed day-1 origin remains 2000-01-01 so existing Run queries and Recipe periods retain their meaning. An idempotent, transactional migration upgrades existing volumes; sample dates do not claim real purchase years. Date conversion, date extents and source-specific knowledge belong exclusively to the sample loader and Cube model.
+
+A semantic time object's optional `metadata.suggestedDateRange` provides a YYYY-MM-DD period suggestion. Optional `calendarType: mapped` identifies a transformed calendar; its meaning is explained in the provider's object description. Web may prefill an untouched period from this hint, with a unique same-cube hinted time dimension as a suggestion when no explicit selection exists. Saved Recipe defaults and user selections take precedence. MCP forwards these optional hints without interpreting a domain, computing dates, changing execution parameters or weakening validation. Hints are not freshness guarantees or restrictions on selectable dates. No sample name, business domain or fixed year is present in the execution engine or generic Web/MCP logic. Providers without hints retain existing behavior.
+
+---
+
+## ADR-053 — Run owners may delete execution records
+
+**Status:** Accepted (2026-10-04)
+
+`DELETE /runs/{id}` removes one Run and its recorded results from the Run store after the caller is checked as its owner. A shared viewer receives the same 404 as for a missing Run. An active background job returns 409 so its worker cannot recreate a deleted record. The Web asks for confirmation and explains that queries and validation evidence disappear with the Run. Deleting a Run does not delete a Recipe already registered from it; that Recipe is a separately owned file. This is a deliberate user initiated deletion, not a retention policy or automatic cleanup.

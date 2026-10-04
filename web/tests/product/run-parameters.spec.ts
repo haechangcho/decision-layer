@@ -26,10 +26,31 @@ test.beforeEach(async ({ page }) => {
   } }));
 });
 
+test("one click registers the recorded procedure and supports retry", async ({ page }, info) => {
+  let requests = 0;
+  await page.route("**/api/runs/provenance-test/recipe", route => {
+    expect(route.request().method()).toBe("POST");
+    requests++;
+    return route.fulfill(requests === 1
+      ? { status: 503, json: { error: { code: "STORE_UNAVAILABLE", message: "저장소에 연결하지 못했습니다. 다시 시도하세요." } } }
+      : { json: { name: "saved-analysis", status: "published" } });
+  });
+  await page.goto("/runs/provenance-test");
+  const register = page.getByRole("button", { name: "Recipe로 등록", exact: true });
+  await expect(register).toBeInViewport();
+  await page.screenshot({ path: info.outputPath("run-registration.png"), fullPage: true });
+  await register.click();
+  await expect(page.getByRole("region", { name: "Recipe 등록" }).getByRole("alert")).toContainText("저장소");
+  await register.click();
+  await expect(page.getByRole("heading", { name: "Recipe로 등록했습니다" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Recipe 보기", exact: true })).toHaveAttribute("href", "/recipes/saved-analysis");
+  expect(requests).toBe(2);
+});
+
 test("Run shows applied values and their sources on demand", async ({ page }, info) => {
   await page.route("**/api/semantic/catalog", route => route.fulfill({ json: { objects: [{ ref: "cube://local/insurance/payout", title: "지급액", kind: "measure" }], hierarchies: {} } }));
   await page.goto("/runs/provenance-test");
-  await expect(page.getByText("지급액이 왜 변했나?", { exact: true }).last()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "지급액이 왜 변했나?", exact: true })).toBeVisible();
   await expect(page.getByText("지급액", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("region", { name: "실행 그래프" })).toBeVisible();
   await expect(page.getByLabel("공유할 사용자 ID")).not.toBeVisible();
@@ -41,10 +62,14 @@ test("Run shows applied values and their sources on demand", async ({ page }, in
   await expect(page.getByText("Method 기본값")).not.toBeVisible();
   await expect(page.getByRole("button", { name: "Show 0 executed queries" })).toHaveCount(0);
   await expect(page.getByText("method://query.trend@1.0.0")).not.toBeVisible();
-  await page.getByText("표와 실행 근거 보기").click();
-  await page.locator("summary").filter({ hasText: /^실행 근거/ }).click();
-  await expect(page.getByText("method://query.trend@1.0.0")).toBeVisible();
-  await page.getByText("적용된 설정").click();
+  await page.getByRole("tab", { name: "출처", exact: true }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("시간에 따른 변화");
+  await expect(page.getByRole("tabpanel")).toContainText("v1.0.0");
+  await expect(page.getByText("method://query.trend@1.0.0")).not.toBeVisible();
+  await page.getByRole("button", { name: "원본 기록 보기" }).click();
+  await expect(page.getByRole("dialog", { name: "원본 실행 기록" })).toContainText("method://query.trend@1.0.0");
+  await page.keyboard.press("Escape");
+  await page.getByRole("tab", { name: "사용한 설정" }).click();
   await expect(page.getByText("시간 단위")).toBeVisible();
   await expect(page.getByText("월", { exact: true })).toBeVisible();
   await expect(page.getByText("Method 기본값")).toBeVisible();
@@ -85,13 +110,12 @@ test("MCP runs are identifiable and filterable without claiming approval", async
   await page.screenshot({ path: info.outputPath("mcp-run-list.png"), fullPage: true });
   await list.getByRole("link").click();
   await expect(page.getByText(/RUN · MCP 탐색/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Recipe 초안 검토" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Recipe로 등록", exact: true })).toBeVisible();
 });
 
 test("old Runs do not invent parameter provenance", async ({ page }) => {
   await page.goto("/runs/legacy-test");
-  await page.getByText("표와 실행 근거 보기").click();
-  await page.getByText("적용된 설정").click();
+  await page.getByRole("tab", { name: "사용한 설정" }).click();
   await expect(page.getByText("출처 기록 없음")).toHaveCount(2);
 });
 
@@ -105,12 +129,13 @@ test("missing catalog names do not expose semantic URIs in the result", async ({
   } }));
   await page.goto("/runs/unknown-title");
   await expect(page.getByText("지표 이름 확인 필요", { exact: true }).first()).toBeVisible();
-  await page.getByText("분석 범위와 실행 정보").click();
+  await page.getByRole("tab", { name: "사용한 설정" }).click();
   await expect(page.getByText("날짜 기준 이름 확인 필요", { exact: true })).toBeVisible();
   await expect(page.getByText("cube://local/dim_customer/count", { exact: true })).not.toBeVisible();
-  await page.getByText("표와 실행 근거 보기").click();
-  await page.locator("summary").filter({ hasText: /^실행 근거/ }).click();
-  await expect(page.getByText("지표 참조: cube://local/dim_customer/count")).toBeVisible();
+  await page.getByRole("tab", { name: "출처", exact: true }).click();
+  await expect(page.getByText("cube://local/dim_customer/count", { exact: true })).not.toBeVisible();
+  await page.getByRole("button", { name: "원본 기록 보기" }).click();
+  await expect(page.getByRole("dialog", { name: "원본 실행 기록" })).toContainText("cube://local/dim_customer/count");
 });
 
 test("a one-period trend leads with the answer and keeps audit details folded", async ({ page }, info) => {
@@ -134,7 +159,7 @@ test("a one-period trend leads with the answer and keeps audit details folded", 
   await expect(page.getByRole("heading", { name: "6월 지급액은 얼마인가?" })).toBeVisible();
   await expect(page.getByText("지급결정금액 합계", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("860,160,000").first()).toBeVisible();
-  await page.getByText("표와 실행 근거 보기").click();
+  await expect(page.locator("details")).toHaveCount(0);
   await expect(page.getByRole("columnheader", { name: "지급 건수" })).toBeVisible();
   await expect(page.getByText("기간이 하나뿐이라 증가·감소 추이는 판단할 수 없습니다.")).toBeVisible();
   await expect(page.getByRole("region", { name: "분석 답변" }).getByText(/데이터가 2026-06-04까지만 있어/)).toBeVisible();
@@ -149,7 +174,8 @@ test("Run graph selects recorded steps without implying a dependency", async ({ 
   await page.route("**/api/runs/graph-test", route => route.fulfill({ json: {
     id: "graph-test", plan: { scope: {} }, steps: [step, { ...step,
       step: { id: "breakdown", method: "query.drilldown", bindings: {}, params: {} },
-      result: { ...step.result, primary: { type: "table", title: "두 번째 결과", data: { rows: [] } } } }],
+      result: { ...step.result, primary: { type: "table", title: "두 번째 결과", data: { rows: [] } },
+        artifacts: [{ type: "table", title: "추가 비교", data: [{ group: "A", count: 42 }] }] } }],
     caller: { subject: "alice", groups: [] }, shared_with: [], status: "completed", validation: [], created_at: "2026-10-01T10:00:00Z",
   } }));
   await page.goto("/runs/graph-test");
@@ -160,6 +186,12 @@ test("Run graph selects recorded steps without implying a dependency", async ({ 
   await expect(page.locator('[class*="runStepDetail"]')).toContainText("기간별 값과 변화 확인");
   await graph.getByRole("button", { name: "2단계 항목별로 나눠 보기 결과 보기" }).click();
   await expect(page.locator('[class*="runStepDetail"]')).toContainText("두 번째 결과");
+  await page.getByRole("tab", { name: "추가 결과 1개" }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("추가 비교");
+  await expect(page.getByRole("tabpanel")).toContainText("42");
+  await expect(page.locator("details")).toHaveCount(0);
+  await graph.getByRole("button", { name: "1단계 시간에 따른 변화 결과 보기" }).click();
+  await expect(page.getByRole("tab", { name: "결과", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.screenshot({ path: info.outputPath("run-graph.png"), fullPage: true });
 });
 
@@ -178,12 +210,8 @@ test("successful Run steps can be reviewed as a Recipe draft", async ({ page }) 
   } }));
   await page.route("**/api/sources/current/readiness", route => route.fulfill({ json: { metrics: [] } }));
   await page.goto("/runs/promotion-test");
-  await page.getByRole("button", { name: "Recipe 초안 검토" }).click();
-  const graph = page.getByRole("region", { name: "실행 그래프" });
-  await expect(graph.getByRole("checkbox", { name: "1단계 초안에 포함" })).toBeChecked();
-  await graph.getByRole("checkbox", { name: "2단계 초안에 포함" }).uncheck();
-  await page.getByRole("link", { name: "선택한 1단계 검토" }).click();
-  await expect(page).toHaveURL(/\/recipes\/new\?from_run=promotion-test&step=0/);
-  await expect(page.getByText("실행 기록에서 만든 초안")).toBeVisible();
+  await page.getByRole("link", { name: "편집해서 저장" }).click();
+  await expect(page).toHaveURL(/\/recipes\/new\?from_run=promotion-test&step=0&step=1/);
+  await expect(page.getByText("실행 기록에서 가져온 분석 절차")).toBeVisible();
   await expect(page.getByRole("link", { name: /원본 실행 보기/ })).toHaveAttribute("href", "/runs/promotion-test");
 });

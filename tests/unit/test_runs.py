@@ -8,10 +8,10 @@ from decision_layer.api.app import create_app
 from decision_layer.core.models import PlanStep
 from decision_layer.methods.base import InvalidBinding
 from decision_layer.recipes.loader import RecipeStore, UnknownRecipe
-from decision_layer.runs.engine import MethodNotAllowed, RunClosed, RunEngine, RunLimitExceeded
+from decision_layer.runs.engine import MethodNotAllowed, RunBusy, RunClosed, RunEngine, RunLimitExceeded
 from decision_layer.runs.store import MemoryRunStore, SqliteRunStore, UnknownRun
 from decision_layer.settings import Settings
-from decision_layer.core.models import CallerInfo
+from decision_layer.core.models import CallerInfo, RunningJob
 from test_methods import AMOUNT, CAT, COUNT, CREDS, Q3, RR, FakeProvider
 
 REPO_RECIPES = Path(__file__).parents[1] / "fixtures" / "recipes"
@@ -31,6 +31,90 @@ def engine(provider, store=None, recipes_dir=REPO_RECIPES):
 def write_recipe(tmp_path, text):
     (tmp_path / "r.yaml").write_text(text)
     return tmp_path
+
+
+@pytest.mark.parametrize("backend", ["memory", "sqlite"])
+async def test_run_delete_is_owner_only_and_rejects_active_jobs(provider, tmp_path, backend):
+    store = MemoryRunStore() if backend == "memory" else SqliteRunStore(str(tmp_path / "runs.db"))
+    e = engine(provider, store, recipes_dir=tmp_path)
+    run = await e.start(CREDS, ME, recipe=None, question="Which segment changed?", scope=SCOPE)
+    run.shared_with = ["bob"]
+    await store.save(run)
+    with pytest.raises(UnknownRun):
+        await e.delete(CallerInfo(subject="bob"), run.id)
+    run.running = RunningJob(kind="step", method="query.trend")
+    await store.save(run)
+    with pytest.raises(RunBusy):
+        await e.delete(ME, run.id)
+    run.running = None
+    await store.save(run)
+    await e.delete(ME, run.id)
+    with pytest.raises(UnknownRun):
+        await store.get(run.id)
+    assert await e.list(ME) == []
+
+
+def test_delete_run_endpoint_preserves_registered_recipe(provider, tmp_path):
+    settings = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="test-secret-at-least-32-characters",
+                        cube_service_groups=("ecommerce",), database_url="memory", recipes_dir=str(tmp_path),
+                        allow_service_credentials=True)
+    client = TestClient(create_app(settings, provider))
+    run = client.post("/runs", json={"question": "Inspect change", "scope": SCOPE}).json()
+    result = client.post(f"/runs/{run['id']}/steps", json={"method": "query.trend", "bindings": {"metric": RR}})
+    assert result.status_code == 200
+    assert client.post(f"/runs/{run['id']}:complete", json={"summary": "Done"}).status_code == 200
+    assert client.post(f"/runs/{run['id']}/recipe").status_code == 200
+    response = client.delete(f"/runs/{run['id']}")
+    assert response.status_code == 204
+    assert client.get(f"/runs/{run['id']}").status_code == 404
+    assert client.get("/runs").json() == []
+    assert len(client.get("/recipes").json()) == 1
+    assert client.delete(f"/runs/{run['id']}").status_code == 404
+
+
+def test_one_click_registration_replays_settings_and_is_idempotent(provider, tmp_path):
+    settings = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="test-secret-at-least-32-characters",
+                        cube_service_groups=("ecommerce",), database_url="memory", recipes_dir=str(tmp_path),
+                        allow_service_credentials=True)
+    client = TestClient(create_app(settings, provider))
+    scope = {**SCOPE, "time_dimension": "cube://local/ecom_order/order_dt",
+             "filters": [{"member": CAT, "operator": "equals", "values": ["A"]}]}
+    source = client.post("/runs", json={"question": "Which groups are highest?", "scope": scope}).json()
+    endpoint = f"/runs/{source['id']}/recipe"
+    assert client.post(endpoint).status_code == 422
+    result = client.post(f"/runs/{source['id']}/steps", json={"method": "query.drilldown", "purpose": "Inspect groups",
+        "bindings": {"metric": RR, "dimensions": [CAT]}, "params": {"top_n": 5, "min_count": 10}})
+    assert result.json()["status"] == "success", result.json()
+    source = client.post(f"/runs/{source['id']}:complete", json={"summary": "Reviewed"}).json()
+    response = client.post(endpoint)
+    assert response.status_code == 200, response.json()
+    recipe = response.json()
+    assert recipe["status"] == "published"
+    assert recipe["steps"][0]["params"] == source["steps"][0]["step"]["params"]
+    assert recipe["steps"][0]["purpose"] == "Inspect groups"
+    assert recipe["steps"][0]["method_version"] == "2.0.0"
+    assert recipe["semantic_scope"]["required_filters"] == scope["filters"]
+    assert client.post(endpoint).json() == recipe
+    assert len(client.get("/recipes").json()) == 1
+    replay = client.post("/runs", json={"recipe": recipe["name"]}).json()
+    assert replay["status"] == "completed", replay
+    assert replay["plan"]["scope"] == scope
+    assert replay["steps"][0]["result"]["primary"] == source["steps"][0]["result"]["primary"]
+    assert replay["steps"][0]["result"]["provenance"]["queries"][0]["native_query"] == source["steps"][0]["result"]["provenance"]["queries"][0]["native_query"]
+    cleared = client.post("/runs", json={"recipe": recipe["name"], "scope": {"date_range": None}}).json()
+    assert cleared["plan"]["scope"]["date_range"] is None
+    recipe["version"] = "1.0.1"
+    recipe["steps"][0]["method_version"] = "0.0.0"
+    assert client.put(f"/recipes/{recipe['name']}", json={"recipe": recipe, "base_version": "1.0.0"}).status_code == 200
+    blocked = client.post("/runs", json={"recipe": recipe["name"]}).json()
+    assert blocked["status"] == "failed"
+    assert blocked["steps"][0]["result"]["provenance"]["queries"] == []
+    assert client.delete(f"/recipes/{recipe['name']}?base_version=1.0.0").status_code == 409
+    assert client.delete(f"/recipes/{recipe['name']}?base_version=1.0.1").status_code == 204
+    assert client.get("/recipes").json() == []
+    assert client.get(f"/runs/{source['id']}").json() == source
+    assert client.get(f"/runs/{replay['id']}").json()["recipe_snapshot"]["version"] == "1.0.0"
+    assert client.post("/runs", json={"recipe": recipe["name"]}).status_code == 404
 
 
 async def test_pipeline_feeds_earlier_results_forward(provider, tmp_path):
@@ -233,7 +317,7 @@ def test_api_runs(provider):
     assert candidate.status_code == 200, candidate.json()
     assert candidate.json()["recipe"]["status"] == "draft"
     assert candidate.json()["recipe"]["origin_runs"] == [adhoc["run_id"]]
-    assert "granularity" not in candidate.json()["recipe"]["steps"][0]["params"]
+    assert candidate.json()["recipe"]["steps"][0]["params"]["granularity"] == "month"
     assert c.get(f"/runs/{adhoc['run_id']}/recipe-candidate", params={"indices": 1}).status_code == 422
 
 
