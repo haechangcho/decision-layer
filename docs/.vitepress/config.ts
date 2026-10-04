@@ -86,9 +86,11 @@ export default defineConfig({
           ] },
           { text: '개발과 기여', items: [
             { text: 'Method 추가', link: '/ko/guides/methods' },
-            { text: '개발 환경 (영문)', link: '/guides/development' },
-            { text: '테스트 (영문)', link: '/guides/testing' },
-            { text: '아키텍처 (영문)', link: '/ARCHITECTURE' }
+            { text: '개발 환경', link: '/ko/guides/development' },
+            { text: '테스트', link: '/ko/guides/testing' },
+            { text: '분석 품질 평가', link: '/ko/guides/evaluation' },
+            { text: '인터페이스 디자인', link: '/ko/guides/design-system' },
+            { text: '아키텍처', link: '/ko/ARCHITECTURE' }
           ] }
         ],
         outline: { level: [2, 3], label: '이 페이지에서' },

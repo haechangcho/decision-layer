@@ -1,6 +1,6 @@
 # Decision Layer
 
-[English](README.md) · [한국어](README.ko.md) · [Docs](docs/README.md) · [Contributing](CONTRIBUTING.md)
+[English](README.md) · [한국어](README.ko.md) · [Docs](https://decision-layer-docs.vercel.app/) · [Contributing](CONTRIBUTING.md)
 
 **Make your team's analytical knowledge executable.**
 
@@ -22,10 +22,10 @@ Open [localhost:3000](http://localhost:3000). The first start downloads the samp
 
 ## Go further
 
-- [Connect Claude or Codex through MCP](docs/guides/mcp.md)
-- [Connect your semantic layer](docs/guides/cube.md)
+- [Connect Claude or Codex through MCP](https://decision-layer-docs.vercel.app/guides/mcp)
+- [Connect your semantic layer](https://decision-layer-docs.vercel.app/guides/cube)
 - [Explore the sample and its data](examples/complete-journey/README.md)
-- [Develop, test or add a Method](docs/README.md)
+- [Develop and test](https://decision-layer-docs.vercel.app/guides/development) · [Add a Method](https://decision-layer-docs.vercel.app/guides/methods)
 
 Web, Python, REST and MCP share one execution engine. AI clients choose registered Methods and Recipes; they do not run generated analysis code. The default installation is for local development.
 

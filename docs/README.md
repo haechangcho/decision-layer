@@ -1,5 +1,7 @@
 # Documentation
 
+[Read the documentation](https://decision-layer-docs.vercel.app/) · [한국어](https://decision-layer-docs.vercel.app/ko/)
+
 Read these pages as a searchable documentation site from the repository root:
 
 ```bash
