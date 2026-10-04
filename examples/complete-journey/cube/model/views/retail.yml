@@ -1,0 +1,9 @@
+views:
+  - name: retail_transactions
+    cubes:
+      - join_path: transaction
+        includes: [count, receipts, units, baskets, coupon_lines, coupon_line_rate, store, day_index, analysis_date]
+      - join_path: transaction.product
+        includes: [department, brand, commodity]
+      - join_path: transaction.household
+        includes: [id, age_code, income_code, composition_code]

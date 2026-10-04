@@ -8,6 +8,8 @@ Methods are reviewed Python implementations installed with the server. There is 
 
 Read the working examples:
 
+- [Runnable contribution template](../../examples/method-template/README.md), including a standalone contract test.
+
 - [Base contract and registry](../../src/decision_layer/methods/base.py).
 - [Execution context](../../src/decision_layer/methods/context.py).
 - [Trend implementation](../../src/decision_layer/methods/query/trend.py).
@@ -51,3 +53,8 @@ Follow [Testing](testing.md) for integration checks. Where Chinook supports the 
 Use the [music-sales template](../../examples/chinook/templates/music-sales.yaml) as a complete example. Reference existing Methods and semantic objects, validate against the sample and explain the question and steps. Do not embed semantic SQL. Keep optional templates separate from the initially empty runtime Recipe folder.
 
 Downloadable plugins, external Method catalogs and compatibility negotiation would need a separate design and security decision. They are not prerequisites for contributing today.
+
+Reviewed Methods may use statistical or ML libraries. Declare dependencies, keep extraction governed and bounded,
+and include library versions through `MethodOutput(runtime=...)`. Heavy optional dependencies should fail with
+an actionable message when not installed, not trigger runtime installation. Validate model assumptions and
+interpretation; using a library does not itself justify a causal claim.

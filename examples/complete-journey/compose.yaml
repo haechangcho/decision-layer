@@ -1,0 +1,88 @@
+name: decision-layer-journey
+
+services:
+  postgres:
+    image: postgres:16.4
+    environment:
+      POSTGRES_DB: journey
+      POSTGRES_USER: demo_loader
+      POSTGRES_PASSWORD: local-example-only
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports: ["127.0.0.1:${POSTGRES_PORT:-5433}:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo_loader -d journey"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  import:
+    build: {context: ., dockerfile: Dockerfile.import}
+    depends_on:
+      postgres: {condition: service_healthy}
+    environment:
+      DATABASE_URL: postgresql://demo_loader:local-example-only@postgres:5432/journey
+    volumes:
+      - ./data:/input:ro
+      - source_cache:/cache
+    restart: "no"
+
+  cube:
+    image: cubejs/cube:v1.6.25
+    depends_on:
+      import: {condition: service_completed_successfully}
+    environment:
+      CUBEJS_DB_TYPE: postgres
+      CUBEJS_DB_HOST: postgres
+      CUBEJS_DB_NAME: journey
+      CUBEJS_DB_USER: journey_reader
+      CUBEJS_DB_PASS: local-read-only
+      CUBEJS_API_SECRET: local-example-secret-change-me-0123456789
+      CUBEJS_DEV_MODE: "true"
+    volumes:
+      - ./cube/model:/cube/conf/model:ro
+      - ./cube/healthcheck.cjs:/cube/conf/healthcheck.cjs:ro
+    ports: ["127.0.0.1:${CUBE_PORT:-4000}:4000"]
+    healthcheck:
+      test: ["CMD", "node", "/cube/conf/healthcheck.cjs"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  api:
+    build: {context: ../.., dockerfile: Dockerfile}
+    depends_on:
+      cube: {condition: service_healthy}
+    environment:
+      CUBE_API_URL: http://cube:4000/cubejs-api/v1
+      CUBE_INSTANCE: journey
+      CUBE_API_SECRET: local-example-secret-change-me-0123456789
+      DL_ALLOW_SERVICE_CREDENTIALS: "true"
+      DL_RECIPES_DIR: /recipes
+      DL_DATABASE_URL: sqlite:////data/decision_layer.db
+    volumes:
+      - ./recipes:/recipes
+      - runs:/data
+    ports: ["127.0.0.1:${API_PORT:-8000}:8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  web:
+    build: {context: ../../web, args: {DL_API_URL: "http://api:8000"}}
+    depends_on:
+      api: {condition: service_healthy}
+    ports: ["127.0.0.1:${WEB_PORT:-3000}:3000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres_data:
+  source_cache:
+  runs:

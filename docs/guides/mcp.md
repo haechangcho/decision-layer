@@ -54,11 +54,11 @@ Restart the client. Other stdio clients use the same executable and environment,
 
 ## Ask and review
 
-With the [Chinook sample](../../examples/chinook/README.md) running, ask:
+With the [Complete Journey sample](../../examples/complete-journey/README.md) running, ask:
 
-> What were purchased-track sales in 2023, and which genre contributed the most? Show the analysis steps and evidence.
+> Across all available data, which product department has the largest retailer receipts? Show the analysis steps and evidence.
 
-The reference values are 469.58 total sales and Rock at 156.42. Ask the client to preserve your original question, explain each step's purpose and return the Run ID. Open `/runs` in Web to inspect the graph, results and folded execution evidence.
+The reference leader is GROCERY at 4,093,814.14 retailer receipts. Source days are relative, not actual calendar dates. Ask the client to preserve your original question, explain each step's purpose and return the Run ID. Open `/runs` in Web to inspect the graph, results and folded execution evidence.
 
 A suitable Recipe should be used first. Otherwise, the client can discover semantic objects and registered Methods, then use `start_analysis`, `run_step` and `complete_run` to record exploration under one question. Tool selection and narrative are the client's responsibility, not verified evidence.
 

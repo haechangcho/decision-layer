@@ -10,17 +10,17 @@ Decision Layer는 semantic layer의 지표와 재사용 가능한 분석 절차�
 
 ## 시작하기
 
-11개 테이블이 연결된 음악 상점 샘플로 시작하세요. Docker와 Compose만 있으면 됩니다. 별도의 데이터베이스, Cube 계정이나 로컬 토큰 설정은 필요하지 않습니다.
+8개 원본 테이블이 연결된 소매점 샘플로 시작하세요. Docker와 Compose만 있으면 됩니다. 별도의 데이터베이스, Cube 계정이나 로컬 토큰 설정은 필요하지 않습니다.
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer/examples/chinook
+cd decision-layer/examples/complete-journey
 docker compose up -d --build --wait
 ```
 
-**http://localhost:3000/catalog** 에서 지표를 확인하세요. PostgreSQL, Cube, API와 Web이 함께 실행되고 연결도 설정됩니다. Recipe는 빈 상태로 시작합니다. 첫 실행에는 이미지 빌드와 고정된 버전의 샘플 데이터 다운로드가 필요합니다.
+**http://localhost:3000/catalog** 에서 지표를 확인하세요. PostgreSQL, Cube, API와 Web이 함께 실행되고 연결도 설정됩니다. Recipe는 빈 상태로 시작합니다. 첫 실행에는 공식 원본 약 128 MB를 다운로드하고 적재하므로 몇 분이 필요합니다.
 
-이미 Cube가 있다면 [기존 Cube 연결 가이드](docs/guides/cube.md)를 사용하세요. 포트 변경, 오프라인 실행, 데이터 출처와 종료 방법은 [샘플 가이드](examples/chinook/README.ko.md)에 있습니다.
+이미 Cube가 있다면 [기존 Cube 연결 가이드](docs/guides/cube.md)를 사용하세요. 포트 변경, 오프라인 실행, 데이터 출처와 종료 방법은 [샘플 가이드](examples/complete-journey/README.ko.md)에 있습니다.
 
 ## AI 도구 연결하기
 
@@ -36,9 +36,9 @@ Claude 등 다른 클라이언트 설정은 [MCP 가이드](docs/guides/mcp.md)�
 
 연결한 AI 도구에 질문해 보세요.
 
-> 2023년 구매된 트랙의 매출은 얼마이고, 어떤 장르의 매출이 가장 높았어? 분석 단계와 근거도 보여줘.
+> 전체 데이터에서 수취액이 가장 큰 상품 부문은 어디야? 항목별로 나누고 분석 근거도 보여줘.
 
-샘플의 기준값은 전체 **469.58**, 가장 높은 장르는 **Rock, 156.42**입니다. **http://localhost:3000/runs** 에서 질문, 지표 그래프와 결과를 확인하세요. 성공한 단계를 Recipe 초안으로 검토하고, 저장·게시하면 다시 사용할 수 있습니다. 이 기준값은 실행을 확인하기 위한 것이며 AI 정확도 향상을 입증하는 수치는 아닙니다.
+SQL로 별도 확인한 가장 큰 부문은 **GROCERY, 수취액 4,093,814.14**입니다. **http://localhost:3000/runs** 에서 질문, 지표 그래프와 결과를 확인하세요. 성공한 단계를 Recipe 초안으로 검토하고, 저장·게시하면 다시 사용할 수 있습니다. 이 기준값은 실행을 확인하기 위한 것이며 AI 정확도 향상을 입증하는 수치는 아닙니다.
 
 ## 구조
 

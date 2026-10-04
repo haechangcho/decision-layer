@@ -14,6 +14,7 @@ const labels: Record<string, string> = {
   change: "변화", change_pct: "변화율 (%)", period: "기간", before: "이전", after: "이후",
   selected_among: "비교 대상 그룹", excluded_small: "최소 건수 미만 그룹", drill_path: "드릴다운 경로",
   direction: "정렬 방향", rank_by: "정렬 기준", granularity: "시간 단위",
+  difference_from_subject: "대상 값 − 비교 집단 값",
 };
 const labelFor = (key: string, titles: Titles) => {
   if (titles.has(key)) return titles.get(key)!.title;
@@ -114,7 +115,7 @@ export function ArtifactView({ artifact, titles }: { artifact: Artifact; titles:
     const rows = data.rows;
     if (isRowList(rows)) return <section className="artifact">
       <h4>{artifact.title || artifact.type}</h4>
-      <DataTable rows={rows} titles={titles} columns={["value", "metric", "count", "share_of_count"].filter((key) => key in rows[0])} />
+      <DataTable rows={rows} titles={titles} columns={["value", "metric", "count", "share_of_count", "difference_from_subject"].filter((key) => key in rows[0])} />
       <details className="artifact-details"><summary>전체 결과 보기</summary><Value value={data} titles={titles} /></details>
     </section>;
   }
@@ -152,7 +153,7 @@ export function ResultView({ result, titles, showRunLink = true }: { result: Res
         <span className={`status ${result.status}`}>{statusLabel}</span>
         {showRunLink && result.run_id && <a href={`/runs/${result.run_id}`}>{t("Open run")}</a>}
       </div>
-      {leading && <p className="result-lead">대표 그룹 <strong>{fmt(leading.value, titles)}</strong>{leading.metric != null && <span> · 지표 값 {fmt(leading.metric, titles)}</span>}</p>}
+      {leading && <p className="result-lead">{breakdown?.subject ? "비교 대상" : "대표 그룹"} <strong>{fmt(leading.value, titles)}</strong>{leading.metric != null && <span> · 지표 값 {fmt(leading.metric, titles)}</span>}</p>}
       {result.needs_input && (
         <div className="notice">
           <b>{result.needs_input.question}</b> <span className="muted">({result.needs_input.field})</span>

@@ -67,7 +67,7 @@ def validate_recipe(recipe: Recipe) -> None:
             if isinstance(value, str) and value.startswith("$"):
                 raise _invalid("Fixed parameters must be literal values.", f"{field}.fixed.{name}")
             try:
-                registry.resolve_params(method, {name: value})
+                registry.resolve_params(method, {name: value}, partial=True)
             except InvalidBinding as e:
                 raise _invalid(e.message, f"{field}.fixed.{name}") from e
         if policy.runtime_allowed is not None:
@@ -104,7 +104,7 @@ def validate_recipe(recipe: Recipe) -> None:
                 raise _invalid(f"{key} conflicts with the Recipe's fixed value.", f"steps[{i}].params.{key}")
             if key in step.params and not (isinstance(value, str) and value.startswith("$")):
                 try:
-                    registry.resolve_params(step.method, {key: value})
+                    registry.resolve_params(step.method, {key: value}, partial=True)
                 except InvalidBinding as e:
                     raise _invalid(e.message, f"steps[{i}].params.{key}") from e
         expressions(step.bindings, f"steps[{i}].bindings")

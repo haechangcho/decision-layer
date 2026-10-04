@@ -753,3 +753,19 @@ No Recipe means no organization-authored Method or metric allow-list; normal Met
 `PlanStep.purpose` is optional, short client-authored text describing which part of the original question the Method is intended to answer. MCP passes it through the canonical Run step request; the shared engine stores it with the executed step. The Run UI may use this text to explain Method selection, but must label it as intent rather than a validated finding. Older Runs and Recipes without a purpose remain valid. The Web can fall back to a generic Method description, not fabricate question-specific reasoning.
 
 The Run detail leads with the question, answer, and a read-only metric-to-Method graph; selecting a step reveals its result and advanced evidence. The graph describes semantic bindings and execution order, not an editable Recipe or causal dependencies. Promotion still requires deliberate Recipe draft review under ADR-044. This changes presentation and optional provenance context, not Method execution or semantic ownership.
+
+## ADR-049 — Explicit descriptive peer comparison
+
+**Status:** Accepted (2026-10-04).
+
+`query.peer_comparison` compares a single dimension/value with explicit peer conditions and the accessible overall population, using the same period and shared filters. The subject's value is measured inside its peer context. Both benchmarks exclude the subject; no organization hierarchy is inferred. Shared filters fixing the subject are refused so a drill-down filter cannot silently collapse the comparison population. Cube evaluates each metric at its governed aggregation; the Method does not average group rates or redefine joins. Missing or undersized populations fail comparison under the configured minimum row count.
+
+The initial Method is descriptive: it reports values, row counts and differences, not an outlier probability, significance test, risk-adjusted performance or causal effect. Sums are warned as population-size dependent. Drill-down selection, repeated cases and case-mix differences preclude claiming wrongdoing from a high rate. Statistical anomaly judgments require a separately validated design. Dimension references in typed parameters are included in result provenance and access rechecks.
+
+Reviewed Methods may use installed statistical/ML packages and report their versions through `MethodOutput.runtime`. This is not a runtime plugin installer or permission for generated analysis code. Execution still uses the canonical registry/context.
+
+### Default developer sample
+
+Complete Journey replaces Chinook as the recommended first environment, based on the original Databricks data-preparation example but using an original PostgreSQL loader and Cube model. Eight tables are downloaded from dunnhumby's official 2023 archive with a fixed checksum; source files are not committed or relicensed. Existing Chinook/retail fixtures remain available and their local volumes are preserved.
+
+The official archive's demographic codes remain codes. Relative DAY is mapped to an explicitly artificial calendar for Cube time queries. Retailer receipts retain the publisher's meaning, not customer-paid revenue or profit. Campaign contacts and coupon redemptions remain separate facts; coupon-product and placement tables are loaded but are not blindly joined to transaction measures. This sample is observational, not causal ground truth, and Databricks' simplified campaign attribution is not adopted as an identification assumption.

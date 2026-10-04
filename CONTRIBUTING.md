@@ -6,7 +6,7 @@ Contributions to Methods, Recipe examples, documentation and usability are welco
 
 1. Follow [local development](docs/guides/development.md) to install the API and Web.
 2. Run the [test suite](docs/guides/testing.md). Unit and mocked browser tests do not need Cube.
-3. Use the [Chinook sample](examples/chinook/README.md) for reproducible live integration checks.
+3. Use the [Complete Journey sample](examples/complete-journey/README.md) for reproducible live integration checks.
 
 ## Choose the right contribution
 

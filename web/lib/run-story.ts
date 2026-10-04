@@ -3,6 +3,7 @@ import type { PlanStep, Run } from "@/lib/api";
 const defaultPurposes: Record<string, string> = {
   "query.trend": "기간별 값과 변화 확인",
   "query.drilldown": "그룹별 차이 확인",
+  "query.peer_comparison": "동료·전체 집단과 차이 확인",
   "causal.cem": "조건을 맞춘 차이 확인",
 };
 
@@ -27,6 +28,11 @@ export function stepFinding(record: Run["steps"][number]): string {
     if (typeof value === "number") return data.rows.length === 1 ? `선택 기간 ${number(value)}` : `최근 기간 ${number(value)}`;
   }
   if (primary.type === "breakdown_table" && Array.isArray(data.rows) && data.rows.length) {
+    if (data.subject && data.rows.length === 3) {
+      const [subject, peers, overall] = data.rows as Record<string, unknown>[];
+      if (typeof subject.metric === "number" && typeof peers.difference_from_subject === "number" && typeof overall.difference_from_subject === "number")
+        return `대상 ${number(subject.metric)} · 동료 대비 ${number(peers.difference_from_subject)} · 전체 대비 ${number(overall.difference_from_subject)}`;
+    }
     const first = data.rows[0] as Record<string, unknown>;
     if (typeof first.value === "string") return `${first.value}${typeof first.metric === "number" ? ` · ${number(first.metric)}` : ""}`;
   }

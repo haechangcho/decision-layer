@@ -246,12 +246,50 @@ async def test_bindings_and_params_are_checked(provider):
 def test_api_routes(provider):
     s = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="s", cube_service_groups=("ecommerce",), database_url="memory", allow_service_credentials=True)
     c = TestClient(create_app(s, provider))
-    assert {m["name"] for m in c.get("/methods").json()} == {"query.drilldown", "query.trend", "causal.cem"}
+    assert {m["name"] for m in c.get("/methods").json()} == {"query.drilldown", "query.trend", "query.peer_comparison", "causal.cem"}
     assert c.get("/methods/query.drilldown").json()["roles"]["dimensions"]["multiple"] is True
     r = c.post("/methods/query.drilldown:run", json={"bindings": {"metric": RR, "dimensions": [CAT, SELLER]},
                                                      "scope": {"date_range": list(Q3)}})
     assert r.status_code == 200 and r.json()["primary"]["data"]["rows"][0]["value"] == "A"
     assert c.post("/methods/query.nope:run", json={}).json()["error"]["code"] == "INVALID_BINDING"
+
+
+async def test_peer_comparison_preserves_population_and_excludes_subject(provider):
+    c = ctx(provider)
+    result = await registry.run("query.peer_comparison", c, {"metric": RR}, {
+        "subject": [{"member": SELLER, "value": "S1"}], "peers": [{"member": CAT, "value": "A"}],
+    })
+    assert result.status == "success"
+    a, b, all_ = result.primary.data["rows"]
+    assert a["metric"] == 40
+    assert b["metric"] == pytest.approx(65 / 405 * 100, abs=1e-4)
+    assert all_["metric"] == pytest.approx(115 / 905 * 100, abs=1e-4)
+    assert b["difference_from_subject"] == pytest.approx(40 - 65 / 405 * 100, abs=1e-4)
+    assert len(result.provenance.queries) == 3
+    assert {RR, CAT, SELLER} <= set(result.provenance.semantic_refs)
+    assert result.primary.data["statistical_judgement"] == "not_tested"
+
+
+async def test_peer_comparison_refuses_overlapping_scope(provider):
+    from decision_layer.core.models import Filter
+    result = await registry.run("query.peer_comparison", ctx(provider, filters=[Filter(member=SELLER, operator="equals", values=["S1"])]),
+                                {"metric": RR}, {"subject": [{"member": SELLER, "value": "S1"}]})
+    assert result.status == "refused" and provider.calls == 0
+
+
+async def test_peer_comparison_empty_target_and_small_sample(provider):
+    for value in ("missing", "S8"):
+        result = await registry.run("query.peer_comparison", ctx(provider), {"metric": RR},
+                                    {"subject": [{"member": SELLER, "value": value}]})
+        assert result.status == "refused"
+
+
+async def test_peer_parameter_validation_is_partial_only_during_authoring(provider):
+    registry.resolve_params("query.peer_comparison", {"peers": []}, partial=True)
+    with pytest.raises(InvalidBinding):
+        registry.resolve_params("query.peer_comparison", {"peers": []})
+    with pytest.raises(InvalidBinding):
+        registry.resolve_params("query.peer_comparison", {"min_count": -1}, partial=True)
 
 
 async def test_declared_non_count_ratio_gets_no_units(provider):

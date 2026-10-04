@@ -10,17 +10,17 @@ Decision Layer connects governed metrics to reusable analysis procedures. Analys
 
 ## Start
 
-Try the music-store example with 11 related tables. You need Docker with Compose; no existing database, Cube account or local token setup is required.
+Try the retail example with eight related source tables. You need Docker with Compose; no existing database, Cube account or local token setup is required.
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer/examples/chinook
+cd decision-layer/examples/complete-journey
 docker compose up -d --build --wait
 ```
 
-Open **http://localhost:3000/catalog**. PostgreSQL, Cube, the API and Web start together, with the connection configured and Recipes empty. The first start builds images and downloads pinned sample data.
+Open **http://localhost:3000/catalog**. PostgreSQL, Cube, the API and Web start together, with the connection configured and Recipes empty. The first start builds images, downloads the official 128 MB archive and imports the source tables. Allow several minutes.
 
-Already have Cube? Use the [existing Cube guide](docs/guides/cube.md) instead. See the [sample guide](examples/chinook/README.md) for ports, offline import, data provenance and stopping the stack.
+Already have Cube? Use the [existing Cube guide](docs/guides/cube.md) instead. See the [sample guide](examples/complete-journey/README.md) for ports, offline import, data provenance and stopping the stack.
 
 ## Connect an AI client
 
@@ -36,9 +36,9 @@ Using Claude or another client? Follow the [MCP guide](docs/guides/mcp.md). The 
 
 Ask your connected client:
 
-> What were purchased-track sales in 2023, and which genre contributed the most? Show the analysis steps and evidence.
+> Across all available data, which product department has the largest retailer receipts? Break it down and show the evidence.
 
-The sample reference answer is **469.58**, with **Rock contributing 156.42**. Open **http://localhost:3000/runs** to inspect the question, metric graph and results. Review successful steps as a Recipe draft, then save and publish it for reuse. These reference checks verify execution, not an improvement in AI accuracy.
+The independently checked largest department is **GROCERY, 4,093,814.14** in retailer receipts. Open **http://localhost:3000/runs** to inspect the question, metric graph and results. Review successful steps as a Recipe draft, then save and publish it for reuse. These reference checks verify execution, not an improvement in AI accuracy.
 
 ## How it works
 

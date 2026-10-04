@@ -2,7 +2,7 @@
 
 | Goal | Guide |
 | --- | --- |
-| Try the complete sample | [Chinook](../examples/chinook/README.md) · [한국어](../examples/chinook/README.ko.md) |
+| Try the complete sample | [Complete Journey](../examples/complete-journey/README.md) · [한국어](../examples/complete-journey/README.ko.md) |
 | Connect an existing semantic source | [Cube connection](guides/cube.md) |
 | Connect Claude or Codex | [MCP setup and first analysis](guides/mcp.md) |
 | Modify the API or Web | [Local development](guides/development.md) |
@@ -18,7 +18,8 @@
 
 ## Datasets
 
-- [Chinook](../examples/chinook/README.md): small multi-table music store, source integrity and grain checks. Recommended first environment.
+- [Complete Journey](../examples/complete-journey/README.md): default multi-table retail example, campaigns and coupon usage. Observational, not causal ground truth.
+- [Chinook](../examples/chinook/README.md): smaller music-store fixture for source integrity and grain checks.
 - [Online Retail II](../examples/online-retail/README.md): larger real transaction data and an [evaluation protocol](../examples/online-retail/evals/PROTOCOL.md).
 - [Synthetic ecommerce](../examples/ecommerce/README.md): planted effects and deterministic analytical checks.
 

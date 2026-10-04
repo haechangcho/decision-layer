@@ -42,11 +42,13 @@ class MethodOutput:
     """What a Method returns before the registry wraps it into a Result with provenance."""
 
     def __init__(self, primary: Artifact | None = None, artifacts: list[Artifact] | None = None,
-                 warnings: list[str] | None = None, validation: list[ValidationResult] | None = None) -> None:
+                 warnings: list[str] | None = None, validation: list[ValidationResult] | None = None,
+                 runtime: dict[str, str] | None = None) -> None:
         self.primary = primary
         self.artifacts = artifacts or []
         self.warnings = warnings or []
         self.validation = validation or []
+        self.runtime = runtime or {}
 
 
 class MethodRegistry:
@@ -70,6 +72,13 @@ class MethodRegistry:
         method = self.get(name)
         params = self.resolve_params(name, params or {})
         refs = self._check_bindings(method, ctx, bindings)
+        for key, spec in method.manifest.parameters.items():
+            value = params.get(key)
+            parameter_refs = [item["member"] for item in value or []] if spec.type == "drill_path" else (value or []) if spec.type == "ref_list" else []
+            for ref in parameter_refs:
+                ctx.obj(ref)
+                if ref not in refs:
+                    refs.append(ref)
         first_query = len(ctx.queries)
         provenance = lambda: Provenance(  # noqa: E731
             method=method.ref, semantic_refs=refs, queries=ctx.queries[first_query:],
@@ -83,19 +92,22 @@ class MethodRegistry:
         except (Refused, QueryBudgetExceeded) as e:
             return Result(status="refused", warnings=[e.message], provenance=provenance())
         failed = [v for v in out.validation if v.status == "fail"]
+        evidence = provenance()
+        evidence.runtime.update(out.runtime)
+        evidence.runtime["decision-layer"] = __version__
         return Result(
             status="refused" if failed else "success",
             interpretation=method.manifest.interpretation,
             primary=out.primary, artifacts=out.artifacts, warnings=out.warnings,
-            validation=out.validation, provenance=provenance(),
+            validation=out.validation, provenance=evidence,
         )
 
     # ── checks ────────────────────────────────────────────────────────────
-    def resolve_params(self, name: str, params: dict[str, Any]) -> dict[str, Any]:
-        return self._params(self.get(name), params)
+    def resolve_params(self, name: str, params: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
+        return self._params(self.get(name), params, partial=partial)
 
     @staticmethod
-    def _params(method: Method, params: dict[str, Any]) -> dict[str, Any]:
+    def _params(method: Method, params: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
         spec = method.manifest.parameters
         unknown = set(params) - set(spec)
         if unknown:
@@ -103,7 +115,7 @@ class MethodRegistry:
         out = {k: deepcopy(p.default) for k, p in spec.items()}
         out.update(params)
         missing = [k for k, p in spec.items() if p.required and out.get(k) is None]
-        if missing:
+        if missing and not partial:
             raise InvalidBinding(_("Missing required parameters: {names}", names=missing))
         for k, p in spec.items():
             value = out.get(k)

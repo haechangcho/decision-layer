@@ -31,6 +31,32 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:5210 npm run test:e2e
 
 Default product tests use mocked API responses on desktop and mobile. They need Web, not live Cube. Live scenarios skip without their specific environment values. Failure screenshots and traces are in `web/test-results/`.
 
+## Live Complete Journey
+
+Start the [default sample](../../examples/complete-journey/README.md) with Recipes empty. From its directory:
+
+```bash
+docker compose run --rm --no-deps import python verify.py
+```
+
+From the repository root:
+
+```bash
+DL_JOURNEY_API_URL=http://127.0.0.1:8000 \
+  .venv/bin/pytest -q -s tests/provider/test_complete_journey_live.py
+.venv/bin/pytest examples/method-template/test_method.py
+```
+
+The live check records Recipe-free MCP drill-down and peer comparison, then reviews a Recipe candidate.
+The template test needs no Cube. Existing Chinook tests below remain separate regression fixtures.
+
+From `web/`, use the printed `JOURNEY_MCP_RUN_ID` for desktop/mobile review:
+
+```bash
+JOURNEY_RUN_ID=run_replace_with_printed_id PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
+  npm run test:e2e -- tests/product/complete-journey-live.spec.ts
+```
+
 ## Live Chinook
 
 Start the [sample](../../examples/chinook/README.md) with an empty Recipe folder. From `examples/chinook/`:

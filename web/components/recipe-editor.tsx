@@ -88,9 +88,22 @@ const roleLabels: Record<string, string> = {
 };
 const parameterLabel = (name: string) => ({ granularity: "시간 단위", vs_previous: "직전 같은 길이와 비교", top_n: "표시할 그룹 수", min_count: "최소 그룹 건수", rank_by: "정렬 기준" } as Record<string, string>)[name] || name;
 
-function ParameterField({ name, spec, value, onChange, disabled = false, error, fieldPath }: { name: string; spec: ParamSpec; value: unknown; onChange: (value: unknown) => void; disabled?: boolean; error?: string; fieldPath?: string }) {
+function ParameterField({ name, spec, value, onChange, disabled = false, error, fieldPath, objects = [] }: { name: string; spec: ParamSpec; value: unknown; onChange: (value: unknown) => void; disabled?: boolean; error?: string; fieldPath?: string; objects?: SemanticObject[] }) {
   const label = parameterLabel(name);
   const current = value ?? spec.default;
+  if (spec.type === "drill_path" && ["subject", "peers"].includes(name)) {
+    const items = Array.isArray(current) ? current as { member: string; value: unknown }[] : [];
+    const change = (index: number, patch: Record<string, unknown>) => onChange(items.map((item, i) => i === index ? { ...item, ...patch } : item));
+    return <fieldset disabled={disabled} data-recipe-field={fieldPath}><legend>{name === "subject" ? "비교할 대상" : "동료 집단 조건"}</legend>
+      {items.map((item, index) => <div key={index} className={s.refField}>
+        <select aria-label={`${name === "subject" ? "대상" : "동료"} 차원 ${index + 1}`} value={item.member} onChange={event => change(index, { member: event.target.value, value: "" })}><option value="">차원 선택</option>{objects.filter(object => object.kind === "dimension").map(object => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
+        <input aria-label={`${name === "subject" ? "대상" : "동료"} 값 ${index + 1}`} placeholder="값 입력" value={String(item.value ?? "")} onChange={event => change(index, { value: objects.find(object => object.ref === item.member)?.data_type === "number" && event.target.value !== "" ? Number(event.target.value) : event.target.value })} />
+        <button type="button" className={s.secondary} onClick={() => onChange(items.filter((_, i) => i !== index))}><X size={13} />삭제</button>
+      </div>)}
+      {(name === "peers" || !items.length) && <button type="button" className={s.secondary} onClick={() => onChange([...items, { member: "", value: "" }])}><Plus size={13} />{name === "subject" ? "대상 선택" : "조건 추가"}</button>}
+      {error && <small className={s.fieldError} role="alert">{error}</small>}
+    </fieldset>;
+  }
   const options: Record<string, string> = { day: "일별", week: "주별", month: "월별", quarter: "분기별", value: "지표 값", vs_rest: "나머지 그룹과의 차이", count: "건수", desc: "높은 값부터", asc: "낮은 값부터" };
   if (typeof current === "string" && current.startsWith("$")) return <div className={s.refField}><span>{label}</span><code className={s.expression}>{current}</code></div>;
   if (spec.type === "boolean") return <label className={s.check} data-recipe-field={fieldPath}><input type="checkbox" aria-invalid={!!error} disabled={disabled} checked={!!current} onChange={event => onChange(event.target.checked)} />{label}{error && <small className={s.fieldError} role="alert">{error}</small>}</label>;
@@ -127,7 +140,7 @@ function StepSettings({ step, manifest, onChange, objects, recipe, stepIndex, fi
     {manifest.roles.metric && <div className={s.refField}><span>분석 지표</span><div className={s.inherited}><span>{metricTitle}</span><small>{usesRecipeMetric ? "Recipe 지표 사용" : "이 단계에서만 사용"}</small></div></div>}
     {policy && <div className={s.policyNotice}><strong>Recipe 실행 정책</strong>{Object.keys(policy.fixed).length > 0 && <span>고정값: {Object.entries(policy.fixed).map(([name, value]) => `${name}=${JSON.stringify(value)}`).join(", ")}</span>}{policy.runtime_allowed && <span>실행 중 선택 가능: {policy.runtime_allowed.length ? policy.runtime_allowed.join(", ") : "없음"}</span>}</div>}
     {Object.entries(manifest.roles).filter(([name, role]) => name !== "metric" && role.required).map(roleField)}
-    {basicParameters.map(([name, spec]) => { const path = `steps[${stepIndex}].params.${name}`; return <ParameterField key={name} name={name} spec={spec} value={parameterValue(name)} disabled={fixed(name)} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} onChange={value => param(name, value)} />; })}
+    {basicParameters.map(([name, spec]) => { const path = `steps[${stepIndex}].params.${name}`; return <ParameterField key={name} objects={objects} name={name} spec={spec} value={parameterValue(name)} disabled={fixed(name)} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} onChange={value => param(name, value)} />; })}
     <details ref={advancedRef} className={s.advanced}><summary>고급 설정</summary><div className={s.fields}>
       {manifest.roles.metric && <><RefField label="이 단계에서 사용할 지표" value={metricBinding} objects={roleObjects(manifest.roles.metric, objects)} inherited={metricTitle} fieldPath={`steps[${stepIndex}].bindings.metric`} error={fieldError?.field === `steps[${stepIndex}].bindings.metric` ? fieldError.message : undefined} onChange={next => bind("metric", next)} />
         {!usesRecipeMetric && <button type="button" className={s.secondary} onClick={() => bind("metric", "$scope.primary_metric")}><Undo2 size={13} />Recipe 지표 사용</button>}</>}

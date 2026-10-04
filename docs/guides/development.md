@@ -41,7 +41,7 @@ Open **http://localhost:5210**. Web proxies to the API; it does not run a separa
 
 ## Sample source
 
-From `examples/chinook/`, start only the data services:
+From `examples/complete-journey/`, start only the data services:
 
 ```bash
 docker compose up -d --build --wait postgres import cube
@@ -52,17 +52,17 @@ If the full sample is already running, first stop its API and Web with `docker c
 Return to the repository root and start the native API with the sample connection:
 
 ```bash
-mkdir -p data examples/chinook/recipes
+mkdir -p data examples/complete-journey/recipes
 CUBE_API_URL=http://localhost:4000/cubejs-api/v1 \
-CUBE_INSTANCE=chinook \
+CUBE_INSTANCE=journey \
 CUBE_API_SECRET=local-example-secret-change-me-0123456789 \
 DL_ALLOW_SERVICE_CREDENTIALS=true \
-DL_RECIPES_DIR=examples/chinook/recipes \
-DL_DATABASE_URL=sqlite:///./data/chinook-development.db \
+DL_RECIPES_DIR=examples/complete-journey/recipes \
+DL_DATABASE_URL=sqlite:///./data/journey-development.db \
   .venv/bin/uvicorn decision_layer.api.app:app --reload --port 8000
 ```
 
-Use your actual host Cube port if customized. Start Web as above. Cube models under `examples/chinook/cube/model/` are mounted directly into Cube. Keep Compose commands in the example directory so its `.env` settings load consistently.
+Use your actual host Cube port if customized. Start Web as above. Cube models under `examples/complete-journey/cube/model/` are mounted directly into Cube. Keep Compose commands in the example directory so its `.env` settings load consistently.
 
 The sample's PostgreSQL stores source data, not Runs. The native API uses its own SQLite database and does not automatically share the container API's Run history. Recipes live in the specified folder. Do not commit local datasets or credentials.
 

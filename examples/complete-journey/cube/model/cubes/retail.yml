@@ -1,0 +1,76 @@
+cubes:
+  - name: transaction
+    sql: SELECT row_number() OVER () AS line_id, *, DATE '2000-01-01' + (day::integer - 1) AS analysis_date FROM journey.transaction_data
+    title: Retail transactions
+    joins:
+      - name: product
+        sql: "{CUBE}.product_id = {product}.product_id"
+        relationship: many_to_one
+      - name: household
+        sql: "{CUBE}.household_key = {household}.household_key"
+        relationship: many_to_one
+    dimensions:
+      - {name: id, sql: line_id, type: number, primary_key: true, public: false}
+      - {name: store, sql: store_id, type: string, title: Store}
+      - {name: day_index, sql: "day::integer", type: number, title: Source day index}
+      - {name: analysis_date, sql: analysis_date, type: time, title: Relative day (mapped calendar)}
+    measures:
+      - {name: count, type: count, title: Transaction lines}
+      - {name: receipts, sql: "sales_value::numeric", type: sum, title: Retailer receipts, description: Amount received by retailer; not profit or necessarily customer cash paid}
+      - {name: units, sql: "quantity::numeric", type: sum, title: Units purchased}
+      - {name: baskets, sql: basket_id, type: count_distinct, title: Purchase baskets}
+      - name: coupon_lines
+        type: count
+        title: Lines with coupon discount
+        filters: [{sql: "{CUBE}.coupon_disc::numeric < 0"}]
+      - name: coupon_line_rate
+        sql: "100.0 * {coupon_lines} / NULLIF({count}, 0)"
+        type: number
+        title: Coupon line rate (%)
+        meta: {numerator: coupon_lines, denominator: count}
+  - name: product
+    sql_table: journey.product
+    title: Products
+    dimensions:
+      - {name: id, sql: product_id, type: string, primary_key: true, public: false}
+      - {name: department, sql: department, type: string, title: Department}
+      - {name: brand, sql: brand, type: string, title: Brand type}
+      - {name: commodity, sql: commodity_desc, type: string, title: Product category}
+    measures: [{name: count, type: count, title: Products}]
+  - name: household
+    sql: SELECT h.household_key, d.classification_1, d.classification_3, d.classification_5 FROM journey.household h LEFT JOIN journey.hh_demographic d USING (household_key)
+    title: Households
+    dimensions:
+      - {name: id, sql: household_key, type: string, primary_key: true, title: Household}
+      - {name: age_code, sql: "COALESCE(classification_1, 'Not available')", type: string, title: Age classification code}
+      - {name: income_code, sql: "COALESCE(classification_3, 'Not available')", type: string, title: Income classification code}
+      - {name: composition_code, sql: "COALESCE(classification_5, 'Not available')", type: string, title: Household composition code}
+    measures: [{name: count, type: count, title: Households}]
+  - name: campaign
+    sql_table: journey.campaign_desc
+    title: Campaigns
+    dimensions:
+      - {name: id, sql: campaign, type: string, primary_key: true, title: Campaign}
+      - {name: kind, sql: description, type: string, title: Campaign type}
+      - {name: start_day, sql: "start_day::integer", type: number, title: Start day index}
+      - {name: end_day, sql: "end_day::integer", type: number, title: End day index}
+    measures: [{name: count, type: count, title: Campaigns}]
+  - name: campaign_contact
+    sql: SELECT row_number() OVER () AS contact_id, * FROM journey.campaign_table
+    title: Campaign contacts
+    joins:
+      - {name: campaign, sql: "{CUBE}.campaign = {campaign}.campaign", relationship: many_to_one}
+      - {name: household, sql: "{CUBE}.household_key = {household}.household_key", relationship: many_to_one}
+    dimensions:
+      - {name: id, sql: contact_id, type: number, primary_key: true, public: false}
+    measures: [{name: count, type: count, title: Household campaign contacts}]
+  - name: redemption
+    sql: SELECT row_number() OVER () AS redemption_id, *, DATE '2000-01-01' + (day::integer - 1) AS analysis_date FROM journey.coupon_redempt
+    title: Coupon redemptions
+    joins:
+      - {name: campaign, sql: "{CUBE}.campaign = {campaign}.campaign", relationship: many_to_one}
+      - {name: household, sql: "{CUBE}.household_key = {household}.household_key", relationship: many_to_one}
+    dimensions:
+      - {name: id, sql: redemption_id, type: number, primary_key: true, public: false}
+      - {name: analysis_date, sql: analysis_date, type: time, title: Redemption relative day}
+    measures: [{name: count, type: count, title: Coupon redemptions}]
