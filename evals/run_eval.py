@@ -6,9 +6,9 @@ fresh CLI process with built-in tools disabled and only the `decision-layer` MCP
 server; the only tool guidance is the server's own instructions. Scenario
 `user_replies` continue the same session with `--resume`.
 
-    .venv/bin/python evals/run_eval.py examples/ecommerce/evals/scenarios.json [--repeats 3] [--only id …]
+    .venv/bin/python evals/run_eval.py examples/complete-journey/evals/scenarios.json [--repeats 3] [--only id …]
 
-Needs a running Decision Layer API (DL_API_URL, default http://localhost:5200).
+Needs a running Decision Layer API (DL_API_URL, default http://127.0.0.1:8000).
 
 Scenario fields (all optional except id/question):
   must_call          Method names (query.drilldown) or recipes (recipe:<name>) that must be executed
@@ -212,7 +212,7 @@ async def main() -> None:
     out_dir = args.scenarios.resolve().parent / "results" / stamp
     out_dir.mkdir(parents=True, exist_ok=True)
     mcp_config = out_dir / "mcp.json"
-    env = {"DL_API_URL": os.environ.get("DL_API_URL", "http://localhost:5200")}
+    env = {"DL_API_URL": os.environ.get("DL_API_URL", "http://127.0.0.1:8000")}
     if os.environ.get("DL_TOKEN"):
         env["DL_TOKEN"] = os.environ["DL_TOKEN"]
     env.update(kv.split("=", 1) for kv in args.env)

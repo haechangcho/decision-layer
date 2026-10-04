@@ -227,7 +227,7 @@
    "title": "주문",
    "isVisible": true,
    "public": true,
-   "description": "이커머스 주문 기준 큐브. grain은 주문(order_id) 1건이며 주문당 상품 1종이다. 반품률·지연배송률·객단가 등 이커머스 KPI의 기준 큐브. synthetic 데이터(examples/ecommerce/data/ecom.sql).\n",
+   "description": "이커머스 주문 기준 큐브. grain은 주문(order_id) 1건이며 주문당 상품 1종이다. 반품률·지연배송률·객단가 등 이커머스 KPI의 단위 테스트용 메타데이터.\n",
    "connectedComponent": 1,
    "measures": [
     {

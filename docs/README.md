@@ -16,11 +16,8 @@
 - [Architecture](ARCHITECTURE.md): contracts, canonical execution and storage.
 - [Decisions](DECISIONS.md): accepted decisions and implementation limits.
 
-## Datasets
+## Sample environment
 
 - [Complete Journey](../examples/complete-journey/README.md): default multi-table retail example, campaigns and coupon usage. Observational, not causal ground truth.
-- [Chinook](../examples/chinook/README.md): smaller music-store fixture for source integrity and grain checks.
-- [Online Retail II](../examples/online-retail/README.md): larger real transaction data and an [evaluation protocol](../examples/online-retail/evals/PROTOCOL.md).
-- [Synthetic ecommerce](../examples/ecommerce/README.md): planted effects and deterministic analytical checks.
 
-These are separate environments, not services to start together. Use different host ports if running more than one. Public regression cases are not blind benchmarks or proof of improved AI accuracy.
+The sample is isolated from production services. Public regression cases are not blind benchmarks or proof of improved AI accuracy; see the [evaluation protocol](guides/evaluation.md).

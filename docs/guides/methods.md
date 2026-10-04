@@ -46,11 +46,11 @@ Add focused tests for valid inputs, missing roles, invalid parameters, empty dat
 .venv/bin/pytest
 ```
 
-Follow [Testing](testing.md) for integration checks. Where Chinook supports the question, add a reviewed [reference case](../../examples/chinook/evals/cases.json) with independent SQL and an expected value. Do not use the Method's own output as its reference. Causal Methods need suitable data and assumptions; this music-store sample does not establish causal effects.
+Follow [Testing](testing.md) for integration checks. Where Complete Journey supports the question, extend its [independent SQL verifier](../../examples/complete-journey/verify.py) and [live MCP test](../../tests/provider/test_complete_journey_live.py). Do not use the Method's own output as its reference. Causal Methods need suitable data and assumptions; this observational sample does not establish causal effects. Keep deterministic statistical and causal contract tests independent of the live dataset.
 
 ## Recipes
 
-Use the [music-sales template](../../examples/chinook/templates/music-sales.yaml) as a complete example. Reference existing Methods and semantic objects, validate against the sample and explain the question and steps. Do not embed semantic SQL. Keep optional templates separate from the initially empty runtime Recipe folder.
+Start with a recorded analysis in the Complete Journey sample. Select successful Run steps, review the Recipe candidate in the editor, save a draft, and publish only after checking its semantic bindings and parameters. Reference existing Methods and semantic objects; explain the question and steps without embedding semantic SQL. Export the reviewed YAML for a contribution. Keep optional templates separate from the initially empty runtime Recipe folder.
 
 Downloadable plugins, external Method catalogs and compatibility negotiation would need a separate design and security decision. They are not prerequisites for contributing today.
 

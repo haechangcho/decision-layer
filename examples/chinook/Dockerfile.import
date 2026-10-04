@@ -1,7 +1,0 @@
-FROM python:3.11-slim
-WORKDIR /example
-RUN pip install --no-cache-dir "psycopg[binary]==3.3.6"
-COPY load.py schema.sql ./
-COPY evals/verify.py ./verify.py
-COPY evals/cases.json ./cases.json
-CMD ["python", "load.py"]

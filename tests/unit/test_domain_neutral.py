@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 SRC = Path(__file__).parents[2] / "src"
-# words of the bundled ecommerce example; extend when adding another example domain
+# Domain vocabulary in contract fixtures must never leak into the core.
 EXAMPLE_TERMS = re.compile(
     r"ecom_|return_rate|반품|무료배송|택배|배송|매출|주문|객단가|카테고리|판매자|쿠폰|할인|환불|S017|여성의류"
     r"|free.?shipping|carrier|seller|refund|delivery",

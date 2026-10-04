@@ -21,6 +21,11 @@ dist/
 build/
 /data/
 examples/*/evals/results/
+# Preserve local sample downloads and authored Recipes without publishing them.
+examples/*/data/*
+!examples/*/data/.gitkeep
+examples/*/recipes/*
+!examples/*/recipes/.gitkeep
 /web/test-results/
 /web/playwright-report/
 /web/.next-local/

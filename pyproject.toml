@@ -40,5 +40,3 @@ packages = ["src/decision_layer"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-markers = ["cube: needs a running Cube with the ecommerce model — run with -m cube"]
-addopts = "-m 'not cube'"

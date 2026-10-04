@@ -25,7 +25,7 @@ Inside a container, `localhost` means that container. Root Compose supplies the 
 
 Use a token issued by your Cube deployment for token authentication. A URL alone works only when the source permits the selected access mode. Decision Layer does not mint enterprise identity tokens or bypass Cube authorization.
 
-Development API-secret authentication is for local development, not production identity. The [sample](../../examples/chinook/README.md) configures local credentials for you. Sharing a service identity requires explicit server configuration and changes the access boundary.
+Development API-secret authentication is for local development, not production identity. The [sample](../../examples/complete-journey/README.md) configures local credentials for you. Sharing a service identity requires explicit server configuration and changes the access boundary.
 
 Saved connection secrets are encrypted. Environment overrides take precedence and appear locked in Sources. Keep the server encryption key stable when persisting configuration. See [.env.example](../../.env.example) and [Architecture](../ARCHITECTURE.md). Variables in a Compose `.env` file reach containers only if `compose.yaml` forwards them.
 

@@ -766,6 +766,10 @@ Reviewed Methods may use installed statistical/ML packages and report their vers
 
 ### Default developer sample
 
-Complete Journey replaces Chinook as the recommended first environment, based on the original Databricks data-preparation example but using an original PostgreSQL loader and Cube model. Eight tables are downloaded from dunnhumby's official 2023 archive with a fixed checksum; source files are not committed or relicensed. Existing Chinook/retail fixtures remain available and their local volumes are preserved.
+Complete Journey replaces Chinook as the recommended first environment, based on the original Databricks data-preparation example but using an original PostgreSQL loader and Cube model. Eight tables are downloaded from dunnhumby's official 2023 archive with a fixed checksum; source files are not committed or relicensed.
 
 The official archive's demographic codes remain codes. Relative DAY is mapped to an explicitly artificial calendar for Cube time queries. Retailer receipts retain the publisher's meaning, not customer-paid revenue or profit. Campaign contacts and coupon redemptions remain separate facts; coupon-product and placement tables are loaded but are not blindly joined to transaction measures. This sample is observational, not causal ground truth, and Databricks' simplified campaign attribution is not adopted as an identification assumption.
+
+### Sample consolidation (2026-10-04)
+
+Complete Journey is the sole deployable sample. Chinook, Online Retail and synthetic ecommerce stacks, loaders, domain-specific live tests and their CI references are removed to avoid competing onboarding paths. Historical ADR references above describe earlier experiments, not currently available files; their results are not Complete Journey benchmark evidence. Local downloaded data, personal Recipes and Docker volumes are not deleted. Self-contained synthetic metadata and deterministic unit/causal tests remain contract fixtures, not another sample environment. The runnable Method contribution template remains independent of the sample.

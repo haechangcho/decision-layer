@@ -14,7 +14,7 @@ from decision_layer.settings import Settings
 from decision_layer.core.models import CallerInfo
 from test_methods import AMOUNT, CAT, COUNT, CREDS, Q3, RR, FakeProvider
 
-REPO_RECIPES = Path(__file__).parents[2] / "examples" / "ecommerce" / "recipes"
+REPO_RECIPES = Path(__file__).parents[1] / "fixtures" / "recipes"
 SCOPE = {"date_range": list(Q3)}
 ME = CallerInfo(subject="alice")
 

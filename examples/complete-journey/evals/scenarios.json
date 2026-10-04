@@ -1,0 +1,20 @@
+{
+  "dataset": "dunnhumby Complete Journey",
+  "scenarios": [
+    {
+      "id": "largest_department",
+      "question": "Use Decision Layer across all available sample data to find the product department with the largest retailer receipts. Use a registered drill-down Method, retain the original question and purpose in a Run, and give the department, amount and Run ID. Do not interpret receipts as profit.",
+      "must_call": ["query.drilldown"],
+      "expect_status": ["success"],
+      "expect_numbers": [4093814.14],
+      "tolerance": 0.01,
+      "must_mention": ["GROCERY"]
+    },
+    {
+      "id": "store_peer_comparison",
+      "question": "Use Decision Layer to compare store 364's coupon line rate within GROCERY with peer stores in GROCERY and the overall population, excluding store 364 from both benchmarks. Use the registered peer comparison Method and retain this question and step purpose in a Run. Explain why this descriptive comparison does not establish wrongdoing or a causal effect.",
+      "must_call": ["query.peer_comparison"],
+      "expect_status": ["success"]
+    }
+  ]
+}

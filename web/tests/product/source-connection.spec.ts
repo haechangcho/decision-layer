@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 const base = {
-  provider: "cube", instance: "local", api_url: "http://hc-cube:4000/cubejs-api/v1", auth_method: "api_secret",
+  provider: "cube", instance: "local", api_url: "http://cube:4000/cubejs-api/v1", auth_method: "api_secret",
   api_secret_configured: true, service_groups: ["ecommerce"], service_credentials_allowed: true,
   admin_configured: false, admin_required: false, editable: true, encryption_configured: false,
 };
@@ -19,7 +19,7 @@ test("env-managed connection shows status and a test button only", async ({ page
   await page.goto("/sources");
   await expect(page.getByRole("heading", { name: "Cube connection" })).toBeVisible();
   // the real URL is shown, with the env var that fixes it
-  await expect(page.getByText("http://hc-cube:4000/cubejs-api/v1")).toBeVisible();
+  await expect(page.getByText("http://cube:4000/cubejs-api/v1")).toBeVisible();
   await expect(page.getByText("CUBE_API_URL")).toBeVisible();
   await expect(page.getByText("Managed by environment variables").first()).toBeVisible();
   // no editable inputs, no admin key prompt
@@ -79,21 +79,4 @@ test("shared deployment requires the admin key before editing", async ({ page })
   await page.getByRole("button", { name: "Open settings" }).click();
   await expect(page.getByLabel("Cube API URL")).toBeVisible();                        // now editable
   expect(adminKeys).toContain("secret-admin-key");                                    // the key was sent on reload
-});
-
-// Live: against the running Docker stack (hc-cube via Decision Layer), env-managed connection.
-// Verifies the real connection test and readiness, not mocks. Run with LIVE_CUBE=1.
-test("live env-managed connection tests and reports readiness", async ({ page }, info) => {
-  test.skip(process.env.LIVE_CUBE !== "1", "Requires the running Docker stack");
-  test.setTimeout(60000);
-  await page.goto("/sources");
-  await expect(page.getByText("http://hc-cube:4000/cubejs-api/v1")).toBeVisible();
-  await expect(page.getByText("Managed by environment variables").first()).toBeVisible();
-  await page.getByRole("button", { name: "Test connection" }).click();
-  await expect(page.getByText(/Catalog access verified/)).toBeVisible({ timeout: 30000 });
-  await page.getByRole("button", { name: "Check readiness" }).click();
-  await expect(page.getByRole("heading", { name: /Metric readiness/ })).toBeVisible({ timeout: 30000 });
-  // the real ecommerce metric and its readiness badges
-  await expect(page.getByText("cube://local/ecom_order/return_rate")).toHaveCount(0);
-  await page.screenshot({ path: info.outputPath("source-live.png"), fullPage: true });
 });

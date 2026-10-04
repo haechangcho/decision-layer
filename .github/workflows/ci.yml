@@ -15,6 +15,7 @@ jobs:
         with: {python-version: "3.11"}
       - run: pip install -e '.[dev]'
       - run: pytest            # unit tests, incl. domain-neutral and i18n guards
+      - run: pytest examples/method-template/test_method.py
 
   web:
     runs-on: ubuntu-latest
@@ -43,20 +44,21 @@ jobs:
         run: docker compose down
 
   example:
-    # the whole stack from examples/ecommerce against official Cube OSS, checked against EXPECTED.md
+    # The sole sample: pinned source import, independent SQL and real MCP/Cube execution.
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
       - run: pip install -e '.[dev]'
-      - run: docker compose -f examples/ecommerce/docker-compose.yml up -d --build --wait postgres cube api
-        env: {WEB_PORT: "3000"}
-      - name: wait for cube
-        run: for i in $(seq 1 60); do curl -sf localhost:4000/readyz && break; sleep 5; done
-      - run: pytest -m cube
+      - run: docker compose -f examples/complete-journey/compose.yaml up -d --build --wait --wait-timeout 900 api
+      - name: verify source independently
+        run: docker compose -f examples/complete-journey/compose.yaml run --rm --no-deps import python verify.py
+      - run: pytest -q -s tests/provider/test_complete_journey_live.py
         env:
-          CUBE_API_URL: http://localhost:4000/cubejs-api/v1
-          CUBE_API_SECRET: example-secret-change-me-0123456789
+          DL_JOURNEY_API_URL: http://127.0.0.1:8000
       - if: failure()
-        run: docker compose -f examples/ecommerce/docker-compose.yml logs --tail 100
+        run: docker compose -f examples/complete-journey/compose.yaml logs --tail 100
+      - if: always()
+        run: docker compose -f examples/complete-journey/compose.yaml down
