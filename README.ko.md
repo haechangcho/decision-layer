@@ -4,13 +4,13 @@
 
 **팀의 분석 노하우를 반복해서 실행합니다.**
 
-Decision Layer는 semantic layer의 지표를 분석 기능인 **Method**와 재사용 가능한 절차인 **Recipe**에 연결합니다. 웹과 AI 도구가 같은 절차를 실행하고, 질문·결과·근거는 **Run**에 남습니다. 지표의 정의와 데이터 접근 권한은 Cube가 관리합니다.
+Decision Layer는 팀의 분석 노하우를 재사용 가능한 **Recipe**로 만듭니다. 웹과 AI 도구는 semantic layer의 지표와 등록된 분석 방법(**Method**)으로 같은 절차를 실행하고, 각 실행(**Run**)에 질문·결과·근거를 남깁니다.
 
-![지표, 분석 방법, 실행 기록의 연결](docs/assets/decision-layer-overview.png)
+![비즈니스 질문을 Recipe로 분석하고 웹과 AI에서 같은 절차와 실행 근거를 재사용합니다](docs/assets/decision-layer-overview.png)
 
 ## 시작하기
 
-Docker와 Compose가 필요합니다. 예제를 실행하면 PostgreSQL, Cube, API, 웹이 함께 켜지고 Recipe는 빈 상태에서 시작합니다.
+Docker Compose로 샘플 데이터와 로컬 실행 환경을 함께 시작합니다.
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
@@ -23,7 +23,7 @@ docker compose up -d --build --wait
 ## 다음 단계
 
 - [Claude·Codex에 MCP 연결](docs/guides/mcp.md)
-- [기존 Cube 연결](docs/guides/cube.md)
+- [Semantic layer 연결](docs/guides/cube.md)
 - [샘플 데이터와 환경 확인](examples/complete-journey/README.ko.md)
 - [개발·테스트·Method 기여](docs/README.md)
 
