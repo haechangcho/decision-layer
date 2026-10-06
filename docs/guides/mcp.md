@@ -62,7 +62,9 @@ The reference leader is GROCERY at 4,093,814.14 retailer receipts. Source day in
 
 A suitable Recipe should be used first. Otherwise, the client can discover semantic objects and registered Methods, then use `start_analysis`, `run_step` and `complete_run` to record exploration under one question. Tool selection and narrative are the client's responsibility, not verified evidence.
 
-Use **Register as Recipe** on a completed Run to save its procedure for immediate reuse. This explicit action preserves step purposes, resolved parameters, Method versions, filters and default dates. Use **Edit before saving** to change the procedure first. There is no automatic background registration. Adding to an existing Recipe and a shared approval inbox are not implemented. Reusing a saved procedure does not freeze the underlying data; a recorded Method version that is no longer installed requires review.
+Every Method executes through `run_step` on an existing Run ID, with a required purpose. There is no standalone `run_method` MCP tool. Keep one Run for the full question, including follow-up drilldowns and peer comparisons. Even a one-step analysis starts a Run. The API rejects blank questions, missing purposes and conclusions without links to recorded steps. Pipelines also remain open until a conclusion is saved. If the client stops early, Web shows **Awaiting conclusion** and lets the owner review results and finish the analysis before registering the whole procedure as a Recipe. Restart MCP clients after updating so they discover the current tools.
+
+Use **Register as Recipe** on a completed Run to save its procedure immediately, without a configuration dialog. Purposes, Method versions and analytical settings are retained; group targets default to runtime selection rather than previous winners. Run-specific dates and shared filters are not silently fixed into the Recipe. Use **Edit before saving** for custom fixed settings. There is no automatic background registration. Adding to an existing Recipe and a shared approval inbox are not implemented. A recorded Method version that is no longer installed requires review.
 
 ## Authentication
 
@@ -82,3 +84,9 @@ The local Cube and dbt samples enable a development service identity, so they ne
 | Run missing in Web | Match API URL and caller identity; check the Run finished. |
 
 [Live smoke tests](testing.md) verify protocol and execution, not natural-language planning by your AI client.
+
+## Preserve Selection Rules
+
+Ordinary drilldown results include `step_id` and `selection_sources`. When following the highest-ranked group, pass the returned `path` source as the next step's `drill_path` rather than copying the observed name. For a leading member's peer comparison, use its `condition` source as `subject` and its `parents` source as `peers`. The engine records the rule and resolved values together; incomplete output cannot select a winner, and ties ask for input.
+
+A Run may use literal targets. Direct registration defaults to new runtime-selection rules or required typed inputs, not remembered targets. Explicit Recipe fixed policies remain fixed. Recipe `inputs` appear in `list_recipes`; supply declared inputs to `start_run`. See [Recipe authoring](recipes.md).

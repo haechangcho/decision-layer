@@ -20,3 +20,9 @@ SALES_VALUE is retailer receipts, not necessarily customer cash paid or profit.
 Coupon redemption is not a purchase-line attribution, and campaign targeting is not randomized assignment.
 No known causal ground truth is supplied. The name causal_data denotes promotion placement information,
 not proof of causal identification.
+
+Campaign comparisons use a derived campaign-household model: prior 30-day activity defines eligibility,
+and subsequent non-purchase is zero only within dataset-complete windows. Dataset date coverage is not
+proof of individual follow-up. Other overlapping target assignments are retained as a diagnostic, not
+silently excluded. Campaign target-list membership is not actual receipt; choose one campaign and do
+not treat repeated household observations across campaigns as independent samples.

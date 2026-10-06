@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, CalendarDays, Play } from "lucide-react";
 import { api, ApiError, type Recipe, type Run, type SemanticObject, type SourceReadiness } from "@/lib/api";
 import { RecipeEditor } from "@/components/recipe-editor";
 import { RecipeDelete } from "@/components/recipe-delete";
+import { RecipeRuntimeInputs } from "@/components/recipe-runtime-inputs";
 import { suggestedDateRange, suggestedTimeDimension } from "@/lib/semantic-dates";
 import { useApi, useCatalog } from "@/lib/hooks";
 import styles from "../../library.module.css";
@@ -37,6 +38,7 @@ export default function RecipePage() {
   const router = useRouter();
   const { data: recipe, error, loading } = useApi<Recipe>(name === "new" ? null : `/recipes/${encodeURIComponent(name)}`);
   const { data: readiness } = useApi<SourceReadiness>(name === "new" ? null : "/sources/current/readiness");
+  const { data: policy } = useApi<{ allow_all: boolean }>("/execution-policy");
   const { objects } = useCatalog();
   const [dates, setDates] = useState<[string, string]>(() => datePreset("month"));
   const datesTouched = useRef(false);
@@ -46,10 +48,11 @@ export default function RecipePage() {
   const [busy, setBusy] = useState(false);
   const [runError, setRunError] = useState<Error | null>(null);
   const [allDates, setAllDates] = useState(false);
+  const [inputs, setInputs] = useState<Record<string, unknown>>({});
   useEffect(() => {
     if (recipe?.default_scope == null || datesTouched.current) return;
-    setDates(recipe.default_scope.date_range ?? ["", ""]);
-    setAllDates(!recipe.default_scope.date_range);
+    setDates(recipe.default_scope.date_range ?? recipe.default_scope.period?.date_range ?? ["", ""]);
+    setAllDates(recipe.default_scope.period?.mode === "all");
     setTimeDimension(recipe.default_scope.time_dimension ?? "");
   }, [recipe]);
 
@@ -74,7 +77,8 @@ export default function RecipePage() {
     ? recipe.steps.some((step) => step.method === "query.trend" || step.params.vs_previous === true)
     : recipe.allowed_methods.includes("query.trend"));
   const useAllDates = allDates && !needsTime;
-  const missingPeriod = !useAllDates && ((needsTime && (!dates[0] || !dates[1] || !selectedTime)) || (timeDimensions.length > 0 && !!dates[0] && !!dates[1] && !selectedTime));
+  const usePeriodRule = !datesTouched.current && recipe?.default_scope?.period?.mode === "relative";
+  const missingPeriod = !usePeriodRule && !useAllDates && ((needsTime && (!dates[0] || !dates[1] || !selectedTime)) || (timeDimensions.length > 0 && !!dates[0] && !!dates[1] && !selectedTime));
   const metric = recipe ? titleFor(recipe.semantic_scope.primary_metric, objects) : "";
 
   async function run() {
@@ -85,7 +89,7 @@ export default function RecipePage() {
       const result = await api<Run | { run_id: string }>("/runs", { body: {
         recipe: `${recipe.name}@${recipe.version}`,
         question: question.trim() || null,
-        scope: { date_range: !useAllDates && selectedTime && dates[0] && dates[1] ? dates : null, time_dimension: selectedTime || null },
+        scope: { ...(usePeriodRule ? { period: recipe.default_scope?.period } : useAllDates ? { period: { mode: "all" } } : selectedTime && dates[0] && dates[1] ? { date_range: dates } : { period: { mode: "unresolved" } }), time_dimension: selectedTime || null, inputs },
       } });
       const runId = "id" in result ? result.id : result.run_id;
       router.push(`/runs/${runId}`);
@@ -107,8 +111,9 @@ export default function RecipePage() {
       <section className={styles.recipeRunPanel}>
         <h2>분석 조건</h2>
         <dl className={styles.meta}><div className={styles.metaRow}><dt>중심 지표</dt><dd>{metric}</dd></div></dl>
+        <RecipeRuntimeInputs specs={recipe.inputs ?? {}} values={inputs} onChange={setInputs} objects={objects} />
         {needsTime && timeDimensions.length === 0 && <p className={styles.error} role="alert">이 지표와 연결된 날짜 기준을 찾지 못했습니다. 시맨틱 모델의 시간 차원을 확인하거나 <Link href="/catalog">다른 지표를 선택하세요.</Link></p>}
-        {!needsTime && <label className="check"><input type="checkbox" checked={allDates} onChange={event => { setAllDates(event.target.checked); if (!event.target.checked && !dates[0]) chooseDates(recommendedPeriod ?? datePreset("month")); }} />전체 기간</label>}
+        {!needsTime && policy?.allow_all && <label className="check"><input type="checkbox" checked={allDates} onChange={event => { setAllDates(event.target.checked); if (!event.target.checked && !dates[0]) chooseDates(recommendedPeriod ?? datePreset("month")); }} />전체 기간</label>}
         {!useAllDates && timeDimensions.length > 0 && <label className={styles.runField}>날짜 기준
           <select aria-label="날짜 기준" value={selectedTime} onChange={(event) => setTimeDimension(event.target.value)}><option value="">날짜 기준 선택</option>{timeDimensions.map((object) => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
         </label>}

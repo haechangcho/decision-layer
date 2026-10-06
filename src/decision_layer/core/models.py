@@ -8,9 +8,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .ids import SemanticRefStr, VersionedRefStr
+from .periods import ExecutionPolicy, PeriodChoice, checked_range
 from ..i18n import _
 
 # ── Semantic catalog ────────────────────────────────────────────────────────
@@ -137,6 +138,22 @@ class RoleSpec(BaseModel):
     required: bool = True
     multiple: bool = False
     description: str = ""
+    label: str = ""
+    default_binding: Literal["primary_metric", "preferred_dimensions"] | None = None
+    ui_group: Literal["basic", "options"] = "basic"
+    editor_parameter: str | None = None
+
+
+class InputSourcePolicy(BaseModel):
+    allowed: list[Literal["literal", "input", "step"]] = Field(default_factory=lambda: ["literal", "input"])
+    default: Literal["literal", "previous_result", "parameter_parents", "runtime_input"] = "literal"
+    project: Literal["path", "condition", "parents"] = "path"
+    parameter: str | None = None
+
+
+class InputVisibility(BaseModel):
+    parameter: str
+    equals: str | bool | int | float
 
 
 class ParamSpec(BaseModel):
@@ -148,7 +165,13 @@ class ParamSpec(BaseModel):
     minimum: float | None = None
     maximum: float | None = None
     description: str = ""
-    ui_group: Literal["basic", "advanced"] = "advanced"
+    ui_group: Literal["basic", "advanced", "options", "hidden"] = "advanced"
+    label: str = ""
+    meaning: Literal["analysis_scope", "comparison_subject", "comparison_population", "period", "option"] = "option"
+    semantic_kind: SemanticKind | None = None
+    semantic_role: str | None = None
+    source_policy: InputSourcePolicy | None = None
+    visible_when: InputVisibility | None = None
 
 
 ArtifactType = Literal["estimate", "interval", "table", "breakdown_table", "contribution_table",
@@ -167,6 +190,39 @@ class MethodManifest(BaseModel):
     requires_capabilities: list[str] = Field(default_factory=list)
     interpretation: Interpretation                 # ADR-019
     outputs: list[ArtifactType]
+    selection_outputs: list[str] = Field(default_factory=list)
+    requires_period: bool = False
+    label: str = ""
+
+    @model_validator(mode="after")
+    def _input_contract(self) -> "MethodManifest":
+        for name, role in self.roles.items():
+            if role.editor_parameter:
+                spec = self.parameters.get(role.editor_parameter)
+                if not spec or spec.type != "string" or spec.semantic_role != name or spec.semantic_kind != role.kind:
+                    raise ValueError(f"{name}: editor_parameter must name a matching scalar semantic input")
+        for name, spec in self.parameters.items():
+            if spec.semantic_kind and spec.type not in ("string", "ref_list"):
+                raise ValueError(f"{name}: semantic inputs require string or ref_list")
+            if spec.semantic_role and spec.semantic_role not in self.roles:
+                raise ValueError(f"{name}: semantic_role must name a declared role")
+            if spec.visible_when and spec.visible_when.parameter not in self.parameters:
+                raise ValueError(f"{name}: visibility must reference a declared parameter")
+            policy = spec.source_policy
+            if not policy:
+                continue
+            required_source = {"previous_result": "step", "parameter_parents": "step", "runtime_input": "input", "literal": "literal"}[policy.default]
+            if required_source not in policy.allowed:
+                raise ValueError(f"{name}: default source must be allowed")
+            if "step" in policy.allowed and spec.type != "drill_path":
+                raise ValueError(f"{name}: ranked group selections require drill_path")
+            if policy.default == "parameter_parents" and (policy.parameter == name or policy.parameter not in self.parameters):
+                raise ValueError(f"{name}: parent source must name another parameter")
+            if policy.default == "parameter_parents":
+                parent = self.parameters[policy.parameter]
+                if parent.type != "drill_path" or (parent.source_policy and parent.source_policy.default == "parameter_parents"):
+                    raise ValueError(f"{name}: parent source requires a non-dependent group input")
+        return self
 
 
 # ── Recipes & plans ─────────────────────────────────────────────────────────
@@ -210,6 +266,15 @@ class ValidatorRef(BaseModel):
 class RunDefaults(BaseModel):
     date_range: tuple[str, str] | None = None
     time_dimension: SemanticRefStr | None = None
+    period: PeriodChoice | None = None
+
+    @model_validator(mode="after")
+    def valid_period(self):
+        if self.date_range is not None:
+            checked_range(self.date_range)
+            if self.period is not None and (self.period.mode != "range" or self.period.date_range != self.date_range):
+                raise ValueError("period and date_range conflict")
+        return self
 
 
 class Recipe(BaseModel):
@@ -219,6 +284,7 @@ class Recipe(BaseModel):
     status: Literal["draft", "published"] = "published"  # legacy files remain executable
     origin_runs: list[str] = Field(default_factory=list)  # reviewed source Runs, never execution inputs
     default_scope: RunDefaults | None = None
+    inputs: dict[str, ParamSpec] = Field(default_factory=dict)
     routing: Routing = Field(default_factory=Routing)
     semantic_scope: SemanticScope
     mode: Literal["pipeline", "investigation"]
@@ -281,6 +347,49 @@ class Result(BaseModel):
     needs_input: dict[str, Any] | None = None      # question + candidates when status=needs_input
     provenance: Provenance = Field(default_factory=Provenance)
     run_id: str | None = None                      # the stored Run this result belongs to
+    step_id: str | None = None
+    selections: dict[str, "SelectionOutput"] = Field(default_factory=dict)
+
+
+class SelectionCondition(BaseModel):
+    member: SemanticRefStr
+    value: str | float | int | bool | None
+
+
+class SelectionCandidate(BaseModel):
+    path: list[SelectionCondition] = Field(min_length=1)
+    score: float = Field(allow_inf_nan=False)
+
+
+class SelectionOutput(BaseModel):
+    """Unrounded, eligible ranked groups; independent of presentation row limits."""
+    kind: Literal["ranked_groups"] = "ranked_groups"
+    complete: bool
+    rank_by: str
+    direction: Literal["asc", "desc"]
+    candidates: list[SelectionCandidate] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _ordered(self) -> "SelectionOutput":
+        scores = [candidate.score for candidate in self.candidates]
+        if scores != sorted(scores, reverse=self.direction == "desc"):
+            raise ValueError("Selection candidates must follow the declared ranking order.")
+        return self
+
+
+class StepSelectionSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source: Literal["step"]
+    step_id: str
+    output: str = "ranked_groups"
+    select: Literal["first"] = "first"
+    project: Literal["path", "condition", "parents"] = "path"
+
+
+class RuntimeInputSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    source: Literal["input"]
+    name: str
 
 
 class CallerInfo(BaseModel):
@@ -314,6 +423,8 @@ class RunConclusion(BaseModel):
 
 class StepRecord(BaseModel):
     step: PlanStep
+    requested_step: PlanStep | None = None
+    input_resolutions: list[dict[str, Any]] = Field(default_factory=list)
     method: VersionedRefStr
     result: Result
     started_at: datetime
@@ -341,7 +452,13 @@ class Run(BaseModel):
     status: Literal["open", "completed", "failed"] = "open"
     running: RunningJob | None = None              # set while a job executes; poll until it clears
     error: dict[str, Any] | None = None            # the last job's error (code, message), if it raised
+    needs_input: dict[str, Any] | None = None
+    pending_execution: dict[str, Any] | None = None
+    scope_revision: int = 0
+    scope_resolution: dict[str, Any] = Field(default_factory=dict)
+    execution_policy: ExecutionPolicy | None = None
     validation: list[ValidationResult] = Field(default_factory=list)  # recipe-level checks at start
+    validation_queries: list[QueryProvenance] = Field(default_factory=list)
     summary: str | None = None                     # the caller's conclusion when completing
     conclusion: RunConclusion | None = None
     author: ExecutionAuthor | None = None          # the initiating client, not the owner

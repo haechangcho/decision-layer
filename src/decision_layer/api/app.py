@@ -27,11 +27,11 @@ from ..sources.config import EffectiveSource, SourceConfigError, SourceConfigInp
 from ..sources.provider import ConfiguredSemanticProvider, make_provider
 from ..sources.store import open_source_store
 from ..recipes.loader import RecipeStore, parse_recipe
-from ..recipes.from_run import RecipeCandidate, RunPromotionError, candidate_from_run
+from ..recipes.from_run import RecipeCandidate, RunPromotionError, candidate_from_run, runtime_recipe_from_run
 from ..runs.engine import RunEngine
 from ..runs.jobs import JobRunner
 from ..runs.store import RunStore, open_store
-from ..service import MethodRunRequest, RecipePreviewRequest, RecipePublishRequest, RecipeSaveRequest, RecipeYamlRequest, RunCompleteRequest, RunShareRequest, RunStartRequest, RunStepRequest
+from ..service import MethodRunRequest, RecipeConfigureRequest, RecipePreviewRequest, RecipePublishRequest, RecipeSaveRequest, RecipeYamlRequest, RunCompleteRequest, RunRecipeRequest, RunScopeRequest, RunShareRequest, RunStartRequest, RunStepRequest
 from ..settings import Settings
 from ..i18n import _
 
@@ -90,8 +90,9 @@ def localized(m: MethodManifest) -> MethodManifest:
     """Manifest texts are English in code; serve them in the request's language."""
     return m.model_copy(update={
         "description": _(m.description),
-        "roles": {k: r.model_copy(update={"description": _(r.description)}) for k, r in m.roles.items()},
-        "parameters": {k: p.model_copy(update={"description": _(p.description)}) for k, p in m.parameters.items()},
+        "label": _(m.label),
+        "roles": {k: r.model_copy(update={"description": _(r.description), "label": _(r.label)}) for k, r in m.roles.items()},
+        "parameters": {k: p.model_copy(update={"description": _(p.description), "label": _(p.label)}) for k, p in m.parameters.items()},
     })
 
 
@@ -102,7 +103,7 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
     provider = provider or ConfiguredSemanticProvider(source_manager)
     recipes = recipes or RecipeStore(settings.recipes_dir, provider.name, provider.instance)
     engine = RunEngine(provider, recipes, store or open_store(settings.database_url),
-                       jobs=JobRunner(settings.job_workers))
+                       jobs=JobRunner(settings.job_workers), policy=settings.execution_policy)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -149,6 +150,11 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
     async def capabilities() -> ProviderCapabilities:
         await source_manager.effective(resolve_secret=False)
         return provider.capabilities()
+
+    @app.get("/execution-policy")
+    async def execution_policy() -> dict:
+        return {**settings.execution_policy.model_dump(mode="json"), "revision": settings.execution_policy.revision,
+                "cost_estimation": "unsupported", "query_cancellation": "not_guaranteed"}
 
 
     def require_source_admin(request: Request, admin_key: Annotated[str | None, Header(alias="X-Decision-Layer-Admin-Key")] = None) -> None:
@@ -295,6 +301,18 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
     async def recipe_drafts(_caller: Caller) -> list[Recipe]:
         return recipes.list_drafts()
 
+    @app.post("/recipes:configure-step", response_model=Recipe)
+    async def configure_recipe_step(req: RecipeConfigureRequest, caller: Caller):
+        from ..recipes.configuration import configure_step
+        from ..recipes.authoring import RecipeEditError
+        try:
+            recipe = configure_step(req.recipe, req.step_index, req.reset_parameters)
+            for spec in recipe.inputs.values():
+                spec.label = _(spec.label)
+            return recipe
+        except (ValueError, KeyError) as exc:
+            raise RecipeEditError(str(exc), field="steps") from exc
+
     @app.post("/recipes:format")
     async def recipe_format(recipe: Recipe, _caller: Caller) -> dict[str, str]:
         recipes.validate(recipe)
@@ -401,12 +419,23 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
         return candidate
 
     @app.post("/runs/{run_id}/recipe", response_model=Recipe)
-    async def run_recipe_register(run_id: str, creds: Creds, caller: Caller) -> Recipe:
+    async def run_recipe_register(run_id: str, creds: Creds, caller: Caller, body: RunRecipeRequest = RunRecipeRequest()) -> Recipe:
         run = await engine.get(creds, caller, run_id)
         if run.status != "completed" or run.running:
             raise RunPromotionError("Complete the analysis before registering its procedure.")
-        candidate = candidate_from_run(run, list(range(len(run.steps))))
-        recipe = candidate.recipe.model_copy(update={"name": f"analysis-from-{run.id.lower()}", "status": "published"})
+        from ..recipes.loader import UnknownRecipe
+        name = f"analysis-from-{run.id.lower()}"
+        if body.recipe is None:
+            try:
+                existing = recipes.get(name, include_drafts=True)
+            except UnknownRecipe:
+                existing = None
+            if existing and existing.origin_runs == [run.id] and existing.status == "published":
+                await check_recipe_semantics(existing, creds)
+                return existing
+        recipe = (body.recipe or runtime_recipe_from_run(run)).model_copy(update={"name": name, "origin_runs": [run.id], "status": "published"})
+        from ..recipes.authoring import validate_recipe
+        validate_recipe(recipe)
         for step in recipe.steps:
             if step.method_version and registry.get(step.method).manifest.version != step.method_version:
                 raise RunPromotionError("The recorded Method version is not installed. Edit the candidate before registering it.")
@@ -420,11 +449,19 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
         if existing.origin_runs != [run.id] or existing.status != "published":
             from ..recipes.authoring import RecipeConflict
             raise RecipeConflict("A different Recipe already uses this name.")
+        if existing.model_dump() != recipe.model_dump():
+            from ..recipes.authoring import RecipeConflict
+            raise RecipeConflict("This Run already has a different published Recipe. Save changes as a new version in the editor.")
         return existing
 
     @app.get("/runs/{run_id}", response_model=Run)
     async def run_get(run_id: str, creds: Creds, caller: Caller) -> Run:
         return await engine.get(creds, caller, run_id)
+
+    @app.put("/runs/{run_id}/scope", response_model=Run)
+    async def run_scope(run_id: str, req: RunScopeRequest, creds: Creds, caller: Caller, wait: float | None = None):
+        run = await engine.set_scope(creds, caller, run_id, req.scope.as_dict(), req.base_revision, waited(wait))
+        return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
 
     @app.delete("/runs/{run_id}", status_code=204)
     async def run_delete(run_id: str, caller: Caller) -> Response:
@@ -439,6 +476,8 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
             return accepted(run)
         if run.error:
             raise JobFailed(run.error)
+        if run.needs_input:
+            return Result(status="needs_input", run_id=run.id, needs_input={**run.needs_input, "scope_revision": run.scope_revision})
         if not run.steps:
             raise NoResult(_("No step has run yet"), run_id=run_id)
         return run.steps[-1].result

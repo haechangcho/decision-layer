@@ -5,10 +5,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from decision_layer.api.app import create_app
-from decision_layer.core.models import PlanStep
+from decision_layer.core.models import PlanStep, RunConclusion, RunFinding
 from decision_layer.methods.base import InvalidBinding
 from decision_layer.recipes.loader import RecipeStore, UnknownRecipe
-from decision_layer.runs.engine import MethodNotAllowed, RunBusy, RunClosed, RunEngine, RunLimitExceeded
+from decision_layer.runs.engine import AnalysisContractError, MethodNotAllowed, RunBusy, RunClosed, RunEngine, RunLimitExceeded
 from decision_layer.runs.store import MemoryRunStore, SqliteRunStore, UnknownRun
 from decision_layer.settings import Settings
 from decision_layer.core.models import CallerInfo, RunningJob
@@ -63,13 +63,45 @@ def test_delete_run_endpoint_preserves_registered_recipe(provider, tmp_path):
     result = client.post(f"/runs/{run['id']}/steps", json={"method": "query.trend", "bindings": {"metric": RR}})
     assert result.status_code == 200
     assert client.post(f"/runs/{run['id']}:complete", json={"summary": "Done"}).status_code == 200
-    assert client.post(f"/runs/{run['id']}/recipe").status_code == 200
+    assert client.post(f"/runs/{run['id']}/recipe", json={"reviewed": True}).status_code == 200
     response = client.delete(f"/runs/{run['id']}")
     assert response.status_code == 204
     assert client.get(f"/runs/{run['id']}").status_code == 404
     assert client.get("/runs").json() == []
     assert len(client.get("/recipes").json()) == 1
     assert client.delete(f"/runs/{run['id']}").status_code == 404
+
+
+def test_registration_accepts_calculated_refusal_but_reexecution_still_refuses(provider, tmp_path, monkeypatch):
+    from decision_layer.core.models import Artifact, ValidationResult
+    from decision_layer.methods.base import MethodOutput, registry
+
+    async def insufficient_overlap(ctx, bindings, params):
+        return MethodOutput(primary=Artifact(type="estimate", data={"difference": 3}),
+            validation=[ValidationResult(validator="comparability", status="fail",
+                                         code="NOT_COMPARABLE", message="Insufficient overlap")])
+
+    monkeypatch.setattr(registry.get("query.trend"), "run", insufficient_overlap)
+    settings = Settings(cube_api_url="http://x", cube_instance="local",
+                        cube_api_secret="test-secret-at-least-32-characters", database_url="memory",
+                        recipes_dir=str(tmp_path), allow_service_credentials=True)
+    client = TestClient(create_app(settings, provider))
+    run = client.post("/runs", json={"question": "Compare the groups", "scope": SCOPE}).json()
+    path = f"/runs/{run['id']}"
+    step = client.post(path + "/steps", json={"method": "query.trend", "purpose": "Check comparison",
+                                             "bindings": {"metric": RR}})
+    assert step.json()["status"] == "refused", step.json()
+    assert client.post(path + ":complete", json={"summary": "Not comparable"}).status_code == 200
+    candidate = client.get(path + "/recipe-candidate", params={"indices": 0})
+    assert candidate.status_code == 200, candidate.json()
+    response = client.post(path + "/recipe", json={})
+    assert response.status_code == 200, response.json()
+    recipe = response.json()
+    assert len(recipe["steps"]) == 1
+    assert client.post(path + "/recipe").json() == recipe
+    replay = client.post("/runs", json={"recipe": recipe["name"], "scope": SCOPE}).json()
+    assert replay["steps"][0]["result"]["status"] == "refused", replay
+    assert client.get(path).json()["steps"][0]["result"]["status"] == "refused"
 
 
 def test_one_click_registration_replays_settings_and_is_idempotent(provider, tmp_path):
@@ -93,12 +125,14 @@ def test_one_click_registration_replays_settings_and_is_idempotent(provider, tmp
     assert recipe["steps"][0]["params"] == source["steps"][0]["step"]["params"]
     assert recipe["steps"][0]["purpose"] == "Inspect groups"
     assert recipe["steps"][0]["method_version"] == "2.0.0"
-    assert recipe["semantic_scope"]["required_filters"] == scope["filters"]
-    assert client.post(endpoint).json() == recipe
+    assert recipe["semantic_scope"]["required_filters"] == []
+    assert recipe["default_scope"]["date_range"] is None
+    assert client.post(endpoint, json={"reviewed": True}).json() == recipe
     assert len(client.get("/recipes").json()) == 1
-    replay = client.post("/runs", json={"recipe": recipe["name"]}).json()
+    replay = client.post("/runs", json={"recipe": recipe["name"], "scope": scope}).json()
     assert replay["status"] == "completed", replay
-    assert replay["plan"]["scope"] == scope
+    assert {k: v for k, v in replay["plan"]["scope"].items() if k != "period"} == {**scope, "inputs": {}}
+    assert replay["plan"]["scope"]["period"]["mode"] == "range"
     assert replay["steps"][0]["result"]["primary"] == source["steps"][0]["result"]["primary"]
     assert replay["steps"][0]["result"]["provenance"]["queries"][0]["native_query"] == source["steps"][0]["result"]["provenance"]["queries"][0]["native_query"]
     cleared = client.post("/runs", json={"recipe": recipe["name"], "scope": {"date_range": None}}).json()
@@ -106,7 +140,7 @@ def test_one_click_registration_replays_settings_and_is_idempotent(provider, tmp
     recipe["version"] = "1.0.1"
     recipe["steps"][0]["method_version"] = "0.0.0"
     assert client.put(f"/recipes/{recipe['name']}", json={"recipe": recipe, "base_version": "1.0.0"}).status_code == 200
-    blocked = client.post("/runs", json={"recipe": recipe["name"]}).json()
+    blocked = client.post("/runs", json={"recipe": recipe["name"], "scope": scope}).json()
     assert blocked["status"] == "failed"
     assert blocked["steps"][0]["result"]["provenance"]["queries"] == []
     assert client.delete(f"/recipes/{recipe['name']}?base_version=1.0.0").status_code == 409
@@ -191,14 +225,75 @@ async def test_recipe_free_question_keeps_multiple_methods_in_one_run(provider, 
                         origin="mcp")
     assert run.status == "open" and run.recipe_snapshot is None
     await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", purpose="기간별 반품률을 확인", bindings={"metric": RR}))
-    await e.step(CREDS, ME, run.id, PlanStep(method="query.drilldown", bindings={"metric": RR, "dimensions": [CAT]}))
-    done = await e.complete(ME, run.id, "두 분석 단계의 결과를 확인함")
+    await e.step(CREDS, ME, run.id, PlanStep(method="query.drilldown", purpose="높은 반품률의 범주 확인", bindings={"metric": RR, "dimensions": [CAT]}))
+    assert (await e.store.get(run.id)).status == "open"
+    done = await e.complete(ME, run.id, conclusion=RunConclusion(answer="두 분석 단계의 결과를 확인함",
+        findings=[RunFinding(text="기간과 범주별 값을 확인함", step_indices=[0, 1])]))
     stored = await e.store.get(run.id)
     assert done.status == "completed" and stored.origin == "mcp"
     assert stored.plan.question == "반품률이 어떻게 변했고 어느 범주가 높은가?"
     assert [record.step.method for record in stored.steps] == ["query.trend", "query.drilldown"]
     assert stored.steps[0].step.purpose == "기간별 반품률을 확인"
     assert all(record.result.provenance.queries for record in stored.steps)
+
+
+async def test_mcp_contract_rejects_fragmented_or_incomplete_analysis(provider, tmp_path):
+    e = engine(provider, SqliteRunStore(str(tmp_path / "runs.db")))
+    with pytest.raises(AnalysisContractError):
+        await e.start(CREDS, ME, recipe=None, question="  ", scope=SCOPE, origin="mcp")
+    with pytest.raises(AnalysisContractError):
+        await e.adhoc(CREDS, ME, PlanStep(method="query.trend", bindings={"metric": RR}), SCOPE, origin="mcp")
+    assert await e.list(ME) == []
+    run = await e.start(CREDS, ME, recipe=None, question="Compare changes and groups", scope=SCOPE, origin="mcp")
+    with pytest.raises(AnalysisContractError):
+        await e.complete(ME, run.id, conclusion=RunConclusion(answer="No evidence"))
+    for purpose in (None, "  "):
+        with pytest.raises(AnalysisContractError):
+            await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", purpose=purpose, bindings={"metric": RR}))
+    assert (await e.store.get(run.id)).steps == []
+    await e.step(CREDS, ME, run.id, PlanStep(id="trend", method="query.trend", purpose="Check changes", bindings={"metric": RR}))
+    with pytest.raises(InvalidBinding):
+        await e.step(CREDS, ME, run.id, PlanStep(id="trend", method="query.trend", purpose="Retry", bindings={"metric": RR}))
+    for conclusion in (None, RunConclusion(answer="Answer"), RunConclusion(answer="Answer", findings=[RunFinding(text="Unlinked")])):
+        with pytest.raises(AnalysisContractError):
+            await e.complete(ME, run.id, "Only a summary", conclusion)
+    with pytest.raises(InvalidBinding):
+        await e.complete(ME, run.id, conclusion=RunConclusion(answer="Answer", findings=[RunFinding(text="Bad link", step_indices=[2])]))
+    pending = await e.store.get(run.id)
+    assert pending.status == "open" and pending.conclusion is None and len(pending.steps) == 1
+    done = await e.complete(ME, run.id, conclusion=RunConclusion(answer="Recorded answer", findings=[RunFinding(text="Observed change", step_indices=[0])]))
+    assert done.status == "completed" and done.conclusion.source == "caller"
+    with pytest.raises(RunClosed):
+        await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", purpose="Late", bindings={"metric": RR}))
+
+
+async def test_mcp_pipeline_waits_for_conclusion(provider):
+    e = engine(provider)
+    run = await e.start(CREDS, ME, recipe="return-rate-drilldown", question="Compare categories and sellers", scope=SCOPE, origin="mcp")
+    assert run.status == "open" and not run.running and len(run.steps) == 2 and run.conclusion is None
+    done = await e.complete(ME, run.id, conclusion=RunConclusion(answer="Reviewed results", findings=[RunFinding(text="Compared groups", step_indices=[0, 1])]))
+    assert done.status == "completed"
+
+
+def test_mcp_rest_execution_cannot_bypass_question_run_contract(provider, tmp_path):
+    settings = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="test-secret-at-least-32-characters",
+                        cube_service_groups=("ecommerce",), database_url="memory", recipes_dir=str(tmp_path),
+                        allow_service_credentials=True)
+    client = TestClient(create_app(settings, provider), headers={"X-Decision-Layer-Client": "mcp"})
+    denied = client.post("/methods/query.trend:run", json={"bindings": {"metric": RR}, "scope": SCOPE})
+    assert denied.status_code == 422 and denied.json()["error"]["code"] == "ANALYSIS_CONTRACT_REQUIRED"
+    assert client.get("/runs").json() == []
+    assert client.post("/runs", json={"question": " "}).status_code == 422
+    run = client.post("/runs", json={"question": "How did the metric change?", "scope": SCOPE}).json()
+    path = f"/runs/{run['id']}"
+    assert client.post(path + "/steps", json={"method": "query.trend", "bindings": {"metric": RR}}).status_code == 422
+    assert client.post(path + "/steps", json={"method": "query.trend", "purpose": "Check change", "bindings": {"metric": RR}}).status_code == 200
+    assert client.post(path + ":complete", json={"summary": "Done"}).status_code == 422
+    assert client.post(path + "/recipe").status_code == 422
+    assert client.get(path).json()["status"] == "open"
+    assert client.post(path + ":complete", json={"conclusion": {"answer": "Reviewed", "findings": [{"text": "Change result", "step_indices": [0]}]}}).status_code == 200
+    assert client.post(path + "/recipe", json={"reviewed": True}).status_code == 200
+    assert len(client.get("/runs").json()) == 1
 
 
 async def test_structured_conclusion_and_distinct_authors_survive_storage(provider, tmp_path):
@@ -401,8 +496,8 @@ def test_api_runs(provider):
     assert c.get(f"/runs/{adhoc['run_id']}").json()["origin"] == "api"
     mcp = c.post("/methods/query.trend:run", json={"question": "Why did returns change?", "bindings": {"metric": RR}, "scope": SCOPE},
                  headers={"X-Decision-Layer-Client": "mcp"}).json()
-    assert c.get(f"/runs/{mcp['run_id']}").json()["origin"] == "mcp"
-    assert c.get(f"/runs/{mcp['run_id']}").json()["plan"]["question"] == "Why did returns change?"
+    assert mcp["error"]["code"] == "ANALYSIS_CONTRACT_REQUIRED"
+    assert len(c.get("/runs").json()) == 2
     candidate = c.get(f"/runs/{adhoc['run_id']}/recipe-candidate", params={"indices": 0})
     assert candidate.status_code == 200, candidate.json()
     assert candidate.json()["recipe"]["status"] == "draft"

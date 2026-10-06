@@ -126,7 +126,9 @@ async def test_mcp_wait_for_run(monkeypatch):
 
     states = iter([
         {"id": "r", "running": {"kind": "adhoc"}, "error": None, "steps": []},
-        {"id": "r", "running": None, "error": None, "steps": [{"result": {"status": "success", "provenance": {"queries": []}}}]},
+        {"id": "r", "status": "open", "plan": {"question": "Compare groups"}, "caller": {}, "running": None, "error": None,
+         "steps": [{"step": {"id": "step_1", "method": "query.drilldown", "purpose": "Compare groups", "bindings": {}, "params": {}},
+                    "result": {"status": "success", "provenance": {"queries": []}}}]},
     ])
 
     async def fake_call(method, path, **kw):
@@ -137,4 +139,6 @@ async def test_mcp_wait_for_run(monkeypatch):
 
     monkeypatch.setattr(server, "_call", fake_call)
     monkeypatch.setattr(server.asyncio, "sleep", no_sleep)
-    assert (await server.wait_for_run("r"))["status"] == "success"
+    result = await server.wait_for_run("r")
+    assert result["status"] == "open" and result["steps"][0]["result"]["status"] == "success"
+    assert result["next"] == {"tools": ["run_step", "complete_run"], "run_id": "r"}

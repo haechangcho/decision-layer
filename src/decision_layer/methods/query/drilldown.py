@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...core.models import Artifact, MethodManifest, ParamSpec, RoleSpec
+from ...core.models import Artifact, InputSourcePolicy, MethodManifest, ParamSpec, RoleSpec, SelectionOutput
 from ...validation import builtin as v
 from ..base import Method, MethodOutput, registry
 from ..context import ExecutionContext, Refused
@@ -34,34 +34,36 @@ NEXT_CANDIDATES = 3
 
 class Drilldown(Method):
     manifest = MethodManifest(
-        name="query.drilldown", version="2.0.0", kind="query",
+        name="query.drilldown", version="2.0.0", kind="query", label="Break down by dimension",
         description=("Breaks a metric down by one dimension to see which values are high or low. drill_path carries the "
                      "values picked at earlier levels as filters, so calls chain down level by level; pass one of the "
                      "result's next_candidates as the next call's drill_path. With two periods (current and comparison, "
                      "or vs_previous) it shows which groups made the change, and whether the overall change is significant."),
         roles={
-            "metric": RoleSpec(kind="measure", description="Metric to break down"),
-            "dimensions": RoleSpec(kind="dimension", multiple=True,
+            "metric": RoleSpec(kind="measure", label="Analysis metric", default_binding="primary_metric", description="Metric to break down"),
+            "dimensions": RoleSpec(kind="dimension", multiple=True, label="Break down by", default_binding="preferred_dimensions", editor_parameter="next_dimension",
                                    description="Dimensions in drill order (upper → lower); ones already in drill_path are skipped"),
         },
         parameters={
-            "drill_path": ParamSpec(type="drill_path", default=[],
+            "drill_path": ParamSpec(type="drill_path", default=[], label="Analysis scope", meaning="analysis_scope", ui_group="hidden",
+                                    source_policy=InputSourcePolicy(allowed=["literal", "input", "step"], default="previous_result", project="path"),
                                     description="Values picked at earlier levels [{member, value}, …]"),
-            "next_dimension": ParamSpec(type="string", description="Dimension for this level (default: the first unused one in dimensions)"),
-            "rank_by": ParamSpec(type="enum", enum=["value", "vs_rest", "count"], default="value",
+            "next_dimension": ParamSpec(type="string", label="Dimension for this step", semantic_kind="dimension", semantic_role="dimensions", ui_group="hidden", description="Dimension for this level (default: the first unused one in dimensions)"),
+            "rank_by": ParamSpec(type="enum", enum=["value", "vs_rest", "count"], default="value", label="Selection criterion", ui_group="hidden",
                                  description="Rank by metric value, difference from the rest, or count"),
-            "direction": ParamSpec(type="enum", enum=["desc", "asc"], default="desc",
+            "direction": ParamSpec(type="enum", enum=["desc", "asc"], default="desc", label="Selection order", ui_group="hidden",
                                    description="desc = highest first, asc = lowest first"),
-            "top_n": ParamSpec(type="integer", default=10, minimum=1, maximum=MAX_GROUPS, description="Groups to show"),
-            "min_count": ParamSpec(type="integer", default=30, minimum=1,
+            "top_n": ParamSpec(type="integer", default=10, minimum=1, maximum=MAX_GROUPS, ui_group="hidden", description="Groups to show"),
+            "min_count": ParamSpec(type="integer", default=30, minimum=1, ui_group="hidden",
                                    description="Groups below this count are left out of the ranking and next candidates"),
-            "current": ParamSpec(type="date_range", description="Current period for period mode. Defaults to the scope's period"),
-            "comparison": ParamSpec(type="date_range", description="Comparison period (turns on period mode)"),
+            "current": ParamSpec(type="date_range", label="Fixed analysis period", meaning="period", ui_group="hidden", description="Current period for period mode. Defaults to the scope's period"),
+            "comparison": ParamSpec(type="date_range", label="Fixed comparison period", meaning="period", ui_group="hidden", description="Comparison period (turns on period mode)"),
             "vs_previous": ParamSpec(type="boolean", default=False,
-                                     description="Period mode against the equal-length period right before", ui_group="basic"),
+                                     label="Compare with previous period", meaning="period", description="Period mode against the equal-length period right before", ui_group="options"),
         },
         execution="semantic_pushdown", interpretation="descriptive",
         outputs=["breakdown_table", "estimate", "interval"],
+        selection_outputs=["ranked_groups"],
     )
 
     async def run(self, ctx: ExecutionContext, bindings: dict[str, Any], params: dict[str, Any]) -> MethodOutput:
@@ -115,6 +117,9 @@ class Drilldown(Method):
             key = "vs_overall"
         eligible.sort(key=lambda g: g.get(key) if g.get(key) is not None else float("-inf"),
                       reverse=params["direction"] == "desc")
+        selection = SelectionOutput(complete=len(rows) < MAX_GROUPS, rank_by=key, direction=params["direction"],
+                                    candidates=[{"path": [*path, {"member": dim, "value": g["value"]}],
+                                                 "score": g[key]} for g in eligible if g.get(key) is not None])
         small = [g for g in groups if not g["eligible"]]
         for i, g in enumerate(eligible, 1):
             g["rank"] = i
@@ -154,7 +159,7 @@ class Drilldown(Method):
                 "shown_groups": min(top_n, len(eligible)), "excluded_small": len(small),
                 "next_dimension": remaining[0] if remaining else None, "next_candidates": candidates,
             }),
-            artifacts=artifacts, warnings=warnings,
+            artifacts=artifacts, warnings=warnings, selections={"ranked_groups": selection},
             validation=[v.non_empty(len(rows), _("groups")),
                         v.complete_period(ctx.scope.date_range),
                         *([v.min_sample(total_n, min_count, _("sample in this population"))] if count else []),

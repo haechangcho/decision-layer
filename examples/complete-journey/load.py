@@ -74,6 +74,8 @@ def load():
                 if cursor.fetchone()[0] != count:
                     raise ValueError(f"Existing table changed: {table}")
             cursor.execute(Path(__file__).with_name("calendar.sql").read_text())
+            cursor.execute(Path(__file__).with_name("campaign_outcomes.sql").read_text())
+            cursor.execute("GRANT SELECT ON journey.campaign_household_outcomes TO journey_reader")
             print("Pinned Complete Journey import already present.", flush=True)
             return
         cursor.execute("CREATE SCHEMA journey")
@@ -105,6 +107,7 @@ def load():
         cursor.execute("CREATE TABLE journey.household AS SELECT DISTINCT household_key FROM journey.transaction_data")
         cursor.execute("CREATE UNIQUE INDEX household_key ON journey.household(household_key)")
         cursor.execute(Path(__file__).with_name("calendar.sql").read_text())
+        cursor.execute(Path(__file__).with_name("campaign_outcomes.sql").read_text())
         cursor.execute("CREATE ROLE journey_reader LOGIN PASSWORD 'local-read-only'")
         cursor.execute("GRANT USAGE ON SCHEMA journey TO journey_reader")
         cursor.execute("GRANT SELECT ON ALL TABLES IN SCHEMA journey TO journey_reader")

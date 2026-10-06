@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from ..core.errors import DecisionLayerError, UnknownSemanticObject
+from ..core.periods import ExecutionPolicy, PeriodChoice
 from ..core.models import (
     Dataset, DatasetSpec, Filter, QueryProvenance, SemanticCatalog, SemanticObject, TimeScope,
 )
@@ -56,6 +57,7 @@ class ExecutionContext:
     scope: Scope = field(default_factory=Scope)
     max_queries: int = 30
     queries: list[QueryProvenance] = field(default_factory=list)
+    execution_policy: ExecutionPolicy | None = None
 
     def obj(self, ref: str) -> SemanticObject:
         o = self.catalog.get(ref)
@@ -66,8 +68,17 @@ class ExecutionContext:
     async def dataset(self, spec: DatasetSpec, *, with_sql: bool = False) -> Dataset:
         if len(self.queries) >= self.max_queries:
             raise QueryBudgetExceeded(_("The query budget ({limit}) is used up", limit=self.max_queries))
+        if self.execution_policy:
+            dates = spec.time.date_range if spec.time else None
+            if self.scope.date_range and dates is None:
+                raise Refused(_("This query did not apply the selected period. Check the Method's date handling."))
+            issue = self.execution_policy.issue(PeriodChoice(mode="range", date_range=dates) if dates else PeriodChoice(mode="all"))
+            if issue:
+                raise Refused(_(issue))
         ds = await self.provider.execute(spec, self.credentials, with_sql=with_sql)
         self.queries.extend(ds.provenance)
+        if self.execution_policy and len(ds.rows) > self.execution_policy.max_result_rows:
+            raise Refused(_("The result exceeds the server row limit. Narrow the period or filters."))
         return ds
 
     # ── scope helpers ──────────────────────────────────────────────────────

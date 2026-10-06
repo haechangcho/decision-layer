@@ -876,3 +876,130 @@ No customer project files, warehouse credentials or Decision Layer annotations a
 Tokens retain the existing per-request model: Web keeps its token in session storage and MCP uses `DL_TOKEN`. The provider accepts the credential before its digest is used as a Run owner; a shared token is a shared identity. This does not implement employee login or authentik. Source endpoint and environment settings may be saved or fixed through provider-scoped environment variables. A request binds both source and environment before execution, including background work.
 
 Reference: https://docs.getdbt.com/docs/dbt-apis/sl-graphql
+
+---
+
+## ADR-059 — MCP execution requires a question-scoped Run
+
+**Status:** Accepted (2026-10-06). Refines ADR-032, ADR-054 and ADR-055 for MCP execution.
+
+MCP exposes one Method execution tool, `run_step`, requiring an existing Run ID and a step purpose. The independent `run_method` tool is removed. Recipe-free analysis uses `start_analysis`; Recipe analysis uses `start_run`. The Method-only profile hides Recipe tools but retains analysis start, step, polling and completion. The canonical engine rejects MCP-origin ad hoc execution before creating a record, blank original questions and steps without purposes. Explicit duplicate step IDs are rejected; absent IDs are assigned in recorded execution order. These are engine rules shared by REST and MCP, not instructions that a model may ignore. Client-origin labels remain informational, not a security boundary.
+
+MCP Runs remain open after Method or pipeline execution. Completion requires recorded steps, a nonblank answer and nonblank findings with existing step-index links. The engine does not verify narrative truth or whether a caller copied the original question faithfully. Forgotten completion leaves persisted evidence in an open Run, rather than manufacturing a completed answer. Web shows conclusion waiting, permits the owner to record a conclusion, and only then permits one-click registration of the complete procedure. Successful steps from an unfinished analysis may still be reviewed as a Recipe draft.
+
+Existing historical Runs are preserved, not grouped heuristically. Python/Web/REST standalone Method execution remains supported; the revised MCP lifecycle intentionally breaks clients that cached the removed tool and requires a fresh tool discovery after restart. A chat host does not supply a trustworthy user-turn identifier, so distinct explicit start calls are distinct Runs; the product never merges by text similarity, elapsed time or a shared service identity. Method choice and interpretation still require judgment, but Method execution cannot implicitly create a new Run for each step.
+
+---
+
+## ADR-060 — Recipes preserve selection rules, Runs preserve resolved evidence
+
+**Status:** Accepted (2026-10-06). Supersedes ADR-050's unconditional publication of resolved Run settings; extends ADR-039 and ADR-041.
+
+A reusable procedure distinguishes literals, declared typed runtime inputs, and typed selections from an earlier successful step. A parameter source specifies an earlier step ID, a manifest-declared `ranked_groups` output, `first` selection, and a projection (`path`, `condition`, or `parents`). These projections separate a nested branch from a peer-comparison subject and its peer conditions. No source can execute code, SQL, Jinja, or an arbitrary JSON selector. Existing explicit `$scope` and `$steps` expressions remain compatible; they are not proofs of complete highest-group selection.
+
+Methods opt into named selection outputs. The ordinary drilldown exports eligible candidates in ranking order at unrounded precision, independent of displayed `top_n` and whether another drill dimension exists. The conservative group-query cap marks the population incomplete. Missing, unsuccessful, empty, incomplete, or invalid outputs cannot select a group. A tied leading score requests explicit input without issuing downstream queries. Period-contribution drilldowns do not yet export this output, so unsupported selections fail closed. There is no last-Run fallback.
+
+The canonical engine records the requested step separately from the resolved step, with source, projection, selected score, ranking direction and completeness evidence. Runtime inputs are declared by the Recipe, type-checked before execution, and snapshotted into Run scope. All surfaces use this resolver and revalidate resolved semantic references with current provider credentials. This is a bounded sequential procedure contract, not a general workflow DAG.
+
+Run promotion preserves recorded rules and stable step IDs. A selected subset missing dependencies is rejected. Old pipeline Runs may recover rules from their immutable Recipe snapshot; old exploratory literals are never assigned inferred dependencies by matching values. Selection-sensitive fixed groups and periods require review. The Web presents the observed value alongside a fixed/previous-result/runtime choice; canonical registration requires acknowledgment when review notes exist. An explicit literal remains valid after review. Run periods and extra shared filters are execution context and are not silently promoted into permanent defaults or required filters. Already-authored Recipe required filters, input schemas and parameter policies are retained. Branch selections stay in step parameters so an overall comparison retains the global execution scope.
+
+Existing Runs and Recipe versions are immutable. A known literal procedure may be rewritten as a reviewed newer Recipe version using explicit user intent, never a repository-wide heuristic migration. Repeated registration is idempotent only for the same reviewed specification; divergent changes require versioned editing.
+
+---
+
+## ADR-061 — One-click Run registration defaults to runtime selections
+
+**Status:** Accepted (2026-10-06). Supersedes ADR-060's mandatory promotion review and literal-copy default for direct registration.
+
+Registering a completed Run is one explicit action, without a configuration dialog. Recorded typed rules and declared runtime inputs are retained. Unprotected literal group parameters become runtime selections, not remembered winners. This is a policy for constructing a new procedure, not evidence that the historical analyst intended a particular dependency.
+
+The bounded promotion policy connects matching semantic dimension paths to the most recent earlier declared selection output. A peer subject uses the selected condition; its peer population uses that subject's parent path when the declared dimensions match. Global Run filters are never replaced with branch conditions. No winner-value matching, natural-language inference, provider-specific business names or server LLM are involved. Ordinary historical drilldowns may use their registered Method's native dimension/path contract; unsupported outputs are not guessed. Ranking follows the upstream step's configured criterion; future execution still rejects incomplete, empty or tied selections.
+
+When an earlier output cannot supply a group, the new Recipe declares a required typed runtime input without a literal default. MCP callers supply it when starting the Recipe; Web exposes the same input contract. Registration therefore does not silently freeze a target or invent an analytical relationship. Explicit fixed Method policies remain fixed; custom configurations are available through the optional editor. Other analytical parameters retain their recorded settings.
+
+Default registration returns an already-published Recipe from the same Run without overwriting later versions. Custom-spec changes still use explicit versioned editing. Existing Runs and Recipe files are not migrated or mutated.
+
+---
+
+## ADR-062 — Declarative Method authoring inputs
+
+**Status:** Accepted (2026-10-06). Extends ADR-060/061; no custom frontend plugin runtime.
+
+Method manifests declare input labels, semantic reference kinds, visibility, display groups and allowed source policies. The shared editor renders these contracts; contributors do not implement React panels. Canonical `configure_step`, exposed through `POST /recipes:configure-step`, constructs explicit Recipe bindings and typed sources. Previous-result defaults use the most recent earlier declared ranked-group output; peer-population defaults follow another declared input's parent projection. Missing required targets become declared runtime inputs without remembered defaults. These rules are deterministic authoring defaults, not inferred historical intent or an LLM planner. The execution resolver still rejects incomplete, empty and tied selections.
+
+Description and primary metric are the general Recipe settings. Source summaries appear before source controls. Per-step analytical choices remain editable; Method-wide policies, budgets and input-schema authoring are available in the separate code view. Existing explicit parameters and policies are preserved. New metadata is optional for older contributions, and does not change numerical Method versions or provider semantics.
+
+---
+
+## ADR-063 — Required-input editor; execution conditions on demand
+
+**Status:** Accepted (2026-10-06). Refines ADR-062's disclosure model.
+
+The ordinary step editor displays required semantic roles and explicitly basic parameters, not every engine option. Drilldown ranking, direction and branch-source controls move to the complete code view. Branch context remains a read-only explanation of the actual stored rule; it is not another required form. Optional role catalogs and a generic advanced-options panel are removed. Metric overrides remain an explicit action. Hidden, fixed and nondefault values are preserved rather than silently replaced or migrated.
+
+Result checking is one action. Only when execution needs a period or declared runtime inputs does it reveal those conditions. A Method declares `requires_period`; period-dependent boolean parameters use their declared meaning. The editor does not choose a period based on Method-name branches or introduce a Web LLM. Canonical preview, validation, provenance and selection refusal rules remain unchanged. Providers still own semantic meaning; simplifying authoring never means removing engine safety checks.
+
+A multi-value semantic role may declare an `editor_parameter` for its effective scalar choice. The manifest validator requires a matching string parameter, role and semantic kind. Drilldown uses this to show its current dimension without asking users to edit the historical dimension list; existing lists and selectors are preserved until explicitly changed.
+
+---
+
+## ADR-064 — Explicit periods and server-owned execution policy
+
+**Status:** Accepted (2026-10-06). Extends ADR-021/039/042/060 and refines ADR-063.
+
+An omitted or null period is unresolved, not implicit all-data authorization. Canonical scope accepts an explicit date range, all-period choice, or bounded relative rule. Existing non-null `date_range` requests remain valid. Recipe and organization defaults resolve before querying; null no longer clears them. Explicit choices override defaults, and conflicting declarations are rejected. Relative rules resolve against execution time in their declared timezone; no sample calendar or data-end inference exists in the engine. Requested rule, actual dates, caller-reported source and server policy revision are recorded separately.
+
+The common engine checks periods before analysis/freshness queries. Waiting Runs store pending intent, not fake result steps. Owner-only revision-checked scope submission resumes the same pending execution. Scope changes after execution or on an active job require a new Run. Web asks inline on demand, MCP uses `set_run_scope`, and all interfaces share the same contract. Caller source labels do not prove user approval. No server LLM or approval bypass is introduced.
+
+`DL_EXECUTION_POLICY` controls explicit all-period allowance, period length, application deadlines, query counts and result row counts. General installs disallow all-period execution by default; the bundled example explicitly opts in. Dataset requests are checked again so a Method cannot silently omit the chosen period or bypass range limits with its own period parameters. These are execution boundaries, not warehouse scan-cost guarantees. App timeouts do not claim warehouse cancellation; provider-native estimate/cancel and role-based approvals remain follow-up work. MVP concurrency is one API process, not distributed workers.
+
+Old Runs remain unchanged and missing period provenance is shown as unknown. Run-to-Recipe registration preserves already-declared Recipe period rules, never silently copying exploratory execution dates into defaults. This intentionally changes legacy null-period execution to a waiting request and must be documented for API/MCP callers.
+
+---
+
+## ADR-065 — Verified primary-unit averages in CEM
+
+**Status:** Accepted (2026-10-06). Extends ADR-005/020/028/057; does not weaken unknown-sample refusal.
+
+`causal.cem@1.1.0` accepts an optional explicit `sample_count` for provider-native average outcomes.
+The average and count must share a provider-declared, queryable primary key. The count must be a native
+row count, not a guessed sibling sum or distinct count. The Method requests bounded aggregate rows grouped
+by that key and conditions, then verifies one counted row and one finite non-null outcome per unique unit.
+Duplicate units, nullable outcomes, overlapping treatment groups and potentially truncated results refuse.
+Matching uses unit means and target-composition weights. Continuous-outcome confidence intervals and
+significance are not implemented: the result explicitly records `statistical_judgement: not_tested` and
+never uses the existing proportion test for an average, even when values happen to lie in 0..100.
+This minor version changes the installed Method version; historical Runs are untouched and older pinned
+Recipes must be deliberately reviewed before upgrading.
+
+The local MetricFlow adapter preserves native aggregation declarations from the deployed dbt-generated
+semantic artifact before its parser rewrites count to sum(CASE ...). It exposes a primary key only when
+a native primary entity has an equivalent, engine-queryable dimension. No Decision Layer annotations or
+SQL-expression guessing are added. Hosted dbt GraphQL metadata currently does not establish average
+aggregation/primary-unit/count semantics, so this path remains unavailable there until native metadata
+can verify those contracts. Publishing the dbt example model alone is not a claim of hosted API support.
+
+The Complete Journey example adds a shared PostgreSQL materialized campaign-household outcome model,
+consumed by Cube and dbt, refreshed by the existing importer. Campaign windows, population eligibility,
+pre-treatment bands and zero-purchase definitions belong to that example model, never to Method code.
+It includes previously active households, dataset-complete 30-day windows and an other-campaign exposure
+diagnostic. Select one campaign for a household comparison; multiple campaigns repeat households and
+are not independent household observations. Global date coverage does not prove individual follow-up,
+target-list membership is not actual receipt, and non-targeted does not mean unexposed to all marketing.
+Observed matching remains an association, not known causal ground truth. No scheduler is introduced.
+
+---
+
+## ADR-066 — Save calculated procedures independently of analytical validity
+
+**Status:** Accepted (2026-10-06). Extends ADR-060/061; does not change execution refusal.
+
+Run-to-Recipe conversion accepts successful steps and refused steps with a primary analytical
+output and an explicit failed validation. Such steps completed calculation but cannot support
+a valid conclusion for that population. Their procedure is reusable on other execution contexts.
+Needs-input, failed and refusals without this calculated evidence still require editing or exclusion.
+The Web and canonical conversion enforce the same distinction, including refusal-only Runs.
+Method versions, semantic validation, parameters, thresholds and result statuses are unchanged.
+The candidate explains that registration is not result approval. A pipeline still stops on refusal;
+later exploratory steps are not inferred as conditional fallback branches. No new workflow engine
+or remembered Run filter defaults are introduced.

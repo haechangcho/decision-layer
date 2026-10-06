@@ -1,0 +1,74 @@
+# Campaign Household Comparison
+
+The importer builds `journey.campaign_household_outcomes` once and refreshes it on subsequent imports.
+Cube reads its eligible rows; dbt's `campaign_household_outcomes` model reads the same rows. The source
+tables are unchanged. Each observation is one campaign and household, not a transaction or coupon redemption.
+
+## Definitions
+
+- Target: household present in that campaign's deduplicated target list. Control: absent from that list.
+- Prior window: `[campaign start - 30 days, campaign start)`.
+- Subsequent window: `[campaign start, campaign start + 30 days)`.
+- Eligible: both windows fit the dataset's date bounds and the household purchased at least once in the prior window.
+- Outcome: subsequent mean household sales; eligible non-purchasers contribute zero.
+- Prior amount bands: below 50, 50 to below 150, 150 to below 300, 300 to below 600, 600 or more dollars.
+- Prior frequency bands: 1-2, 3-5, 6-10, 11+ baskets. Raw model also retains zero-history rows as ineligible.
+- Household classifications remain publisher codes; missing values stay null and are excluded if used for matching.
+- Other overlapping targeted campaigns: distinct other campaign assignments overlapping the combined prior/subsequent window.
+
+Selecting a date range selects **campaign start dates**; it does not crop the relative purchase windows.
+Select one campaign for a household comparison. Combining campaigns repeats households; no independence
+or clustered uncertainty estimate is claimed. The 30-day definition and bands are fixed sample model
+definitions, not global defaults or arbitrary runtime parameters. Change and version the model to use another horizon.
+
+Dataset bounds are not proof of individual follow-up. The household universe is derived from purchasers,
+not a full eligible customer registry. Target assignment is not random, actual receipt timestamps are missing,
+and controls can receive other campaigns. No campaign causal ground truth is supplied.
+
+## Execute
+
+Use `causal.cem`, a campaign filter and an explicit period containing its start date. Bind:
+
+| Role | Cube member | MetricFlow member |
+| --- | --- | --- |
+| metric | campaign_household_outcomes.post_sales_mean | campaign_post_sales_mean |
+| sample_count | campaign_household_outcomes.count | campaign_household_count |
+| treatment | campaign_household_outcomes.is_targeted | campaign_household__is_targeted |
+| conditions | pre_sales_band, pre_frequency_band (same cube) | campaign_household__pre_sales_band, campaign_household__pre_frequency_band |
+
+Use target `[true]` and comparison `[false]`. The Method verifies one non-null outcome and one counted row
+per provider-declared primary unit. Results show raw/matched means and retention, **not continuous-outcome
+confidence intervals or significance**. Add demographic conditions as a separate step; default overlap checks
+may refuse because of missing values and sparse shared strata. Do not lower thresholds just to obtain a result.
+
+The local MetricFlow example exposes the native primary key and count declaration. Hosted dbt GraphQL
+metadata currently cannot verify this contract, so the product adapter still refuses rather than guessing.
+
+## Existing Volumes
+
+Cube, from this example directory:
+
+```bash
+docker compose build import api
+docker compose run --rm --no-deps import
+docker compose up -d --no-deps --wait cube api
+```
+
+dbt, from this example directory:
+
+```bash
+docker compose -f compose.yaml -f compose.dbt.yaml build import dbt-setup metricflow api
+docker compose -f compose.yaml -f compose.dbt.yaml run --rm --no-deps import
+docker compose -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup
+docker compose -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup dbt test --target setup --project-dir /project --profiles-dir /project
+docker compose -f compose.yaml -f compose.dbt.yaml up -d --no-deps --wait metricflow api
+```
+
+No volume deletion or source re-download is required. Refresh takes an exclusive lock on this sample
+materialized view; do not refresh during active analyses. For a fresh install, the normal startup commands
+already create it. CEM is now version 1.1.0: review older pinned Recipes explicitly; old Runs are unchanged.
+
+Opt-in boundary and cross-provider tests are in `tests/provider/test_campaign_outcomes_live.py`.
+Set `DL_JOURNEY_DATABASE_URL` for isolated SQL tests; also set `DL_JOURNEY_CUBE_URL`,
+`DL_JOURNEY_CUBE_SECRET` and `DL_JOURNEY_METRICFLOW_URL` for result parity tests. They require both
+providers running against the same imported dataset, but do not switch the API's active source.

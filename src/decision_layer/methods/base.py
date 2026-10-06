@@ -16,7 +16,7 @@ from typing import Any
 from .. import __version__
 from ..core.errors import DecisionLayerError
 from ..core.ids import method_ref
-from ..core.models import Artifact, MethodManifest, Provenance, Result, ValidationResult
+from ..core.models import Artifact, MethodManifest, ParamSpec, Provenance, Result, SelectionOutput, ValidationResult
 from .context import ExecutionContext, NeedsInput, QueryBudgetExceeded, Refused
 from ..i18n import _
 
@@ -43,12 +43,13 @@ class MethodOutput:
 
     def __init__(self, primary: Artifact | None = None, artifacts: list[Artifact] | None = None,
                  warnings: list[str] | None = None, validation: list[ValidationResult] | None = None,
-                 runtime: dict[str, str] | None = None) -> None:
+                 runtime: dict[str, str] | None = None, selections: dict[str, SelectionOutput] | None = None) -> None:
         self.primary = primary
         self.artifacts = artifacts or []
         self.warnings = warnings or []
         self.validation = validation or []
         self.runtime = runtime or {}
+        self.selections = selections or {}
 
 
 class MethodRegistry:
@@ -75,8 +76,12 @@ class MethodRegistry:
         for key, spec in method.manifest.parameters.items():
             value = params.get(key)
             parameter_refs = [item["member"] for item in value or []] if spec.type == "drill_path" else (value or []) if spec.type == "ref_list" else []
+            if spec.semantic_kind and spec.type == "string" and value:
+                parameter_refs = [value]
             for ref in parameter_refs:
-                ctx.obj(ref)
+                obj = ctx.obj(ref)
+                if spec.semantic_kind and obj.kind != spec.semantic_kind and not (spec.semantic_kind == "dimension" and obj.kind == "time_dimension"):
+                    raise InvalidBinding(f"Parameter '{key}' requires {spec.semantic_kind}; got {obj.kind}")
                 if ref not in refs:
                     refs.append(ref)
         first_query = len(ctx.queries)
@@ -92,6 +97,8 @@ class MethodRegistry:
         except (Refused, QueryBudgetExceeded) as e:
             return Result(status="refused", warnings=[e.message], provenance=provenance())
         failed = [v for v in out.validation if v.status == "fail"]
+        if set(out.selections) - set(method.manifest.selection_outputs):
+            raise InvalidBinding("The Method returned an undeclared selection output.")
         evidence = provenance()
         evidence.runtime.update(out.runtime)
         evidence.runtime["decision-layer"] = __version__
@@ -99,7 +106,7 @@ class MethodRegistry:
             status="refused" if failed else "success",
             interpretation=method.manifest.interpretation,
             primary=out.primary, artifacts=out.artifacts, warnings=out.warnings,
-            validation=out.validation, provenance=evidence,
+            validation=out.validation, provenance=evidence, selections=out.selections,
         )
 
     # ── checks ────────────────────────────────────────────────────────────
@@ -108,7 +115,10 @@ class MethodRegistry:
 
     @staticmethod
     def _params(method: Method, params: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
-        spec = method.manifest.parameters
+        return MethodRegistry.input_values(method.manifest.parameters, params, partial=partial)
+
+    @staticmethod
+    def input_values(spec: dict[str, ParamSpec], params: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
         unknown = set(params) - set(spec)
         if unknown:
             raise InvalidBinding(_("Unknown parameters: {names}", names=sorted(unknown)), allowed=sorted(spec))

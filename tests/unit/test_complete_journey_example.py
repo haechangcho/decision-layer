@@ -24,7 +24,7 @@ def test_source_and_semantic_boundaries():
     assert len(loader.HEADERS) == 8
     assert "classification_1" in loader.HEADERS["hh_demographic"]
     cubes = [cube for path in (FOLDER / "cube/model/cubes").glob("*.yml") for cube in yaml.safe_load(path.read_text())["cubes"]]
-    assert len(cubes) == len({cube["name"] for cube in cubes}) == 6
+    assert len(cubes) == len({cube["name"] for cube in cubes}) == 7
     transactions = next(cube for cube in cubes if cube["name"] == "transaction")
     assert {join["name"] for join in transactions["joins"]} == {"product", "household"}
     time = next(item for item in transactions["dimensions"] if item["name"] == "analysis_date")
@@ -34,6 +34,10 @@ def test_source_and_semantic_boundaries():
                for member in [*cube.get("dimensions", []), *cube.get("measures", [])])
     campaign = next(cube for cube in cubes if cube["name"] == "campaign")
     assert {item["sql"] for item in campaign["dimensions"] if item["type"] == "time"} == {"start_date", "end_date"}
+    outcomes = next(cube for cube in cubes if cube["name"] == "campaign_household_outcomes")
+    assert "WHERE eligible" in outcomes["sql"]
+    assert next(m for m in outcomes["measures"] if m["name"] == "post_sales_mean")["type"] == "avg"
+    assert next(d for d in outcomes["dimensions"] if d.get("primary_key"))["name"] == "observation_id"
 
 
 def test_dbt_example_needs_no_decision_layer_annotations():

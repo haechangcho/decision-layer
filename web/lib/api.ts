@@ -31,6 +31,10 @@ export interface SemanticCatalog {
 }
 
 export interface RoleSpec {
+  label?: string;
+  default_binding?: "primary_metric" | "preferred_dimensions" | null;
+  editor_parameter?: string | null;
+  ui_group?: "basic" | "options";
   kind: Kind | "entity";
   metric_kinds?: string[] | null;
   required: boolean;
@@ -46,10 +50,17 @@ export interface ParamSpec {
   minimum?: number | null;
   maximum?: number | null;
   description: string;
-  ui_group?: "basic" | "advanced";
+  ui_group?: "basic" | "advanced" | "options" | "hidden";
+  label?: string;
+  meaning?: "analysis_scope" | "comparison_subject" | "comparison_population" | "period" | "option";
+  semantic_kind?: Kind | null;
+  semantic_role?: string | null;
+  source_policy?: { allowed: ("literal" | "input" | "step")[]; default: "literal" | "previous_result" | "parameter_parents" | "runtime_input"; project: "path" | "condition" | "parents"; parameter?: string | null } | null;
+  visible_when?: { parameter: string; equals: string | boolean | number } | null;
 }
 
 export interface MethodManifest {
+  label?: string;
   name: string;
   version: string;
   kind: string;
@@ -59,6 +70,8 @@ export interface MethodManifest {
   execution: string;
   interpretation: string;
   outputs: string[];
+  selection_outputs?: string[];
+  requires_period?: boolean;
 }
 
 export interface Artifact { type: string; title?: string | null; data: unknown }
@@ -74,6 +87,7 @@ export interface Result {
   needs_input?: { question: string; field: string; candidates: { value: unknown; label: string; count?: number }[] } | null;
   provenance: { method?: string | null; recipe?: string | null; runtime?: Record<string, string>; semantic_refs: string[]; queries: { provider?: string; instance?: string; native_query: unknown; compiled_sql?: unknown; rows: number; elapsed_ms: number }[] };
   run_id?: string | null;
+  selections?: Record<string, { complete: boolean; rank_by: string; direction: string; candidates: { path: { member: string; value: unknown }[]; score: number }[] }>;
 }
 
 export interface PlanStep { id?: string | null; method: string; method_version?: string | null; purpose?: string | null; bindings: Record<string, unknown>; params: Record<string, unknown> }
@@ -84,7 +98,8 @@ export interface Recipe {
   description: string;
   status?: "draft" | "published";
   origin_runs?: string[];
-  default_scope?: { date_range?: [string, string] | null; time_dimension?: string | null } | null;
+  default_scope?: { date_range?: [string, string] | null; time_dimension?: string | null; period?: PeriodChoice | null } | null;
+  inputs?: Record<string, ParamSpec>;
   routing: { use_for: string[]; do_not_use_for: string[] };
   semantic_scope: { primary_metric: string; related_metrics: string[]; preferred_dimensions: string[]; required_filters: unknown[] };
   mode: "pipeline" | "investigation";
@@ -119,15 +134,20 @@ export interface Run {
   id: string;
   origin?: "unknown" | "python" | "api" | "web" | "mcp";
   preview?: boolean;
-  plan: { question?: string | null; scope: Scope; recipe?: string | null };
+  plan: { question?: string | null; scope: Scope; recipe?: string | null; resolved?: Record<string, string> };
   recipe_snapshot?: Recipe | null;
   steps: { step: PlanStep; method: string; result: Result; started_at: string; finished_at: string;
+    requested_step?: PlanStep | null; input_resolutions?: { field: string; source: Record<string, unknown>; resolved: unknown }[];
     parameter_sources?: Record<string, "method_default" | "recipe" | "recipe_fixed" | "request">; author?: ExecutionAuthor | null }[];
   caller: { subject?: string | null; groups: string[] };
   shared_with: string[];
   status: "open" | "completed" | "failed";
   running?: { kind: string; method?: string | null; started_at: string } | null;
   error?: { code: string; message: string } | null;
+  needs_input?: { field: string; reason_code?: string; question: string; allow_all?: boolean; max_period_days?: number } | null;
+  pending_execution?: { kind: string; step?: PlanStep; step_index?: number } | null;
+  scope_revision?: number;
+  scope_resolution?: { source?: string; source_trust?: string; requested?: PeriodChoice; resolved_at?: string; policy_revision?: string };
   validation: Validation[];
   summary?: string | null;
   conclusion?: { source?: "caller" | "execution"; answer: string; findings: { text: string; step_indices: number[] }[]; limitations: string[] } | null;
@@ -144,7 +164,8 @@ export interface ExecutionAuthor {
   model_source?: "client_reported" | "runner";
 }
 
-export interface Scope { date_range?: [string, string] | null; time_dimension?: string | null; filters?: unknown[] }
+export interface PeriodChoice { mode: "range" | "all" | "relative" | "unresolved"; date_range?: [string, string] | null; preset?: "last_complete_month" | "last_n_days" | null; days?: number | null; timezone?: string; source?: "caller" | "conversation" | "ai_proposal" }
+export interface Scope { period?: PeriodChoice | null; date_range?: [string, string] | null; time_dimension?: string | null; filters?: unknown[]; inputs?: Record<string, unknown> }
 
 export interface SourceConfig {
   provider: "cube" | "dbt" | "metricflow";

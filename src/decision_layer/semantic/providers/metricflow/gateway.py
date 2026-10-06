@@ -8,7 +8,9 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from datetime import datetime, time as daytime
 import hmac
+import json
 import os
+from pathlib import Path
 import threading
 import time
 
@@ -40,6 +42,11 @@ class MetricFlowRuntime:
         from dbt_metricflow.cli.cli_configuration import CLIConfiguration
         self.config = CLIConfiguration()
         self.config.setup(configure_file_logging=False)
+        # The MetricFlow artifact parser rewrites native count into sum(CASE ...).
+        # Read aggregation declarations from the same dbt artifact, never reverse-engineer its SQL.
+        artifact = Path(self.config.dbt_project_metadata.project_path) / "target/semantic_manifest.json"
+        raw = json.loads(artifact.read_text())
+        self.native_aggregation_types = {m["name"]: m["agg"] for model in raw["semantic_models"] for m in model["measures"]}
         self.engine = self.config.mf
         self.instance = instance
         self.lock = threading.Lock()
@@ -52,6 +59,7 @@ class MetricFlowRuntime:
         objects = {}
         definitions = {m.name: m for m in manifest.metrics}
         measures = {m.name: m for model in manifest.semantic_models for m in model.measures}
+        measure_models = {m.name: model for model in manifest.semantic_models for m in model.measures}
         for item in self.engine.list_metrics():
             definition = definitions[item.name]
             raw = definition.dict()
@@ -67,8 +75,9 @@ class MetricFlowRuntime:
                     metadata={"native_name": name})
             kind = "other"
             input_measure = definition.type_params.measure
+            agg = None
             if input_measure and input_measure.name in measures:
-                agg = measures[input_measure.name].agg.value
+                agg = getattr(self, "native_aggregation_types", {}).get(input_measure.name, measures[input_measure.name].agg.value)
                 kind = {"sum": "additive", "count": "count", "count_distinct": "count", "average": "average"}.get(agg, "other")
             numerator, denominator = None, None
             if definition.type.value == "ratio":
@@ -76,13 +85,25 @@ class MetricFlowRuntime:
                 denominator = definition.type_params.denominator.name
                 kind = "ratio"
             count = denominator
-            if not count and input_measure and measures[input_measure.name].agg.value == "count":
+            if not count and input_measure and agg == "count":
                 count = item.name
+            entity = None
+            if input_measure and input_measure.name in measure_models:
+                model = measure_models[input_measure.name]
+                primary = [e for e in getattr(model, "entities", []) if e.type.value == "primary"]
+                if len(primary) == 1:
+                    key = primary[0]
+                    # Only expose a native primary key the engine actually offers as a dimension.
+                    candidates = [dim_ref(f"{key.name}__{d.name}") for d in model.dimensions
+                                  if (d.expr or d.name) == (key.expr or key.name)]
+                    keys = [r for r in candidates if r in dimensions]
+                    entity = keys[0] if len(keys) == 1 else None
             objects[ref(item.name)] = SemanticObject(ref=ref(item.name), kind="measure", data_type="number",
                 title=raw.get("label") or item.name.replace("_", " "), description=raw.get("description"),
                 metric_kind=kind,
                 ratio_parts=(ref(numerator), ref(denominator)) if numerator and denominator else None,
                 count_measure=ref(count) if count else None, dimension_refs=sorted(set(dimensions)),
+                entity=entity,
                 time_dimension=dim_ref("metric_time") if dim_ref("metric_time") in dimensions else None,
                 metadata={"native_name": item.name})
         return SemanticCatalog(provider="metricflow", instance=self.instance, objects=list(objects.values()))

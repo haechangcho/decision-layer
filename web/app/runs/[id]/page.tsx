@@ -11,6 +11,7 @@ import { RunGraph } from "@/components/run-graph";
 import { RunAnswer } from "@/components/run-answer";
 import { RunDelete } from "@/components/run-delete";
 import { RunResultChart } from "@/components/run-result-chart";
+import { RunPeriodInput, periodLabel } from "@/components/run-period-input";
 import { AuthorInfo, RunQueries, RunSettings, RunSources, readableValue } from "@/components/run-evidence";
 import { api, MethodManifest, Recipe, Result, Run } from "@/lib/api";
 import { useApi, useCatalog } from "@/lib/hooks";
@@ -44,12 +45,14 @@ export default function RunPage() {
   if (!run) return <div className={styles.page}><div className={styles.skeleton} /></div>;
   const recipe = run.recipe_snapshot;
   const current = open ?? run.steps.length - 1;
-  const lastStatus = run.steps.at(-1)?.result.status;
+  const lastStatus = run.needs_input ? "needs_input" : run.steps.at(-1)?.result.status;
   const stopped = run.status === "open" && !run.running && (lastStatus === "refused" || lastStatus === "needs_input");
-  const successfulSteps = run.steps.flatMap((step, index) => step.result.status === "success" ? [index] : []);
+  const reusableSteps = run.steps.flatMap((step, index) => step.result.status === "success" ||
+    step.result.status === "refused" && step.result.primary != null && step.result.validation.some(item => item.status === "fail") ? [index] : []);
+  const rejectedCalculations = reusableSteps.filter(index => run.steps[index].result.status === "refused").length;
   const candidateParams = new URLSearchParams({ from_run: run.id });
-  successfulSteps.forEach((index) => candidateParams.append("step", String(index)));
-  const canRegister = run.status === "completed" && !run.running && successfulSteps.length === run.steps.length && successfulSteps.length > 0;
+  reusableSteps.forEach((index) => candidateParams.append("step", String(index)));
+  const canRegister = run.status === "completed" && !run.running && reusableSteps.length === run.steps.length && reusableSteps.length > 0;
   async function registerRecipe() {
     setRegistering(true); setRegisterError("");
     try { setRegistered(await api<Recipe>(`/runs/${id}/recipe`, { body: {} })); }
@@ -64,8 +67,11 @@ export default function RunPage() {
     return typeof metric === "string" && /^[a-z][a-z0-9_-]*:\/\//.test(metric) ? [metric] : [];
   }))];
   if (recipe?.semantic_scope.primary_metric && !metricRefs.includes(recipe.semantic_scope.primary_metric)) metricRefs.unshift(recipe.semantic_scope.primary_metric);
+  const pendingMetric = run.pending_execution?.step?.bindings.metric;
+  if (typeof pendingMetric === "string" && !pendingMetric.startsWith("$") && !metricRefs.includes(pendingMetric)) metricRefs.push(pendingMetric);
   const metricNames = metricRefs.map((ref) => byRef.get(ref)?.title ?? "지표 이름 확인 필요");
-  const canContinue = mine && !run.preview && run.status === "open" && !run.running && !!manifests && recipe?.mode !== "pipeline";
+  const canContinue = mine && !run.preview && !run.needs_input && run.status === "open" && !run.running && !!manifests && recipe?.mode !== "pipeline";
+  const canConclude = mine && !run.preview && !run.needs_input && run.status === "open" && !run.running && run.steps.length > 0;
   const canShare = mine && !run.preview && !run.caller.subject?.startsWith("service:");
   const selectedStep = run.steps[current];
   const additional = selectedStep?.result.artifacts.filter(artifact => !Array.isArray(artifact.data) || artifact.data.length > 0) ?? [];
@@ -73,20 +79,22 @@ export default function RunPage() {
     .filter((item) => item.status !== "pass").map((item) => [`${item.code}:${item.message}`, item])).values()];
   return <div className={`${styles.page} ${styles.runPage}`}>
     <Link className={styles.back} href="/runs"><ArrowLeft size={15} />실행 기록</Link>
-    <div className={styles.heading}><div><p className={styles.eyebrow}>{run.preview ? "미리보기" : "RUN"} · {runOriginLabel(run.origin)} · {new Date(run.created_at).toLocaleString()}</p><h1>{run.plan.question || recipe?.description || recipe?.name || (metricNames[0] ? `${metricNames[0]} 분석` : "분석 결과")}</h1></div><div className={styles.runHeaderActions}><span className={`${styles.badge} ${run.status === "failed" || stopped ? styles.badgeFailed : run.status === "open" ? styles.badgeOpen : ""}`}>{run.status === "completed" ? "완료" : run.status === "failed" ? "실패" : stopped ? lastStatus === "needs_input" ? "입력 필요" : "중단" : "진행 중"}</span>{mine && <RunDelete run={run} onDeleted={() => router.push("/runs")} />}</div></div>
-    <p className={styles.runScope}><strong>{metricNames.join(" · ") || "지표 선택 전"}</strong><span>{scope.date_range?.join(" ~ ") || "전체 기간"}</span>{timeTitle && <span>{timeTitle} 기준</span>}</p>
-    {!run.preview && successfulSteps.length > 0 && <section className={styles.runRecipeDecision} aria-label="Recipe 등록">
-      <div><h2>{registered ? "Recipe로 등록했습니다" : "이 분석 절차를 Recipe로 저장"}</h2><p>{registered ? "분석 라이브러리와 MCP에서 바로 실행할 수 있습니다." : `${run.steps.length}단계 · 사용한 지표, 설정, 기간과 필터를 그대로 가져옵니다.`}</p></div>
+    <div className={styles.heading}><div><p className={styles.eyebrow}>{run.preview ? "미리보기" : "RUN"} · {runOriginLabel(run.origin)} · {new Date(run.created_at).toLocaleString()}</p><h1>{run.plan.question || recipe?.description || recipe?.name || (metricNames[0] ? `${metricNames[0]} 분석` : "분석 결과")}</h1></div><div className={styles.runHeaderActions}><span className={`${styles.badge} ${run.status === "failed" || stopped ? styles.badgeFailed : run.status === "open" ? styles.badgeOpen : ""}`}>{run.status === "completed" ? "완료" : run.status === "failed" ? "실패" : stopped ? lastStatus === "needs_input" ? "입력 필요" : "중단" : run.running ? "진행 중" : run.steps.length ? "결론 대기" : "대기 중"}</span>{mine && <RunDelete run={run} onDeleted={() => router.push("/runs")} />}</div></div>
+    <p className={styles.runScope}><strong>{metricNames.join(" · ") || "지표 선택 전"}</strong><span>{periodLabel(run)}</span>{timeTitle && <span>{timeTitle} 기준</span>}{run.scope_resolution?.source && <span>{({ caller: "호출자 선택", conversation: "대화에서 이어받음", ai_proposal: "AI 제안", recipe_default: "Recipe 기본 기간", organization_default: "조직 기본 기간", unspecified: "아직 선택하지 않음" } as Record<string, string>)[run.scope_resolution.source] || "선택 출처 미확인"}</span>}</p>
+    {mine && run.needs_input && <RunPeriodInput key={`${run.id}:${run.scope_revision}`} run={run} objects={objects} onDone={() => reload()} />}
+    {!run.preview && reusableSteps.length > 0 && <section className={styles.runRecipeDecision} aria-label="Recipe 등록">
+      <div><h2>{registered ? "Recipe로 등록했습니다" : "이 분석 절차를 Recipe로 저장"}</h2><p>{registered ? "분석 라이브러리와 MCP에서 바로 실행할 수 있습니다." : `${run.steps.length}단계 · 분석 대상은 실행할 때마다 앞 단계 결과에서 다시 선택합니다.`}</p></div>
       <div className={styles.runDraftActions}>{registered ? <Link className={styles.runPrimary} href={`/recipes/${encodeURIComponent(registered.name)}`}><Check size={16} />Recipe 보기</Link>
         : <button type="button" className={styles.runPrimary} disabled={!canRegister || registering} onClick={registerRecipe}>{registering ? <LoaderCircle className={styles.spinning} size={16} /> : <BookPlus size={16} />}{registering ? "등록 중…" : "Recipe로 등록"}</button>}
         <Link className={styles.runEditLink} href={`/recipes/new?${candidateParams.toString()}`}><SlidersHorizontal size={14} />편집해서 저장</Link></div>
-      {!canRegister && !registered && <p className={styles.runActionNote}>완료된 분석은 바로 등록할 수 있습니다. 성공한 단계만 저장하려면 편집해서 저장하세요.</p>}
+      {rejectedCalculations > 0 && !registered && <p className={styles.runActionNote}>검증을 통과하지 못한 계산 {rejectedCalculations}개도 절차로 저장합니다. 설정과 검증 기준은 유지되며, 재실행에서 기준을 충족하지 못하면 중단합니다. 보조 비교로 자동 전환하지 않습니다.</p>}
+      {!canRegister && !registered && <p className={styles.runActionNote}>{canConclude ? "분석 결론을 저장하면 등록할 수 있습니다. 입력 부족이나 계산 전 거부 단계가 있다면 편집해서 저장하세요." : "완료된 분석은 바로 등록할 수 있습니다. 입력 부족이나 계산 전 거부 단계는 편집해서 저장에서 제외하거나 수정하세요."}</p>}
       {registerError && <p className={styles.inlineError} role="alert">{registerError}</p>}
     </section>}
     {run.running && <p className={styles.runNotice} role="status">분석 중 · {run.running.method ? methodName(run.running.method) : run.running.kind} · {new Date(run.running.started_at).toLocaleTimeString()} 시작</p>}
     {run.error && <p className={styles.error} role="alert">{run.error.message} · 오류 코드 {run.error.code}</p>}
-    <RunAnswer run={run} warnings={warnings} onSelect={index => { setOpen(index); setTab("result"); document.getElementById("run-step-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
-    <RunGraph run={run} titles={byRef} selected={current} onSelect={index => { setOpen(index); setTab("result"); }} />
+    {(!run.needs_input || run.steps.length > 0) && <><RunAnswer run={run} warnings={warnings} onSelect={index => { setOpen(index); setTab("result"); document.getElementById("run-step-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
+    <RunGraph run={run} titles={byRef} selected={current} onSelect={index => { setOpen(index); setTab("result"); }} /></>}
     {selectedStep ? <section id="run-step-detail" className={styles.runStepDetail}><span>{current + 1} / {run.steps.length}단계</span><h2>{methodName(selectedStep.step.method)}</h2><p className={styles.runPurpose}><span>분석 목적</span>{stepPurpose(selectedStep.step)}</p>
       <div className={styles.runTabs} role="tablist" aria-label="분석 단계 정보" onKeyDown={event => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
@@ -104,9 +112,9 @@ export default function RunPage() {
         {tab === "additional" && <><section className={styles.runChecks}><h3>실행 검증</h3>{selectedStep.result.validation.length ? <ul>{selectedStep.result.validation.map((item, index) => <li key={index}><span>{item.status === "pass" ? "통과" : item.status === "warning" ? "주의" : "미충족"}</span><p>{item.message}</p></li>)}</ul> : <p>기록된 검증 항목이 없습니다.</p>}</section>{additional.map((artifact, index) => <ArtifactView key={index} artifact={artifact} titles={byRef} expanded />)}</>}
         {tab === "sources" && <><RunSources result={selectedStep.result} titles={byRef} author={selectedStep.author} />{run.author && JSON.stringify(run.author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.author} label="분석을 시작한 제품" />}{run.conclusion_author && JSON.stringify(run.conclusion_author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.conclusion_author} label="결론 작성 제품·모델" />}<div className={styles.runTechnical}><dl><div><dt>실행 ID</dt><dd>{run.id}</dd></div><div><dt>시작 시각</dt><dd>{new Date(run.created_at).toLocaleString()}</dd></div></dl></div></>}
       </div>
-    </section> : <div className={styles.placeholder}><History size={20} />아직 실행된 분석 단계가 없습니다.</div>}
+    </section> : !run.needs_input && <div className={styles.placeholder}><History size={20} />아직 실행된 분석 단계가 없습니다.</div>}
     {recipe && !run.preview && !run.running && <Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}`}>{stopped || run.status === "failed" ? "Recipe 조건을 바꿔 다시 실행" : "Recipe 보기"}</Link>}
-    {canContinue && manifests && <section className={styles.formPanel}><NextStep run={run} manifests={manifests} objects={objects} onDone={() => { setOpen(null); reload(); }} /></section>}
+    {(canContinue || canConclude) && manifests && <section className={styles.formPanel}><NextStep run={run} allowSteps={canContinue} manifests={manifests} objects={objects} onDone={() => { setOpen(null); reload(); }} /></section>}
     {canShare && <><button type="button" className={styles.secondaryLink} onClick={() => shareDialog.current?.showModal()}><Share2 size={15} />공유 설정</button><dialog ref={shareDialog} className={styles.runDialog} aria-label="공유 설정"><header><h2>실행 기록 공유</h2><button type="button" aria-label="닫기" title="닫기" onClick={() => shareDialog.current?.close()}><X size={18} /></button></header><Share run={run} onDone={() => { reload(); shareDialog.current?.close(); }} /></dialog></>}
   </div>;
 }
@@ -132,8 +140,8 @@ function Share({ run, onDone }: { run: Run; onDone: () => void }) {
   );
 }
 
-function NextStep({ run, manifests, objects, onDone }: {
-  run: Run; manifests: MethodManifest[]; objects: ReturnType<typeof useCatalog>["objects"]; onDone: () => void;
+function NextStep({ run, allowSteps, manifests, objects, onDone }: {
+  run: Run; allowSteps: boolean; manifests: MethodManifest[]; objects: ReturnType<typeof useCatalog>["objects"]; onDone: () => void;
 }) {
   const recipe = run.recipe_snapshot;
   const allowed = recipe ? (recipe.mode === "investigation" ? recipe.allowed_methods : [...new Set(recipe.steps.map((s) => s.method))])
@@ -142,6 +150,7 @@ function NextStep({ run, manifests, objects, onDone }: {
   const [bindings, setBindings] = useState<Record<string, string | string[] | undefined>>({});
   const [params, setParams] = useState<Record<string, unknown>>({});
   const [summary, setSummary] = useState("");
+  const [purpose, setPurpose] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const t = useT();
@@ -153,9 +162,10 @@ function NextStep({ run, manifests, objects, onDone }: {
     setBusy(true);
     setErr(null);
     try {
-      await api<Result>(`/runs/${run.id}/steps`, { body: { method, bindings: clean(bindings), params: clean(params) } });
+      await api<Result>(`/runs/${run.id}/steps`, { body: { method, purpose, bindings: clean(bindings), params: clean(params) } });
       setBindings({});
       setParams({});
+      setPurpose("");
       onDone();
     } catch (x) {
       setErr((x as Error).message);
@@ -166,7 +176,8 @@ function NextStep({ run, manifests, objects, onDone }: {
 
   async function complete() {
     try {
-      await api(`/runs/${run.id}:complete`, { body: { summary: summary || null } });
+      await api(`/runs/${run.id}:complete`, { body: { author: { client_name: "Decision Layer Web", client_source: "client_reported" }, conclusion: { answer: summary,
+        findings: run.steps.map((record, index) => ({ text: stepFinding(record), step_indices: [index] })), limitations: [] } } });
       onDone();
     } catch (x) {
       setErr((x as Error).message);
@@ -175,7 +186,7 @@ function NextStep({ run, manifests, objects, onDone }: {
 
   return (
     <form onSubmit={step} className={styles.nextStep}>
-      <h3>다음 분석 단계</h3>
+      {allowSteps && <><h3>다음 분석 단계</h3>
       {recipe?.instructions && <p className="hint pre">{recipe.instructions}</p>}
       <label className="field"><span className="label">Method</span>
         <select value={method} onChange={(e) => { setMethod(e.target.value); setBindings({}); setParams({}); }}>
@@ -184,10 +195,11 @@ function NextStep({ run, manifests, objects, onDone }: {
       </label>
       {manifest && <MethodInputs manifest={manifest} objects={objects} bindings={bindings} params={params}
         onBindings={setBindings} onParams={setParams} restrictMeasures={scopeMetrics} />}
-      <button type="submit" disabled={busy}>{busy ? t("Running…") : t("Run step")}</button>
+      <label className="field"><span className="label">이 단계로 확인할 내용</span><input value={purpose} onChange={event => setPurpose(event.target.value)} maxLength={240} required={run.origin === "mcp"} /></label>
+      <button type="submit" disabled={busy || (run.origin === "mcp" && !purpose.trim())}>{busy ? t("Running…") : t("Run step")}</button></>}
       <label className="field"><span className="label">{t("Conclusion (when closing)")}</span>
         <textarea rows={2} value={summary} onChange={(e) => setSummary(e.target.value)} /></label>
-      <button type="button" className={styles.closeButton} onClick={complete}>{t("Close investigation")}</button>
+      <button type="button" className={styles.closeButton} disabled={busy || !summary.trim() || !run.steps.length} onClick={complete}>결론 저장하고 완료</button>
       {err && <p className={styles.inlineError} role="alert">{err}</p>}
     </form>
   );

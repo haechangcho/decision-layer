@@ -6,12 +6,15 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .env import env
+from .core.periods import ExecutionPolicy
 
 _REPO = Path(__file__).resolve().parents[2]
 
 
 @dataclass(frozen=True)
 class Settings:
+    execution_policy: ExecutionPolicy = field(default_factory=lambda: ExecutionPolicy.model_validate_json(
+        env("DL_EXECUTION_POLICY", "{}")))
     cube_api_url: str = field(default_factory=lambda: os.environ.get("CUBE_API_URL", "http://localhost:4000/cubejs-api/v1"))
     cube_instance: str = field(default_factory=lambda: os.environ.get("CUBE_INSTANCE", "local"))
     cube_api_secret: str | None = field(default_factory=lambda: os.environ.get("CUBE_API_SECRET") or None)

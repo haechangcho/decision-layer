@@ -9,10 +9,15 @@ const step = {
   started_at: "2026-10-01T10:00:00Z", finished_at: "2026-10-01T10:00:01Z",
 };
 
+const candidateRecipe = { name: "draft", version: "1.0.0", description: "Review the procedure", status: "draft", origin_runs: ["provenance-test"],
+  routing: { use_for: [], do_not_use_for: [] }, semantic_scope: { primary_metric: "cube://local/insurance/payout", related_metrics: [], preferred_dimensions: [], required_filters: [] },
+  mode: "pipeline", steps: [step.step], allowed_methods: [], validators: [], limits: { max_steps: 12, max_queries: 30 } };
+
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/semantic/catalog", route => route.fulfill({ json: { objects: [], hierarchies: {} } }));
   await page.route("**/api/methods", route => route.fulfill({ json: [] }));
   await page.route("**/api/me", route => route.fulfill({ json: { subject: "alice" } }));
+  await page.route("**/api/runs/*/recipe-candidate?*", route => route.fulfill({ json: { recipe: candidateRecipe, source_run_id: "provenance-test", selected_steps: [0], review_notes: [] } }));
   await page.route("**/api/runs/provenance-test", route => route.fulfill({ json: {
     id: "provenance-test", plan: { question: "지급액이 왜 변했나?", scope: {} }, steps: [{ ...step,
       parameter_sources: { granularity: "method_default", vs_previous: "recipe" } }],
@@ -49,10 +54,11 @@ test("long Run graphs keep step cards readable and the last step selectable", as
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("one click registers the recorded procedure and supports retry", async ({ page }, info) => {
+test("one-click registration supports inline retry without a popup", async ({ page }, info) => {
   let requests = 0;
   await page.route("**/api/runs/provenance-test/recipe", route => {
     expect(route.request().method()).toBe("POST");
+    expect(route.request().postDataJSON()).toEqual({});
     requests++;
     return route.fulfill(requests === 1
       ? { status: 503, json: { error: { code: "STORE_UNAVAILABLE", message: "저장소에 연결하지 못했습니다. 다시 시도하세요." } } }
@@ -63,11 +69,46 @@ test("one click registers the recorded procedure and supports retry", async ({ p
   await expect(register).toBeInViewport();
   await page.screenshot({ path: info.outputPath("run-registration.png"), fullPage: true });
   await register.click();
-  await expect(page.getByRole("region", { name: "Recipe 등록" }).getByRole("alert")).toContainText("저장소");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("alert").filter({ hasText: "저장소" })).toBeVisible();
   await register.click();
   await expect(page.getByRole("heading", { name: "Recipe로 등록했습니다" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Recipe 보기", exact: true })).toHaveAttribute("href", "/recipes/saved-analysis");
   expect(requests).toBe(2);
+});
+
+test("a calculated validation refusal does not block procedure registration", async ({ page }) => {
+  const refused = { ...step, result: { ...step.result, status: "refused",
+    primary: { type: "estimate", title: "Comparison", data: { difference: 3 } },
+    validation: [{ validator: "comparability", status: "fail", code: "NOT_COMPARABLE", message: "비교 가능한 표본 부족" }] } };
+  await page.route("**/api/runs/validation-refusal", route => route.fulfill({ json: {
+    id: "validation-refusal", plan: { question: "조건을 맞춰 비교해줘", scope: {} },
+    steps: [refused, { ...step, step: { ...step.step, id: "supplement" } }],
+    caller: { subject: "alice", groups: [] }, status: "completed", validation: [],
+    shared_with: [], created_at: step.started_at,
+  } }));
+  await page.route("**/api/runs/validation-refusal/recipe", route => route.fulfill({ json: {
+    name: "saved-validation-procedure", status: "published",
+  } }));
+  await page.goto("/runs/validation-refusal");
+  const register = page.getByRole("button", { name: "Recipe로 등록", exact: true });
+  await expect(register).toBeEnabled();
+  await expect(page.getByText(/보조 비교로 자동 전환하지 않습니다/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "편집해서 저장" })).toHaveAttribute("href", /step=0&step=1/);
+  await register.click();
+  await expect(page.getByRole("heading", { name: "Recipe로 등록했습니다" })).toBeVisible();
+});
+
+test("a refusal before calculation still requires editing", async ({ page }) => {
+  await page.route("**/api/runs/incomplete-refusal", route => route.fulfill({ json: {
+    id: "incomplete-refusal", plan: { scope: {} },
+    steps: [step, { ...step, result: { ...step.result, status: "refused" } }],
+    caller: { subject: "alice", groups: [] }, status: "completed", validation: [],
+    shared_with: [], created_at: step.started_at,
+  } }));
+  await page.goto("/runs/incomplete-refusal");
+  await expect(page.getByRole("button", { name: "Recipe로 등록", exact: true })).toBeDisabled();
+  await expect(page.getByRole("link", { name: "편집해서 저장" })).toHaveAttribute("href", /step=0$/);
 });
 
 test("Run shows applied values and their sources on demand", async ({ page }, info) => {
@@ -111,10 +152,48 @@ test("Run list distinguishes waiting, blocked and running analyses", async ({ pa
     { ...base, id: "needs-input", steps: [{ ...step, result: { ...step.result, status: "needs_input" } }] },
     { ...base, id: "stopped", steps: [{ ...step, result: { ...step.result, status: "refused" } }] },
     { ...base, id: "running", steps: [], running: { kind: "step", method: "query.trend", started_at: "2026-10-01T10:00:00Z" } },
+    { ...base, id: "awaiting-conclusion", steps: [step] },
   ] }));
   await page.goto("/runs");
   const list = page.getByRole("region", { name: "실행 기록 목록" });
-  for (const label of ["대기 중", "입력 필요", "중단", "진행 중"]) await expect(list.getByText(label, { exact: true })).toHaveCount(1);
+  for (const label of ["대기 중", "입력 필요", "중단", "진행 중", "결론 대기"]) await expect(list.getByText(label, { exact: true })).toHaveCount(1);
+});
+
+test("an unfinished MCP analysis keeps its graph and requires review before registration", async ({ page }, info) => {
+  const question = "어떤 부문과 매장의 수취액이 높고 동료 집단과 어떻게 다른가?";
+  const run = { id: "question-analysis", origin: "mcp", status: "open", running: null,
+    plan: { question, scope: {} }, validation: [], conclusion: null,
+    caller: { subject: "alice", groups: [] }, shared_with: [], created_at: "2026-10-06T10:00:00Z",
+    steps: [0, 1, 2].map(index => ({ ...step, step: { ...step.step, id: `step_${index + 1}`, purpose: `${index + 1}번째 질문 확인` } })),
+  };
+  let completed = false;
+  await page.route("**/api/runs/question-analysis", route => route.fulfill({ json: {
+    ...run, status: completed ? "completed" : "open", conclusion_author: completed ? { client_name: "Decision Layer Web" } : null, conclusion: completed ? {
+      source: "caller", answer: "결과를 검토했습니다.", findings: [], limitations: [],
+    } : null,
+  } }));
+  await page.route("**/api/runs/question-analysis:complete", async route => {
+    const body = route.request().postDataJSON();
+    expect(body.conclusion.answer).toBe("결과를 검토했습니다.");
+    expect(body.author.client_name).toBe("Decision Layer Web");
+    expect(body.conclusion.findings.map((finding: { step_indices: number[] }) => finding.step_indices)).toEqual([[0], [1], [2]]);
+    completed = true;
+    await route.fulfill({ json: { ...run, status: "completed" } });
+  });
+  await page.goto("/runs/question-analysis");
+  await expect(page.getByRole("heading", { name: question })).toBeVisible();
+  await expect(page.getByText("결론 대기", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: "실행 그래프" }).locator(".react-flow__node-step")).toHaveCount(3);
+  const register = page.getByRole("button", { name: "Recipe로 등록", exact: true });
+  await expect(register).toBeDisabled();
+  const finish = page.getByRole("button", { name: "결론 저장하고 완료" });
+  await expect(finish).toBeDisabled();
+  await page.getByRole("textbox", { name: /Conclusion \(when closing\)|결론 \(닫을 때\)/ }).fill("결과를 검토했습니다.");
+  await finish.click();
+  await expect(register).toBeEnabled();
+  await expect(page.getByText("결론 대기", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "분석 답변" })).toContainText("사용자 작성");
+  await page.screenshot({ path: info.outputPath("question-scoped-run.png"), fullPage: true });
 });
 
 test("MCP runs are identifiable and filterable without claiming approval", async ({ page }, info) => {

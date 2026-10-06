@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Check, Copy, FileCode2, X } from "lucide-react";
 import type { ExecutionAuthor, MethodManifest, Result, Run, SemanticObject } from "@/lib/api";
 import { methodName } from "@/lib/method-name";
+import { sourceLabel } from "./step-input-source";
 import s from "./run-evidence.module.css";
 
 type Titles = Map<string, SemanticObject>;
@@ -40,6 +41,7 @@ export function RunSettings({ record, titles, manifest }: { record: Run["steps"]
   return <div className={s.settings}>
     <section><h3>분석에 사용한 입력</h3><dl>{Object.entries(record.step.bindings).map(([name, value]) => <div key={name}><dt>{names[name] ?? name}</dt><dd>{readableValue(value, titles)}</dd></div>)}</dl></section>
     <section><h3>적용한 옵션</h3><dl>{params.map(([name, value]) => <div key={name}><dt>{manifest?.parameters[name]?.type === "group" ? name === "target" ? "대상 집단" : "비교 집단" : names[name] ?? name.replaceAll("_", " ")}</dt><dd><span>{name === "min_target_retention" && typeof value === "number" ? `${value * 100}%` : readableValue(value, titles)}</span><small>{record.parameter_sources?.[name] ? sources[record.parameter_sources[name]] : "출처 기록 없음"}</small></dd></div>)}</dl></section>
+    {!!record.input_resolutions?.length && <section><h3>이번 실행에서 선택된 값</h3><dl>{record.input_resolutions.map((item, index) => <div key={index}><dt>{names[item.field.split(".").at(-1) ?? ""] ?? item.field}</dt><dd><span>{sourceLabel(item.source)}</span><strong>{readableValue(item.resolved, titles)}</strong></dd></div>)}</dl></section>}
     {!params.length && <p className={s.muted}>기록된 추가 설정이 없습니다.</p>}
   </div>;
 }

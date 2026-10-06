@@ -4,6 +4,32 @@ A Method is one analytical capability. If existing capabilities cover the calcul
 
 ## Extension model
 
+### Declarative editor inputs
+
+Give a role a `label` and `default_binding="primary_metric"` to inherit the Recipe metric.
+Only required roles and basic parameters appear in ordinary step editing. Optional
+bindings and technical settings remain available through the complete Recipe code view.
+A multi-value role may declare `editor_parameter` pointing to a matching scalar
+semantic parameter. Drilldown uses this to expose only the effective dimension for
+this step while retaining the stored dimension list. Do not infer this relationship
+from parameter names; the manifest validates it explicitly.
+Declare `requires_period=True` when a Method needs a scoped period; the editor asks
+for it only after the user chooses to check the result. A period-dependent boolean
+can declare `meaning="period"`. Do not add Method-name branches to the frontend.
+Parameters declare `type`, `label`, `required`, bounds and `ui_group` (`basic`, `options`,
+`hidden`; `advanced` remains compatible). Explicit hidden values remain inspectable.
+`semantic_kind` makes a string/ref-list input a catalog picker. `visible_when` can
+depend on a declared parameter. These metadata generate the shared editor, not custom UI code.
+
+Group inputs can declare `InputSourcePolicy(allowed=["literal", "step", "input"],
+default="previous_result", project="condition")`. This selects the first ranked group
+from the most recent earlier capable step. `parameter_parents` derives a comparison
+population from another parameter's step source. Missing required targets become
+typed runtime inputs without a remembered value. `configure_step(recipe, index)` and
+`POST /recipes:configure-step` produce the same explicit spec; execution remains subject
+to the existing completeness, ambiguity and access checks. Statistical/ML code still
+runs in a reviewed Python Method, never in manifest expressions or frontend plugins.
+
 Methods are reviewed Python implementations installed with the server. There is no dynamic plugin installer or user-uploaded executor. A manifest describes the contract, not the calculation. MCP exposes registered Methods, not a separate execution engine or Claude Skill runtime.
 
 Read the working examples:
@@ -58,3 +84,14 @@ Reviewed Methods may use statistical or ML libraries. Declare dependencies, keep
 and include library versions through `MethodOutput(runtime=...)`. Heavy optional dependencies should fail with
 an actionable message when not installed, not trigger runtime installation. Validate model assumptions and
 interpretation; using a library does not itself justify a causal claim.
+
+## Average-outcome CEM
+
+`causal.cem@1.1.0` accepts an explicit `sample_count` for native averages. Both references must have the
+same provider-declared queryable primary key. A bounded query verifies one counted row and one finite,
+non-null outcome per unique unit. This does not infer sample semantics from neighboring metrics or
+accept arbitrary SQL. Unknown contracts refuse; hosted dbt API metadata currently cannot establish this path.
+Results carry `statistical_judgement: not_tested`: continuous-outcome uncertainty is not implemented,
+and an average is never passed into a percentage/proportion significance test.
+The [campaign example](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/CAMPAIGN_ANALYSIS.md)
+demonstrates Cube/local MetricFlow parity and insufficient-overlap refusal, not causal ground truth.

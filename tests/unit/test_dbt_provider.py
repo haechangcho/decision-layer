@@ -209,8 +209,11 @@ def test_method_run_and_recipe_preserve_dbt_bindings_and_evidence():
     with TestClient(create_app(Settings(database_url="memory"))) as client:
         headers = {"Authorization": "Bearer dbt-test-token", "X-Decision-Layer-Client": "mcp"}
         client.put("/sources/current", json={"provider": "dbt", "api_url": URL, "environment_id": 123, "instance": "company"})
-        executed = client.post("/methods/query.drilldown:run", headers=headers, json={
-            "question": "Which region has the highest revenue?", "bindings": {"metric": METRIC, "dimensions": [REGION]}})
+        started = client.post("/runs", headers=headers, json={"question": "Which region has the highest revenue?", "scope": {"date_range": ["2026-07-01", "2026-09-30"]}})
+        assert started.status_code == 200, started.text
+        run_id = started.json()["id"]
+        executed = client.post(f"/runs/{run_id}/steps", headers=headers, json={
+            "method": "query.drilldown", "purpose": "Find the leading region", "bindings": {"metric": METRIC, "dimensions": [REGION]}})
         assert executed.status_code == 200, executed.text
         data = executed.json()
         assert data["status"] == "success"
@@ -219,6 +222,7 @@ def test_method_run_and_recipe_preserve_dbt_bindings_and_evidence():
         run = client.get(f"/runs/{run_id}", headers=headers).json()
         assert run["plan"]["question"] == "Which region has the highest revenue?"
         assert run["origin"] == "mcp"
+        assert run["status"] == "open"
         assert data["provenance"]["queries"][0]["native_query"]["queryId"] == "q-0"
         candidate = client.get(f"/runs/{run_id}/recipe-candidate", headers=headers, params={"indices": 0})
         assert candidate.status_code == 200, candidate.text

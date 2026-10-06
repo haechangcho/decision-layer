@@ -1,7 +1,7 @@
 """Compare a selected subject with explicit peers and the accessible population."""
 from __future__ import annotations
 
-from ...core.models import Artifact, Filter, MethodManifest, ParamSpec, RoleSpec
+from ...core.models import Artifact, Filter, InputSourcePolicy, MethodManifest, ParamSpec, RoleSpec
 from ...i18n import _
 from ...validation import builtin as v
 from ..base import Method, MethodOutput, registry
@@ -11,17 +11,19 @@ from .common import path_filters, rnd, totals
 
 class PeerComparison(Method):
     manifest = MethodManifest(
-        name="query.peer_comparison", version="1.0.0", kind="query",
+        name="query.peer_comparison", version="1.0.0", kind="query", label="Compare with peers and overall",
         description="Compare a selected subject against explicitly defined peers and the accessible overall population. "
                     "The subject is evaluated within the peer conditions; the overall benchmark does not apply peer conditions. "
                     "Preserves scope and source aggregation. Descriptive, not risk-adjusted or causal; a high value is not wrongdoing.",
-        roles={"metric": RoleSpec(kind="measure", description="Metric to compare")},
+        roles={"metric": RoleSpec(kind="measure", label="Analysis metric", default_binding="primary_metric", description="Metric to compare")},
         parameters={
-            "subject": ParamSpec(type="drill_path", required=True, ui_group="basic",
+            "subject": ParamSpec(type="drill_path", required=True, ui_group="basic", label="Who to compare", meaning="comparison_subject",
+                                 source_policy=InputSourcePolicy(allowed=["literal", "input", "step"], default="previous_result", project="condition"),
                                  description='One selected dimension and value [{"member": ref, "value": value}]. Peer conditions also apply to this subject.'),
-            "peers": ParamSpec(type="drill_path", default=[], ui_group="basic",
+            "peers": ParamSpec(type="drill_path", default=[], ui_group="basic", label="Comparison population", meaning="comparison_population",
+                               source_policy=InputSourcePolicy(allowed=["literal", "input", "step"], default="parameter_parents", parameter="subject", project="parents"),
                                description='Conditions [{"member": ref, "value": value}] applied to both subject and peers, not the overall benchmark; empty means the accessible population'),
-            "min_count": ParamSpec(type="integer", default=30, minimum=1,
+            "min_count": ParamSpec(type="integer", default=30, minimum=1, ui_group="hidden",
                                    description="Minimum source row count for a comparison; not a significance threshold"),
         },
         execution="semantic_pushdown", interpretation="descriptive", outputs=["breakdown_table"],

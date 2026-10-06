@@ -46,7 +46,7 @@ An additional household key table is derived from transactions so missing demogr
 
 The initial Catalog exposes transaction receipts, units, transaction-line count, basket count and coupon-line rate;
 product department/brand, household codes and store identifiers; campaign contacts and redemption counts.
-Both providers define the six analytical models: transactions, products, households, campaigns, campaign contacts and redemptions. Campaigns and redemptions are separate facts, not joined onto every transaction line.
+Both providers define seven analytical models: transactions, products, households, campaigns, campaign contacts, redemptions and campaign-household outcomes. Campaigns and redemptions are separate facts, not joined onto every transaction line.
 The raw promotion and coupon-product bridge remain loaded for later modeling; they are not blindly joined to sales.
 
 The importer adds PostgreSQL `DATE` columns: `transaction_date`, `redemption_date`, `start_date` and `end_date`.
@@ -72,6 +72,19 @@ Open Runs to inspect the question, graph, settings and queries. **Register as Re
 The dataset supports observational investigation, not a guaranteed campaign causal effect.
 Do not equate coupon users with randomized treatment or condition on redemption to define a causal control group.
 A causal Recipe needs pre-treatment covariates, explicit treatment/outcome windows, overlap and an identification argument.
+
+## Campaign comparison
+
+Both examples expose a shared **campaign x household** model with prior and subsequent 30-day purchase
+windows, target-list membership and prior purchase bands. Start with one campaign, not all campaigns combined.
+
+> For campaign 8, compare subsequent 30-day mean household sales between targeted and non-targeted households,
+> matching prior purchase amount and frequency. Then check whether adding household classifications leaves
+> enough comparable data. Keep both steps in one Run; do not silently drop conditions or claim significance.
+
+See the [campaign model and CEM guide](CAMPAIGN_ANALYSIS.md) for definitions, limitations and upgrading
+existing Cube/dbt volumes. Continuous-outcome significance is not supported. Hosted dbt API metadata
+does not yet verify this average/count/unit contract; the dbt example is verified through local MetricFlow.
 
 ## Verify and troubleshoot
 

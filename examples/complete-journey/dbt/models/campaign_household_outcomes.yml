@@ -1,0 +1,57 @@
+version: 2
+models:
+  - name: campaign_household_outcomes
+    description: Previously active households with dataset-complete windows; select one campaign. Other campaign exposure and individual observation completeness are not controlled automatically.
+    columns:
+      - name: observation_id
+        tests: [unique, not_null]
+      - name: post_sales_30d
+        tests: [not_null]
+      - name: campaign_id
+        tests: [not_null]
+semantic_models:
+  - name: campaign_household_outcomes
+    model: ref('campaign_household_outcomes')
+    defaults:
+      agg_time_dimension: campaign_start_date
+    entities:
+      - {name: campaign_household, type: primary, expr: observation_id}
+    dimensions:
+      - {name: observation_id, type: categorical}
+      - {name: campaign_id, type: categorical}
+      - {name: household_id, type: categorical, expr: household_key}
+      - {name: campaign_type, type: categorical}
+      - name: campaign_start_date
+        type: time
+        type_params: {time_granularity: day}
+        description: Selects campaigns by start date, not purchases within their fixed relative windows.
+      - {name: is_targeted, type: categorical}
+      - {name: pre_sales_band, type: categorical}
+      - {name: pre_frequency_band, type: categorical}
+      - {name: age_code, type: categorical}
+      - {name: income_code, type: categorical}
+      - {name: composition_code, type: categorical}
+      - {name: overlapping_campaigns, type: categorical}
+    measures:
+      - {name: campaign_household_count, agg: count, expr: observation_count}
+      - {name: campaign_pre_sales_mean, agg: average, expr: pre_sales_30d}
+      - {name: campaign_pre_frequency_mean, agg: average, expr: pre_baskets_30d}
+      - {name: campaign_post_sales_mean, agg: average, expr: post_sales_30d}
+metrics:
+  - name: campaign_household_count
+    label: Campaign household observations
+    type: simple
+    type_params: {measure: campaign_household_count}
+  - name: campaign_pre_sales_mean
+    label: Prior 30-day mean household sales
+    type: simple
+    type_params: {measure: campaign_pre_sales_mean}
+  - name: campaign_pre_frequency_mean
+    label: Prior 30-day mean purchase frequency
+    type: simple
+    type_params: {measure: campaign_pre_frequency_mean}
+  - name: campaign_post_sales_mean
+    label: Subsequent 30-day mean household sales
+    description: Mean sales from campaign start through day 29, including zero purchase. Not profit or a causal effect.
+    type: simple
+    type_params: {measure: campaign_post_sales_mean}

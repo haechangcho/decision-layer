@@ -14,8 +14,8 @@ import styles from "../library.module.css";
 const displayName = (run: Run) => run.recipe_snapshot?.description || run.recipe_snapshot?.name || run.plan.recipe?.replace("recipe://", "") || (run.steps[0] ? methodName(run.steps[0].step.method) : "분석 실행");
 const methodNames = (run: Run) => [...new Set(run.steps.map(step => methodName(step.step.method)))].join(" · ");
 const runStatusLabel = (run: Run) => run.status === "completed" ? "완료" : run.status === "failed" ? "실패" : run.running ? "진행 중"
-  : run.steps.at(-1)?.result.status === "needs_input" ? "입력 필요"
-    : run.steps.at(-1)?.result.status === "refused" ? "중단" : "대기 중";
+  : run.needs_input || run.steps.at(-1)?.result.status === "needs_input" ? "입력 필요"
+    : run.steps.at(-1)?.result.status === "refused" ? "중단" : run.steps.length ? "결론 대기" : "대기 중";
 
 export default function RunsPage() {
   const { data, error, loading, reload } = useApi<Run[]>("/runs?limit=100");

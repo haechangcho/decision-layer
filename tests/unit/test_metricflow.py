@@ -92,3 +92,34 @@ def test_catalog_uses_native_semantics_without_guessing_samples(kind, aggregatio
     metric = runtime._catalog().objects[0]
     assert metric.metric_kind == expected_kind
     assert metric.count_measure == (f"metricflow://generic/metrics/{expected_count}" if expected_count else None)
+
+
+@pytest.mark.parametrize("queryable", [True, False])
+def test_native_primary_key_is_exposed_only_when_queryable(queryable):
+    from types import SimpleNamespace as NS
+    from decision_layer.semantic.providers.metricflow.gateway import MetricFlowRuntime
+    definition = NS(name="mean_value", type=NS(value="simple"), type_params=NS(measure=NS(name="mean")), dict=lambda: {})
+    dimension = NS(name="id", expr="row_id", type=NS(value="categorical"))
+    model = NS(measures=[NS(name="mean", agg=NS(value="average"))], dimensions=[dimension],
+               entities=[NS(name="observation", type=NS(value="primary"), expr="row_id")])
+    runtime = MetricFlowRuntime.__new__(MetricFlowRuntime)
+    runtime.instance = "generic"
+    runtime.config = NS(semantic_manifest=NS(metrics=[definition], semantic_models=[model]))
+    runtime.engine = NS(list_metrics=lambda: [NS(name="mean_value", dimensions=[NS(granularity_free_dunder_name="observation__id")] if queryable else [])])
+    metric = runtime._catalog().get("metricflow://generic/metrics/mean_value")
+    assert metric.metric_kind == "average" and metric.count_measure is None
+    assert metric.entity == ("metricflow://generic/dimensions/observation__id" if queryable else None)
+
+
+def test_count_rewrite_does_not_erase_native_aggregation_contract():
+    from types import SimpleNamespace as NS
+    from decision_layer.semantic.providers.metricflow.gateway import MetricFlowRuntime
+    definition = NS(name="rows", type=NS(value="simple"), type_params=NS(measure=NS(name="rows")), dict=lambda: {})
+    runtime = MetricFlowRuntime.__new__(MetricFlowRuntime)
+    runtime.instance = "generic"
+    runtime.native_aggregation_types = {"rows": "count"}
+    runtime.config = NS(semantic_manifest=NS(metrics=[definition], semantic_models=[NS(
+        measures=[NS(name="rows", agg=NS(value="sum"))], dimensions=[], entities=[])]))
+    runtime.engine = NS(list_metrics=lambda: [NS(name="rows", dimensions=[])])
+    metric = runtime._catalog().objects[0]
+    assert metric.metric_kind == "count" and metric.count_measure == metric.ref

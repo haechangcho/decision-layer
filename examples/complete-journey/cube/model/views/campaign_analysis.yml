@@ -1,0 +1,5 @@
+views:
+  - name: campaign_analysis
+    cubes:
+      - join_path: campaign_household_outcomes
+        includes: [observation_id, campaign_id, household_id, campaign_type, campaign_start_date, is_targeted, pre_sales_band, pre_frequency_band, age_code, income_code, composition_code, overlapping_campaigns, count, pre_sales_mean, pre_frequency_mean, post_sales_mean]

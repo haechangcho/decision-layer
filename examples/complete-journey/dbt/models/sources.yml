@@ -10,3 +10,4 @@ sources:
       - name: campaign_desc
       - name: campaign_table
       - name: coupon_redempt
+      - name: campaign_household_outcomes

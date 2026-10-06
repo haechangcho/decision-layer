@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...core.models import Artifact, DatasetSpec, MethodManifest, ParamSpec, RoleSpec
+from ...core.models import Artifact, DatasetSpec, InputSourcePolicy, MethodManifest, ParamSpec, RoleSpec
 from ...i18n import _
 from ...validation import builtin as v
 from ..base import Method, MethodOutput, registry
@@ -24,26 +24,27 @@ MAX_PERIODS = 400
 
 class Trend(Method):
     manifest = MethodManifest(
-        name="query.trend", version="1.0.0", kind="query",
+        name="query.trend", version="1.0.0", kind="query", label="Change over time",
         description=("Shows a metric and related measures over time (per day, week or month) side by side. With "
                      "two periods (current and comparison, or vs_previous) it also reports the change between them: "
                      "whether it is significant, the per-day comparison when the periods differ in length, and the "
                      "factor decomposition of a total. Descriptive: moving together over time does not show that "
                      "measures are related."),
         roles={
-            "metric": RoleSpec(kind="measure", description="Metric to follow over time (its date decides the periods)"),
+            "metric": RoleSpec(kind="measure", label="Analysis metric", default_binding="primary_metric", description="Metric to follow over time (its date decides the periods)"),
             "related": RoleSpec(kind="measure", multiple=True, required=False, description="Measures to show alongside"),
         },
         parameters={
             "granularity": ParamSpec(type="enum", enum=["day", "week", "month", "quarter"], default="month",
-                                     description="Time unit of the series", ui_group="basic"),
-            "current": ParamSpec(type="date_range", description="Current period for the change. Defaults to the scope's period"),
-            "comparison": ParamSpec(type="date_range", description="Comparison period for the change"),
+                                     label="Time unit", description="Time unit of the series", ui_group="basic"),
+            "current": ParamSpec(type="date_range", label="Fixed analysis period", meaning="period", ui_group="hidden", description="Current period for the change. Defaults to the scope's period"),
+            "comparison": ParamSpec(type="date_range", label="Fixed comparison period", meaning="period", ui_group="hidden", description="Comparison period for the change"),
             "vs_previous": ParamSpec(type="boolean", default=False,
-                                     description="Compare with the equal-length period right before", ui_group="basic"),
-            "drill_path": ParamSpec(type="drill_path", default=[], description="[{member, value}] narrows the population (optional)"),
+                                     label="Compare with previous period", meaning="period", description="Compare with the equal-length period right before", ui_group="options"),
+            "drill_path": ParamSpec(type="drill_path", default=[], label="Analysis scope", meaning="analysis_scope", ui_group="hidden",
+                                    source_policy=InputSourcePolicy(allowed=["literal", "input", "step"], default="previous_result", project="path"), description="[{member, value}] narrows the population (optional)"),
         },
-        execution="semantic_pushdown", interpretation="descriptive",
+        execution="semantic_pushdown", interpretation="descriptive", requires_period=True,
         outputs=["time_series", "estimate", "interval"],
     )
 

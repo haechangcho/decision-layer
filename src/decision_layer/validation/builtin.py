@@ -32,7 +32,7 @@ def min_sample(count: float | None, minimum: int, what: str) -> ValidationResult
 def complete_period(date_range: tuple[str, str] | None, today: date | None = None) -> ValidationResult:
     if not date_range:
         return ValidationResult(validator="complete_period", status="warning", code="NO_PERIOD",
-                                message=_("No period was given, so all data was used"))
+                                message=_("No date filter was applied. Other filters and access rules still apply."))
     today = today or date.today()
     end = date.fromisoformat(date_range[1])
     if end < today:

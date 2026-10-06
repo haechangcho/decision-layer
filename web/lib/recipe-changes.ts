@@ -1,5 +1,6 @@
 import type { PlanStep, Recipe } from "./api";
 import { methodName } from "./method-name";
+import { sourceLabel } from "@/components/step-input-source";
 
 const equal = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 const parameterLabels: Record<string, string> = {
@@ -9,6 +10,8 @@ const parameterLabels: Record<string, string> = {
 
 function display(value: unknown, title: (ref: string) => string): string {
   if (value == null || value === "") return "없음";
+  const source = sourceLabel(value);
+  if (source) return source;
   if (typeof value === "boolean") return value ? "사용" : "사용 안 함";
   if (typeof value === "string") return value.startsWith("$scope.") ? "Recipe 공통 설정"
     : /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? title(value) : value;
@@ -66,7 +69,7 @@ export function recipeChanges(before: Recipe | undefined, after: Recipe, title: 
     if (!equal(oldPolicy?.runtime_allowed ?? null, nextPolicy?.runtime_allowed ?? null))
       changes.push(`${methodName(method)} · 실행 중 변경 허용 · ${oldPolicy?.runtime_allowed == null ? "전체" : display(oldPolicy.runtime_allowed, title)} → ${nextPolicy?.runtime_allowed == null ? "전체" : display(nextPolicy.runtime_allowed, title)}`);
   }
-  for (const [field, label] of [["allowed_methods", "허용 방법"], ["routing", "선택 조건"], ["validators", "검증 규칙"], ["limits", "실행 한도"], ["instructions", "분석 지침"], ["origin_runs", "원본 실행 기록"]] as const) {
+  for (const [field, label] of [["inputs", "실행 입력"], ["allowed_methods", "허용 방법"], ["routing", "선택 조건"], ["validators", "검증 규칙"], ["limits", "실행 한도"], ["instructions", "분석 지침"], ["origin_runs", "원본 실행 기록"]] as const) {
     if (!equal(before[field], after[field])) changes.push(`${label} · ${display(before[field], title)} → ${display(after[field], title)}`);
   }
   if (before.mode !== after.mode) changes.push(`분석 방식 · ${before.mode} → ${after.mode}`);

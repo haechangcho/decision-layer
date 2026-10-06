@@ -5,7 +5,8 @@ import re
 from typing import Any
 
 from ..core.errors import DecisionLayerError
-from ..core.models import Recipe, SemanticScope
+from ..core.models import Recipe, SemanticScope, RuntimeInputSource, StepSelectionSource
+from ..runs.expressions import is_dynamic
 from ..methods import registry
 from ..methods.base import InvalidBinding
 
@@ -34,9 +35,33 @@ def validate_recipe(recipe: Recipe) -> None:
     if recipe.mode == "investigation" and recipe.steps:
         raise _invalid("Investigation Recipes declare allowed methods, not automatic steps.", "steps")
     previous: set[str] = set()
+    previous_outputs: dict[str, list[str]] = {}
+    for name, spec in recipe.inputs.items():
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", name) or is_dynamic(spec.default):
+            raise _invalid("Runtime inputs need a valid name and a literal default.", f"inputs.{name}")
+        try:
+            registry.input_values({name: spec}, {}, partial=True)
+        except InvalidBinding as e:
+            raise _invalid(e.message, f"inputs.{name}") from e
 
     def expressions(value: Any, field: str) -> None:
         if isinstance(value, dict):
+            if value.get("source") == "step":
+                try:
+                    ref = StepSelectionSource.model_validate(value)
+                except ValueError as e:
+                    raise _invalid("Invalid previous-step selection reference.", field) from e
+                if ref.step_id not in previous or ref.output not in previous_outputs.get(ref.step_id, []):
+                    raise _invalid("Selection must reference a declared output of an earlier step.", field)
+                return
+            if value.get("source") == "input":
+                try:
+                    ref = RuntimeInputSource.model_validate(value)
+                except ValueError as e:
+                    raise _invalid("Invalid runtime input reference.", field) from e
+                if ref.name not in recipe.inputs:
+                    raise _invalid("Runtime input must be declared in the Recipe.", field)
+                return
             for key, child in value.items():
                 expressions(child, f"{field}.{key}")
         elif isinstance(value, list):
@@ -64,7 +89,7 @@ def validate_recipe(recipe: Recipe) -> None:
         for name, value in policy.fixed.items():
             if name not in manifest.parameters:
                 raise _invalid(f"Unknown Method parameter: {name}.", f"{field}.fixed.{name}")
-            if isinstance(value, str) and value.startswith("$"):
+            if is_dynamic(value):
                 raise _invalid("Fixed parameters must be literal values.", f"{field}.fixed.{name}")
             try:
                 registry.resolve_params(method, {name: value}, partial=True)
@@ -91,11 +116,24 @@ def validate_recipe(recipe: Recipe) -> None:
         for key, role in manifest.roles.items():
             if role.required and not step.bindings.get(key):
                 raise _invalid(f"{key} is required.", f"steps[{i}].bindings.{key}")
+            value = step.bindings.get(key)
+            if isinstance(value, dict) and (value.get("source") == "step" or value.get("source") == "input"):
+                raise _invalid("Group selection references belong in Method parameters, not semantic bindings.", f"steps[{i}].bindings.{key}")
         for key, param in manifest.parameters.items():
             value = step.params.get(key, param.default)
+            if param.source_policy and isinstance(value, dict) and value.get("source") in ("step", "input") and value["source"] not in param.source_policy.allowed:
+                raise _invalid("This input source is not allowed by the Method.", f"steps[{i}].params.{key}")
             if param.required and value is None:
                 raise _invalid(f"{key} is required.", f"steps[{i}].params.{key}")
-            if isinstance(value, str) and value.startswith("$"):
+            if is_dynamic(value):
+                expressions(value, f"steps[{i}].params.{key}")
+                if isinstance(value, dict) and value.get("source") == "step" and param.type != "drill_path":
+                    raise _invalid("A group selection requires a group-condition input.", f"steps[{i}].params.{key}")
+                if isinstance(value, dict) and value.get("source") == "input" and recipe.inputs[value["name"]].type != param.type:
+                    raise _invalid("Runtime input type does not match the Method parameter.", f"steps[{i}].params.{key}")
+                fixed = recipe.method_parameters.get(step.method)
+                if fixed and key in fixed.fixed:
+                    raise _invalid("A dynamic input conflicts with a fixed parameter.", f"steps[{i}].params.{key}")
                 continue
             if value is not None and param.type == "enum" and value not in (param.enum or []):
                 raise _invalid(f"Invalid value for {key}.", f"steps[{i}].params.{key}")
@@ -111,3 +149,4 @@ def validate_recipe(recipe: Recipe) -> None:
         expressions(step.params, f"steps[{i}].params")
         if step.id:
             previous.add(step.id)
+            previous_outputs[step.id] = manifest.selection_outputs

@@ -41,7 +41,33 @@ with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
             FROM journey.transaction_data t JOIN journey.product p USING (product_id)
             WHERE t.store_id = '364' AND p.department = 'GROCERY'""")
         subject_rate = cursor.fetchone()[0]
+        cursor.execute("""SELECT count(*), count(DISTINCT observation_id),
+            count(*) FILTER (WHERE eligible AND (post_sales_30d IS NULL OR pre_baskets_30d <= 0))
+            FROM journey.campaign_household_outcomes""")
+        observations, distinct_observations, invalid = cursor.fetchone()
+        cursor.execute("SELECT count(*) FROM journey.campaign_desc")
+        assert observations == distinct_observations == households * cursor.fetchone()[0]
+        assert invalid == 0
+        cursor.execute("""SELECT observation_id, campaign_start_date, household_key, pre_sales_30d,
+            pre_baskets_30d, post_sales_30d, is_targeted FROM journey.campaign_household_outcomes
+            WHERE eligible ORDER BY (post_sales_30d = 0) DESC, observation_id LIMIT 10""")
+        checks = cursor.fetchall()
+        for _, start, household, pre_sales, pre_baskets, post_sales, targeted in checks:
+            cursor.execute("""SELECT
+                coalesce(sum(sales_value::numeric) FILTER (WHERE transaction_date < %s), 0),
+                count(DISTINCT basket_id) FILTER (WHERE transaction_date < %s),
+                coalesce(sum(sales_value::numeric) FILTER (WHERE transaction_date >= %s), 0)
+                FROM journey.transaction_data WHERE household_key=%s
+                  AND transaction_date >= %s AND transaction_date < %s""",
+                (start,start,start,household,start-timedelta(days=30),start+timedelta(days=30)))
+            assert cursor.fetchone() == (pre_sales, pre_baskets, post_sales)
+        cursor.execute("""SELECT campaign_id, is_targeted, count(*), avg(post_sales_30d)
+            FROM journey.campaign_household_outcomes WHERE eligible AND campaign_id='8' GROUP BY 1,2""")
+        campaign_reference = [{"campaign":c,"targeted":t,"households":n,"mean_sales":str(mean)}
+                              for c,t,n,mean in cursor.fetchall()]
         print(json.dumps({"tables": dict(tables), "households": households, "retailer_receipts": str(sales),
                           "source_day_range": [lo, hi], "top_department": department, "department_receipts": str(amount),
                           "transaction_date_range": [date_lo.isoformat(), date_hi.isoformat()],
+                          "campaign_household_observations": observations,
+                          "campaign_8_reference": campaign_reference,
                           "store_364_grocery_coupon_line_rate": str(subject_rate)}))

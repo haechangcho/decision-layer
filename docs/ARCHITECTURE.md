@@ -47,6 +47,35 @@ native metadata, submits `createQuery`, polls status and reads all bounded resul
 IDs and available SQL remain in Run evidence. No local project or warehouse credentials are required;
 see ADR-058 and the [dbt connection guide](guides/dbt.md).
 
+MCP Method execution requires a question-scoped Run: start analysis (or a Recipe),
+append Methods with a purpose, then save a conclusion linked to recorded steps.
+The engine rejects MCP standalone Method calls and incomplete completion requests.
+MCP pipelines remain open after execution until their conclusion is recorded. Web
+shows this state as conclusion waiting and supports owner review and completion.
+See ADR-059; no narrative or grouping is inferred from chat text.
+
+Direct Run registration creates runtime-selection Recipes without a review dialog.
+Recorded sources are preserved; unprotected literal targets use matching earlier
+semantic dimension paths or required typed runtime inputs without remembered defaults.
+This is a new-procedure policy, not recovery of historical intent (ADR-061).
+
+Method authoring metadata generates shared input controls and canonical step defaults.
+`configure_step` / `POST /recipes:configure-step` materializes explicit source rules,
+not provider semantics or arbitrary agent code. Missing required targets become typed
+runtime inputs without remembered values. See ADR-062 and the Method contribution guide.
+
+Execution scope distinguishes unresolved, explicit all-period, date-range and relative-period
+requests. Server-owned policy is checked before analysis and freshness queries and again at
+the dataset boundary. Waiting Runs keep pending intent and resume through a revision-checked
+owner scope update; no placeholder result is promoted to a Recipe. Relative rules resolve
+against the execution clock, with provenance and policy revision stored on the Run. See ADR-064.
+
+CEM supports native average outcomes through an explicit row count and a provider-declared queryable
+primary unit, verifying one finite outcome and one counted row per unique unit. Continuous-outcome
+significance is not implemented. The local MetricFlow adapter preserves aggregation types from the
+native dbt artifact before planner normalization; hosted dbt metadata that cannot establish this
+contract still fails closed. Sample campaign modeling stays outside the generic engine. See ADR-065.
+
 ---
 
 ## 2. High-level architecture
@@ -955,3 +984,11 @@ Decision -> supported_by -> Result
 ```
 
 This future layer should reference Decision Layer, not become a prerequisite for it.
+
+## Reusable Step Inputs (ADR-060)
+
+Step parameters accept literals, declared Recipe runtime inputs, and bounded references to manifest-declared selection outputs of earlier steps. `ranked_groups` carries eligible full-precision paths, scores, ordering and population completeness independently of displayed rows. The resolver supports only first-ranked selection and full-path/current-condition/parent-condition projections. It refuses incomplete or unavailable results and requests input on ties; it never runs generated code or uses previous Run values.
+
+`StepRecord.requested_step` retains the rule; `StepRecord.step` retains actual applied inputs including Method defaults. `input_resolutions` explains the dependency, projection, selected value and ranking evidence. Recipe inputs are validated before Run creation and preserved in scope. Result semantic refs and queries continue to pass through the same current-credential provider contract.
+
+Run-to-Recipe review preserves these rules rather than copying resolved winners. Historical exploratory literals require explicit review, with no guessed dependencies. Run-specific dates and extra shared filters are not permanent Recipe rules. Existing immutable Recipe snapshots can recover previously authored references. A selected subset must include its earlier dependencies. User-directed changes create a newer Recipe version, leaving historical Runs unchanged.

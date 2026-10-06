@@ -16,9 +16,12 @@ def test_defaults_expose_everything(monkeypatch):
     assert client.headers["X-Decision-Layer-Client"] == "mcp"
     asyncio.run(client.aclose())
     names = {t.name for t in asyncio.run(s.mcp.list_tools())}
-    assert {"start_run", "start_analysis", "run_step", "run_method"} <= names
+    assert {"start_run", "start_analysis", "run_step", "complete_run"} <= names
+    assert "run_method" not in names
     assert "query.trend" in s.INSTRUCTIONS and "simple arithmetic" in s.INSTRUCTIONS    # relaxed by default (ADR-032)
     assert "verbatim" in s.INSTRUCTIONS and "Do not shorten" in s.INSTRUCTIONS
+    step = next(t for t in asyncio.run(s.mcp.list_tools()) if t.name == "run_step")
+    assert {"run_id", "method", "bindings", "purpose"} <= set(step.input_schema["required"])
 
 
 def test_strict_rule(monkeypatch):
@@ -43,19 +46,31 @@ def test_recipe_list_checks_current_connection_before_recommending(monkeypatch):
     assert result["recipes"][0]["unavailable_reason"]["code"] == "UNKNOWN_SEMANTIC_OBJECT"
 
 
-def test_ad_hoc_method_forwards_the_original_question(monkeypatch):
+def test_method_execution_only_appends_to_the_requested_run(monkeypatch):
     s = load(monkeypatch)
     seen = {}
 
     async def fake_call(_method, _path, **kwargs):
+        assert _method == "POST" and _path == "/runs/run_test/steps"
         seen.update(kwargs["json"])
         return {"status": "success", "run_id": "run_test"}
 
     monkeypatch.setattr(s, "_call", fake_call)
-    result = asyncio.run(s.run_method("query.trend", {"metric": "cube://local/sales/revenue"},
-                                      question="Why did revenue change?"))
+    result = asyncio.run(s.run_step("run_test", "query.trend", {"metric": "cube://local/sales/revenue"},
+                                   purpose="Check the change"))
     assert result["run_id"] == "run_test"
-    assert seen["question"] == "Why did revenue change?"
+    assert seen["purpose"] == "Check the change" and "question" not in seen
+
+
+def test_selection_sources_are_executable_templates_not_copied_winners(monkeypatch):
+    s = load(monkeypatch)
+    result = s._compact_result({"status": "success", "step_id": "groups", "selections": {"ranked_groups": {
+        "complete": True, "rank_by": "metric", "direction": "desc",
+        "candidates": [{"path": [{"member": "cube://x/orders/group", "value": str(i)}], "score": 100 - i} for i in range(20)]}}})
+    assert len(result["selections"]["ranked_groups"]["candidates"]) == 3
+    assert result["selections"]["ranked_groups"]["candidate_count"] == 20
+    assert result["selection_sources"]["ranked_groups"]["condition"] == {
+        "source": "step", "step_id": "groups", "output": "ranked_groups", "select": "first", "project": "condition"}
 
 
 def test_semantic_search_forwards_provider_date_hints_without_domain_assumptions(monkeypatch):
@@ -131,11 +146,12 @@ def test_restricted_profile(monkeypatch):
     s = load(monkeypatch, DL_MCP_METHODS="query.drilldown,query.trend", DL_MCP_RECIPES="off",
              DL_MCP_RULES="relaxed")
     names = {t.name for t in asyncio.run(s.mcp.list_tools())}
-    assert "start_run" not in names and "start_analysis" not in names and "run_method" in names
+    assert "start_run" not in names and "list_recipes" not in names and "run_method" not in names
+    assert {"start_analysis", "run_step"} <= names
     assert "complete_run" in names
     assert "simple arithmetic" in s.INSTRUCTIONS and "causal.cem" not in s.INSTRUCTIONS
-    assert "list_recipes" not in s.INSTRUCTIONS.split("Rules")[0]
-    r = asyncio.run(s.run_method("query.compare", {"metric": "x"}))
+    assert "list_recipes" not in s.INSTRUCTIONS
+    r = asyncio.run(s.run_step("run_test", "query.compare", {"metric": "x"}, purpose="Compare"))
     assert r["error"]["code"] == "METHOD_NOT_EXPOSED"
     monkeypatch.delenv("DL_MCP_METHODS")
     monkeypatch.delenv("DL_MCP_RECIPES")

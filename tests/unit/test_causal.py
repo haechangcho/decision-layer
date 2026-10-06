@@ -4,6 +4,7 @@ import pytest
 from decision_layer.methods import registry
 from decision_layer.methods.causal import matching as m
 from test_methods import CAT, CHANNEL, RR, SELLER, FakeProvider, ctx
+from test_methods import AOV, COUNT, ORDER
 
 B_RATE, A_RATE = 50 / 500 * 100, 105 / 505 * 100   # Q3: B 10%, A (incl. S8) ≈ 20.79%
 
@@ -62,3 +63,57 @@ async def test_cem_refuses_when_not_comparable(provider):
 async def test_one_treatment_role(provider):
     r = await registry.run("causal.cem", ctx(provider), {"metric": RR, "conditions": [CHANNEL]}, {})
     assert r.status == "refused"
+
+
+async def test_average_cem_uses_verified_primary_units_without_proportion_intervals(provider):
+    provider.catalog.get(AOV).metric_kind = "average"
+    provider.catalog.get(AOV).ratio_parts = None
+    provider.catalog.get(AOV).entity = ORDER
+    provider.catalog.get(COUNT).entity = ORDER
+    result = await registry.run("causal.cem", ctx(provider),
+                                {"metric": AOV, "sample_count": COUNT, "treatment": CAT, "conditions": [CHANNEL]},
+                                {"target": ["A"], "comparison": ["B"]})
+    assert result.status == "success"
+    assert result.primary.data["path"] == "average_units"
+    assert result.primary.data["matched"]["difference"] == -10000
+    assert result.primary.data["statistical_judgement"] == "not_tested"
+    assert not any(artifact.type == "interval" for artifact in result.artifacts)
+    assert COUNT in result.provenance.semantic_refs
+
+
+@pytest.mark.parametrize("fault", ["missing_count", "wrong_entity", "duplicate", "null_outcome", "overlap"])
+async def test_average_cem_fails_closed(provider, fault):
+    provider.catalog.get(AOV).metric_kind = "average"
+    provider.catalog.get(AOV).ratio_parts = None
+    provider.catalog.get(AOV).entity = ORDER
+    provider.catalog.get(COUNT).entity = ORDER if fault != "wrong_entity" else CAT
+    bindings = {"metric": AOV, "sample_count": COUNT, "treatment": CAT, "conditions": [CHANNEL]}
+    if fault == "missing_count":
+        bindings.pop("sample_count")
+    if fault == "duplicate":
+        provider.orders.append(dict(provider.orders[0]))
+    if fault == "null_outcome":
+        execute = provider.execute
+        async def missing(*args, **kwargs):
+            dataset = await execute(*args, **kwargs)
+            index = next(i for i, col in enumerate(dataset.columns) if col.ref == AOV)
+            dataset.rows[0][index] = None
+            return dataset
+        provider.execute = missing
+    result = await registry.run("causal.cem", ctx(provider), bindings,
+                                {"target": ["A"], "comparison": ["A"] if fault == "overlap" else ["B"]})
+    assert result.status == "refused"
+
+
+async def test_small_average_is_not_misidentified_as_percentage(provider):
+    provider.catalog.get(AOV).metric_kind = "average"
+    provider.catalog.get(AOV).ratio_parts = None
+    provider.catalog.get(AOV).entity = ORDER
+    provider.catalog.get(COUNT).entity = ORDER
+    for order in provider.orders:
+        order["amount"] = 25 if order[CAT] == "A" else 50
+    result = await registry.run("causal.cem", ctx(provider),
+                                {"metric": AOV, "sample_count": COUNT, "treatment": CAT, "conditions": [CHANNEL]},
+                                {"target": ["A"], "comparison": ["B"]})
+    assert result.status == "success" and result.primary.data["matched"]["difference"] == -25
+    assert not any(artifact.type == "interval" for artifact in result.artifacts)

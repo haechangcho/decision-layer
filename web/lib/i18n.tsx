@@ -11,6 +11,23 @@ export const LOCALES: Locale[] = ["en", "ko"];
 const KEY = "decision-layer.locale";
 
 const ko: Record<string, string> = {
+  "Choose an analysis period or explicitly request all periods.": "분석 기간을 선택하거나 전체 기간을 명시적으로 요청하세요.",
+  "The server does not allow all-period queries. Choose a date range.": "서버에서 전체 기간 조회를 허용하지 않습니다. 날짜 범위를 선택하세요.",
+  "This analysis needs a date range. Choose its start and end dates.": "이 분석에는 날짜 범위가 필요합니다. 시작일과 종료일을 선택하세요.",
+  "Choose a period of at most {days} days.": "{days}일 이내의 기간을 선택하세요.",
+  "Confirm analysis period": "분석 기간 확인",
+  "Choose the analysis period": "분석 기간을 정해 주세요",
+  "Choose a period to continue the same analysis.": "기간을 정하면 같은 분석을 이어서 실행합니다.",
+  "Could not apply the period.": "기간을 적용하지 못했습니다.",
+  "Maximum period": "최대 기간",
+  "days": "일",
+  "Continue with this period": "이 기간으로 계속",
+  "All periods": "전체 기간",
+  "Date dimension": "날짜 기준",
+  "Choose a date dimension": "날짜 기준 선택",
+  "Start date": "시작일",
+  "End date": "종료일",
+  "Starting analysis…": "분석을 시작하는 중…",
   "Semantic layer connection": "시맨틱 레이어 연결",
   "Connect your governed metrics and dimensions.": "분석에 사용할 지표와 차원을 연결하세요.",
   "Provider": "시맨틱 레이어",
