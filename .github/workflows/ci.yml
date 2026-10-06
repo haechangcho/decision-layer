@@ -53,21 +53,30 @@ jobs:
         run: docker compose down
 
   example:
-    # The sole sample: pinned source import, independent SQL and real MCP/Cube execution.
+    # One dataset, independently selected semantic providers, SQL and real MCP.
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {provider: cube, compose: compose.override.yaml}
+          - {provider: metricflow, compose: compose.dbt.yaml}
+    env:
+      COMPOSE_FILE: examples/complete-journey/compose.yaml:examples/complete-journey/${{ matrix.compose }}
+      DL_JOURNEY_PROVIDER: ${{ matrix.provider }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
       - run: pip install -e '.[dev]'
-      - run: docker compose -f examples/complete-journey/compose.yaml up -d --build --wait --wait-timeout 900 api
+      - run: docker compose up -d --build --wait --wait-timeout 900 api
       - name: verify source independently
-        run: docker compose -f examples/complete-journey/compose.yaml run --rm --no-deps import python verify.py
+        run: docker compose run --rm --no-deps import python verify.py
       - run: pytest -q -s tests/provider/test_complete_journey_live.py
         env:
           DL_JOURNEY_API_URL: http://127.0.0.1:8000
       - if: failure()
-        run: docker compose -f examples/complete-journey/compose.yaml logs --tail 100
+        run: docker compose logs --tail 100
       - if: always()
-        run: docker compose -f examples/complete-journey/compose.yaml down
+        run: docker compose down

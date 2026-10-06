@@ -1,0 +1,17 @@
+version: 2
+semantic_models:
+  - name: households
+    model: ref('households')
+    entities:
+      - name: household
+        type: primary
+        expr: household_key
+    dimensions:
+      - name: age_code
+        type: categorical
+        description: Publisher classification code, not an inferred age.
+      - name: income_code
+        type: categorical
+        description: Publisher classification code, not an inferred income.
+      - name: composition_code
+        type: categorical

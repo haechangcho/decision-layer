@@ -9,6 +9,8 @@ Decision Layer는 Cube의 데이터베이스를 직접 연결하거나 지표 �
 
 ## 연결하기
 
+샘플 Cube는 `examples/complete-journey`에서 `docker compose up -d --build --wait --wait-timeout 900`으로 실행합니다. [dbt MetricFlow 예제](./metricflow.md)는 같은 데이터를 사용하는 별도 선택지입니다. 아래는 이미 운영 중인 Cube를 연결하는 방법입니다.
+
 1. 저장소 루트에서 `docker compose up -d --build --wait`를 실행하세요.
 2. [Sources](http://localhost:3000/sources)를 여세요.
 3. Cube API URL과 인증 방식을 입력하고 **연결 테스트**를 누르세요.

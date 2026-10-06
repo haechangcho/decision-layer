@@ -27,37 +27,14 @@ services:
       - source_cache:/cache
     restart: "no"
 
-  cube:
-    image: cubejs/cube:v1.6.25
-    depends_on:
-      import: {condition: service_completed_successfully}
-    environment:
-      CUBEJS_DB_TYPE: postgres
-      CUBEJS_DB_HOST: postgres
-      CUBEJS_DB_NAME: journey
-      CUBEJS_DB_USER: journey_reader
-      CUBEJS_DB_PASS: local-read-only
-      CUBEJS_API_SECRET: local-example-secret-change-me-0123456789
-      CUBEJS_DEV_MODE: "true"
-    volumes:
-      - ./cube/model:/cube/conf/model:ro
-      - ./cube/healthcheck.cjs:/cube/conf/healthcheck.cjs:ro
-    ports: ["127.0.0.1:${CUBE_PORT:-4000}:4000"]
-    healthcheck:
-      test: ["CMD", "node", "/cube/conf/healthcheck.cjs"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 30s
-
   api:
     build: {context: ../.., dockerfile: Dockerfile}
     depends_on:
-      cube: {condition: service_healthy}
+      import: {condition: service_completed_successfully}
     environment:
-      CUBE_API_URL: http://cube:4000/cubejs-api/v1
-      CUBE_INSTANCE: journey
-      CUBE_API_SECRET: local-example-secret-change-me-0123456789
+      DL_DEFAULT_CUBE_URL: http://cube:4000/cubejs-api/v1
+      DL_DEFAULT_METRICFLOW_URL: http://metricflow:4100
+      DL_DEFAULT_METRICFLOW_INSTANCE: journey
       DL_ALLOW_SERVICE_CREDENTIALS: "true"
       DL_RECIPES_DIR: /recipes
       DL_DATABASE_URL: sqlite:////data/decision_layer.db

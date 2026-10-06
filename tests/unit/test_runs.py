@@ -201,6 +201,96 @@ async def test_recipe_free_question_keeps_multiple_methods_in_one_run(provider, 
     assert all(record.result.provenance.queries for record in stored.steps)
 
 
+async def test_structured_conclusion_and_distinct_authors_survive_storage(provider, tmp_path):
+    from decision_layer.core.models import ExecutionAuthor, RunConclusion, RunFinding
+    e = engine(provider, SqliteRunStore(str(tmp_path / "runs.db")), recipes_dir=tmp_path / "empty")
+    starter = ExecutionAuthor(client_name="test-client", client_version="1.2", client_source="protocol")
+    writer = ExecutionAuthor(model_id="test-model", model_revision="2026-01", model_source="runner")
+    run = await e.start(CREDS, ME, recipe=None, question="How did the metric change?", scope=SCOPE, author=starter)
+    await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", bindings={"metric": RR}), author=writer)
+    with pytest.raises(InvalidBinding):
+        await e.complete(ME, run.id, conclusion=RunConclusion(answer="Answer", findings=[RunFinding(text="Evidence", step_indices=[9])]))
+    assert (await e.store.get(run.id)).status == "open"
+    done = await e.complete(ME, run.id, conclusion=RunConclusion(answer="A short answer", findings=[RunFinding(text="Observed change", step_indices=[0])], limitations=["Not causal"]), author=writer)
+    stored = await e.store.get(done.id)
+    assert stored.summary == "A short answer" and stored.conclusion.findings[0].step_indices == [0]
+    assert stored.author == starter and stored.author.model_id is None
+    assert stored.steps[0].author == writer and stored.conclusion_author == writer
+    assert stored.caller == ME
+
+
+def test_rest_conclusion_contract_and_attribution_do_not_enter_recipe(provider, tmp_path):
+    settings = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="test-secret-at-least-32-characters",
+                        cube_service_groups=("ecommerce",), database_url="memory", recipes_dir=str(tmp_path), allow_service_credentials=True)
+    client = TestClient(create_app(settings, provider))
+    author = {"client_name": "example-client", "model_id": "explicit-model"}
+    run = client.post("/runs", json={"question": "Inspect change", "scope": SCOPE, "author": author}).json()
+    path = f"/runs/{run['id']}"
+    response = client.post(path + "/steps", json={"method": "query.trend", "bindings": {"metric": RR}, "author": author})
+    assert response.status_code == 200
+    invalid = client.post(path + ":complete", json={"conclusion": {"answer": "Result", "findings": [{"text": "Unknown step", "step_indices": [-1]}]}})
+    assert invalid.status_code == 400
+    done = client.post(path + ":complete", json={"conclusion": {"answer": "A brief answer", "findings": [{"text": "From the result", "step_indices": [0]}]}, "author": author})
+    assert done.status_code == 200 and done.json()["summary"] == "A brief answer"
+    stored = client.get(path).json()
+    assert stored["conclusion_author"]["model_id"] == "explicit-model"
+    assert stored["steps"][0]["author"]["client_name"] == "example-client"
+    response = client.get(path + "/recipe-candidate", params={"indices": 0})
+    assert response.status_code == 200, response.json()
+    candidate = response.json()["recipe"]
+    assert "author" not in candidate["steps"][0]
+
+
+async def test_completion_cannot_race_a_running_step(provider):
+    e = engine(provider)
+    run = await e.start(CREDS, ME, recipe=None, question="Inspect change", scope=SCOPE)
+    run.running = RunningJob(kind="step")
+    await e.store.save(run)
+    with pytest.raises(RunBusy):
+        await e.complete(ME, run.id, "Premature answer")
+    assert (await e.store.get(run.id)).status == "open"
+
+
+async def test_automatic_method_and_pipeline_conclusions_are_persisted_and_can_be_narrated_once(provider):
+    import json
+    from decision_layer.core.models import RunConclusion, RunFinding
+    e = engine(provider)
+    adhoc, _ = await e.adhoc(CREDS, ME, PlanStep(method="query.trend", bindings={"metric": RR}), SCOPE)
+    pipeline = await e.start(CREDS, ME, recipe="return-rate-drilldown", question="Compare groups", scope=SCOPE)
+    for run in (adhoc, pipeline):
+        assert json.loads(e.store._runs[run.id])["conclusion"]["source"] == "execution"
+        finished = run.finished_at
+        conclusion = RunConclusion(source="execution", answer="Observed values differ", findings=[RunFinding(text="Recorded result", step_indices=[0])])
+        done = await e.complete(ME, run.id, conclusion=conclusion)
+        assert done.conclusion.source == "caller" and done.finished_at == finished
+        assert len(done.steps) == len(run.steps)
+        with pytest.raises(RunClosed):
+            await e.complete(ME, run.id, conclusion=conclusion)
+
+
+@pytest.mark.parametrize("method", ["query.drilldown", "query.trend", "query.peer_comparison", "causal.cem", "community.new_method"])
+async def test_historical_runs_normalize_without_ids_domains_or_rewriting_original_text(method):
+    import json
+    from datetime import datetime, timezone
+    from decision_layer.core.models import AnalysisPlan, Artifact, Result, Run, StepRecord
+    timestamp = datetime.now(timezone.utc)
+    record = StepRecord(step=PlanStep(method=method), method="method://community/example@1.0.0",
+                        result=Result(status="success", primary=Artifact(type="table", title="Measurement results", data=[])),
+                        started_at=timestamp, finished_at=timestamp)
+    run = Run(id="arbitrary-id", caller=ME, plan=AnalysisPlan(), status="completed", steps=[record], summary="Original unstructured narrative. Its exact text must be kept.")
+    legacy = run.model_dump(mode="json", exclude={"conclusion"})
+    store = MemoryRunStore()
+    raw = json.dumps(legacy)
+    store._runs[run.id] = raw
+    normalized = await store.get(run.id)
+    assert normalized.conclusion.source == "execution"
+    assert normalized.conclusion.findings[0].step_indices == [0]
+    assert normalized.summary == legacy["summary"] and store._runs[run.id] == raw
+    with pytest.raises(RunClosed):
+        # The execution fallback must not make existing authored text overwritable.
+        await engine(None, store).complete(normalized.caller, run.id, conclusion=normalized.conclusion)
+
+
 async def test_recipe_fixed_parameters_apply_to_steps_and_reject_runtime_overrides(provider, tmp_path):
     e = engine(provider, recipes_dir=write_recipe(tmp_path, """
 name: governed-trend
@@ -319,6 +409,14 @@ def test_api_runs(provider):
     assert candidate.json()["recipe"]["origin_runs"] == [adhoc["run_id"]]
     assert candidate.json()["recipe"]["steps"][0]["params"]["granularity"] == "month"
     assert c.get(f"/runs/{adhoc['run_id']}/recipe-candidate", params={"indices": 1}).status_code == 422
+
+    from decision_layer.recipes.from_run import candidate_from_run
+    from decision_layer.core.models import Run
+    recorded = Run.model_validate(c.get(f"/runs/{adhoc['run_id']}").json())
+    recorded.steps[0].step.bindings["metric"] = "metricflow://journey/metrics/receipts"
+    promoted = candidate_from_run(recorded, [0])
+    assert promoted.recipe.semantic_scope.primary_metric == "metricflow://journey/metrics/receipts"
+    assert promoted.recipe.steps[0].params == recorded.steps[0].step.params
 
 
 def test_api_enforces_recipe_parameter_policy(provider, tmp_path):

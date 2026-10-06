@@ -19,10 +19,6 @@ cubes:
     sql: redemption_date
     type: time
     title: Redemption date
-    description: Fixed example calendar (day 1 = 2000-01-01), not actual redemption dates.
-    meta:
-      suggestedDateRange: ['2000-08-12', '2001-12-04']
-      calendarType: mapped
   measures:
   - name: count
     type: count

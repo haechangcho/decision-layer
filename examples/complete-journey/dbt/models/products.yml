@@ -1,0 +1,12 @@
+version: 2
+semantic_models:
+  - name: products
+    model: ref('products')
+    entities:
+      - name: product
+        type: primary
+        expr: product_id
+    dimensions:
+      - {name: department, type: categorical}
+      - {name: brand, type: categorical}
+      - {name: commodity, type: categorical}

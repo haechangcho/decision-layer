@@ -12,6 +12,7 @@ when DL_ALLOW_SERVICE_CREDENTIALS is set; they all share one identity.
 from __future__ import annotations
 
 import jwt
+import hashlib
 
 from .core.errors import DecisionLayerError, ProviderAccessDenied
 from .core.models import CallerInfo
@@ -47,6 +48,10 @@ async def identify(provider: SemanticProvider, creds: Credentials) -> CallerInfo
     if isinstance(creds, (ServiceCredentials, AnonymousServiceCredentials)):
         return CallerInfo(subject=f"service:{creds.subject}", groups=list(creds.groups))
     await provider.discover(creds)  # raises ProviderAccessDenied for tokens the provider rejects
+    if getattr(provider, "identity_mode", "jwt_claims") == "credential":
+        # The self-hosted gateway token represents one deployment identity, not JWT claims.
+        digest = hashlib.sha256(creds.token.encode()).hexdigest()
+        return CallerInfo(subject=f"{provider.name}:{provider.instance}:{digest}")
     try:
         claims = jwt.decode(creds.token, options={"verify_signature": False})
     except jwt.PyJWTError:

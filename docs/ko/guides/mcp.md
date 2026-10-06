@@ -40,6 +40,6 @@ claude mcp list
 
 클라이언트는 적절한 Recipe가 있으면 이를 사용하고, 없으면 등록된 Method와 semantic catalog를 바탕으로 탐색할 수 있습니다. 완료 후 [Runs](http://localhost:3000/runs)에서 질문, 방법, 설정, 쿼리와 출처를 검토하세요. 좋은 절차라면 [Recipe로 등록](./runs.md)할 수 있습니다.
 
-예제에서는 로컬 개발용 서비스 계정을 쓰므로 별도 토큰이 필요 없습니다. 사용자별 Cube 인증을 쓰는 환경에서는 어댑터에 `DL_TOKEN`을 전달하고 웹에서도 같은 사용자로 접속해야 자신의 Runs가 보입니다.
+로컬 Cube·dbt 예제는 개발용 서비스 계정을 사용하므로 별도 토큰이 필요 없습니다. 회사의 기존 소스에 연결할 때는 MCP 클라이언트의 비공개 환경 설정에 `DL_TOKEN`을 지정하세요. 웹과 MCP에서 같은 연결과 인증 정보를 사용해야 같은 Runs를 볼 수 있습니다. [Cube 연결](cube.md)과 [dbt Semantic Layer 연결](dbt.md)을 참고하세요.
 
 Claude Desktop 설정과 오류별 확인 방법은 [영문 MCP 가이드](/guides/mcp)에 있습니다.

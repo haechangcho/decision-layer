@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 import jwt
+import pytest
 
 from decision_layer.api.app import create_app
 from decision_layer.semantic.providers.cube.provider import CubeProvider
@@ -57,10 +58,11 @@ def test_recipe_writes_use_caller_identity_and_create_new_versions(cube_meta, tm
     assert c.get("/recipes/orders-test", headers=caller).json()["description"] == "updated"
 
 
-def test_live_recipe_validation_identifies_the_field_for_an_unknown_semantic_ref(cube_meta):
+@pytest.mark.parametrize("missing", ["cube://local/ecom_order/nope", "metricflow://local/metrics/nope"])
+def test_live_recipe_validation_identifies_the_field_for_an_unknown_semantic_ref(cube_meta, missing):
     c = client(cube_meta, secret="s")
     candidate = {"name": "orders-test", "version": "1.0.0", "description": "test",
-        "semantic_scope": {"primary_metric": ref("ecom_order.nope")}, "mode": "pipeline",
+        "semantic_scope": {"primary_metric": missing}, "mode": "pipeline",
         "steps": [{"id": "trend", "method": "query.trend", "bindings": {"metric": "$scope.primary_metric"},
                    "params": {"granularity": "month"}}]}
     response = c.post("/recipes:validate?live=true", json=candidate)

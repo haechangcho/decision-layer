@@ -4,6 +4,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 from ..core.errors import DecisionLayerError
+from ..core.ids import is_semantic_ref
 from ..core.models import Filter, PlanStep, Recipe, Run, RunDefaults, SemanticScope
 from ..i18n import _
 from .authoring import validate_recipe
@@ -33,10 +34,10 @@ def candidate_from_run(run: Run, indices: list[int]) -> RecipeCandidate:
     if any(record.result.status != "success" for record in selected):
         raise RunPromotionError(_("Only successful Run steps can become a Recipe draft."))
     metrics = [record.step.bindings.get("metric") for record in selected]
-    if not isinstance(metrics[0], str) or not metrics[0].startswith("cube://"):
+    if not is_semantic_ref(metrics[0]):
         raise RunPromotionError(_("The first selected step needs a governed metric."))
     primary = metrics[0]
-    related = list(dict.fromkeys(value for value in metrics[1:] if isinstance(value, str) and value.startswith("cube://") and value != primary))
+    related = list(dict.fromkeys(value for value in metrics[1:] if is_semantic_ref(value) and value != primary))
     steps: list[PlanStep] = []
     review_notes = []
     for index, record in enumerate(selected):

@@ -1,7 +1,9 @@
 # Complete Journey
 
 Databricks의 [데이터 준비 예제](https://www.databricks.com/notebooks/segment-p13n/sg_01_data_prep.html)에서 사용한 소매점 데이터입니다.
-원본의 고객·상품·거래·캠페인·쿠폰 관계를 로컬 PostgreSQL과 Cube로 연결합니다. Databricks 계정은 필요하지 않습니다.
+원본의 고객·상품·거래·캠페인·쿠폰 관계를 로컬 PostgreSQL에 적재합니다. Cube 예제와 dbt MetricFlow 예제 중 하나를 선택할 수 있으며 Databricks 계정은 필요하지 않습니다.
+
+dbt 예제에는 계정 없이 체험하는 용도의 로컬 게이트웨이가 포함됩니다. 회사의 기존 dbt 환경은 [공식 Semantic Layer API](../../docs/ko/guides/dbt.md)로 연결하며 예제 게이트웨이를 설치할 필요가 없습니다.
 
 저장소 루트에서:
 
@@ -10,9 +12,16 @@ cd examples/complete-journey
 docker compose up -d --build --wait --wait-timeout 900
 ```
 
-**http://127.0.0.1:3000** 으로 접속하세요. 연결은 자동 설정되고 Recipe는 빈 상태로 시작합니다.
+위 명령은 **Cube 예제**를 실행합니다. **dbt 예제**는 대신 다음 명령으로 실행하세요.
+
+```bash
+docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+```
+
+선택한 제공자와 PostgreSQL·API·웹이 실행됩니다. **http://127.0.0.1:3000** 으로 접속하세요. 처음 설치하면 연결은 자동 설정되고 Recipe는 비어 있습니다. 기존 연결을 저장했다면 [연결 설정](http://localhost:3000/sources)에서 제공자를 선택하고 연결 테스트 후 저장하세요. 두 예제는 웹·API 포트가 같으므로 하나씩 실행합니다.
+dbt의 모델 구조와 연결 방법은 [MetricFlow 가이드](../../docs/ko/guides/metricflow.md)에 있습니다.
 첫 실행에는 공식 원본 약 128 MB 다운로드와 8개 테이블 적재로 몇 분이 걸립니다. 이후에는 재사용합니다.
-Web 3000, API 8000, Cube 4000, PostgreSQL 5433이 기본 포트입니다.
+Web 3000, API 8000, PostgreSQL 5433이 공통 포트입니다. Cube 예제는 4000, dbt 예제는 MetricFlow 4100을 사용합니다.
 다른 서비스가 사용 중이면 `.env.example`을 `.env`로 복사해 포트를 바꾸세요.
 
 MCP는 [연결 가이드](../../docs/guides/mcp.md)를 따라 API에 연결합니다. 질문 예시:
@@ -27,7 +36,7 @@ Runs에서 질문·분석 단계·설정·쿼리를 확인하고 **Recipe로 등
 동료 비교는 대상을 제외한 집단의 지표와 차이를 보여줍니다. 이상 행위나 인과 효과를 단정하지 않습니다.
 
 거래 데이터 기간은 **2000-01-01 ~ 2001-12-11**입니다. 날짜 질문에는 **Transaction date(거래일)**를 사용하세요.
-웹은 Cube가 제공한 추천 기간을 기본으로 선택합니다. MCP에서도 날짜 범위와 달력 설명을 확인할 수 있습니다.
+두 예제 모두 거래·상품·가구·캠페인·캠페인 접촉·쿠폰 사용 이력 모델을 정의합니다. 웹은 제공자에 추천 기간이 있으면 기본으로 선택합니다. 날짜 변환 설명은 각 차원 대신 이 안내에 정리했습니다.
 
 > 2001년 7월부터 9월까지 수취액의 월별 추이를 보고 상품 부문별로 나눠줘.
 
@@ -46,6 +55,15 @@ docker compose run --rm --no-deps import python verify.py
 docker compose logs --tail=100 import cube api
 docker compose down
 ```
+
+dbt 예제의 로그 확인과 종료에는 실행할 때와 같은 파일을 지정합니다.
+
+```bash
+docker compose -f compose.yaml -f compose.dbt.yaml logs --tail=100 dbt-setup metricflow api
+docker compose -f compose.yaml -f compose.dbt.yaml down
+```
+
+예제를 바꿀 때는 현재 예제를 `down`으로 종료하고 다른 예제를 실행하세요. 데이터와 Run 볼륨은 유지됩니다. 기존 연결을 저장했다면 Sources에서 변경한 제공자의 연결을 테스트하고 저장하세요.
 
 `down`은 데이터와 Runs를 보존합니다. `down -v`는 이름 있는 볼륨을 삭제합니다.
 기존 DB에는 아래 명령으로 날짜 컬럼을 추가할 수 있습니다. 원본 데이터는 다시 적재하지 않습니다.

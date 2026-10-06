@@ -5,7 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .core.models import Filter, Recipe
+from .core.models import ExecutionAuthor, Filter, Recipe, RunConclusion
 
 
 class ScopeIn(BaseModel):
@@ -18,6 +18,7 @@ class ScopeIn(BaseModel):
 
 
 class MethodRunRequest(BaseModel):
+    author: ExecutionAuthor | None = None
     question: str | None = None
     bindings: dict[str, str | list[str]] = Field(default_factory=dict)
     params: dict[str, Any] = Field(default_factory=dict)
@@ -25,6 +26,7 @@ class MethodRunRequest(BaseModel):
 
 
 class RunStartRequest(BaseModel):
+    author: ExecutionAuthor | None = None
     recipe: str | None = None                      # name, name@version or recipe://name@version
     question: str | None = None
     scope: ScopeIn = Field(default_factory=ScopeIn)
@@ -50,6 +52,7 @@ class RecipePreviewRequest(BaseModel):
 
 
 class RunStepRequest(BaseModel):
+    author: ExecutionAuthor | None = None
     id: str | None = None
     method: str
     purpose: str | None = Field(default=None, max_length=240)
@@ -59,6 +62,8 @@ class RunStepRequest(BaseModel):
 
 class RunCompleteRequest(BaseModel):
     summary: str | None = None
+    conclusion: RunConclusion | None = None
+    author: ExecutionAuthor | None = None
 
 
 class RunShareRequest(BaseModel):

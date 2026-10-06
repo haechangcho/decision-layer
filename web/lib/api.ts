@@ -15,6 +15,9 @@ export interface SemanticObject {
   metric_kind?: string | null;
   ratio_parts?: [string, string] | null;
   entity?: string | null;
+  dimension_refs?: string[];
+  time_dimension?: string | null;
+  count_measure?: string | null;
   metadata?: Record<string, unknown>;
   public: boolean;
 }
@@ -119,7 +122,7 @@ export interface Run {
   plan: { question?: string | null; scope: Scope; recipe?: string | null };
   recipe_snapshot?: Recipe | null;
   steps: { step: PlanStep; method: string; result: Result; started_at: string; finished_at: string;
-    parameter_sources?: Record<string, "method_default" | "recipe" | "recipe_fixed" | "request"> }[];
+    parameter_sources?: Record<string, "method_default" | "recipe" | "recipe_fixed" | "request">; author?: ExecutionAuthor | null }[];
   caller: { subject?: string | null; groups: string[] };
   shared_with: string[];
   status: "open" | "completed" | "failed";
@@ -127,14 +130,25 @@ export interface Run {
   error?: { code: string; message: string } | null;
   validation: Validation[];
   summary?: string | null;
+  conclusion?: { source?: "caller" | "execution"; answer: string; findings: { text: string; step_indices: number[] }[]; limitations: string[] } | null;
+  author?: ExecutionAuthor | null;
+  conclusion_author?: ExecutionAuthor | null;
   created_at: string;
   finished_at?: string | null;
+}
+
+export interface ExecutionAuthor {
+  client_name?: string | null; client_version?: string | null;
+  client_source?: "protocol" | "client_reported" | "runner";
+  model_provider?: string | null; model_id?: string | null; model_revision?: string | null;
+  model_source?: "client_reported" | "runner";
 }
 
 export interface Scope { date_range?: [string, string] | null; time_dimension?: string | null; filters?: unknown[] }
 
 export interface SourceConfig {
-  provider: "cube";
+  provider: "cube" | "dbt" | "metricflow";
+  environment_id?: number | null;
   instance: string;
   api_url: string;
   auth_method: "token" | "api_secret" | "none";

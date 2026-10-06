@@ -18,10 +18,18 @@
 .queries>section>header { margin:0; padding:8px 12px 8px 16px; background:var(--bg); border-bottom:1px solid var(--line); }
 .queries>section>pre { background:var(--panel); border-radius:0; padding:18px; }
 .queries>section>section { padding:16px; border-top:1px solid var(--line); }
+.queryContext { padding:12px 18px 0; display:flex; flex-wrap:wrap; gap:8px 16px; color:var(--muted); font-size:12px; }
 .sources .method { padding:14px 16px; background:var(--bg); border-radius:6px; }
 .sources .method small { padding:2px 6px; border:1px solid var(--line); border-radius:4px; background:var(--panel); font-variant-numeric:tabular-nums; }
 .sources li>span { width:fit-content; padding:2px 6px; background:var(--bg); border-radius:4px; font-size:11px; }
 .settings { max-width:760px; padding-top:24px; }
+.settings h3,.author h3 { margin:0 0 16px; font-size:13px; font-weight:600; }
+.author { margin:28px 0; }
+.author dl { margin:0; display:grid; gap:14px; }
+.author dl>div { display:grid; grid-template-columns:160px minmax(0,1fr); gap:16px; font-size:13px; }
+.author dt { color:var(--muted); }.author dd { margin:0; overflow-wrap:anywhere; line-height:1.6; }
+.author small { display:block; color:var(--muted); font-size:11px; margin-top:4px; }
+@media(max-width:700px) { .author dl>div { grid-template-columns:110px minmax(0,1fr); gap:12px; } }
 .settings dd small { margin-top:4px; color:var(--muted); }
 .rawButton { display:inline-flex; align-items:center; gap:7px; padding:8px 12px; border:1px solid var(--line); border-radius:4px; background:#fff; color:var(--link); font-size:12px; cursor:pointer; }
 .rawDialog { width:800px; max-width:calc(100vw - 32px); max-height:85vh; margin:auto; padding:20px; border:1px solid var(--line); border-radius:6px; background:#fff; color:var(--text); }

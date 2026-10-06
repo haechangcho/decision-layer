@@ -12,17 +12,30 @@ Web, Python, REST and MCP share one execution engine. AI clients select register
 
 ## Quickstart
 
-With Docker and Compose installed, start the sample and local application:
+With Docker and Compose installed, clone the project and choose **Cube or dbt**:
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
 cd decision-layer/examples/complete-journey
-docker compose up -d --build --wait
 ```
 
-Open [localhost:3000](http://localhost:3000). The first start downloads the sample data and can take a few minutes.
+**Cube**
+
+```bash
+docker compose up -d --build --wait --wait-timeout 900
+```
+
+**dbt MetricFlow**
+
+```bash
+docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+```
+
+Run one option, then open [localhost:3000](http://localhost:3000). Both use the same dataset. The first start downloads and imports it and can take a few minutes.
 
 The sample includes a connected semantic source and starts without Recipes. See the [sample guide](examples/complete-journey/README.md) for data details and teardown. This setup is for local development, not production.
+
+The dbt example includes a local MetricFlow runtime for trying the product without a dbt account. Existing company environments connect directly through the official [dbt Semantic Layer API](https://decision-layer-docs.vercel.app/guides/dbt).
 
 ## Run Your First Analysis
 
@@ -32,7 +45,7 @@ The sample includes a connected semantic source and starts without Recipes. See 
 
 No Recipe is required for the first analysis. AI clients can use registered Methods directly.
 
-To use your organization's data, [connect your semantic layer](https://decision-layer-docs.vercel.app/guides/cube). For reusable procedures, see [Recipes](https://decision-layer-docs.vercel.app/guides/recipes).
+To use your organization's data, connect [Cube](https://decision-layer-docs.vercel.app/guides/cube) or [dbt Semantic Layer](https://decision-layer-docs.vercel.app/guides/dbt). For reusable procedures, see [Recipes](https://decision-layer-docs.vercel.app/guides/recipes).
 
 ## Development
 

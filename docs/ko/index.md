@@ -5,7 +5,7 @@ description: 샘플을 실행하고 지표와 분석 기록을 확인합니다.
 
 # 빠른 시작
 
-Cube가 연결되고 Recipe가 비어 있는 예제를 실행합니다. 여러 테이블로 구성된 소매점 데이터로 지표 확인부터 분석 기록까지 경험할 수 있습니다.
+Cube 예제와 dbt MetricFlow 예제 중 하나를 선택하세요. 같은 소매점 데이터로 지표 확인부터 분석 기록까지 경험할 수 있으며 Recipe는 비어 있는 상태로 시작합니다.
 
 ## 1. 예제 실행
 
@@ -14,14 +14,29 @@ Docker와 Compose가 필요합니다. 터미널에서 실행하세요.
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
 cd decision-layer/examples/complete-journey
-docker compose up -d --build --wait
 ```
 
-첫 실행은 데이터를 내려받아 적재하므로 몇 분 걸릴 수 있습니다. 웹은 `localhost:3000`, API는 `localhost:8000`, Cube는 `localhost:4000`에서 실행됩니다. 이 예제에는 Cube 계정이나 로컬 토큰을 따로 준비할 필요가 없습니다.
+아래 탭에서 사용할 제공자를 선택하고 명령을 실행하세요.
+
+::: code-group
+
+```bash [Cube]
+docker compose up -d --build --wait --wait-timeout 900
+```
+
+```bash [dbt MetricFlow]
+docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+```
+
+:::
+
+웹은 `localhost:3000`, API는 `localhost:8000`입니다. Cube 예제는 `localhost:4000`, dbt 예제는 MetricFlow `localhost:4100`을 사용합니다. 첫 실행은 데이터를 내려받아 적재하므로 몇 분 걸릴 수 있습니다. 처음 설치하면 선택한 제공자가 자동 연결됩니다. 예제는 하나씩 실행하며, 전환·종료 방법은 [샘플 안내](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)에 있습니다.
+
+dbt 예제는 계정 없이 체험할 수 있도록 로컬 MetricFlow 게이트웨이를 포함합니다. 회사의 기존 dbt 환경은 Sources에서 **dbt Semantic Layer**를 선택하고 [공식 API로 연결](./guides/dbt.md)하세요. 회사 환경에 별도 게이트웨이를 설치할 필요는 없습니다.
 
 ## 2. 지표 확인
 
-[로컬 웹 앱](http://localhost:3000)을 열고 **Metrics**에서 **Retailer receipts**를 선택하세요. 지표 정의와 사용할 수 있는 차원을 확인할 수 있습니다. 지표의 의미는 Cube가 관리하고 Decision Layer는 semantic catalog에서 읽습니다.
+[로컬 웹 앱](http://localhost:3000)을 열고 **Metrics**에서 **Retailer receipts**를 선택하세요. 지표 정의와 사용할 수 있는 차원을 확인할 수 있습니다. 지표의 의미는 선택한 시맨틱 레이어가 관리하고 Decision Layer는 카탈로그에서 읽습니다.
 
 ## 3. MCP로 분석
 
@@ -34,6 +49,8 @@ docker compose up -d --build --wait
 ## 다음 단계
 
 - [기존 Cube 연결](./guides/cube.md): 조직의 지표로 분석하기
+- [dbt Semantic Layer 연결](./guides/dbt.md): 조직의 공식 API로 분석하기
+- [로컬 dbt 예제](./guides/metricflow.md): SQL·YAML 모델과 실행 환경 살펴보기
 - [Recipe 만들기](./guides/recipes.md): 반복하는 질문을 절차로 저장하기
 - [실행 기록 읽기](./guides/runs.md): 결과와 근거 검토하기
 - [Method 기여하기](./guides/methods.md): 새로운 분석 기능 추가하기

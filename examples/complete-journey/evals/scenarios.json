@@ -3,7 +3,7 @@
   "scenarios": [
     {
       "id": "largest_department",
-      "question": "Use Decision Layer across all available sample data to find the product department with the largest retailer receipts. Use a registered drill-down Method, retain the original question and purpose in a Run, and give the department, amount and Run ID. Do not interpret receipts as profit.",
+      "question": "Decision Layer MCP로 전체 데이터에서 수취액이 가장 큰 상품 부문을 분석해줘. Recipe가 맞지 않으면 등록된 드릴다운 Method를 사용하고 원래 질문과 단계 목적을 Run에 남겨줘. 부문, 금액, Run ID를 알려줘. 수취액을 이익으로 해석하지 마.",
       "must_call": ["query.drilldown"],
       "expect_status": ["success"],
       "expect_numbers": [4093814.14],
@@ -12,8 +12,26 @@
     },
     {
       "id": "store_peer_comparison",
-      "question": "Use Decision Layer to compare store 364's coupon line rate within GROCERY with peer stores in GROCERY and the overall population, excluding store 364 from both benchmarks. Use the registered peer comparison Method and retain this question and step purpose in a Run. Explain why this descriptive comparison does not establish wrongdoing or a causal effect.",
+      "question": "Decision Layer MCP로 GROCERY 부문에서 364 매장의 쿠폰 사용 거래행 비율을 다른 GROCERY 매장 및 전체 접근 가능한 집단과 비교해줘. 비교 기준 두 집단에서는 364 매장을 제외해줘. 등록된 동료 집단 비교 Method를 사용하고 원래 질문과 단계 목적을 Run에 남겨줘. 기술적 비교가 부정 행위나 인과 효과를 입증하지 않는다는 한계와 Run ID도 알려줘.",
       "must_call": ["query.peer_comparison"],
+      "expect_status": ["success"]
+    },
+    {
+      "id": "monthly_receipts_trend",
+      "question": "Decision Layer MCP로 예제용 달력의 2001년 1월 1일부터 6월 30일까지 수취액과 구매 수량의 월별 추이를 함께 보여줘. 등록된 추이 Method를 사용하고 원래 질문과 단계 목적을 Run에 기록해줘. 이 날짜가 실제 구매 연도라고 주장하거나 함께 움직인다는 이유로 인과 관계를 결론내리지 마. 완료 후 Run ID를 알려줘.",
+      "must_call": ["query.trend"],
+      "expect_status": ["success"]
+    },
+    {
+      "id": "brand_matched_coupon_rate",
+      "question": "Decision Layer MCP로 전체 데이터에서 Private 브랜드와 National 브랜드의 쿠폰 사용 거래행 비율을 비교해줘. Private를 대상, National을 비교 대상으로 두고 상품 부문과 매장을 같은 조건으로 맞춰 등록된 CEM Method로 비교해줘. 먼저 실제 브랜드 값을 확인하고 조건 맞춤 전후 결과, 표본 유지율과 경고를 확인해줘. 원래 질문과 단계 목적을 Run에 남겨줘. 브랜드의 인과 효과라고 주장하지 말고 완료 후 Run ID를 알려줘.",
+      "must_call": ["causal.cem"],
+      "expect_status": ["success"]
+    },
+    {
+      "id": "multi_method_investigation",
+      "question": "예제 달력의 2001년 상반기 수취액 1위 부문을 찾아 월별 수취액·쿠폰 사용 비율을 살펴봐줘. 그 부문의 364 매장은 동료 매장 및 전체 집단과 쿠폰 사용 비율이 얼마나 달라? Private와 National 브랜드 차이도 매장·상품 카테고리를 맞춰 비교해줘. 실제 브랜드 값을 먼저 확인하고, 모든 분석 단계와 근거를 하나의 Run에 남겨줘. 인과 효과로 단정하지 말고 Run ID도 알려줘.",
+      "must_call": ["query.drilldown", "query.trend", "query.peer_comparison", "causal.cem"],
       "expect_status": ["success"]
     }
   ]

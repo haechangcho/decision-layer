@@ -6,11 +6,12 @@ import Link from "next/link";
 import { ArrowLeft, BookPlus, Check, History, LoaderCircle, Share2, SlidersHorizontal, X } from "lucide-react";
 
 import { clean, MethodInputs } from "@/components/forms";
-import { ArtifactView, ResultView, ValidationList } from "@/components/result";
+import { ArtifactView, ResultView } from "@/components/result";
 import { RunGraph } from "@/components/run-graph";
+import { RunAnswer } from "@/components/run-answer";
 import { RunDelete } from "@/components/run-delete";
 import { RunResultChart } from "@/components/run-result-chart";
-import { RunQueries, RunSettings, RunSources, readableValue } from "@/components/run-evidence";
+import { AuthorInfo, RunQueries, RunSettings, RunSources, readableValue } from "@/components/run-evidence";
 import { api, MethodManifest, Recipe, Result, Run } from "@/lib/api";
 import { useApi, useCatalog } from "@/lib/hooks";
 import { useT } from "@/lib/i18n";
@@ -60,7 +61,7 @@ export default function RunPage() {
   const timeTitle = scope.time_dimension ? byRef.get(scope.time_dimension)?.title ?? "날짜 기준 이름 확인 필요" : null;
   const metricRefs = [...new Set(run.steps.flatMap((record) => {
     const metric = record.step.bindings.metric;
-    return typeof metric === "string" && metric.startsWith("cube://") ? [metric] : [];
+    return typeof metric === "string" && /^[a-z][a-z0-9_-]*:\/\//.test(metric) ? [metric] : [];
   }))];
   if (recipe?.semantic_scope.primary_metric && !metricRefs.includes(recipe.semantic_scope.primary_metric)) metricRefs.unshift(recipe.semantic_scope.primary_metric);
   const metricNames = metricRefs.map((ref) => byRef.get(ref)?.title ?? "지표 이름 확인 필요");
@@ -84,25 +85,24 @@ export default function RunPage() {
     </section>}
     {run.running && <p className={styles.runNotice} role="status">분석 중 · {run.running.method ? methodName(run.running.method) : run.running.kind} · {new Date(run.running.started_at).toLocaleTimeString()} 시작</p>}
     {run.error && <p className={styles.error} role="alert">{run.error.message} · 오류 코드 {run.error.code}</p>}
-    <section className={styles.runAnswer} aria-label="분석 답변"><span>{run.summary ? "분석 결론" : "분석 상태"}</span><p>{run.summary || (run.running ? "분석이 진행 중입니다." : run.steps.length ? "결론이 아직 기록되지 않았습니다. 단계별 결과를 확인하세요." : "아직 실행된 분석 단계가 없습니다.")}</p>
-      {warnings.length > 0 && <ValidationList items={warnings} />}</section>
+    <RunAnswer run={run} warnings={warnings} onSelect={index => { setOpen(index); setTab("result"); document.getElementById("run-step-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
     <RunGraph run={run} titles={byRef} selected={current} onSelect={index => { setOpen(index); setTab("result"); }} />
-    {selectedStep ? <section className={styles.runStepDetail}><span>{current + 1} / {run.steps.length}단계</span><h2>{methodName(selectedStep.step.method)}</h2><p className={styles.runPurpose}><span>분석 목적</span>{stepPurpose(selectedStep.step)}</p>
+    {selectedStep ? <section id="run-step-detail" className={styles.runStepDetail}><span>{current + 1} / {run.steps.length}단계</span><h2>{methodName(selectedStep.step.method)}</h2><p className={styles.runPurpose}><span>분석 목적</span>{stepPurpose(selectedStep.step)}</p>
       <div className={styles.runTabs} role="tablist" aria-label="분석 단계 정보" onKeyDown={event => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         event.preventDefault(); const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=tab]")];
         const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
         const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + buttons.length) % buttons.length;
         buttons[next].focus(); buttons[next].click();
-      }}>{([['result', '결과'], ...(additional.length ? [['additional', `추가 결과 ${additional.length}개`]] : []), ['settings', '사용한 설정'], ['queries', `쿼리 ${selectedStep.result.provenance.queries.length}개`], ['sources', '출처']]).map(([value, label]) =>
+      }}>{([['result', '결과'], ...(additional.length || selectedStep.result.validation.length ? [['additional', additional.length ? `검증·추가 결과 ${additional.length}개` : '실행 검증']] : []), ['settings', '사용한 설정'], ['queries', `쿼리 ${selectedStep.result.provenance.queries.length}개`], ['sources', '출처']]).map(([value, label]) =>
         <button key={value} id={`run-tab-${value}`} type="button" role="tab" aria-selected={tab === value} aria-controls="run-step-panel" tabIndex={tab === value ? 0 : -1} onClick={() => setTab(value)}>{label}</button>)}</div>
       <div id="run-step-panel" role="tabpanel" aria-labelledby={`run-tab-${tab}`} className={styles.runTabPanel}>
         {tab === "result" && <><strong className={styles.runFinding}>{stepFinding(selectedStep)}</strong><RunResultChart artifact={selectedStep.result.primary} />
           <ResultView result={selectedStep.result} titles={byRef} showRunLink={false} showEvidence={false} expanded /></>}
-        {tab === "settings" && <><div className={styles.runTechnical}><dl><div><dt>분석 기간</dt><dd>{scope.date_range?.join(" ~ ") || "전체 기간"}</dd></div><div><dt>날짜 기준</dt><dd>{timeTitle || "지정 안 함"}</dd></div></dl></div><RunSettings record={selectedStep} titles={byRef} />{scope.filters?.length ? <div className={styles.runFilterSummary}><strong>공통 필터</strong><p>{readableValue(scope.filters, byRef)}</p></div> : null}</>}
+        {tab === "settings" && <><RunSettings record={selectedStep} titles={byRef} manifest={manifests?.find(m => m.name === selectedStep.step.method)} /><div className={styles.runTechnical}><h3>공통 분석 범위</h3><dl><div><dt>분석 기간</dt><dd>{scope.date_range?.join(" ~ ") || "전체 기간"}</dd></div><div><dt>날짜 기준</dt><dd>{timeTitle || "지정 안 함"}</dd></div></dl></div>{scope.filters?.length ? <div className={styles.runFilterSummary}><strong>공통 필터</strong><p>{readableValue(scope.filters, byRef)}</p></div> : null}</>}
         {tab === "queries" && <RunQueries result={selectedStep.result} />}
-        {tab === "additional" && additional.map((artifact, index) => <ArtifactView key={index} artifact={artifact} titles={byRef} expanded />)}
-        {tab === "sources" && <><RunSources result={selectedStep.result} titles={byRef} /><div className={styles.runTechnical}><dl><div><dt>실행 ID</dt><dd>{run.id}</dd></div><div><dt>시작 시각</dt><dd>{new Date(run.created_at).toLocaleString()}</dd></div></dl></div></>}
+        {tab === "additional" && <><section className={styles.runChecks}><h3>실행 검증</h3>{selectedStep.result.validation.length ? <ul>{selectedStep.result.validation.map((item, index) => <li key={index}><span>{item.status === "pass" ? "통과" : item.status === "warning" ? "주의" : "미충족"}</span><p>{item.message}</p></li>)}</ul> : <p>기록된 검증 항목이 없습니다.</p>}</section>{additional.map((artifact, index) => <ArtifactView key={index} artifact={artifact} titles={byRef} expanded />)}</>}
+        {tab === "sources" && <><RunSources result={selectedStep.result} titles={byRef} author={selectedStep.author} />{run.author && JSON.stringify(run.author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.author} label="분석을 시작한 제품" />}{run.conclusion_author && JSON.stringify(run.conclusion_author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.conclusion_author} label="결론 작성 제품·모델" />}<div className={styles.runTechnical}><dl><div><dt>실행 ID</dt><dd>{run.id}</dd></div><div><dt>시작 시각</dt><dd>{new Date(run.created_at).toLocaleString()}</dd></div></dl></div></>}
       </div>
     </section> : <div className={styles.placeholder}><History size={20} />아직 실행된 분석 단계가 없습니다.</div>}
     {recipe && !run.preview && !run.running && <Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}`}>{stopped || run.status === "failed" ? "Recipe 조건을 바꿔 다시 실행" : "Recipe 보기"}</Link>}
@@ -126,7 +126,7 @@ function Share({ run, onDone }: { run: Run; onDone: () => void }) {
       <label htmlFor="run-share-subjects">공유할 사용자 ID</label>
       <input id="run-share-subjects" value={text} onChange={(e) => setText(e.target.value)} placeholder="예: analyst@company.com" />
       <button type="submit" className="ghost">공유 설정 저장</button>
-      <span className="hint">Cube에서 지표 접근 권한이 있는 사용자만 이 기록을 열 수 있습니다.</span>
+      <span className="hint">연결된 지표에 접근 권한이 있는 사용자만 이 기록을 열 수 있습니다.</span>
       {err && <span className={styles.inlineError}>{err}</span>}
     </form>
   );

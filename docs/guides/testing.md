@@ -50,6 +50,8 @@ DL_JOURNEY_API_URL=http://127.0.0.1:8000 \
 The live check records Recipe-free MCP drill-down and peer comparison, then reviews a Recipe candidate.
 The template test needs no Cube.
 
+The same MCP scenario supports the dbt example with `DL_JOURNEY_PROVIDER=metricflow`. To compare both engines on the same database, start both source services with `docker compose -f compose.yaml -f compose.override.yaml -f compose.dbt.yaml up -d --build --wait cube metricflow`, then run `DL_METRICFLOW_TEST_URL=http://127.0.0.1:4100 .venv/bin/pytest tests/provider/test_metricflow_live.py -q`. This opt-in suite compares the four Methods plus campaign/contact/redemption joins and date filtering. It creates no Runs.
+
 From `web/`, use the printed `JOURNEY_MCP_RUN_ID` for desktop/mobile review:
 
 ```bash
@@ -58,6 +60,18 @@ JOURNEY_RUN_ID=run_replace_with_printed_id PLAYWRIGHT_BASE_URL=http://127.0.0.1:
 ```
 
 Use your actual API/Web ports. Do not delete your Recipes to satisfy a test; use an isolated sample folder. The browser test reviews an unsaved candidate, not a published Recipe.
+
+## Hosted dbt API
+
+`tests/unit/test_dbt_provider.py` tests the official GraphQL contract with mocked responses, including Method execution and Run-to-Recipe conversion. The real hosted API has a separate read-only smoke test:
+
+```bash
+# Configure these privately: DL_DBT_TEST_URL, DL_DBT_TEST_ENVIRONMENT_ID,
+# DL_DBT_TEST_TOKEN, DL_DBT_TEST_METRIC (a metric name in your environment).
+.venv/bin/pytest tests/provider/test_dbt_live.py -q
+```
+
+Without those settings the test skips. The local dbt example cannot verify hosted API credentials or warehouse-specific behavior.
 
 ## Interpret the checks
 

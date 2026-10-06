@@ -1,0 +1,12 @@
+version: 2
+sources:
+  - name: journey
+    schema: journey
+    tables:
+      - name: transaction_data
+      - name: product
+      - name: hh_demographic
+      - name: household
+      - name: campaign_desc
+      - name: campaign_table
+      - name: coupon_redempt

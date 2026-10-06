@@ -2,7 +2,7 @@
 directly; the Dataset Planner hands a DatasetSpec to one of these."""
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Literal, Protocol
 
 from ..core.models import Dataset, DatasetSpec, ProviderCapabilities, SemanticCatalog, SemanticObject
 
@@ -15,6 +15,8 @@ class Credentials(Protocol):
 class SemanticProvider(Protocol):
     name: str
     instance: str
+    # Whether an accepted bearer token authenticates its JWT claims or a shared credential.
+    identity_mode: Literal["jwt_claims", "credential"]
 
     def capabilities(self) -> ProviderCapabilities: ...
 

@@ -18,6 +18,7 @@ def test_defaults_expose_everything(monkeypatch):
     names = {t.name for t in asyncio.run(s.mcp.list_tools())}
     assert {"start_run", "start_analysis", "run_step", "run_method"} <= names
     assert "query.trend" in s.INSTRUCTIONS and "simple arithmetic" in s.INSTRUCTIONS    # relaxed by default (ADR-032)
+    assert "verbatim" in s.INSTRUCTIONS and "Do not shorten" in s.INSTRUCTIONS
 
 
 def test_strict_rule(monkeypatch):
@@ -25,6 +26,21 @@ def test_strict_rule(monkeypatch):
     assert "simple arithmetic" not in s.INSTRUCTIONS and "Never compute" in s.INSTRUCTIONS
     monkeypatch.delenv("DL_MCP_RULES")
     importlib.reload(s)
+
+
+def test_recipe_list_checks_current_connection_before_recommending(monkeypatch):
+    s = load(monkeypatch)
+    async def fake_call(method, path, **kwargs):
+        if path == "/recipes":
+            return [{"name": "previous-source", "version": "1.0.0", "mode": "pipeline", "description": "test",
+                     "routing": {"use_for": [], "do_not_use_for": []},
+                     "semantic_scope": {"primary_metric": "cube://old/sales/revenue"}}]
+        assert method == "POST" and path == "/recipes:validate?live=true"
+        return {"error": {"code": "UNKNOWN_SEMANTIC_OBJECT"}}
+    monkeypatch.setattr(s, "_call", fake_call)
+    result = asyncio.run(s.list_recipes())
+    assert result["recipes"][0]["available"] is False
+    assert result["recipes"][0]["unavailable_reason"]["code"] == "UNKNOWN_SEMANTIC_OBJECT"
 
 
 def test_ad_hoc_method_forwards_the_original_question(monkeypatch):
@@ -87,11 +103,36 @@ def test_step_purpose_is_forwarded_as_intent(monkeypatch):
     assert seen["purpose"] == "Check how revenue changed over time"
 
 
+def test_conclusion_and_known_model_are_forwarded_without_guessing(monkeypatch):
+    from decision_layer.core.models import ExecutionAuthor, RunConclusion, RunFinding
+    from mcp.types import InitializeRequestParams
+    from types import SimpleNamespace
+    s = load(monkeypatch)
+    seen = {}
+    async def fake_call(_method, _path, **kwargs):
+        seen.update(kwargs["json"])
+        return {}
+    monkeypatch.setattr(s, "_call", fake_call)
+    params = InitializeRequestParams.model_validate({"protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "test-client", "version": "1.0"}})
+    ctx = SimpleNamespace(session=SimpleNamespace(client_params=params))
+    asyncio.run(s.complete_run("run_test", conclusion=RunConclusion(answer="Short answer", findings=[RunFinding(text="Finding", step_indices=[0])]), author=ExecutionAuthor(model_id="known-model"), ctx=ctx))
+    assert seen["conclusion"]["findings"][0]["step_indices"] == [0]
+    assert seen["author"]["client_source"] == "protocol"
+    assert seen["author"]["model_id"] == "known-model" and "model_revision" not in seen["author"]
+    tools = asyncio.run(s.mcp.list_tools())
+    schema = next(tool.input_schema for tool in tools if tool.name == "complete_run")
+    assert "ctx" not in schema["properties"] and "conclusion" in schema["properties"]
+    assert "conclusion" in schema["required"]
+    assert "complete_run(summary)" not in s.INSTRUCTIONS
+    assert s._author(None, None) is None
+
+
 def test_restricted_profile(monkeypatch):
     s = load(monkeypatch, DL_MCP_METHODS="query.drilldown,query.trend", DL_MCP_RECIPES="off",
              DL_MCP_RULES="relaxed")
     names = {t.name for t in asyncio.run(s.mcp.list_tools())}
     assert "start_run" not in names and "start_analysis" not in names and "run_method" in names
+    assert "complete_run" in names
     assert "simple arithmetic" in s.INSTRUCTIONS and "causal.cem" not in s.INSTRUCTIONS
     assert "list_recipes" not in s.INSTRUCTIONS.split("Rules")[0]
     r = asyncio.run(s.run_method("query.compare", {"metric": "x"}))

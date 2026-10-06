@@ -1,0 +1,21 @@
+version: 2
+semantic_models:
+  - name: redemptions
+    model: ref('coupon_redempt')
+    primary_entity: redemption
+    defaults:
+      agg_time_dimension: redemption_date
+    entities:
+      - {name: campaign, type: foreign, expr: campaign_id}
+      - {name: household, type: foreign, expr: household_key}
+    dimensions:
+      - name: redemption_date
+        type: time
+        type_params: {time_granularity: day}
+    measures:
+      - {name: redemption_count, agg: count, expr: household_key}
+metrics:
+  - name: redemption_count
+    label: Coupon redemptions
+    type: simple
+    type_params: {measure: redemption_count}

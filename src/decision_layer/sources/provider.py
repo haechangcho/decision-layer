@@ -1,30 +1,60 @@
-"""Cube provider facade that applies the current source settings per request."""
+"""Provider facade that applies the current source settings per request."""
 from __future__ import annotations
+from contextvars import ContextVar
 
 from ..semantic.providers.cube.client import CubeClient
+from ..semantic.provider import SemanticProvider
 from ..semantic.providers.cube.provider import CubeProvider
+from ..semantic.providers.metricflow.provider import MetricFlowProvider
+from ..semantic.providers.dbt.provider import DbtSemanticLayerProvider
 from .config import SourceConfigManager
 
 
-class ConfiguredCubeProvider:
-    name = "cube"
+def make_provider(name: str, url: str, instance: str, environment_id: int | None = None):
+    if name == "cube":
+        return CubeProvider(CubeClient(url), instance)
+    if name == "metricflow":
+        return MetricFlowProvider(url, instance)
+    if name == "dbt":
+        return DbtSemanticLayerProvider(url, instance, environment_id)
+    raise ValueError(f"Unsupported semantic provider: {name}")
+
+
+class ConfiguredSemanticProvider:
 
     def __init__(self, manager: SourceConfigManager) -> None:
         self.manager = manager
-        self._providers: dict[tuple[str, str], CubeProvider] = {}
+        self._providers = {}
+        self._bound = ContextVar("semantic_provider", default=None)
+
+    def bind(self, source):
+        key = (source.provider, source.api_url, source.instance, source.environment_id)
+        if key not in self._providers:
+            self._providers[key] = make_provider(*key)
+        self._bound.set(self._providers[key])
+
+    @property
+    def name(self):
+        return self._bound.get().name if self._bound.get() else self.manager.current_provider
 
     @property
     def instance(self) -> str:
-        return self.manager.settings.cube_instance
+        return self._bound.get().instance if self._bound.get() else self.manager.current_instance
 
     def capabilities(self):
-        return CubeProvider(CubeClient("http://localhost"), self.instance).capabilities()
+        return make_provider(self.name, "http://localhost", self.instance).capabilities()
 
-    async def _provider(self) -> CubeProvider:
+    @property
+    def identity_mode(self):
+        return make_provider(self.name, "http://localhost", self.instance).identity_mode
+
+    async def _provider(self) -> SemanticProvider:
+        if self._bound.get() is not None:
+            return self._bound.get()
         source = await self.manager.effective(resolve_secret=False)
-        key = (source.api_url, source.instance)
+        key = (source.provider, source.api_url, source.instance, source.environment_id)
         if key not in self._providers:
-            self._providers[key] = CubeProvider(CubeClient(source.api_url), source.instance)
+            self._providers[key] = make_provider(*key)
         return self._providers[key]
 
     async def discover(self, credentials):
@@ -38,3 +68,6 @@ class ConfiguredCubeProvider:
 
     async def execute(self, spec, credentials, *, with_sql=False):
         return await (await self._provider()).execute(spec, credentials, with_sql=with_sql)
+
+
+ConfiguredCubeProvider = ConfiguredSemanticProvider

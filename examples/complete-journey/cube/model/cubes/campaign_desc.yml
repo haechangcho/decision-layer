@@ -24,16 +24,10 @@ cubes:
     sql: start_date
     type: time
     title: Campaign start date
-    description: Fixed example calendar (day 1 = 2000-01-01), not the actual campaign year.
-    meta:
-      calendarType: mapped
   - name: end_date
     sql: end_date
     type: time
     title: Campaign end date
-    description: Fixed example calendar (day 1 = 2000-01-01), not the actual campaign year.
-    meta:
-      calendarType: mapped
   measures:
   - name: count
     type: count

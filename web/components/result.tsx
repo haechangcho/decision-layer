@@ -16,21 +16,39 @@ const labels: Record<string, string> = {
   selected_among: "비교 대상 그룹", excluded_small: "최소 건수 미만 그룹", drill_path: "드릴다운 경로",
   direction: "정렬 방향", rank_by: "정렬 기준", granularity: "시간 단위",
   difference_from_subject: "대상 값 − 비교 집단 값",
+  target: "대상 집단", difference: "차이", raw: "조건 맞춤 전", matched: "조건 맞춤 후",
+  treatment: "비교할 항목", conditions: "맞춘 조건", path: "분석 범위", units: "표본 수",
+  target_units: "대상 표본 수", comparison_units: "비교 표본 수", target_retention: "대상 표본 유지 비율",
+  strata_common: "두 집단에 공통인 조건 조합 수", excluded: "제외된 표본", target_without_comparison: "같은 조건의 비교 표본이 없는 대상",
+  comparison_without_target: "같은 조건의 대상 표본이 없는 비교 표본", condition: "조건 조합",
+  lower: "하한", upper: "상한", low: "하한", high: "상한", confidence: "신뢰 수준", p_value: "p값",
+  significant: "통계적으로 유의한 차이", same_value: "같은 값", same_range: "같은 구간",
+  member: "항목", title: "이름", match: "맞춤 방식", edges: "구간 경계", edges_source: "구간 설정 출처",
+  target_matched_units: "비교에 포함된 대상 표본", comparison_matched_units: "비교에 포함된 비교 표본",
+  strata_total: "전체 조건 조합 수", imbalance_before: "맞춤 전 조건 불균형", imbalance_after: "맞춤 후 조건 불균형",
+  target_missing_condition: "조건 값이 없는 대상 표본", comparison_missing_condition: "조건 값이 없는 비교 표본",
+  thresholds: "비교 허용 기준", min_target_retention: "최소 대상 표본 유지 비율", min_units_per_group: "집단별 최소 표본 수", min_strata: "최소 공통 조건 조합 수",
+  standard_error: "표준 오차", ci95: "95% 신뢰구간", z: "검정 통계량 (z)", selection: "다중 비교 보정",
+  significant_after_selection: "다중 비교 보정 후 유의함", adjusted_critical_z: "보정된 판정 기준 (z)",
 };
+const artifactNames: Record<string, string> = { estimate: "비교 결과", interval: "차이의 신뢰구간", balance: "비교 표본과 조건 일치", sample_summary: "표본 요약", table: "세부 데이터", time_series: "기간별 값", breakdown_table: "그룹별 값", warning: "해석 시 주의사항" };
 const labelFor = (key: string, titles: Titles) => {
   if (titles.has(key)) return titles.get(key)!.title;
   if (key.endsWith("#units")) return `${titles.get(key.slice(0, -6))?.title ?? "지표"} 건수`;
-  if (key.startsWith("cube://")) return "지표 값";
+  if (/^[a-z][a-z0-9_-]*:\/\//.test(key)) return "지표 값";
+  if (key.includes(".")) return key.split(".").map(part => labels[part] ?? part.replaceAll("_", " ")).join(" · ");
   return labels[key] ?? key.replaceAll("_", " ");
 };
 
 function fmt(v: unknown, titles: Titles): string {
   if (v === null || v === undefined) return "—";
   if (typeof v === "number") return Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  if (typeof v === "string") return titles.get(v)?.title ?? (v.startsWith("cube://") ? "이름 확인 필요" : v);
-  if (typeof v === "boolean") return v ? "true" : "false";
-  if (Array.isArray(v) && v.every((x) => typeof x !== "object" || x === null)) return v.map((x) => fmt(x, titles)).join(" ~ ");
-  return JSON.stringify(v);
+  if (typeof v === "string") return titles.get(v)?.title ?? (/^[a-z][a-z0-9_-]*:\/\/[^/]+\/[^/]+\/[^/]+$/.test(v) ? "이름 확인 필요" : v);
+  if (typeof v === "boolean") return v ? "예" : "아니요";
+  if (Array.isArray(v) && v.every((x) => typeof x !== "object" || x === null)) return v.length ? v.map((x) => fmt(x, titles)).join(" ~ ") : "없음";
+  if (Array.isArray(v)) return v.map(item => fmt(item, titles)).join(" · ");
+  if (typeof v === "object") return Object.entries(v).map(([key, value]) => `${labelFor(key, titles)}: ${fmt(value, titles)}`).join(" · ");
+  return String(v);
 }
 
 function isRowList(v: unknown): v is Record<string, unknown>[] {
@@ -79,13 +97,13 @@ function Value({ value, titles, depth = 0 }: { value: unknown; titles: Titles; d
             {scalars.map(([k, v]) => (
               <div key={k} className="kvrow">
                 <dt>{t(labelFor(k, titles))}</dt>
-                <dd>{v && typeof v === "object" && !Array.isArray(v) ? <Value value={v} titles={titles} depth={depth + 1} /> : fmt(v, titles)}</dd>
+                <dd>{v && typeof v === "object" && !Array.isArray(v) ? <Value value={v} titles={titles} depth={depth + 1} /> : typeof v === "number" && ["target_retention", "min_target_retention"].includes(k) ? `${(v * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%` : fmt(v, titles)}</dd>
               </div>
             ))}
           </dl>
         )}
         {tables.map(([k, v]) => (
-          <div key={k}><div className="subhead">{k}</div><Value value={v} titles={titles} depth={depth + 1} /></div>
+          <div key={k}><div className="subhead">{labelFor(k, titles)}</div><Value value={v} titles={titles} depth={depth + 1} /></div>
         ))}
       </div>
     );
@@ -94,6 +112,17 @@ function Value({ value, titles, depth = 0 }: { value: unknown; titles: Titles; d
 }
 
 export function ArtifactView({ artifact, titles, expanded = false }: { artifact: Artifact; titles: Titles; expanded?: boolean }) {
+  if (artifact.type === "estimate" && artifact.data && typeof artifact.data === "object") {
+    const data = artifact.data as Record<string, unknown>;
+    if (data.raw && data.matched && typeof data.raw === "object" && typeof data.matched === "object") {
+      const groupLabel = (value: unknown, fallback: string) => value && typeof value === "object" && typeof (value as Record<string, unknown>).label === "string" ? String((value as Record<string, unknown>).label) : fallback;
+      const rows = ["raw", "matched"].map(key => ({ stage: labels[key], ...(data[key] as Record<string, unknown>) }));
+      return <section className="artifact"><h4>{typeof data.metric === "string" ? titles.get(data.metric)?.title ?? "분석 지표" : "비교 결과"}</h4>
+        <DataTable rows={rows} titles={titles} columns={["stage", "target", "comparison", "difference"]} columnLabels={{ stage: "비교 방식", target: groupLabel(data.target, "대상 집단"), comparison: groupLabel(data.comparison, "비교 집단"), difference: "대상 − 비교 집단" }} />
+        {Array.isArray(data.conditions) && data.conditions.length > 0 && <p className="result-note">맞춘 조건: {data.conditions.map(item => item.title ?? titles.get(item.member)?.title ?? "항목 이름 확인 필요").join(" · ")}</p>}
+      </section>;
+    }
+  }
   if (artifact.type === "time_series" && artifact.data && typeof artifact.data === "object") {
     const data = artifact.data as Record<string, unknown>;
     const rows = Array.isArray(data.rows) ? data.rows.filter((row): row is Record<string, unknown> => !!row && typeof row === "object" && !Array.isArray(row)) : [];
@@ -115,14 +144,14 @@ export function ArtifactView({ artifact, titles, expanded = false }: { artifact:
     const data = artifact.data as Record<string, unknown>;
     const rows = data.rows;
     if (isRowList(rows)) return <section className="artifact">
-      <h4>{artifact.title || artifact.type}</h4>
+      <h4>{artifact.title || artifactNames[artifact.type] || artifact.type}</h4>
       <DataTable rows={rows} titles={titles} columns={["value", "metric", "count", "share_of_count", "difference_from_subject"].filter((key) => key in rows[0])} />
       {!expanded && <details className="artifact-details"><summary>전체 결과 보기</summary><Value value={data} titles={titles} /></details>}
     </section>;
   }
   return (
     <section className="artifact">
-      <h4>{artifact.title || artifact.type}</h4>
+      <h4>{artifact.title || artifactNames[artifact.type] || artifact.type}</h4>
       <Value value={artifact.data} titles={titles} />
     </section>
   );

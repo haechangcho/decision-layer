@@ -1,0 +1,12 @@
+name: complete_journey
+version: '1.0.0'
+config-version: 2
+profile: complete_journey
+model-paths: [models]
+models:
+  complete_journey:
+    +materialized: view
+    +grants:
+      select: [journey_reader]
+on-run-end:
+  - "grant usage on schema journey_dbt to journey_reader"

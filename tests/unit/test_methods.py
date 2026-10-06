@@ -63,13 +63,15 @@ class FakeProvider:
     name, instance = "cube", "local"
 
     def __init__(self, cube_meta):
-        for c in cube_meta["cubes"]:
-            for m in c["measures"]:
-                if m["name"] == "ecom_order.return_rate":
-                    m["meta"] = {"numerator": "ecom_return.count", "denominator": "count"}
-                if m["name"] == "ecom_order.avg_order_value":
-                    m["meta"] = {"numerator": "total_order_amount", "denominator": "count"}
         self.catalog, _ = map_meta(cube_meta, "local")
+        # The test provider declares known sample semantics; Cube /meta does not.
+        for obj in self.catalog.objects:
+            if obj.ref in (RR, AMOUNT, AOV):
+                obj.count_measure = COUNT
+        self.catalog.get(RR).metric_kind = "ratio"
+        self.catalog.get(RR).ratio_parts = (RET, COUNT)
+        self.catalog.get(AOV).metric_kind = "ratio"
+        self.catalog.get(AOV).ratio_parts = (AMOUNT, COUNT)
         self.orders = _orders()
         self.calls = 0
 
@@ -268,6 +270,13 @@ async def test_peer_comparison_preserves_population_and_excludes_subject(provide
     assert len(result.provenance.queries) == 3
     assert {RR, CAT, SELLER} <= set(result.provenance.semantic_refs)
     assert result.primary.data["statistical_judgement"] == "not_tested"
+    populations = result.primary.data["population_filters"]
+    assert [(f["member"], f["operator"], f["values"]) for f in populations["subject"]] == [
+        (CAT, "equals", ["A"]), (SELLER, "equals", ["S1"])]
+    assert [(f["member"], f["operator"], f["values"]) for f in populations["peers"]] == [
+        (CAT, "equals", ["A"]), (SELLER, "notEquals", ["S1"])]
+    assert [(f["member"], f["operator"], f["values"]) for f in populations["overall"]] == [
+        (SELLER, "notEquals", ["S1"])]
 
 
 async def test_peer_comparison_refuses_overlapping_scope(provider):
@@ -275,6 +284,16 @@ async def test_peer_comparison_refuses_overlapping_scope(provider):
     result = await registry.run("query.peer_comparison", ctx(provider, filters=[Filter(member=SELLER, operator="equals", values=["S1"])]),
                                 {"metric": RR}, {"subject": [{"member": SELLER, "value": "S1"}]})
     assert result.status == "refused" and provider.calls == 0
+
+
+async def test_peer_comparison_records_shared_filters_for_every_population(provider):
+    from decision_layer.core.models import Filter
+    shared = Filter(member=CAT, operator="equals", values=["A"])
+    result = await registry.run("query.peer_comparison", ctx(provider, filters=[shared]), {"metric": RR},
+                                {"subject": [{"member": SELLER, "value": "S1"}]})
+    assert result.status == "success"
+    for filters in result.primary.data["population_filters"].values():
+        assert filters[0] == shared.model_dump()
 
 
 async def test_peer_comparison_empty_target_and_small_sample(provider):

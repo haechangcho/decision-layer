@@ -66,7 +66,7 @@ Use **Register as Recipe** on a completed Run to save its procedure for immediat
 
 ## Authentication
 
-The local sample explicitly enables a development service identity, so it needs no `DL_TOKEN`. For caller authentication, set `DL_TOKEN` to the Cube bearer token in the adapter's environment. Use the same Cube identity in Web and MCP to access the same Runs. Never commit tokens or reuse sample secrets in a shared deployment. See [Cube connection](cube.md).
+The local Cube and dbt samples enable a development service identity, so they need no `DL_TOKEN`. For an existing source, set `DL_TOKEN` to its bearer token in the adapter's private environment. Use the same source and identity in Web and MCP to access the same Runs. See [Cube connection](cube.md) or [dbt Semantic Layer](dbt.md). Never commit tokens or reuse sample secrets in a shared deployment.
 
 `DL_LOCALE=ko` requests Korean Method messages; the default is English. Client-provided question, purpose and origin labels are context, not authenticated approval.
 

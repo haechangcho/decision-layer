@@ -63,7 +63,7 @@ export default function RecipePage() {
     return sameEntity.length ? sameEntity : all;
   }, [objects, readiness, recipe]);
   const recommendedTime = readiness?.metrics.find((item) => item.metric.ref === recipe?.semantic_scope.primary_metric)?.checks.time.dimensions.length;
-  const selectedTime = timeDimensions.some((object) => object.ref === timeDimension) ? timeDimension : (timeDimensions.length === 1 ? timeDimensions[0].ref : suggestedTimeDimension(timeDimensions, recipe?.semantic_scope.primary_metric ?? "")?.ref ?? "");
+  const selectedTime = timeDimensions.some((object) => object.ref === timeDimension) ? timeDimension : (timeDimensions.length === 1 ? timeDimensions[0].ref : suggestedTimeDimension(objects, recipe?.semantic_scope.primary_metric ?? "")?.ref ?? "");
   const recommendedPeriod = suggestedDateRange(timeDimensions.find(object => object.ref === selectedTime));
   const recommendedPeriodKey = recommendedPeriod?.join("/");
   useEffect(() => {
@@ -107,12 +107,12 @@ export default function RecipePage() {
       <section className={styles.recipeRunPanel}>
         <h2>분석 조건</h2>
         <dl className={styles.meta}><div className={styles.metaRow}><dt>중심 지표</dt><dd>{metric}</dd></div></dl>
-        {needsTime && timeDimensions.length === 0 && <p className={styles.error} role="alert">이 지표와 연결된 날짜 기준을 찾지 못했습니다. Cube 모델의 시간 차원을 확인하거나 <Link href="/catalog">다른 지표를 선택하세요.</Link></p>}
+        {needsTime && timeDimensions.length === 0 && <p className={styles.error} role="alert">이 지표와 연결된 날짜 기준을 찾지 못했습니다. 시맨틱 모델의 시간 차원을 확인하거나 <Link href="/catalog">다른 지표를 선택하세요.</Link></p>}
         {!needsTime && <label className="check"><input type="checkbox" checked={allDates} onChange={event => { setAllDates(event.target.checked); if (!event.target.checked && !dates[0]) chooseDates(recommendedPeriod ?? datePreset("month")); }} />전체 기간</label>}
         {!useAllDates && timeDimensions.length > 0 && <label className={styles.runField}>날짜 기준
           <select aria-label="날짜 기준" value={selectedTime} onChange={(event) => setTimeDimension(event.target.value)}><option value="">날짜 기준 선택</option>{timeDimensions.map((object) => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
         </label>}
-        {needsTime && timeDimensions.length > 1 && recommendedTime === 0 && <p className="hint">Cube 메타데이터만으로 관련 날짜를 확인할 수 없어 직접 선택해야 합니다.</p>}
+        {needsTime && timeDimensions.length > 1 && recommendedTime === 0 && <p className="hint">연결된 메타데이터만으로 관련 날짜를 확인할 수 없어 직접 선택해야 합니다.</p>}
         {!useAllDates && (timeDimensions.length > 0 || needsTime) && <><div className={styles.fieldHeading}><label htmlFor="run-start">분석 기간</label><CalendarDays size={15} /></div>
         <div className={styles.datePresets} role="group" aria-label="기간 빠른 선택">
           {recommendedPeriod && <button type="button" onClick={() => chooseDates(recommendedPeriod)}>추천 기간</button>}
@@ -128,7 +128,7 @@ export default function RecipePage() {
         {recipe.semantic_scope.preferred_dimensions.length > 0 && <div className={styles.runContext}><strong>살펴보는 분류</strong><p>{recipe.semantic_scope.preferred_dimensions.map((ref) => titleFor(ref, objects)).join(" · ")}</p></div>}
         {runError && <div className={styles.error} role="alert"><strong>분석을 시작하지 못했습니다.</strong> {runError.message}<br />
           {runError instanceof ApiError && (runError.status === 401 || runError.status === 403)
-            ? <><Link href="/sources">Cube 연결 확인</Link> · <Link href="/catalog">접근 가능한 지표 확인</Link></>
+            ? <><Link href="/sources">연결 확인</Link> · <Link href="/catalog">접근 가능한 지표 확인</Link></>
             : runError instanceof ApiError && runError.status === 422
               ? "분석 조건을 확인하고 다시 실행하세요."
               : "잠시 후 다시 시도하세요."}

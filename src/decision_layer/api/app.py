@@ -21,9 +21,10 @@ from ..core.models import (
 from ..methods import registry
 from ..semantic.credentials import AnonymousServiceCredentials, RequestCredentials, ServiceCredentials
 from ..semantic.providers.cube.client import CubeClient, CubeConnectionError
-from ..semantic.providers.cube.provider import CubeProvider
+from ..core.ids import is_semantic_ref
+from ..semantic.provider import SemanticProvider
 from ..sources.config import EffectiveSource, SourceConfigError, SourceConfigInput, SourceConfigManager
-from ..sources.provider import ConfiguredCubeProvider
+from ..sources.provider import ConfiguredSemanticProvider, make_provider
 from ..sources.store import open_source_store
 from ..recipes.loader import RecipeStore, parse_recipe
 from ..recipes.from_run import RecipeCandidate, RunPromotionError, candidate_from_run
@@ -69,6 +70,8 @@ async def get_credentials(request: Request, authorization: Annotated[str | None,
     source: EffectiveSource = await request.app.state.source_manager.effective(resolve_secret=False)
     if source.auth_method == "api_secret" and not authorization:
         source = await request.app.state.source_manager.effective()
+    if isinstance(request.app.state.provider, ConfiguredSemanticProvider):
+        request.app.state.provider.bind(source)
     return credentials(authorization, allow_service=settings.allow_service_credentials,
                        secret=source.api_secret, groups=source.service_groups, auth_method=source.auth_method)
 
@@ -92,17 +95,18 @@ def localized(m: MethodManifest) -> MethodManifest:
     })
 
 
-def create_app(settings: Settings | None = None, provider: CubeProvider | None = None,
+def create_app(settings: Settings | None = None, provider: SemanticProvider | None = None,
                store: RunStore | None = None, recipes: RecipeStore | None = None) -> FastAPI:
     settings = settings or Settings()
     source_manager = SourceConfigManager(open_source_store(settings.database_url), settings)
-    provider = provider or ConfiguredCubeProvider(source_manager)
+    provider = provider or ConfiguredSemanticProvider(source_manager)
     recipes = recipes or RecipeStore(settings.recipes_dir, provider.name, provider.instance)
     engine = RunEngine(provider, recipes, store or open_store(settings.database_url),
                        jobs=JobRunner(settings.job_workers))
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        await source_manager.effective(resolve_secret=False)
         await engine.recover()
         yield
         engine.jobs.shutdown()
@@ -133,6 +137,7 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
 
     @app.get("/health")
     async def health() -> dict:
+        await source_manager.effective(resolve_secret=False)
         return {"status": "ok", "version": __version__, "provider": provider.name, "instance": provider.instance}
 
     @app.get("/me", response_model=CallerInfo)
@@ -142,6 +147,7 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
 
     @app.get("/sources/current/capabilities", response_model=ProviderCapabilities)
     async def capabilities() -> ProviderCapabilities:
+        await source_manager.effective(resolve_secret=False)
         return provider.capabilities()
 
 
@@ -158,6 +164,18 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
     async def source_current() -> dict:
         return await source_manager.view()
 
+    @app.get("/sources/providers")
+    async def source_providers() -> list[dict]:
+        entries = []
+        for name, title in (("cube", "Cube"), ("dbt", "dbt Semantic Layer"), ("metricflow", "dbt MetricFlow (local example)")):
+            config = await source_manager.effective(resolve_secret=False, provider=name)
+            entries.append({"provider": name, "title": title, "api_url": config.api_url,
+                            "instance": config.instance, "auth_method": config.auth_method,
+                            "environment_id": config.environment_id,
+                            "service_groups": list(config.service_groups),
+                            "environment_overrides": config.environment_overrides})
+        return entries
+
     @app.put("/sources/current")
     async def source_save(value: SourceConfigInput, _admin: None = Depends(require_source_admin)) -> dict:
         await source_manager.save(value)
@@ -168,7 +186,12 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
                           authorization: Annotated[str | None, Header()] = None) -> dict:
         try:
             config = value
-            effective = await source_manager.effective(resolve_secret=False)
+            effective = await source_manager.effective(resolve_secret=False, provider=config.provider)
+            if config.provider != "cube" and config.auth_method == "api_secret":
+                raise SourceConfigError("SOURCE_AUTH_METHOD_INVALID", "API secrets apply only to Cube development connections.")
+            environment_id = effective.environment_id if effective.environment_overrides["environment_id"] else config.environment_id
+            if config.provider == "dbt" and (not environment_id or config.auth_method != "token"):
+                raise SourceConfigError("SOURCE_ENVIRONMENT_REQUIRED", "Enter the dbt environment ID and use access-token authentication.")
             api_url = effective.api_url if effective.environment_overrides["api_url"] else config.api_url
             auth_method = effective.auth_method if effective.environment_overrides["auth_method"] else config.auth_method
             groups = (effective.service_groups if effective.environment_overrides["service_groups"]
@@ -178,25 +201,25 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
             secret = None
             if auth_method == "api_secret":
                 supplied = config.api_secret.get_secret_value() if config.api_secret else None
-                current = await source_manager.effective()
+                current = await source_manager.effective(provider=config.provider)
                 secret = current.api_secret if effective.environment_overrides["api_secret"] else supplied or current.api_secret
                 if not secret:
                     raise SourceConfigError("SOURCE_SECRET_REQUIRED", "Enter the Cube API secret to test this connection.", 400)
             creds = credentials(authorization, allow_service=settings.allow_service_credentials,
                                 secret=secret, groups=groups, auth_method=auth_method)
-            test_provider = (provider if not isinstance(provider, ConfiguredCubeProvider)
-                             else CubeProvider(CubeClient(api_url), effective.instance))
+            test_provider = (provider if not isinstance(provider, ConfiguredSemanticProvider)
+                             else make_provider(config.provider, api_url, config.instance or effective.instance, environment_id))
             catalog = await test_provider.discover(creds)
         except ProviderAccessDenied as exc:
-            raise SourceConfigError("SOURCE_AUTH_FAILED", "Cube rejected these credentials. Check the token, secret, required claims and Cube auth configuration.", 401) from exc
+            raise SourceConfigError("SOURCE_AUTH_FAILED", "The semantic provider rejected these credentials. Check its authentication configuration.", 401) from exc
         except CubeConnectionError as exc:
-            raise SourceConfigError("SOURCE_UNREACHABLE", "Cube could not be reached at this address. Check the URL, port, network and TLS certificate.", 502) from exc
+            raise SourceConfigError("SOURCE_UNREACHABLE", "The semantic provider could not be reached. Check the URL, port, network and TLS certificate.", 502) from exc
         except ProviderError as exc:
-            raise SourceConfigError("SOURCE_PROVIDER_ERROR", "Cube returned an error. Check the API URL and Cube server logs for model compilation or upstream failures.", 502) from exc
+            raise SourceConfigError("SOURCE_PROVIDER_ERROR", "The semantic provider returned an error. Check its API URL, service logs and model compilation.", 502) from exc
         public = [obj for obj in catalog.objects if obj.public]
         if not public:
-            raise SourceConfigError("SOURCE_NO_CUBES", "Cube responded, but this identity can see no semantic objects. Deploy a Cube model and grant access.", 422)
-        return {"status": "connected", "provider": "cube", "instance": catalog.instance,
+            raise SourceConfigError("SOURCE_NO_CUBES", "The provider responded but no semantic objects are visible. Deploy semantic models and grant access.", 422)
+        return {"status": "connected", "provider": catalog.provider, "instance": catalog.instance,
                 "objects": len(public), "measures": sum(o.kind == "measure" for o in public),
                 "dimensions": sum(o.kind == "dimension" for o in public),
                 "time_dimensions": sum(o.kind == "time_dimension" for o in public)}
@@ -208,7 +231,7 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
         items = []
         for metric in (obj for obj in public if obj.kind == "measure"):
             entity_ref = metric.entity
-            related = [obj for obj in public if entity_ref and obj.entity == entity_ref]
+            related = [obj for obj in public if obj.ref in metric.dimension_refs or (entity_ref and obj.entity == entity_ref)]
             times = [obj for obj in related if obj.kind == "time_dimension"]
             any_times = any(obj.kind == "time_dimension" for obj in public)
             has_key = bool(entity_ref and any(obj.ref == entity_ref for obj in public))
@@ -261,7 +284,7 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
         """Ad-hoc Method run, stored as a single-step Run owned by the caller. Answers the Result when it
         finishes within `wait` seconds, else 202 {run_id, poll} — then poll GET /runs/{run_id}/result."""
         run, result = await engine.adhoc(creds, caller, PlanStep(method=name, bindings=req.bindings, params=req.params),
-                                         req.scope.as_dict(), wait=waited(wait), origin=run_origin(request), question=req.question)
+                                         req.scope.as_dict(), wait=waited(wait), origin=run_origin(request), question=req.question, author=req.author)
         return result if result is not None else accepted(run)
 
     @app.get("/recipes", response_model=list[Recipe])
@@ -297,7 +320,7 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
         paths: dict[str, str] = {}
 
         def collect(value, path: str) -> None:
-            if isinstance(value, str) and value.startswith("cube://"):
+            if is_semantic_ref(value):
                 paths.setdefault(value, path)
             elif isinstance(value, dict):
                 for key, child in value.items():
@@ -362,7 +385,7 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
         """Start a Run. A pipeline Recipe executes right away (202 with the run while it is still running);
         an investigation Recipe waits for steps."""
         run = await engine.start(creds, caller, recipe=req.recipe, question=req.question, scope=req.scope.as_dict(),
-                                 wait=waited(wait), origin=run_origin(request))
+                                 wait=waited(wait), origin=run_origin(request), author=req.author)
         return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
 
     @app.get("/runs", response_model=list[Run])
@@ -422,12 +445,12 @@ def create_app(settings: Settings | None = None, provider: CubeProvider | None =
 
     @app.post("/runs/{run_id}/steps", response_model=Result, responses={202: {"description": "still running"}})
     async def run_step(run_id: str, req: RunStepRequest, creds: Creds, caller: Caller, wait: float | None = None):
-        run, result = await engine.step(creds, caller, run_id, PlanStep(**req.model_dump()), wait=waited(wait))
+        run, result = await engine.step(creds, caller, run_id, PlanStep(**req.model_dump(exclude={"author"})), wait=waited(wait), author=req.author)
         return result if result is not None else accepted(run)
 
     @app.post("/runs/{run_id}:complete", response_model=Run)
     async def run_complete(run_id: str, req: RunCompleteRequest, caller: Caller) -> Run:
-        return await engine.complete(caller, run_id, req.summary)
+        return await engine.complete(caller, run_id, req.summary, req.conclusion, req.author)
 
     @app.post("/runs/{run_id}:share", response_model=Run)
     async def run_share(run_id: str, req: RunShareRequest, caller: Caller) -> Run:

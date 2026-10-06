@@ -11,8 +11,9 @@ export function suggestedDateRange(object: SemanticObject | undefined): [string,
 }
 
 export function suggestedTimeDimension(objects: SemanticObject[], metric: string): SemanticObject | undefined {
-  const cube = metric.slice(0, metric.lastIndexOf("/"));
+  const selected = objects.find(object => object.ref === metric);
+  if (selected?.time_dimension) return objects.find(object => object.ref === selected.time_dimension);
   const dates = objects.filter(object => object.kind === "time_dimension" && suggestedDateRange(object)
-    && object.ref.slice(0, object.ref.lastIndexOf("/")) === cube);
+    && selected?.dimension_refs?.includes(object.ref));
   return dates.length === 1 ? dates[0] : undefined;
 }

@@ -6,7 +6,7 @@ Rules (ADR-023, ADR-026):
 - /meta may list a view before the cube it re-exposes, and member meta often
   lives on the view (e.g. preAggregation hints) — merge after the loop.
 - Cube camelCases meta keys; keep them untouched in `metadata`.
-- Hierarchies and measure meta (numerator/denominator) are optional hints.
+- Native hierarchies are optional; custom meta does not define ratio semantics.
 """
 from __future__ import annotations
 
@@ -80,13 +80,21 @@ def map_meta(meta: dict[str, Any], instance: str) -> tuple[SemanticCatalog, View
         updates: dict[str, Any] = {}
         if cube_name in primary_keys:
             updates["entity"] = ref(primary_keys[cube_name])
-        parts = _ratio_parts(obj.metadata, cube_name)
-        if parts and obj.kind == "measure":
-            updates.update(metric_kind="ratio", ratio_parts=(ref(parts[0]), ref(parts[1])))
         finished.append(obj.model_copy(update=updates) if updates else obj)
 
     catalog = SemanticCatalog(provider="cube", instance=instance, objects=sorted(finished, key=lambda o: o.ref),
                               hierarchies=hierarchies)
+    for obj in catalog.objects:
+        if obj.kind != "measure":
+            continue
+        group = SemanticRef.parse(obj.ref).cube
+        local = [o for o in catalog.objects if SemanticRef.parse(o.ref).cube == group]
+        obj.dimension_refs = [o.ref for o in local if o.kind != "measure"]
+        times = [o.ref for o in local if o.kind == "time_dimension"]
+        pre = obj.metadata.get("preAggregation") or obj.metadata.get("pre_aggregation") or {}
+        name = pre.get("timeDimension") or pre.get("time_dimension")
+        hint = ref(name if "." in name else f"{group}.{name}") if name else None
+        obj.time_dimension = hint if hint in times else (times[0] if len(times) == 1 else None)
     return catalog, views
 
 
@@ -99,6 +107,8 @@ def _object(ref: str, m: dict[str, Any], kind: str) -> SemanticObject:
             description=(m.get("description") or None),
             metric_kind=_METRIC_KIND.get(m.get("aggType") or cube_type, "other"),
             public=m.get("public", m.get("isVisible", True)),
+            # A sibling count does not establish a calculated metric's sample grain.
+            count_measure=ref if (m.get("aggType") or cube_type) == "count" else None,
             metadata=dict(m.get("meta") or {}),
         )
     return SemanticObject(
@@ -109,13 +119,3 @@ def _object(ref: str, m: dict[str, Any], kind: str) -> SemanticObject:
         public=m.get("public", m.get("isVisible", True)),
         metadata=dict(m.get("meta") or {}),
     )
-
-
-def _ratio_parts(meta: dict[str, Any], cube_name: str) -> tuple[str, str] | None:
-    """Human-declared ratio decomposition in measure meta: {numerator: m, denominator: m}.
-    Bare member names are taken from the measure's own cube."""
-    num, den = meta.get("numerator"), meta.get("denominator")
-    if not (isinstance(num, str) and isinstance(den, str)):
-        return None
-    qualify = lambda n: n if "." in n else f"{cube_name}.{n}"  # noqa: E731
-    return qualify(num), qualify(den)

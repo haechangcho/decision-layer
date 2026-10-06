@@ -22,6 +22,7 @@ CATALOG_TTL_SECONDS = 60
 
 class CubeProvider:
     name = "cube"
+    identity_mode = "jwt_claims"
 
     def __init__(self, client: CubeClient, instance: str) -> None:
         self.client = client

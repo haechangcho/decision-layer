@@ -1,0 +1,22 @@
+version: 2
+semantic_models:
+  - name: campaign_contacts
+    model: ref('campaign_table')
+    primary_entity: campaign_contact
+    defaults:
+      agg_time_dimension: campaign_start_date
+    entities:
+      - {name: campaign, type: foreign, expr: campaign_id}
+      - {name: household, type: foreign, expr: household_key}
+    dimensions:
+      - name: campaign_start_date
+        type: time
+        type_params: {time_granularity: day}
+        description: Campaign start date; contact timestamps are not provided by the source.
+    measures:
+      - {name: campaign_contact_count, agg: count, expr: household_key}
+metrics:
+  - name: campaign_contact_count
+    label: Household campaign contacts
+    type: simple
+    type_params: {measure: campaign_contact_count}

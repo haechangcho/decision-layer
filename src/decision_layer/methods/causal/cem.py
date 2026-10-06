@@ -80,7 +80,7 @@ class CEM(Method):
             raise Refused(_("The treatment can't also be a condition"))
         units = ctx.units_measure(metric) or ctx.count_measure(metric)
         if not units:
-            raise Refused(_("The cube of '{title}' has no count measure, so matching isn't possible", title=ctx.obj(metric).title))
+            raise Refused(_("The metric '{title}' has no declared count measure, so matching isn't possible", title=ctx.obj(metric).title))
         numeric = [c for c in conditions if ctx.obj(c).data_type == "number"]
         categorical = [c for c in conditions if c not in numeric]
         base = path_filters(ctx, params.get("drill_path"))
@@ -177,7 +177,7 @@ class CEM(Method):
     async def _units(self, ctx, metric, units, measure, categorical, numeric, ranges, base, params):
         entity = ctx.obj(metric).entity
         if not entity:
-            raise Refused(_("The cube of '{title}' has no primary key, so it can't be evaluated per unit", title=ctx.obj(metric).title))
+            raise Refused(_("The metric '{title}' has no declared entity key, so it can't be evaluated per unit", title=ctx.obj(metric).title))
         spec = DatasetSpec(grain="entity", entity=entity, measures=list(dict.fromkeys([measure, metric, units])),
                            dimensions=[*categorical, *numeric], time=ctx.time_scope(metric),
                            filters=[*ctx.scope.filters, *base])

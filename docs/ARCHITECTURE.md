@@ -31,6 +31,22 @@ Interface:
 
 Adding one should not require modifying the others.
 
+Product connections are Cube REST and the official dbt Semantic Layer GraphQL API.
+The bundled dbt example also includes a local MetricFlow gateway (PostgreSQL).
+Sources selects one active provider and preserves each provider's connection settings.
+Canonical catalog objects declare `dimension_refs`, `time_dimension` and `count_measure`;
+Methods consume those declarations instead of inferring relationships from a provider's reference path.
+Connections do not require Decision Layer-specific model annotations. Adapters use native semantic
+declarations; unknown sample counts and ratio components remain unknown rather than being guessed
+from sibling metrics or custom `meta`. See ADR-057 for statistical capability limits.
+The MetricFlow gateway runs in a separate dependency environment and translates typed dataset specs
+into real MetricFlow engine requests. It does not expose raw SQL execution. See ADR-056 and
+the [MetricFlow connection guide](guides/metricflow.md) for capabilities and authentication boundaries.
+The hosted dbt adapter needs only a GraphQL endpoint, environment ID and caller token. It discovers
+native metadata, submits `createQuery`, polls status and reads all bounded result pages. Provider query
+IDs and available SQL remain in Run evidence. No local project or warehouse credentials are required;
+see ADR-058 and the [dbt connection guide](guides/dbt.md).
+
 ---
 
 ## 2. High-level architecture

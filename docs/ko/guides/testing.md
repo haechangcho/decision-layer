@@ -54,6 +54,8 @@ DL_JOURNEY_API_URL=http://127.0.0.1:8000 \
 
 실제 연동 테스트는 Recipe 없이 MCP로 드릴다운·동료 집단 비교를 실행하고 Recipe 후보를 검토합니다. Method 템플릿 테스트는 실제 소스 없이 실행됩니다.
 
+dbt 예제에서도 같은 MCP 테스트를 `DL_JOURNEY_PROVIDER=metricflow`로 실행할 수 있습니다. 같은 DB로 두 엔진의 결과를 비교하려면 `docker compose -f compose.yaml -f compose.override.yaml -f compose.dbt.yaml up -d --build --wait cube metricflow`로 두 소스만 실행하고, 저장소 루트에서 `DL_METRICFLOW_TEST_URL=http://127.0.0.1:4100 .venv/bin/pytest tests/provider/test_metricflow_live.py -q`를 실행하세요. 네 Method와 캠페인·접촉·쿠폰 사용 이력의 조인·기간 필터를 비교하며 Run은 만들지 않습니다.
+
 출력된 `JOURNEY_MCP_RUN_ID`를 사용해 `web/`에서 화면을 확인합니다.
 
 ```bash
@@ -62,6 +64,19 @@ JOURNEY_RUN_ID=run_replace_with_printed_id PLAYWRIGHT_BASE_URL=http://127.0.0.1:
 ```
 
 실제 API·웹 포트에 맞게 바꾸세요. 테스트를 맞추려고 개인 Recipe를 삭제하지 말고 별도 샘플 폴더를 사용하세요. 브라우저 테스트는 저장 전 후보를 검토하며 Recipe를 게시하지 않습니다.
+
+## dbt 공식 API 검증
+
+`tests/unit/test_dbt_provider.py`는 공식 GraphQL 계약을 모의 응답으로 검사합니다. Method 실행과 Run을 Recipe로 전환하는 과정도 포함합니다. 실제 공식 API는 별도의 조회 전용 테스트로 확인합니다.
+
+```bash
+# 비공개 환경 설정에 다음 값을 준비하세요.
+# DL_DBT_TEST_URL, DL_DBT_TEST_ENVIRONMENT_ID,
+# DL_DBT_TEST_TOKEN, DL_DBT_TEST_METRIC (해당 환경의 지표 이름)
+.venv/bin/pytest tests/provider/test_dbt_live.py -q
+```
+
+값이 없으면 테스트를 건너뜁니다. 로컬 dbt 예제의 성공은 공식 API 인증이나 실제 웨어하우스 동작을 검증한 것이 아닙니다.
 
 ## 결과 해석
 

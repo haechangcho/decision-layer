@@ -27,10 +27,6 @@ cubes:
     sql: transaction_date
     type: time
     title: Transaction date
-    description: Fixed example calendar (day 1 = 2000-01-01), not the actual purchase year. Available from 2000-01-01 to 2001-12-11.
-    meta:
-      suggestedDateRange: ['2000-01-01', '2001-12-11']
-      calendarType: mapped
   measures:
   - name: count
     type: count
@@ -57,6 +53,3 @@ cubes:
     sql: 100.0 * {coupon_lines} / NULLIF({count}, 0)
     type: number
     title: Coupon line rate (%)
-    meta:
-      numerator: coupon_lines
-      denominator: count

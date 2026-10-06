@@ -30,15 +30,18 @@ def test_catalog_uses_base_refs_and_merges_view_meta(cube_meta):
     assert views.views["ecommerce_kpi"]["ecom_order.count"] == "ecommerce_kpi.order_count"  # alias kept
 
 
-def test_declared_ratio_parts(cube_meta):
+def test_custom_metadata_does_not_define_ratio_semantics(cube_meta):
     for c in cube_meta["cubes"]:
         for m in c["measures"]:
             if m["name"] == "ecom_order.return_rate":
                 m["meta"] = {"numerator": "ecom_return.count", "denominator": "count"}
     cat, _ = map_meta(cube_meta, "local")
     rr = cat.get(ref("ecom_order.return_rate"))
-    assert rr.metric_kind == "ratio"
-    assert rr.ratio_parts == (ref("ecom_return.count"), ref("ecom_order.count"))
+    assert rr.metric_kind == "other"
+    assert rr.ratio_parts is None
+    assert rr.count_measure is None
+    assert cat.get(ref("ecom_order.total_order_amount")).count_measure is None
+    assert cat.get(ref("ecom_order.count")).count_measure == ref("ecom_order.count")
 
 
 def test_hierarchies_are_optional(cube_meta):

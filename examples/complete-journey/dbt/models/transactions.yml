@@ -1,0 +1,58 @@
+version: 2
+semantic_models:
+  - name: transactions
+    model: ref('transactions')
+    primary_entity: transaction
+    defaults:
+      agg_time_dimension: transaction_date
+    entities:
+      - name: product
+        type: foreign
+        expr: product_id
+      - name: household
+        type: foreign
+        expr: household_key
+    dimensions:
+      - name: store
+        type: categorical
+      - name: coupon_used
+        type: categorical
+        expr: coupon_line
+      - name: transaction_date
+        type: time
+        type_params: {time_granularity: day}
+    measures:
+      - {name: receipts, agg: sum, expr: receipts}
+      - {name: units, agg: sum, expr: units}
+      - {name: transaction_count, agg: count, expr: line_count}
+      - {name: baskets, agg: count_distinct, expr: basket_id}
+metrics:
+  - name: receipts
+    label: Retailer receipts
+    description: Amount received by retailer; not profit or necessarily customer cash paid.
+    type: simple
+    type_params: {measure: receipts}
+  - name: units
+    label: Units purchased
+    type: simple
+    type_params: {measure: units}
+  - name: transaction_count
+    label: Transaction lines
+    type: simple
+    type_params: {measure: transaction_count}
+  - name: coupon_lines
+    label: Lines with coupon discount
+    type: simple
+    type_params:
+      measure: {name: transaction_count, fill_nulls_with: 0}
+    filter: "{{ Dimension('transaction__coupon_used') }} = 1"
+  - name: baskets
+    label: Purchase baskets
+    type: simple
+    type_params: {measure: baskets}
+  - name: coupon_line_rate
+    label: Coupon line rate (%)
+    type: derived
+    type_params:
+      expr: 100.0 * coupon_lines / nullif(transaction_count, 0)
+      metrics: [{name: coupon_lines}, {name: transaction_count}]

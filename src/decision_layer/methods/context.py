@@ -9,7 +9,6 @@ from datetime import date, timedelta
 from typing import Any
 
 from ..core.errors import DecisionLayerError, UnknownSemanticObject
-from ..core.ids import SemanticRef
 from ..core.models import (
     Dataset, DatasetSpec, Filter, QueryProvenance, SemanticCatalog, SemanticObject, TimeScope,
 )
@@ -78,16 +77,16 @@ class ExecutionContext:
             if self.obj(self.scope.time_dimension).kind != "time_dimension":
                 raise Refused(_("'{ref}' is not a time dimension", ref=self.scope.time_dimension))
             return self.scope.time_dimension
-        cube = SemanticRef.parse(metric).cube
+        obj = self.obj(metric)
         candidates = [o for o in self.catalog.objects
-                      if o.kind == "time_dimension" and SemanticRef.parse(o.ref).cube == cube]
+                      if o.kind == "time_dimension" and o.ref in obj.dimension_refs]
         if len(candidates) == 1:
             return candidates[0].ref
-        hint = _hinted_time_dimension(self.obj(metric), metric)
+        hint = obj.time_dimension
         if hint and any(c.ref == hint for c in candidates):
             return hint
         if not candidates:
-            raise Refused(_("The cube of '{ref}' has no time dimension, so a period can't be applied", ref=metric))
+            raise Refused(_("The metric '{ref}' has no declared time dimension, so a period can't be applied", ref=metric))
         raise NeedsInput(_("Which date should the period apply to?"), "time_dimension",
                          [{"value": c.ref, "label": c.title} for c in candidates])
 
@@ -100,35 +99,20 @@ class ExecutionContext:
         return TimeScope(dimension=self.time_dimension_for(metric), date_range=rng, granularity=granularity)
 
     def count_measure(self, metric: str) -> str | None:
-        """The row count of the metric's cube, used for sample sizes and proportion intervals."""
-        cube = SemanticRef.parse(metric).cube
-        counts = [o for o in self.catalog.objects
-                  if o.kind == "measure" and o.metric_kind == "count" and SemanticRef.parse(o.ref).cube == cube]
-        preferred = [o for o in counts if SemanticRef.parse(o.ref).member == "count"]
-        pick = preferred or counts
-        return pick[0].ref if pick else None
+        """A sample count identified by the provider, never a guessed sibling metric."""
+        ref = self.obj(metric).count_measure
+        return ref if ref and self.catalog.get(ref) else None
 
     def units_measure(self, metric: str) -> str | None:
-        """What a rate is 'per': its declared count denominator, else the cube's row count."""
+        """The declared count denominator, or a provider-confirmed sample count."""
         # Declared parts decide: only count/count is a share of units. Ratios of amounts or other
         # sums (value per unit, amount shares) get none, so no interval is
-        # attached by coincidence. Undeclared measures fall back to the row count + is_proportion.
+        # attached by coincidence. Undeclared measures need a provider-confirmed sample count.
         parts = self.obj(metric).ratio_parts
         if parts:
             num, den = (self.obj(p) for p in parts)
             return parts[1] if num.metric_kind == den.metric_kind == "count" else None
         return self.count_measure(metric)
-
-
-def _hinted_time_dimension(metric: SemanticObject, metric_ref: str) -> str | None:
-    """Optional provider hint (e.g. Cube measure meta preAggregation.timeDimension); never required."""
-    meta = metric.metadata or {}
-    pre = meta.get("preAggregation") or meta.get("pre_aggregation") or {}
-    name = pre.get("timeDimension") or pre.get("time_dimension")
-    if not name:
-        return None
-    ref = SemanticRef.parse(metric_ref)
-    return str(SemanticRef(provider=ref.provider, instance=ref.instance, cube=ref.cube, member=name.split(".")[-1]))
 
 
 def previous_period(date_range: tuple[str, str]) -> tuple[str, str]:

@@ -1,0 +1,27 @@
+version: 2
+semantic_models:
+  - name: campaigns
+    model: ref('campaign_desc')
+    defaults:
+      agg_time_dimension: start_date
+    entities:
+      - name: campaign
+        type: primary
+        expr: campaign_id
+    dimensions:
+      - {name: kind, type: categorical}
+      - {name: start_day, type: categorical}
+      - {name: end_day, type: categorical}
+      - name: start_date
+        type: time
+        type_params: {time_granularity: day}
+      - name: end_date
+        type: time
+        type_params: {time_granularity: day}
+    measures:
+      - {name: campaign_count, agg: count, expr: campaign_id}
+metrics:
+  - name: campaign_count
+    label: Campaigns
+    type: simple
+    type_params: {measure: campaign_count}

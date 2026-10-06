@@ -1,0 +1,13 @@
+.git
+.venv
+data
+web
+evals
+tests
+docs
+examples/*/data
+examples/*/evals
+examples/*/recipes
+examples/*/dbt/target
+examples/*/dbt/logs
+**/__pycache__

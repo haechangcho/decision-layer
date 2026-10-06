@@ -46,7 +46,7 @@ export default function RunsPage() {
       </div>
       <div className={styles.libraryColumns} aria-hidden="true"><span>분석</span><span>실행 시각</span><span>상태</span><span /></div>
       {loading && !data ? <div aria-label="불러오는 중">{[0, 1, 2].map((row) => <div className={styles.skeleton} key={row} />)}</div> : shown.map((run) => <div key={run.id} className={styles.libraryItem}><Link href={`/runs/${run.id}`} className={styles.libraryRow}>
-        <span className={styles.libraryName}><strong>{run.plan.question || displayName(run)}</strong><small>{runOriginLabel(run.origin)} · {run.preview ? "미리보기 · " : ""}{run.steps.length}단계{run.steps.length ? ` · ${methodNames(run)}` : ""}</small>{run.summary && <span className={styles.runListSummary}>{run.summary}</span>}</span>
+        <span className={styles.libraryName}><strong>{run.plan.question || displayName(run)}</strong><small>{runOriginLabel(run.origin)} · {run.preview ? "미리보기 · " : ""}{run.steps.length}단계{run.steps.length ? ` · ${methodNames(run)}` : ""}</small>{run.conclusion?.source !== "execution" && run.conclusion?.answer && <span className={styles.runListSummary}>{run.conclusion.answer}</span>}</span>
         <span className={styles.libraryMetric}>{new Date(run.created_at).toLocaleString()}</span>
         <span className={`${styles.libraryState} ${run.status === "completed" ? styles.libraryStateComplete : run.status === "failed" ? styles.libraryStateFailed : styles.libraryStateOpen}`}>{runStatusLabel(run)}</span>
         <ArrowRight size={17} className={styles.libraryArrow} />

@@ -135,6 +135,8 @@ class Drilldown(Method):
             artifacts.append(Artifact(type="interval", title=_("Top '{value}' vs the rest (pp, 95% CI)", value=top["value"]),
                                       data={"group": top["value"], **top["test"]}))
         warnings = []
+        if not count:
+            warnings.append(_("The source does not identify this metric's sample count; minimum sample-size checks were not applied."))
         if len(rows) >= MAX_GROUPS:
             warnings.append(_("More than {limit} groups; only part were fetched", limit=MAX_GROUPS))
         if small:

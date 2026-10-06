@@ -30,6 +30,7 @@ class RunStore(Protocol):
 
 
 def _row(run: Run) -> tuple:
+    run.ensure_conclusion()
     return (run.id, run.plan.recipe, run.status, run.caller.subject, run.created_at.isoformat(),
             run.finished_at.isoformat() if run.finished_at else None, run.model_dump_json())
 
@@ -39,6 +40,7 @@ class MemoryRunStore:
         self._runs: dict[str, str] = {}
 
     async def save(self, run: Run) -> None:
+        run.ensure_conclusion()
         self._runs[run.id] = run.model_dump_json()
 
     async def get(self, run_id: str) -> Run:

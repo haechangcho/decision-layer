@@ -805,3 +805,74 @@ A semantic time object's optional `metadata.suggestedDateRange` provides a YYYY-
 **Status:** Accepted (2026-10-04)
 
 `DELETE /runs/{id}` removes one Run and its recorded results from the Run store after the caller is checked as its owner. A shared viewer receives the same 404 as for a missing Run. An active background job returns 409 so its worker cannot recreate a deleted record. The Web asks for confirmation and explains that queries and validation evidence disappear with the Run. Deleting a Run does not delete a Recipe already registered from it; that Recipe is a separately owned file. This is a deliberate user initiated deletion, not a retention policy or automatic cleanup.
+---
+
+## ADR-054 — Structured Run conclusions and informational AI attribution
+
+**Status:** Accepted (2026-10-05)
+
+Runs optionally persist a caller-authored conclusion with a short answer, findings linked to zero-based recorded step indices, and limitations. The engine checks that linked steps exist; it does not verify the narrative or promote it into a Method finding. Existing `summary` remains supported, and structured answers also populate it when no legacy summary is supplied. Historical text is not heuristically split, regenerated, or overwritten. Engine warnings remain visible independently of caller-authored limitations.
+
+Start, ad hoc, step and completion requests accept optional client/model attribution. Run initiation, each explicit step and the conclusion keep separate snapshots so a later model is not attributed to earlier work. MCP reads the actual client implementation name/version from request context when available; model provider, ID and revision require explicit reporting. Missing metadata stays absent. These are informational, untrusted caller assertions, not authentication, approval, a reproducibility guarantee or proof of model identity (ADR-045). They never grant permissions or enter promoted Recipe parameters. All surfaces use the same request models and Run engine; no Web LLM is added (ADR-021).
+
+Run presentation separates the answer, evidence-linked findings, limitations, primary results, diagnostics, applied inputs/options, provider requests and provenance. Generic artifact renderers use typed result shapes rather than sample-domain names. Raw requests, original precision and raw result records remain inspectable. A descriptive Method is never given a fabricated significance judgment. Older Runs remain readable without invented model metadata.
+
+---
+
+## ADR-055 — A common conclusion lifecycle for every Run
+
+**Status:** Accepted (2026-10-05); refines ADR-054.
+
+MCP `complete_run` requires a structured conclusion rather than merely recommending one. Its instructions apply to all registered Methods, investigations and pipeline Recipes, not particular sample questions. The tool remains exposed in the Method-only MCP profile. The canonical engine creates a source-labelled `execution` summary whenever an ad hoc, pipeline, preview or failed Run terminates without caller narration. These summaries record execution status and links to recorded results, never invented question answers, significance, causes or business advice.
+
+Completed Runs without a previous narrative may receive one structured caller conclusion through the same completion API. This annotates completed evidence without re-executing it or changing its execution finish time. Existing caller conclusions or legacy summaries cannot be overwritten through completion; ownership and busy checks still apply. Caller submissions are always marked `caller`, irrespective of a supplied source label.
+
+Historical terminal Runs without structured conclusions normalize to the same execution-summary contract on read. Their original `summary` remains unchanged, available in an explicit original-text view, rather than being heuristically split or presented as newly authored structured findings. New terminal Runs persist the shared structure. One common Run answer component renders every Method, Recipe and origin; the distinction between a caller conclusion and non-narrated execution stays visible. No Run IDs, sample values or domain-specific conclusions are embedded in this lifecycle, and no server/Web LLM is added.
+
+---
+
+## ADR-056 — Self-hosted MetricFlow and explicit provider metadata
+
+**Status:** Accepted (2026-10-06). Extends the Cube-first integration scope at the user's request.
+
+The Complete Journey example selects Cube through the default Compose override, or dbt through explicit `compose.yaml` and `compose.dbt.yaml` files. It no longer starts both providers by default. `DL_DEFAULT_SOURCE_PROVIDER` selects the initial connection without locking the selector or overriding saved settings. The dbt project models all six analytical tables used by Cube, including campaign descriptions, contacts and redemptions. Contact periods refer to campaign start dates; no unobserved contact timestamp or household event date is fabricated.
+
+Native dbt count metrics declare their own counts and native ratio metrics supply decomposition. Custom annotations remain optional: `count_measure` associates another metric with its actual sample count; numerator/denominator hints expose the structure of derived percentage metrics. Redundant metric-kind and duplicate denominator annotations are removed from the example. Example calendar caveats remain in dataset documentation rather than dimension descriptions.
+
+Sources supports Cube and self-hosted dbt MetricFlow, with one active connection and separately preserved provider settings. Environment overrides remain provider-scoped; `DL_SOURCE_PROVIDER` may lock the selection. Existing Cube variables and persisted settings remain compatible. Requests bind the selected provider before credentials are used; background workers inherit that request context so a concurrent connection change cannot redirect an in-flight query or bearer token.
+
+The optional `metricflow` environment runs an HTTP gateway using pinned dbt Core, dbt-postgres and dbt-metricflow packages. The gateway accepts canonical DatasetSpecs, resolves fields against the discovered semantic catalog, and invokes MetricFlow's actual planner and execution engine. No generated SQL, project path, code or arbitrary Jinja is accepted from callers. PostgreSQL is the verified warehouse. dbt Cloud APIs are a separate, unimplemented adapter; their URLs are not compatible with this gateway.
+
+Catalog measures explicitly declare queryable dimension references, their default time basis and a provider-declared count metric. Cube maps its existing native declarations into this contract. MetricFlow uses its discovered queryable dimensions and dbt `config.meta.decision_layer` for optional sample-count and decomposition declarations. Metric meanings and joins remain provider-owned. Methods and the Web no longer infer time/sample-count relationships from the word `cube` or matching URI path segments. Fully qualified Recipe references remain stable across connection changes; switching a source never rebinds a saved Recipe automatically. Legacy short refs keep their store's default namespace and should be replaced with explicit refs for multi-provider installations.
+
+The first MetricFlow adapter supports aggregate drilldown, trend, peer comparison and categorical-condition CEM. Entity extraction, unsupported filter operators and unsupported date bases fail closed. Results are capped at 50,000 rows and retain provider-native requests and optional compiled SQL. A matched observational comparison does not become a causal proof because two engines agree.
+
+Gateway bearer tokens authorize one configured warehouse profile; they do not authenticate arbitrary JWT subjects or groups. The adapter declares credential-based identity, and Run ownership uses a provider/instance-scoped token digest after the gateway accepts it. Anonymous use requires explicit local-development configuration. Per-person/RLS enforcement and authentik integration remain separate work; no impersonation claims are forwarded to the warehouse. The Complete Journey example adds dbt views over the existing PostgreSQL tables and a gateway on loopback port 4100 without replacing the Cube service or source data.
+
+---
+
+## ADR-057 — Connect unmodified native semantic models
+
+**Status:** Accepted (2026-10-06). Supersedes the custom analytical metadata provisions of ADR-056 and the Cube ratio-meta interpretation of ADR-022/023.
+
+Connecting an existing semantic layer must not require Decision Layer-specific annotations. The example Cube and dbt models contain no such metadata. Adapters use native declarations, not custom numerator/denominator/count hints, to establish analytical semantics. Generic provider metadata remains preserved for evidence; it does not redefine a metric's statistical meaning.
+
+MetricFlow exposes native ratio components through `type_params` and native count metrics through their aggregation. Cube `/meta` does not expose a calculated number's numerator and denominator structurally. Neither a neighboring count nor a plausible formula/value proves the sample population of a metric. Cube count measures identify themselves, but sum, average, distinct-count and calculated measures do not inherit a sibling row count.
+
+Existing metric references, percentage calculations and values are preserved. Descriptive analysis remains available without sample counts. Sample-size checks and statistical analysis that require unknown sample semantics must not produce guessed evidence; the derived coupon-rate example refuses CEM. Restoring that statistical example requires verified native semantic information and unit-aware validation, not mandatory provider annotations or expression guessing. Existing Runs retain their original evidence unchanged.
+
+---
+
+## ADR-058 — Official dbt API for product connections; selectable local examples
+
+**Status:** Accepted (2026-10-06). Extends ADR-056; hosted dbt is a product connection, not a future placeholder.
+
+Companies connect their existing dbt Semantic Layer through its public GraphQL API using a deployment endpoint, environment ID and bearer token. The `dbt` provider is separate from `metricflow`, the bundled local example gateway. Cube and local dbt examples remain equally visible choices in the README and documentation quickstart. The local dbt example requires no paid account and does not certify or emulate the hosted GraphQL service.
+
+The adapter implements native metric/dimension discovery, catalog pagination, canonical aggregate query translation, `createQuery`, bounded status polling and paginated results. It records environment ID, native request, provider query ID, available SQL and page counts. Known execution-error details are retained in Runs so remote query IDs survive failures. Authentication/GraphQL errors fail closed; requests do not forward tokens through redirects or expose raw provider error payloads. Categorical filters are generated from validated canonical operators and values; arbitrary SQL/Jinja is not accepted.
+
+No customer project files, warehouse credentials or Decision Layer annotations are required. Native SIMPLE type does not establish sum/count aggregation; unavailable sample semantics remain unknown. Entity extraction and unsupported operators fail explicitly. Official API contract tests include the shared Method -> Run -> Recipe path; a separately opt-in authenticated smoke test validates a real deployment when credentials are available.
+
+Tokens retain the existing per-request model: Web keeps its token in session storage and MCP uses `DL_TOKEN`. The provider accepts the credential before its digest is used as a Run owner; a shared token is a shared identity. This does not implement employee login or authentik. Source endpoint and environment settings may be saved or fixed through provider-scoped environment variables. A request binds both source and environment before execution, including background work.
+
+Reference: https://docs.getdbt.com/docs/dbt-apis/sl-graphql

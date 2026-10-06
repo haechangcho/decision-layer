@@ -241,7 +241,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
     : allTimes.filter(object => !!metricEntity && object.entity === metricEntity);
   const timeOptions = relatedTimes.length ? relatedTimes : allTimes;
   const selectedTime = timeOptions.some(object => object.ref === previewTimeDimension) ? previewTimeDimension
-    : timeOptions.length === 1 ? timeOptions[0].ref : suggestedTimeDimension(timeOptions, recipe.semantic_scope.primary_metric)?.ref ?? "";
+    : timeOptions.length === 1 ? timeOptions[0].ref : suggestedTimeDimension(objects, recipe.semantic_scope.primary_metric)?.ref ?? "";
   const recommendedPeriod = suggestedDateRange(byRef.get(selectedTime));
   const recommendedPeriodKey = recommendedPeriod?.join("/");
   useEffect(() => {

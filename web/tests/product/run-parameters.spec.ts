@@ -26,6 +26,29 @@ test.beforeEach(async ({ page }) => {
   } }));
 });
 
+test("long Run graphs keep step cards readable and the last step selectable", async ({ page }) => {
+  await page.route("**/api/runs/long-graph", route => route.fulfill({ json: {
+    id: "long-graph", plan: { question: "여러 방법으로 매출을 조사해줘", scope: {} },
+    steps: Array.from({ length: 6 }, (_, index) => ({ ...step,
+      step: { ...step.step, id: `step-${index}`, purpose: `${index + 1}번째 분석 목적` } })),
+    caller: { subject: "alice", groups: [] }, shared_with: [], status: "completed", validation: [],
+    created_at: "2026-10-05T10:00:00Z",
+  } }));
+  await page.goto("/runs/long-graph");
+  const graph = page.getByRole("region", { name: "실행 그래프" });
+  const first = graph.locator(".react-flow__node-step").first();
+  await expect.poll(async () => (await first.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(239);
+  await expect(graph.locator(".react-flow__pane")).toHaveCSS("touch-action", "pan-y");
+  const canvas = graph.locator(".react-flow").locator("..").locator("..");
+  await canvas.hover();
+  await page.mouse.wheel(0, 400);
+  await expect.poll(() => canvas.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
+  const last = graph.getByRole("button", { name: "6단계 시간에 따른 변화 결과 보기" });
+  await last.click();
+  await expect(page.getByText("6 / 6단계", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test("one click registers the recorded procedure and supports retry", async ({ page }, info) => {
   let requests = 0;
   await page.route("**/api/runs/provenance-test/recipe", route => {
@@ -119,6 +142,60 @@ test("old Runs do not invent parameter provenance", async ({ page }) => {
   await expect(page.getByText("출처 기록 없음")).toHaveCount(2);
 });
 
+for (const method of ["query.drilldown", "query.trend", "query.peer_comparison", "causal.cem", "community.new_method"]) {
+  test(`legacy conclusions use the shared result view for ${method}`, async ({ page }) => {
+    const original = "복잡한 이전 결론 원문 · 여러 수치와 설정이 나열되어 있음";
+    await page.route("**/api/runs/any-analysis", route => route.fulfill({ json: {
+      id: "any-analysis", origin: "mcp", plan: { question: "이 지표를 확인해줘", scope: {} },
+      steps: [{ ...step, step: { ...step.step, method }, result: { ...step.result, primary: { type: "table", title: "다른 도메인의 측정 결과", data: [] } } }],
+      summary: original, conclusion: { source: "execution", answer: "Execution summary", findings: [], limitations: [] },
+      caller: { subject: "alice", groups: [] }, shared_with: [], status: "completed", validation: [], created_at: "2026-10-05T10:00:00Z",
+    } }));
+    await page.goto("/runs/any-analysis");
+    const answer = page.getByRole("region", { name: "분석 답변" });
+    await expect(answer).toContainText("단계별 결과 요약");
+    await expect(answer).toContainText("다른 도메인의 측정 결과");
+    await expect(answer.getByText(original, { exact: true })).not.toBeVisible();
+    await answer.getByRole("button", { name: "기존 결론 원문 보기" }).click();
+    await expect(page.getByRole("dialog", { name: "기존 결론 원문" })).toContainText(original);
+    await page.getByRole("dialog").getByRole("button", { name: "닫기" }).click();
+    await answer.getByRole("button", { name: /1단계/ }).click();
+    await expect(page.getByRole("tab", { name: "결과", exact: true })).toHaveAttribute("aria-selected", "true");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
+test("structured answers link to evidence and distinguish product from model", async ({ page }, info) => {
+  await page.route("**/api/runs/structured", route => route.fulfill({ json: {
+    id: "structured", origin: "mcp", plan: { question: "조건을 맞춰도 차이가 있나?", scope: {} },
+    steps: [{ ...step, author: { client_name: "Example Client", client_version: "2.0", client_source: "protocol", model_id: "example-model", model_source: "client_reported" },
+      result: { ...step.result, primary: { type: "estimate", data: { metric: "cube://local/insurance/payout", target: { label: "A" }, comparison: { label: "B" }, raw: { target: 10, comparison: 12, difference: -2 }, matched: { target: 11, comparison: 12, difference: -1 } } },
+        artifacts: [{ type: "balance", title: "비교 표본", data: { target_retention: 0.968, target_units: 100 } }],
+        validation: [{ validator: "comparability", status: "pass", code: "OK", message: "비교 조건 충족" }] } }],
+    conclusion: { answer: "조건을 맞춘 뒤에도 차이가 남았습니다.", findings: [{ text: "대상 집단의 값이 더 낮았습니다.", step_indices: [0] }], limitations: ["관찰 비교이며 원인으로 단정할 수 없습니다."] },
+    summary: "복잡한 이전 형식 요약", conclusion_author: { client_name: "Example Client", model_id: "example-model", model_source: "client_reported" },
+    caller: { subject: "alice", groups: [] }, shared_with: [], status: "completed", validation: [], created_at: "2026-10-05T10:00:00Z",
+  } }));
+  await page.goto("/runs/structured");
+  const answer = page.getByRole("region", { name: "분석 답변" });
+  await expect(answer).toContainText("조건을 맞춘 뒤에도 차이가 남았습니다.");
+  await expect(answer).not.toContainText("복잡한 이전 형식 요약");
+  await expect(answer).toContainText("AI 작성");
+  await answer.getByRole("button", { name: /1단계/ }).click();
+  await expect(page.getByRole("cell", { name: "조건 맞춤 전", exact: true })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "조건 맞춤 후", exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "검증·추가 결과 1개" }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("비교 조건 충족");
+  await expect(page.getByRole("tabpanel")).toContainText("96.8%");
+  await page.getByRole("tab", { name: "출처", exact: true }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("Example Client");
+  await expect(page.getByRole("tabpanel")).toContainText("example-model");
+  await expect(page.getByRole("tabpanel")).toContainText("미제공");
+  await expect(page.locator("details")).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath("structured-answer-sources.png"), fullPage: true });
+});
+
 test("missing catalog names do not expose semantic URIs in the result", async ({ page }) => {
   await page.route("**/api/runs/unknown-title", route => route.fulfill({ json: {
     id: "unknown-title", plan: { scope: { time_dimension: "cube://local/dim_customer/count" } },
@@ -186,7 +263,7 @@ test("Run graph selects recorded steps without implying a dependency", async ({ 
   await expect(page.locator('[class*="runStepDetail"]')).toContainText("기간별 값과 변화 확인");
   await graph.getByRole("button", { name: "2단계 항목별로 나눠 보기 결과 보기" }).click();
   await expect(page.locator('[class*="runStepDetail"]')).toContainText("두 번째 결과");
-  await page.getByRole("tab", { name: "추가 결과 1개" }).click();
+  await page.getByRole("tab", { name: "검증·추가 결과 1개" }).click();
   await expect(page.getByRole("tabpanel")).toContainText("추가 비교");
   await expect(page.getByRole("tabpanel")).toContainText("42");
   await expect(page.locator("details")).toHaveCount(0);

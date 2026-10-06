@@ -13,13 +13,14 @@ class PeerComparison(Method):
     manifest = MethodManifest(
         name="query.peer_comparison", version="1.0.0", kind="query",
         description="Compare a selected subject against explicitly defined peers and the accessible overall population. "
+                    "The subject is evaluated within the peer conditions; the overall benchmark does not apply peer conditions. "
                     "Preserves scope and source aggregation. Descriptive, not risk-adjusted or causal; a high value is not wrongdoing.",
         roles={"metric": RoleSpec(kind="measure", description="Metric to compare")},
         parameters={
             "subject": ParamSpec(type="drill_path", required=True, ui_group="basic",
-                                 description="One selected dimension and value, e.g. an adviser ID"),
+                                 description='One selected dimension and value [{"member": ref, "value": value}]. Peer conditions also apply to this subject.'),
             "peers": ParamSpec(type="drill_path", default=[], ui_group="basic",
-                               description="Explicit peer conditions, e.g. department; empty means the accessible population"),
+                               description='Conditions [{"member": ref, "value": value}] applied to both subject and peers, not the overall benchmark; empty means the accessible population'),
             "min_count": ParamSpec(type="integer", default=30, minimum=1,
                                    description="Minimum source row count for a comparison; not a significance threshold"),
         },
@@ -45,6 +46,11 @@ class PeerComparison(Method):
         target_filters = path_filters(ctx, subject)
         # Explicit exclusion avoids comparing a subject to a benchmark containing itself.
         excluded = Filter(member=member, operator="notEquals", values=[subject[0]["value"]])
+        populations = {
+            "subject": [*ctx.scope.filters, *peer_filters, *target_filters],
+            "peers": [*ctx.scope.filters, *peer_filters, excluded],
+            "overall": [*ctx.scope.filters, excluded],
+        }
         target = (await totals(ctx, measures, metric, None, [*peer_filters, *target_filters]) or [{}])[0]
         peer = (await totals(ctx, measures, metric, None, [*peer_filters, excluded]) or [{}])[0]
         overall = (await totals(ctx, measures, metric, None, [excluded]) or [{}])[0]
@@ -60,11 +66,14 @@ class PeerComparison(Method):
             checks += [v.min_sample(row["count"] or 0, params["min_count"], row["value"]) for row in rows]
             checks = [check.model_copy(update={"status": "fail"}) if check.code == "SMALL_SAMPLE" else check for check in checks]
         warnings = [_("Descriptive comparison only: case mix and prior selection are not adjusted; no significance or misconduct claim is made.")]
+        if not count:
+            warnings.append(_("The source does not identify this metric's sample count; minimum sample-size checks were not applied."))
         if ctx.obj(metric).metric_kind in ("additive", "count"):
             warnings.append(_("Totals depend on population size; use a governed rate or average for performance comparison."))
         return MethodOutput(primary=Artifact(type="breakdown_table", title=_("Peer group comparison"), data={
             "metric": metric, "subject": subject, "peers": peers, "exclude_subject": True,
             "scope_filters": [f.model_dump() for f in ctx.scope.filters], "rows": rows,
+            "population_filters": {name: [f.model_dump() for f in filters] for name, filters in populations.items()},
             "date_range": ctx.scope.date_range,
             "benchmark_aggregation": "semantic_provider", "statistical_judgement": "not_tested",
         }), validation=checks, warnings=warnings)

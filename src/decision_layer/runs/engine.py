@@ -20,7 +20,7 @@ from typing import Any, Literal
 from ..core.errors import DecisionLayerError, ProviderAccessDenied
 from ..core.ids import new_id, recipe_ref
 from ..core.models import (
-    AnalysisPlan, CallerInfo, Filter, PlanStep, Recipe, Result, Run, RunningJob, StepRecord, ValidationResult,
+    AnalysisPlan, CallerInfo, ExecutionAuthor, Filter, PlanStep, Recipe, Result, Run, RunConclusion, RunningJob, StepRecord, ValidationResult,
 )
 from ..methods import registry as default_registry
 from ..methods.base import InvalidBinding, MethodRegistry
@@ -73,13 +73,14 @@ class RunEngine:
     # They return the run as stored; `run.running` is still set when the job outlived the wait.
     async def start(self, creds: Credentials, caller: CallerInfo, *, recipe: str | None, question: str | None,
                     scope: dict[str, Any], wait: float | None = None,
-                    origin: Literal["python", "api", "web", "mcp"] = "python") -> Run:
+                    origin: Literal["python", "api", "web", "mcp"] = "python",
+                    author: ExecutionAuthor | None = None) -> Run:
         rec = self.recipes.get(recipe) if recipe else None
         if rec and rec.default_scope is not None:
             scope = {**rec.default_scope.model_dump(mode="json"), **scope}
         filters = [*(rec.semantic_scope.required_filters if rec else []),
                    *(Filter.model_validate(f) for f in scope.get("filters") or [])]
-        run = Run(id=new_id("run"), caller=caller, origin=origin,
+        run = Run(id=new_id("run"), caller=caller, origin=origin, author=author,
                   plan=AnalysisPlan(question=question, recipe=recipe_ref(rec.name, rec.version) if rec else None,
                                     scope={**scope, "filters": [f.model_dump(mode="json") for f in filters]},
                                     resolved=_resolved(rec)),
@@ -112,7 +113,7 @@ class RunEngine:
         return await self.store.get(run.id)
 
     async def step(self, creds: Credentials, caller: CallerInfo, run_id: str, step: PlanStep,
-                   wait: float | None = None) -> tuple[Run, Result | None]:
+                   wait: float | None = None, author: ExecutionAuthor | None = None) -> tuple[Run, Result | None]:
         run = await self._owned(run_id, caller)
         if run.status != "open":
             raise RunClosed(_("The run is already {status}", status=run.status), run_id=run_id)
@@ -121,29 +122,44 @@ class RunEngine:
         self._enforce(run, step)
         run.running, run.error = RunningJob(kind="step", method=step.method), None
         await self.store.save(run)
-        _done, result = await self._run_job(run_id, lambda r: self._execute(creds, r, step), wait)
+        _done, result = await self._run_job(run_id, lambda r: self._execute(creds, r, step, author=author), wait)
         return await self.store.get(run_id), result
 
-    async def complete(self, caller: CallerInfo, run_id: str, summary: str | None = None) -> Run:
+    async def complete(self, caller: CallerInfo, run_id: str, summary: str | None = None,
+                       conclusion: RunConclusion | None = None, author: ExecutionAuthor | None = None) -> Run:
         run = await self._owned(run_id, caller)
-        if run.status != "open":
+        attaching = (run.status == "completed" and not run.summary and run.conclusion is not None
+                     and run.conclusion.source == "execution" and conclusion is not None)
+        if run.status != "open" and not attaching:
             raise RunClosed(_("The run is already {status}", status=run.status), run_id=run_id)
-        run.status, run.summary, run.finished_at = "completed", summary, _now()
+        if run.running:
+            raise RunBusy("Wait for the running step before completing the analysis", run_id=run_id)
+        if conclusion and any(i < 0 or i >= len(run.steps) for finding in conclusion.findings for i in finding.step_indices):
+            raise InvalidBinding("Conclusion evidence must reference recorded step indices")
+        run.conclusion = conclusion.model_copy(update={"source": "caller"}) if conclusion else None
+        run.conclusion_author = author
+        if conclusion and summary is None:
+            summary = conclusion.answer
+        run.status, run.summary = "completed", summary
+        if not attaching:
+            run.finished_at = _now()
+        run.ensure_conclusion()
         await self.store.save(run)
         return run
 
     async def adhoc(self, creds: Credentials, caller: CallerInfo, step: PlanStep, scope: dict[str, Any],
                     wait: float | None = None,
                     origin: Literal["python", "api", "web", "mcp"] = "python",
-                    question: str | None = None) -> tuple[Run, Result | None]:
+                    question: str | None = None, author: ExecutionAuthor | None = None) -> tuple[Run, Result | None]:
         self.registry.get(step.method)  # unknown names fail before anything is stored
-        run = Run(id=new_id("run"), caller=caller, origin=origin, plan=AnalysisPlan(question=question, scope=scope),
+        run = Run(id=new_id("run"), caller=caller, origin=origin, author=author, plan=AnalysisPlan(question=question, scope=scope),
                   running=RunningJob(kind="adhoc", method=step.method))
         await self.store.save(run)
 
         async def body(r: Run) -> Result:
-            result = await self._execute(creds, r, step)
+            result = await self._execute(creds, r, step, author=author)
             r.status, r.finished_at = "completed", _now()
+            r.ensure_conclusion()
             return result
 
         _done, result = await self._run_job(run.id, body, wait)
@@ -207,7 +223,8 @@ class RunEngine:
             except Exception as e:
                 known = isinstance(e, DecisionLayerError)
                 run.error = {"code": e.code if known else "INTERNAL_ERROR",
-                             "message": e.message if known else _("An internal error occurred while running")}
+                             "message": e.message if known else _("An internal error occurred while running"),
+                             "details": e.details if known else {}}
                 if run.running and run.running.kind != "step":
                     run.status, run.finished_at = "failed", _now()
                 raise
@@ -230,6 +247,7 @@ class RunEngine:
                 break  # needs_input / refused: stays open, the caller continues with explicit steps
         else:
             run.status, run.finished_at = "completed", _now()
+        run.ensure_conclusion()
 
     async def _preview_steps(self, creds: Credentials, run: Run, step_index: int) -> None:
         run.validation = await self._recipe_validators(creds, run)
@@ -238,6 +256,7 @@ class RunEngine:
             if result.status != "success":
                 break
         run.status, run.finished_at = "completed", _now()
+        run.ensure_conclusion()
 
     def _enforce(self, run: Run, step: PlanStep) -> None:
         rec = run.recipe_snapshot
@@ -283,7 +302,7 @@ class RunEngine:
         return budget - sum(len(s.result.provenance.queries) for s in run.steps)
 
     async def _execute(self, creds: Credentials, run: Run, step: PlanStep,
-                       origin: Literal["recipe", "request"] = "request") -> Result:
+                       origin: Literal["recipe", "request"] = "request", author: ExecutionAuthor | None = None) -> Result:
         installed = self.registry.get(step.method).manifest.version
         if step.method_version and step.method_version != installed:
             raise InvalidBinding("The recorded Method version is not installed. Review the Recipe before changing its version.",
@@ -299,7 +318,9 @@ class RunEngine:
         result = await self.registry.run(resolved.method, await self._context(creds, run), resolved.bindings,
                                          resolved.params)
         result.run_id = run.id
-        run.steps.append(_record(resolved, result, started, sources))
+        record = _record(resolved, result, started, sources)
+        record.author = author
+        run.steps.append(record)
         run.plan.steps.append(resolved)
         return result
 

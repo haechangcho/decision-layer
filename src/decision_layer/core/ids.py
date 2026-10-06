@@ -23,6 +23,10 @@ _SEMANTIC = re.compile(r"^(?P<provider>[a-z][a-z0-9_-]*)://(?P<instance>[A-Za-z0
 _VERSIONED = re.compile(r"^(?P<kind>method|recipe)://(?P<name>[a-z0-9_./-]+)@(?P<version>\d+\.\d+\.\d+)$")
 
 
+def is_semantic_ref(value: object) -> bool:
+    return isinstance(value, str) and _SEMANTIC.fullmatch(value) is not None
+
+
 class SemanticRef(BaseModel, frozen=True):
     provider: str
     instance: str

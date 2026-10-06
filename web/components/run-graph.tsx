@@ -73,11 +73,13 @@ export function RunGraph({ run, titles, selected, onSelect, draftSelection, onTo
   const height = compact ? 135 + (run.steps.length - 1) * spacing + (onToggleDraft ? 216 : 184) + 28 : Math.max(270, run.steps.length * spacing + 35);
   return <section className={s.section} aria-label="실행 그래프">
     <div className={s.heading}><h2>이 질문의 분석 경로</h2><span>지표 · 분석 방법 · 단계별 발견</span></div>
-    <div className={s.canvas} style={{ height: Math.min(compact ? 700 : 680, height) }}>
-      <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={false} nodesConnectable={false}
-        panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} fitView minZoom={0.25} maxZoom={1} proOptions={{ hideAttribution: true }}>
+    <div className={s.canvas} role="group" aria-label="분석 단계" tabIndex={0} style={{ height: Math.min(compact ? 700 : 680, height) }}>
+      <div className={s.viewport} style={{ height }}>
+      <ReactFlow key={compact ? "compact" : "wide"} nodes={nodes} edges={edges} nodeTypes={nodeTypes} nodesDraggable={false} nodesConnectable={false}
+        panOnDrag={false} zoomOnScroll={false} zoomOnPinch={false} preventScrolling={false} fitView minZoom={0.8} maxZoom={1} proOptions={{ hideAttribution: true }}>
         <FitGraph count={run.steps.length} compact={compact} /><Background color="var(--dl-border-strong)" gap={20} />
       </ReactFlow>
+      </div>
     </div>
   </section>;
 }

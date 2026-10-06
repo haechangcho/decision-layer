@@ -29,7 +29,19 @@ def test_source_and_semantic_boundaries():
     assert {join["name"] for join in transactions["joins"]} == {"product", "household"}
     time = next(item for item in transactions["dimensions"] if item["name"] == "analysis_date")
     assert time["sql"] == "transaction_date" and time["type"] == "time"
-    assert time["meta"]["suggestedDateRange"] == ["2000-01-01", "2001-12-11"]
-    assert time["meta"]["calendarType"] == "mapped"
+    assert "meta" not in time
+    assert all("meta" not in member for cube in cubes
+               for member in [*cube.get("dimensions", []), *cube.get("measures", [])])
     campaign = next(cube for cube in cubes if cube["name"] == "campaign")
     assert {item["sql"] for item in campaign["dimensions"] if item["type"] == "time"} == {"start_date", "end_date"}
+
+
+def test_dbt_example_needs_no_decision_layer_annotations():
+    models = FOLDER / "dbt/models"
+    for path in models.glob("*.yml"):
+        definitions = yaml.safe_load(path.read_text())
+        for metric in definitions.get("metrics", []):
+            assert "decision_layer" not in metric.get("config", {}).get("meta", {})
+    transaction = yaml.safe_load((models / "transactions.yml").read_text())
+    rate = next(m for m in transaction["metrics"] if m["name"] == "coupon_line_rate")
+    assert rate["type_params"]["expr"] == "100.0 * coupon_lines / nullif(transaction_count, 0)"

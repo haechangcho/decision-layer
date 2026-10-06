@@ -1,0 +1,28 @@
+# Explicit -f flags select this example without loading compose.override.yaml.
+services:
+  dbt-setup:
+    build: {context: ../.., dockerfile: examples/complete-journey/Dockerfile.metricflow}
+    depends_on:
+      import: {condition: service_completed_successfully}
+    command: ["dbt", "run", "--target", "setup", "--project-dir", "/project", "--profiles-dir", "/project"]
+    restart: "no"
+  metricflow:
+    build: {context: ../.., dockerfile: examples/complete-journey/Dockerfile.metricflow}
+    depends_on:
+      dbt-setup: {condition: service_completed_successfully}
+    environment:
+      DL_METRICFLOW_INSTANCE: journey
+      DL_METRICFLOW_ALLOW_ANONYMOUS: "true"
+    ports: ["127.0.0.1:${METRICFLOW_PORT:-4100}:4100"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4100/catalog', timeout=5)"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
+  api:
+    depends_on:
+      metricflow: {condition: service_healthy}
+    environment:
+      DL_DEFAULT_SOURCE_PROVIDER: metricflow
+      METRICFLOW_AUTH_METHOD: none
