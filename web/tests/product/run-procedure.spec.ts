@@ -9,11 +9,11 @@ const recipeRun = { ...base, plan: { ...base.plan, recipe: "recipe://department-
 test("list distinguishes Recipe execution from direct analysis and searches by Recipe name", async ({ page }) => {
   await page.route("**/api/runs?limit=100", route => route.fulfill({ json: [recipeRun, { ...base, id: "direct-run" }] }));
   await page.goto("/runs");
-  await expect(page.getByText("Recipe로 실행: 상품 부문별 매출 비교")).toBeVisible();
-  await expect(page.getByText("Recipe 없이 분석")).toBeVisible();
+  await expect(page.getByLabel("Recipe로 실행: 상품 부문별 매출 비교, 버전 1.2.0")).toBeVisible();
+  await expect(page.getByText("탐색", { exact: true })).toBeVisible();
   await page.getByRole("textbox", { name: "실행 기록 검색" }).fill("상품 부문별 매출 비교");
-  await expect(page.getByText("Recipe 없이 분석")).toHaveCount(0);
-  await expect(page.getByText("Recipe로 실행: 상품 부문별 매출 비교")).toBeVisible();
+  await expect(page.getByText("탐색", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Recipe로 실행: 상품 부문별 매출 비교, 버전 1.2.0")).toBeVisible();
 });
 
 test("detail shows the executed Recipe version and link even if its current definition changes", async ({ page }, testInfo) => {
@@ -34,7 +34,20 @@ test("historical Recipe runs without a snapshot retain reference and preview ide
     { ...base, preview: true, plan: recipeRun.plan },
   ] }));
   await page.goto("/runs");
-  await expect(page.getByText("Recipe 미리보기: department-analysis")).toBeVisible();
-  await expect(page.getByText("v1.2.0", { exact: true })).toBeVisible();
-  await expect(page.getByText("Recipe로 실행:")).toHaveCount(0);
+  await expect(page.getByLabel("Recipe 미리보기: department-analysis, 버전 1.2.0")).toBeVisible();
+  await expect(page.getByText("미리보기", { exact: true })).toBeVisible();
+  await expect(page.getByText("v1.2.0", { exact: true })).toHaveCount(0);
+});
+
+test("long Recipe names stay compact without obscuring the question and answer", async ({ page }, testInfo) => {
+  const longName = "analysis-from-run_01m4aextcdbckgsbz5ygh2kz23";
+  await page.route("**/api/runs?limit=100", route => route.fulfill({ json: [{ ...recipeRun,
+    recipe_snapshot: { ...recipeRun.recipe_snapshot, name: longName },
+    conclusion: { source: "caller", answer: "식료품 부문의 매출이 가장 높습니다." },
+  }, { ...base, id: "direct-run" }] }));
+  await page.goto("/runs");
+  await expect(page.getByText("식료품 부문의 매출이 가장 높습니다.")).toBeVisible();
+  await expect(page.getByText("Recipe", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("run-list.png"), fullPage: true });
 });

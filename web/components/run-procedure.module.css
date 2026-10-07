@@ -1,7 +1,12 @@
 .summary, .detail, .label { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
-.summary { color:var(--text); font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.summary { color:var(--muted); font-size:11px; line-height:1.5; flex-wrap:nowrap; min-width:0; max-width:100%; }
 .summary svg, .label svg { flex-shrink:0; color:var(--muted); }
-.summary>span, .version, .direct { color:var(--muted); font-size:12px; }
+.version { color:var(--muted); font-size:12px; }
+.recipeBadge, .direct { display:inline-flex; align-items:center; gap:4px; padding:2px 6px; border-radius:4px; font-size:11px; line-height:1.5; white-space:nowrap; flex-shrink:0; }
+.recipeBadge { color:var(--accent-hover); background:var(--accent-soft); }
+.recipeBadge svg { color:inherit; }
+.direct { color:var(--muted); background:var(--hover); }
+.name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px; min-width:0; }
 .detail { margin:0 0 18px; gap:8px 12px; font-size:13px; }
 .label { color:var(--muted); }
 .detail a { display:inline-flex; align-items:center; gap:4px; color:var(--text); font-weight:600; overflow-wrap:anywhere; min-width:0; }
