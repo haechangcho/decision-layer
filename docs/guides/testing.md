@@ -36,7 +36,7 @@ Default product tests use mocked API responses on desktop and mobile. They need 
 Start the [default sample](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md) with Recipes empty. From its directory:
 
 ```bash
-docker compose run --rm --no-deps import python verify.py
+docker compose -p decision-layer-cube run --rm --no-deps import python verify.py
 ```
 
 From the repository root:
@@ -50,7 +50,7 @@ DL_JOURNEY_API_URL=http://127.0.0.1:8000 \
 The live check records Recipe-free MCP drill-down and peer comparison, then reviews a Recipe candidate.
 The template test needs no Cube.
 
-The same MCP scenario supports the dbt example with `DL_JOURNEY_PROVIDER=metricflow`. To compare both engines on the same database, start both source services with `docker compose -f compose.yaml -f compose.override.yaml -f compose.dbt.yaml up -d --build --wait cube metricflow`, then run `DL_METRICFLOW_TEST_URL=http://127.0.0.1:4100 .venv/bin/pytest tests/provider/test_metricflow_live.py -q`. This opt-in suite compares the four Methods plus campaign/contact/redemption joins and date filtering. It creates no Runs.
+The same MCP scenario supports the dbt example with `DL_JOURNEY_PROVIDER=metricflow`. To compare both engines on the same database, start both source services with `docker compose -p decision-layer-cube -f compose.yaml -f compose.override.yaml -f compose.dbt.yaml up -d --build --wait cube metricflow`, then run `DL_METRICFLOW_TEST_URL=http://127.0.0.1:4100 .venv/bin/pytest tests/provider/test_metricflow_live.py -q`. This opt-in suite compares the four Methods plus campaign/contact/redemption joins and date filtering. It creates no Runs.
 
 From `web/`, use the printed `JOURNEY_MCP_RUN_ID` for desktop/mobile review:
 

@@ -49,10 +49,10 @@ DL_API_URL=http://localhost:8000 npm run dev
 `examples/complete-journey/`에서 데이터 서비스만 실행합니다.
 
 ```bash
-docker compose up -d --build --wait postgres import cube
+docker compose -p decision-layer-cube up -d --build --wait postgres import cube
 ```
 
-샘플 전체가 이미 실행 중이라면 같은 폴더에서 `docker compose stop api web`으로 샘플 API·웹의 포트를 비우세요. 다른 서비스는 종료하지 않습니다.
+샘플 전체가 이미 실행 중이라면 같은 폴더에서 `docker compose -p decision-layer-cube stop api web`으로 샘플 API·웹의 포트를 비우세요. 다른 서비스는 종료하지 않습니다.
 
 저장소 루트로 돌아와 샘플에 연결된 API를 실행합니다.
 
@@ -74,7 +74,7 @@ DL_DATABASE_URL=sqlite:///./data/journey-development.db \
 dbt 개발 환경은 예제 폴더에서 대신 다음 명령으로 시작합니다.
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait postgres import dbt-setup metricflow
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait postgres import dbt-setup metricflow
 ```
 
 저장소 루트에서 API를 실행할 때는 위 Recipe·DB 설정과 함께 `DL_DEFAULT_SOURCE_PROVIDER=metricflow`, `DL_DEFAULT_METRICFLOW_URL=http://localhost:4100`, `DL_DEFAULT_METRICFLOW_INSTANCE=journey`, `METRICFLOW_AUTH_METHOD=none`, `DL_ALLOW_SERVICE_CREDENTIALS=true`를 사용하세요. 기존 연결이 기본값보다 우선하므로 새 기본 연결을 테스트할 때는 별도의 Run DB를 사용합니다. SQL과 YAML은 `examples/complete-journey/dbt/models/`에 있습니다. 수정 후 같은 Compose 파일로 `dbt-setup`을 빌드·실행하고 `metricflow`를 다시 생성하세요. 자세한 내용은 [MetricFlow 가이드](metricflow.md)에 있습니다.

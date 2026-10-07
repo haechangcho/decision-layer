@@ -22,14 +22,16 @@ cd decision-layer/examples/complete-journey
 **Cube**
 
 ```bash
-docker compose up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
 **dbt MetricFlow**
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
 ```
+
+Each example keeps its database, connection settings, Runs and Recipes separately. They use the same ports, so run one at a time. Use the shutdown commands in the [sample guide](examples/complete-journey/README.md) before switching.
 
 Run one option, then open [localhost:3000](http://localhost:3000). Both use the same dataset. The first start downloads and imports it and can take a few minutes.
 

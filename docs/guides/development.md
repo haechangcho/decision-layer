@@ -44,10 +44,10 @@ Open **http://localhost:5210**. Web proxies to the API; it does not run a separa
 From `examples/complete-journey/`, start only the data services:
 
 ```bash
-docker compose up -d --build --wait postgres import cube
+docker compose -p decision-layer-cube up -d --build --wait postgres import cube
 ```
 
-If the full sample is already running, first stop its API and Web with `docker compose stop api web` from that directory to free their ports. Do not stop unrelated stacks.
+If the full sample is already running, first stop its API and Web with `docker compose -p decision-layer-cube stop api web` from that directory to free their ports. Do not stop unrelated stacks.
 
 Return to the repository root and start the native API with the sample connection:
 
@@ -69,7 +69,7 @@ The sample's PostgreSQL stores source data, not Runs. The native API uses its ow
 For dbt development, start its data services from the example folder instead:
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait postgres import dbt-setup metricflow
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait postgres import dbt-setup metricflow
 ```
 
 Start the native API from the repository root with `DL_DEFAULT_SOURCE_PROVIDER=metricflow`, `DL_DEFAULT_METRICFLOW_URL=http://localhost:4100`, `DL_DEFAULT_METRICFLOW_INSTANCE=journey`, `METRICFLOW_AUTH_METHOD=none` and `DL_ALLOW_SERVICE_CREDENTIALS=true`, along with the same Recipe and DB settings above. Use a separate Run database for a fresh provider default; saved connections otherwise take precedence. SQL and YAML live in `examples/complete-journey/dbt/models/`. After editing them, rebuild and run `dbt-setup`, then recreate `metricflow` using the same Compose files. See the [MetricFlow guide](metricflow.md).

@@ -21,16 +21,18 @@ Choose one provider, then run the command in its tab:
 ::: code-group
 
 ```bash [Cube]
-docker compose up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
 ```bash [dbt MetricFlow]
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
 ```
 
 :::
 
 Both options start Web on `localhost:3000` and API on `localhost:8000`. The Cube example adds Cube on `localhost:4000`; the dbt example adds MetricFlow on `localhost:4100`. The first run downloads and imports the source data; allow several minutes. The selected source is configured automatically on a fresh installation. Run one example at a time; see the [sample guide](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md) for switching and teardown.
+
+Each example has its own database, connection settings, Runs and Recipe folder. A new example has no Runs; restarting it keeps its records. The source settings are prefilled for the example, not copied from another installation.
 
 The dbt example runs locally without an account, using a bundled MetricFlow gateway. To connect your company's existing dbt environment, choose **dbt Semantic Layer** in Sources and use the [official API connection](./guides/dbt.md). No local gateway is needed for that connection.
 

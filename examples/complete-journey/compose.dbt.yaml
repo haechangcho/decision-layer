@@ -1,4 +1,5 @@
 # Explicit -f flags select this example without loading compose.override.yaml.
+name: decision-layer-dbt
 services:
   dbt-setup:
     build: {context: ../.., dockerfile: examples/complete-journey/Dockerfile.metricflow}
@@ -21,6 +22,8 @@ services:
       retries: 20
       start_period: 30s
   api:
+    volumes:
+      - ./recipes-dbt:/recipes
     depends_on:
       metricflow: {condition: service_healthy}
     environment:

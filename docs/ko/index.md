@@ -21,16 +21,18 @@ cd decision-layer/examples/complete-journey
 ::: code-group
 
 ```bash [Cube]
-docker compose up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
 ```bash [dbt MetricFlow]
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
 ```
 
 :::
 
 웹은 `localhost:3000`, API는 `localhost:8000`입니다. Cube 예제는 `localhost:4000`, dbt 예제는 MetricFlow `localhost:4100`을 사용합니다. 첫 실행은 데이터를 내려받아 적재하므로 몇 분 걸릴 수 있습니다. 처음 설치하면 선택한 제공자가 자동 연결됩니다. 예제는 하나씩 실행하며, 전환·종료 방법은 [샘플 안내](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)에 있습니다.
+
+예제별 DB, 연결 설정, Runs와 Recipe 폴더는 분리됩니다. 처음 실행한 예제에는 Run이 없고, 다시 실행하면 기록이 유지됩니다. 연결 설정에 보이는 값은 예제 기본값이며 다른 설치에서 가져온 설정이 아닙니다.
 
 dbt 예제는 계정 없이 체험할 수 있도록 로컬 MetricFlow 게이트웨이를 포함합니다. 회사의 기존 dbt 환경은 Sources에서 **dbt Semantic Layer**를 선택하고 [공식 API로 연결](./guides/dbt.md)하세요. 회사 환경에 별도 게이트웨이를 설치할 필요는 없습니다.
 

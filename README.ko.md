@@ -22,16 +22,18 @@ cd decision-layer/examples/complete-journey
 **Cube**
 
 ```bash
-docker compose up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
 **dbt MetricFlow**
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
 ```
 
 둘 중 하나를 실행한 뒤 [localhost:3000](http://localhost:3000)을 여세요. 두 예제는 같은 데이터셋을 사용합니다. 첫 실행에는 데이터 다운로드와 적재로 몇 분이 걸릴 수 있습니다.
+
+예제별 DB, 연결 설정, 실행 기록과 Recipe는 별도로 보관됩니다. 포트는 같으므로 하나씩 실행하세요. 전환할 때는 [샘플 안내](examples/complete-journey/README.ko.md)의 종료 명령을 사용합니다.
 
 예제에는 semantic layer가 연결되어 있고 Recipe는 비어 있습니다. 데이터 설명과 종료 방법은 [샘플 안내](examples/complete-journey/README.ko.md)를 참고하세요. 이 환경은 운영 배포용이 아닌 로컬 개발용입니다.
 

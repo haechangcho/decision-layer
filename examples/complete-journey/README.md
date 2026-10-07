@@ -11,13 +11,13 @@ From the repository root:
 
 ```bash
 cd examples/complete-journey
-docker compose up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
 This starts the **Cube example**. For the **dbt example**, use instead:
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
 ```
 
 Each option starts PostgreSQL, the selected semantic provider, API and Web. Open **http://127.0.0.1:3000/catalog**. The selected provider is configured automatically on a fresh installation; Recipes start empty. Existing saved connections take precedence: use [Sources](http://localhost:3000/sources) to select the new provider, test and save. Use only one example stack at a time because Web and API ports are shared.
@@ -89,19 +89,21 @@ does not yet verify this average/count/unit contract; the dbt example is verifie
 ## Verify and troubleshoot
 
 ```bash
-docker compose run --rm --no-deps import python verify.py
-docker compose logs --tail=100 import cube api
-docker compose down
+docker compose -p decision-layer-cube run --rm --no-deps import python verify.py
+docker compose -p decision-layer-cube logs --tail=100 import cube api
+docker compose -p decision-layer-cube down
 ```
 
 For dbt, use the same selected files for management commands:
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml logs --tail=100 dbt-setup metricflow api
-docker compose -f compose.yaml -f compose.dbt.yaml down
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml logs --tail=100 dbt-setup metricflow api
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml down
 ```
 
-To switch examples, stop the current stack with its `down` command, then start the other. This preserves the shared source database and Run volume. Test and save the selected connection in Sources if settings were previously saved.
+To switch examples, use the matching shutdown command above before starting the other. Both use the same ports, so run one at a time. Cube and dbt have separate databases, connection settings and Run volumes. Recipe files live in `recipes/` for Cube and `recipes-dbt/` for dbt. A new example starts with no Runs or Recipes and its semantic layer connected automatically. Restarting it preserves its records.
+
+If you previously used `decision-layer-journey` or `decision-layer-onboarding`, stop it first with `docker compose -p decision-layer-journey down` or `docker compose -p decision-layer-onboarding down` from this directory. Existing volumes are not deleted or automatically migrated. Cloning into another folder still reuses volumes if the project name is the same.
 
 The verifier reports independent SQL totals and checks a product join does not multiply lines.
 `down` preserves named data/cache/Run volumes and local Recipe files; `down -v` deletes named volumes.
@@ -109,9 +111,9 @@ The importer records a digest and row counts transactionally; interrupted import
 Existing volumes are upgraded on the next import without reloading or deleting source rows:
 
 ```bash
-docker compose build import
-docker compose run --rm --no-deps import
-docker compose restart cube api
+docker compose -p decision-layer-cube build import
+docker compose -p decision-layer-cube run --rm --no-deps import
+docker compose -p decision-layer-cube restart cube api
 ```
 
 See [local development](../../docs/guides/development.md), [Method contribution](../../docs/guides/methods.md)

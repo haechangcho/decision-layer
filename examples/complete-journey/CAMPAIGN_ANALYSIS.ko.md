@@ -45,19 +45,19 @@ dbt 예제는 로컬 MetricFlow로 검증합니다. 현재 공식 hosted dbt API
 Cube 예제 폴더에서:
 
 ```bash
-docker compose build import api
-docker compose run --rm --no-deps import
-docker compose up -d --no-deps --wait cube api
+docker compose -p decision-layer-cube build import api
+docker compose -p decision-layer-cube run --rm --no-deps import
+docker compose -p decision-layer-cube up -d --no-deps --wait cube api
 ```
 
 dbt 예제 폴더에서:
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml build import dbt-setup metricflow api
-docker compose -f compose.yaml -f compose.dbt.yaml run --rm --no-deps import
-docker compose -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup
-docker compose -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup dbt test --target setup --project-dir /project --profiles-dir /project
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --no-deps --wait metricflow api
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml build import dbt-setup metricflow api
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps import
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup dbt test --target setup --project-dir /project --profiles-dir /project
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --no-deps --wait metricflow api
 ```
 
 볼륨 삭제나 원천 재다운로드는 필요 없습니다. 집계 갱신 중에는 새 모델에 잠금이 걸리므로 분석 중 갱신하지 마세요.

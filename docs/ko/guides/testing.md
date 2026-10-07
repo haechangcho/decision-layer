@@ -41,7 +41,7 @@ PLAYWRIGHT_BASE_URL=http://127.0.0.1:5210 npm run test:e2e
 [기본 샘플](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)을 Recipe가 비어 있는 독립 환경에서 시작하세요. 예제 폴더에서 데이터 적재를 확인합니다.
 
 ```bash
-docker compose run --rm --no-deps import python verify.py
+docker compose -p decision-layer-cube run --rm --no-deps import python verify.py
 ```
 
 저장소 루트에서 MCP와 실행 엔진을 검증합니다.
@@ -54,7 +54,7 @@ DL_JOURNEY_API_URL=http://127.0.0.1:8000 \
 
 실제 연동 테스트는 Recipe 없이 MCP로 드릴다운·동료 집단 비교를 실행하고 Recipe 후보를 검토합니다. Method 템플릿 테스트는 실제 소스 없이 실행됩니다.
 
-dbt 예제에서도 같은 MCP 테스트를 `DL_JOURNEY_PROVIDER=metricflow`로 실행할 수 있습니다. 같은 DB로 두 엔진의 결과를 비교하려면 `docker compose -f compose.yaml -f compose.override.yaml -f compose.dbt.yaml up -d --build --wait cube metricflow`로 두 소스만 실행하고, 저장소 루트에서 `DL_METRICFLOW_TEST_URL=http://127.0.0.1:4100 .venv/bin/pytest tests/provider/test_metricflow_live.py -q`를 실행하세요. 네 Method와 캠페인·접촉·쿠폰 사용 이력의 조인·기간 필터를 비교하며 Run은 만들지 않습니다.
+dbt 예제에서도 같은 MCP 테스트를 `DL_JOURNEY_PROVIDER=metricflow`로 실행할 수 있습니다. 같은 DB로 두 엔진의 결과를 비교하려면 `docker compose -p decision-layer-cube -f compose.yaml -f compose.override.yaml -f compose.dbt.yaml up -d --build --wait cube metricflow`로 두 소스만 실행하고, 저장소 루트에서 `DL_METRICFLOW_TEST_URL=http://127.0.0.1:4100 .venv/bin/pytest tests/provider/test_metricflow_live.py -q`를 실행하세요. 네 Method와 캠페인·접촉·쿠폰 사용 이력의 조인·기간 필터를 비교하며 Run은 만들지 않습니다.
 
 출력된 `JOURNEY_MCP_RUN_ID`를 사용해 `web/`에서 화면을 확인합니다.
 

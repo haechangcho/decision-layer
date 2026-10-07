@@ -4,7 +4,7 @@ Decision Layer does not need to own Cube's database or run Cube in the same stac
 
 ## Start
 
-For a Cube with sample data, run `docker compose up -d --build --wait --wait-timeout 900` from `examples/complete-journey`. The [dbt MetricFlow example](metricflow.md) is a separate choice using the same dataset. The instructions below connect your existing Cube.
+For a Cube with sample data, run `docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900` from `examples/complete-journey`. The [dbt MetricFlow example](metricflow.md) is a separate choice using the same dataset. The instructions below connect your existing Cube.
 
 From the repository root:
 

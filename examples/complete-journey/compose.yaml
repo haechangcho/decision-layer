@@ -1,4 +1,4 @@
-name: decision-layer-journey
+name: decision-layer-cube
 
 services:
   postgres:

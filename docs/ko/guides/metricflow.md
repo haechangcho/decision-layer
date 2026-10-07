@@ -4,7 +4,7 @@
 
 직접 운영하는 dbt MetricFlow를 HTTP 게이트웨이로 연결할 수 있습니다. 지표 정의와 조인은 dbt가 관리하고, 쿼리 생성과 실행은 MetricFlow가 담당합니다. Decision Layer의 Method·Recipe·Run·MCP 실행 방식은 그대로 사용합니다.
 
-현재 검증한 조합은 **dbt Core + MetricFlow + PostgreSQL**입니다. dbt Cloud GraphQL API 주소를 입력하는 연결 방식은 아직 지원하지 않습니다.
+현재 로컬 예제에서 검증한 조합은 **dbt Core + MetricFlow + PostgreSQL**입니다. 회사의 dbt 환경에는 [공식 Semantic Layer API](dbt.md)로 연결하세요.
 
 ## 예제로 시작하기
 
@@ -12,7 +12,7 @@
 
 ```bash
 cd examples/complete-journey
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
 ```
 
 PostgreSQL·dbt 초기화 작업·MetricFlow·API·웹이 실행됩니다. Cube 예제는 같은 원본 데이터를 사용하는 별도 선택지입니다. dbt 초기화 작업은 `journey_dbt` 스키마에 뷰를 만들며 원본 데이터를 복제하거나 다시 적재하지 않습니다. 처음 설치하면 MetricFlow가 자동 선택됩니다.
@@ -22,7 +22,7 @@ PostgreSQL·dbt 초기화 작업·MetricFlow·API·웹이 실행됩니다. Cube 
 3. **연결 테스트** 후 **설정 저장**을 누릅니다.
 4. 지표 화면을 열거나 MCP에 연결한 AI에게 현재 카탈로그를 확인하고 분석하도록 요청합니다.
 
-호스트에서 게이트웨이에 접근하는 주소는 `http://localhost:4100`입니다. API 컨테이너에서는 `http://metricflow:4100`을 사용합니다. Cube로 다시 전환해도 저장해 둔 연결 설정은 유지됩니다.
+호스트에서 게이트웨이에 접근하는 주소는 `http://localhost:4100`입니다. API 컨테이너에서는 `http://metricflow:4100`을 사용합니다. Cube와 dbt 예제는 DB, 연결 설정과 Runs가 분리됩니다. Recipe는 각각 `recipes/`, `recipes-dbt/`에 저장됩니다. 포트가 같으므로 [샘플 안내](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)의 종료 명령으로 현재 예제를 종료한 뒤 전환하세요.
 
 현재는 한 번에 하나의 연결을 사용합니다. Recipe의 지표 참조를 다른 제공자로 자동 변경하지 않으므로, 다른 연결에서 재사용하려면 지표·차원을 명시적으로 다시 선택해야 합니다. 기존 Run의 결과와 출처는 그대로 보존되며, 조회 권한은 기록된 소유자와 접근 규칙을 따릅니다.
 

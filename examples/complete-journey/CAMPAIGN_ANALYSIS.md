@@ -49,19 +49,19 @@ metadata currently cannot verify this contract, so the product adapter still ref
 Cube, from this example directory:
 
 ```bash
-docker compose build import api
-docker compose run --rm --no-deps import
-docker compose up -d --no-deps --wait cube api
+docker compose -p decision-layer-cube build import api
+docker compose -p decision-layer-cube run --rm --no-deps import
+docker compose -p decision-layer-cube up -d --no-deps --wait cube api
 ```
 
 dbt, from this example directory:
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml build import dbt-setup metricflow api
-docker compose -f compose.yaml -f compose.dbt.yaml run --rm --no-deps import
-docker compose -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup
-docker compose -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup dbt test --target setup --project-dir /project --profiles-dir /project
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --no-deps --wait metricflow api
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml build import dbt-setup metricflow api
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps import
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup dbt test --target setup --project-dir /project --profiles-dir /project
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --no-deps --wait metricflow api
 ```
 
 No volume deletion or source re-download is required. Refresh takes an exclusive lock on this sample

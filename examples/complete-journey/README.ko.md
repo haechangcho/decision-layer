@@ -9,13 +9,13 @@ dbt 예제에는 계정 없이 체험하는 용도의 로컬 게이트웨이가 
 
 ```bash
 cd examples/complete-journey
-docker compose up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
 위 명령은 **Cube 예제**를 실행합니다. **dbt 예제**는 대신 다음 명령으로 실행하세요.
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
 ```
 
 선택한 제공자와 PostgreSQL·API·웹이 실행됩니다. **http://127.0.0.1:3000** 으로 접속하세요. 처음 설치하면 연결은 자동 설정되고 Recipe는 비어 있습니다. 기존 연결을 저장했다면 [연결 설정](http://localhost:3000/sources)에서 제공자를 선택하고 연결 테스트 후 저장하세요. 두 예제는 웹·API 포트가 같으므로 하나씩 실행합니다.
@@ -61,27 +61,29 @@ Runs에서 질문·분석 단계·설정·쿼리를 확인하고 **Recipe로 등
 독립 SQL 검증 및 종료:
 
 ```bash
-docker compose run --rm --no-deps import python verify.py
-docker compose logs --tail=100 import cube api
-docker compose down
+docker compose -p decision-layer-cube run --rm --no-deps import python verify.py
+docker compose -p decision-layer-cube logs --tail=100 import cube api
+docker compose -p decision-layer-cube down
 ```
 
 dbt 예제의 로그 확인과 종료에는 실행할 때와 같은 파일을 지정합니다.
 
 ```bash
-docker compose -f compose.yaml -f compose.dbt.yaml logs --tail=100 dbt-setup metricflow api
-docker compose -f compose.yaml -f compose.dbt.yaml down
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml logs --tail=100 dbt-setup metricflow api
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml down
 ```
 
-예제를 바꿀 때는 현재 예제를 `down`으로 종료하고 다른 예제를 실행하세요. 데이터와 Run 볼륨은 유지됩니다. 기존 연결을 저장했다면 Sources에서 변경한 제공자의 연결을 테스트하고 저장하세요.
+예제를 바꿀 때는 위의 해당 예제 종료 명령을 실행한 뒤 다른 예제를 시작하세요. 포트가 같아 동시에 실행하지 않습니다. Cube와 dbt는 별도 DB, 연결 설정과 Run 볼륨을 사용합니다. Recipe 파일은 Cube의 `recipes/`, dbt의 `recipes-dbt/`에 각각 저장됩니다. 처음 실행한 예제는 Runs와 Recipes가 비어 있고, 선택한 semantic layer가 자동 연결됩니다. 다시 실행하면 해당 예제의 기록이 유지됩니다.
+
+이전에 `decision-layer-journey` 또는 `decision-layer-onboarding`으로 실행했다면 먼저 같은 폴더에서 `docker compose -p decision-layer-journey down` 또는 `docker compose -p decision-layer-onboarding down`으로 종료하세요. 기존 볼륨은 삭제하거나 새 환경에 자동 복사하지 않습니다. 폴더를 바꿔 clone해도 같은 프로젝트 이름을 쓰면 볼륨이 재사용됩니다.
 
 `down`은 데이터와 Runs를 보존합니다. `down -v`는 이름 있는 볼륨을 삭제합니다.
 기존 DB에는 아래 명령으로 날짜 컬럼을 추가할 수 있습니다. 원본 데이터는 다시 적재하지 않습니다.
 
 ```bash
-docker compose build import
-docker compose run --rm --no-deps import
-docker compose restart cube api
+docker compose -p decision-layer-cube build import
+docker compose -p decision-layer-cube run --rm --no-deps import
+docker compose -p decision-layer-cube restart cube api
 ```
 
 전체 구조와 로컬 개발은 [영문 가이드](README.md)를 참고하세요.

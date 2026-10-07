@@ -12,7 +12,7 @@ From the repository root:
 
 ```bash
 cd examples/complete-journey
-docker compose -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
+docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
 ```
 
 This starts the dbt example with PostgreSQL, dbt setup, MetricFlow, API and Web. Cube is a separately selected example using the same source tables. The dbt setup task creates views in `journey_dbt`; it does not reload or copy the source dataset. A fresh installation selects MetricFlow automatically.
@@ -22,7 +22,7 @@ This starts the dbt example with PostgreSQL, dbt setup, MetricFlow, API and Web.
 3. Select **Test connection**, then **Save settings**.
 4. Open Metrics or ask your connected MCP client to discover the current catalog and analyze it.
 
-The browser-facing gateway address is `http://localhost:4100`. The API container uses `http://metricflow:4100`. Switching back to Cube preserves its saved connection. One connection is active at a time; a single query cannot mix providers. Recipes keep their original fully qualified semantic references and must be explicitly rebound to a different provider. Existing Runs retain their recorded results and provenance; visibility follows their recorded owner and access rules.
+The browser-facing gateway address is `http://localhost:4100`. The API container uses `http://metricflow:4100`. Cube and dbt examples keep separate databases, connection settings and Runs; Recipes live in `recipes/` and `recipes-dbt/`, respectively. They use the same ports, so follow the shutdown commands in the [sample guide](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md) before switching. A single query cannot mix providers. Recipes keep their original fully qualified semantic references and must be explicitly rebound to a different provider.
 
 The dbt example defines transactions, products, households, campaign descriptions, campaign contacts and coupon redemptions. It exposes receipts, units, baskets, transaction counts, coupon-line rates, campaign counts, contact counts and redemption counts. Foreign entities connect each fact to its applicable product, household or campaign model. Campaign contacts use campaign start date, not a fabricated contact timestamp. Household definitions have no event date; the example does not fabricate one to expose a standalone time-based household-count metric.
 

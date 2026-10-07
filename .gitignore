@@ -27,6 +27,8 @@ examples/*/data/*
 !examples/*/data/.gitkeep
 examples/*/recipes/*
 !examples/*/recipes/.gitkeep
+examples/*/recipes-dbt/*
+!examples/*/recipes-dbt/.gitkeep
 /web/test-results/
 /web/playwright-report/
 /web/.next-local/
