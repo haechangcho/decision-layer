@@ -10,6 +10,7 @@ import { ArtifactView, ResultView } from "@/components/result";
 import { RunGraph } from "@/components/run-graph";
 import { RunAnswer } from "@/components/run-answer";
 import { RunDelete } from "@/components/run-delete";
+import { RunProcedure } from "@/components/run-procedure";
 import { RunResultChart } from "@/components/run-result-chart";
 import { RunPeriodInput, periodLabel } from "@/components/run-period-input";
 import { AuthorInfo, RunQueries, RunSettings, RunSources, readableValue } from "@/components/run-evidence";
@@ -81,6 +82,7 @@ export default function RunPage() {
     <Link className={styles.back} href="/runs"><ArrowLeft size={15} />실행 기록</Link>
     <div className={styles.heading}><div><p className={styles.eyebrow}>{run.preview ? "미리보기" : "RUN"} · {runOriginLabel(run.origin)} · {new Date(run.created_at).toLocaleString()}</p><h1>{run.plan.question || recipe?.description || recipe?.name || (metricNames[0] ? `${metricNames[0]} 분석` : "분석 결과")}</h1></div><div className={styles.runHeaderActions}><span className={`${styles.badge} ${run.status === "failed" || stopped ? styles.badgeFailed : run.status === "open" ? styles.badgeOpen : ""}`}>{run.status === "completed" ? "완료" : run.status === "failed" ? "실패" : stopped ? lastStatus === "needs_input" ? "입력 필요" : "중단" : run.running ? "진행 중" : run.steps.length ? "결론 대기" : "대기 중"}</span>{mine && <RunDelete run={run} onDeleted={() => router.push("/runs")} />}</div></div>
     <p className={styles.runScope}><strong>{metricNames.join(" · ") || "지표 선택 전"}</strong><span>{periodLabel(run)}</span>{timeTitle && <span>{timeTitle} 기준</span>}{run.scope_resolution?.source && <span>{({ caller: "호출자 선택", conversation: "대화에서 이어받음", ai_proposal: "AI 제안", recipe_default: "Recipe 기본 기간", organization_default: "조직 기본 기간", unspecified: "아직 선택하지 않음" } as Record<string, string>)[run.scope_resolution.source] || "선택 출처 미확인"}</span>}</p>
+    <RunProcedure run={run} detailed />
     {mine && run.needs_input && <RunPeriodInput key={`${run.id}:${run.scope_revision}`} run={run} objects={objects} onDone={() => reload()} />}
     {!run.preview && reusableSteps.length > 0 && <section className={styles.runRecipeDecision} aria-label="Recipe 등록">
       <div><h2>{registered ? "Recipe로 등록했습니다" : "이 분석 절차를 Recipe로 저장"}</h2><p>{registered ? "분석 라이브러리와 MCP에서 바로 실행할 수 있습니다." : `${run.steps.length}단계 · 분석 대상은 실행할 때마다 앞 단계 결과에서 다시 선택합니다.`}</p></div>
