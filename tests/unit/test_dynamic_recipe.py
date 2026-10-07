@@ -88,6 +88,7 @@ async def test_promotion_preserves_rules_and_dependency_closure(provider, tmp_pa
     assert candidate.recipe.steps[1].params["drill_path"] == source("groups")
     assert candidate.recipe.steps[2].params["subject"] == source("members", "condition")
     assert candidate.recipe.default_scope.date_range is None
+    assert candidate.recipe.steps[0].purpose_context == "procedure"
     assert candidate.recipe.semantic_scope.required_filters == []
     with pytest.raises(RunPromotionError, match="Include the earlier steps"):
         candidate_from_run(run, [1, 2])
@@ -95,6 +96,19 @@ async def test_promotion_preserves_rules_and_dependency_closure(provider, tmp_pa
     for record in run.steps:
         record.requested_step = None
     assert candidate_from_run(run, [0, 1, 2]).recipe.steps[1].params["drill_path"] == source("groups")
+
+
+async def test_promotion_marks_original_intent_without_rewriting_it(provider, tmp_path):
+    run = await execute(provider, tmp_path)
+    run.recipe_snapshot = None
+    run.plan.recipe = None
+    run.steps[0].requested_step.purpose = "Compare sales in July through September"
+    candidate = candidate_from_run(run, [0, 1, 2])
+    assert candidate.recipe.steps[0].purpose == "Compare sales in July through September"
+    assert candidate.recipe.steps[0].purpose_context == "source_run"
+    assert candidate.recipe.default_scope.date_range is None
+    run.steps[0].requested_step.purpose_context = "procedure"
+    assert candidate_from_run(run, [0, 1, 2]).recipe.steps[0].purpose_context == "procedure"
 
 
 async def test_default_registration_builds_runtime_rules_without_copying_winner_values(provider, tmp_path):

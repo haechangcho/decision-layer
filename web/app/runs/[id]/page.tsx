@@ -19,7 +19,7 @@ import { useApi, useCatalog } from "@/lib/hooks";
 import { useT } from "@/lib/i18n";
 import { methodName } from "@/lib/method-name";
 import { runOriginLabel } from "@/lib/run-origin";
-import { stepFinding, stepPurpose } from "@/lib/run-story";
+import { isSourcePurpose, stepFinding, stepPurpose } from "@/lib/run-story";
 import styles from "../../library.module.css";
 
 export default function RunPage() {
@@ -97,7 +97,8 @@ export default function RunPage() {
     {run.error && <p className={styles.error} role="alert">{run.error.message} · 오류 코드 {run.error.code}</p>}
     {(!run.needs_input || run.steps.length > 0) && <><RunAnswer run={run} warnings={warnings} onSelect={index => { setOpen(index); setTab("result"); document.getElementById("run-step-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
     <RunGraph run={run} titles={byRef} selected={current} onSelect={index => { setOpen(index); setTab("result"); }} /></>}
-    {selectedStep ? <section id="run-step-detail" className={styles.runStepDetail}><span>{current + 1} / {run.steps.length}단계</span><h2>{methodName(selectedStep.step.method)}</h2><p className={styles.runPurpose}><span>분석 목적</span>{stepPurpose(selectedStep.step)}</p>
+    {selectedStep ? <section id="run-step-detail" className={styles.runStepDetail}><span>{current + 1} / {run.steps.length}단계</span><h2>{methodName(selectedStep.step.method)}</h2><p className={styles.runPurpose}><span>분석 목적</span>{stepPurpose(selectedStep.step, run)}</p>
+      {isSourcePurpose(selectedStep.step, run) && selectedStep.step.purpose && <div className={styles.runPurposeContext}><p><strong>이번 실행 기간</strong> {periodLabel(run)}</p><p><strong>등록 당시 단계 설명</strong> {selectedStep.step.purpose}</p><span>이 설명은 원래 분석에서 가져왔습니다. 실제 적용 범위는 이번 실행 기간과 사용한 설정에서 확인하세요.</span></div>}
       <div className={styles.runTabs} role="tablist" aria-label="분석 단계 정보" onKeyDown={event => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         event.preventDefault(); const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=tab]")];

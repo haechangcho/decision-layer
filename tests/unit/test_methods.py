@@ -270,6 +270,8 @@ async def test_peer_comparison_preserves_population_and_excludes_subject(provide
     assert len(result.provenance.queries) == 3
     assert {RR, CAT, SELLER} <= set(result.provenance.semantic_refs)
     assert result.primary.data["statistical_judgement"] == "not_tested"
+    assert "not an arithmetic average" in result.primary.data["comparison_basis"]
+    assert "even when sample counts are available" in result.primary.data["statistical_note"]
     populations = result.primary.data["population_filters"]
     assert [(f["member"], f["operator"], f["values"]) for f in populations["subject"]] == [
         (CAT, "equals", ["A"]), (SELLER, "equals", ["S1"])]

@@ -5,6 +5,7 @@
 
 import type { Artifact, Result, SemanticObject, Validation } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { populationLabel } from "@/lib/run-story";
 import { RunQueries, RunSources } from "./run-evidence";
 
 type Titles = Map<string, SemanticObject>;
@@ -143,9 +144,13 @@ export function ArtifactView({ artifact, titles, expanded = false }: { artifact:
   if (artifact.type === "breakdown_table" && artifact.data && typeof artifact.data === "object") {
     const data = artifact.data as Record<string, unknown>;
     const rows = data.rows;
-    if (isRowList(rows)) return <section className="artifact">
+    const populationComparison = data.benchmark_aggregation === "semantic_provider";
+    const displayedRows = populationComparison && isRowList(rows) ? rows.map((row, index) => ({ ...row,
+      value: populationLabel(index, row.value) })) : rows;
+    if (isRowList(displayedRows)) return <section className="artifact">
       <h4>{artifact.title || artifactNames[artifact.type] || artifact.type}</h4>
-      <DataTable rows={rows} titles={titles} columns={["value", "metric", "count", "share_of_count", "difference_from_subject"].filter((key) => key in rows[0])} />
+      {populationComparison && <div className="result-note"><p><strong>비교 기준</strong> 각 집단 전체에 지표 정의를 적용한 값입니다. 구성원별 값의 단순 평균이 아닙니다.</p><p>비교 집단에는 지정한 조건을 적용하고, 전체 집단에는 그 조건을 적용하지 않습니다. 두 집단 모두 선택한 대상은 제외하며, 공통 필터와 실행 기간은 유지합니다.</p>{data.statistical_judgement === "not_tested" && <p><strong>수치 비교만 수행</strong> 차이의 통계적 유의성이나 원인 관계는 판단하지 않습니다. 표본 건수가 있더라도 이 Method는 유의성을 검정하지 않습니다.</p>}</div>}
+      <DataTable rows={displayedRows} titles={titles} columns={["value", "metric", "count", "share_of_count", "difference_from_subject"].filter((key) => key in displayedRows[0])} />
       {!expanded && <details className="artifact-details"><summary>전체 결과 보기</summary><Value value={data} titles={titles} /></details>}
     </section>;
   }

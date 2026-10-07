@@ -3,6 +3,23 @@ import asyncio
 import importlib
 
 
+def test_compact_run_separates_original_intent_from_current_scope(monkeypatch):
+    s = load(monkeypatch)
+    run = {"id": "reused", "status": "completed", "caller": {"subject": "alice"},
+           "plan": {"recipe": "recipe://procedure@1.0.0", "scope": {"date_range": ["2025-04-01", "2025-06-30"]}},
+           "recipe_snapshot": {"origin_runs": ["original"], "mode": "pipeline", "semantic_scope": {}}, "steps": [{
+               "step": {"method": "query.drilldown", "purpose": "Compare July sales", "bindings": {}, "params": {}},
+               "result": {"status": "success", "provenance": {"queries": []}},
+           }]}
+    compact = s._compact_run(run)
+    assert compact["steps"][0]["purpose"] == "Compare July sales"
+    assert compact["steps"][0]["purpose_context"] == "source_run"
+    assert compact["scope"]["date_range"] == ["2025-04-01", "2025-06-30"]
+    assert "current scope" in compact["scope_note"]
+    run["steps"][0]["step"]["purpose_context"] = "procedure"
+    assert s._compact_run(run)["steps"][0]["purpose_context"] == "procedure"
+
+
 def load(monkeypatch, **env):
     for k, v in env.items():
         monkeypatch.setenv(k, v)

@@ -90,7 +90,7 @@ export interface Result {
   selections?: Record<string, { complete: boolean; rank_by: string; direction: string; candidates: { path: { member: string; value: unknown }[]; score: number }[] }>;
 }
 
-export interface PlanStep { id?: string | null; method: string; method_version?: string | null; purpose?: string | null; bindings: Record<string, unknown>; params: Record<string, unknown> }
+export interface PlanStep { id?: string | null; method: string; method_version?: string | null; purpose?: string | null; purpose_context?: "procedure" | "source_run" | null; bindings: Record<string, unknown>; params: Record<string, unknown> }
 
 export interface Recipe {
   name: string;

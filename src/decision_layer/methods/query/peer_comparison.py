@@ -78,6 +78,8 @@ class PeerComparison(Method):
             "population_filters": {name: [f.model_dump() for f in filters] for name, filters in populations.items()},
             "date_range": ctx.scope.date_range,
             "benchmark_aggregation": "semantic_provider", "statistical_judgement": "not_tested",
+            "comparison_basis": _("Each population's metric is calculated by the semantic layer over that population. It is not an arithmetic average of member-level metric values."),
+            "statistical_note": _("Differences are descriptive. This Method does not test statistical significance, even when sample counts are available."),
         }), validation=checks, warnings=warnings)
 
 

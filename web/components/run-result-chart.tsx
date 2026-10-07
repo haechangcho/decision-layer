@@ -3,6 +3,7 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { Artifact } from "@/lib/api";
+import { populationLabel } from "@/lib/run-story";
 import s from "./run-result-chart.module.css";
 
 type Row = Record<string, unknown>;
@@ -33,7 +34,7 @@ export function RunResultChart({ artifact }: { artifact?: Artifact | null }) {
   }
 
   if (artifact.type === "breakdown_table") {
-    const points = rows.slice(0, 8).flatMap((row) => number(row.metric) === null ? [] : [{ name: label(row.value), value: number(row.metric)! }]);
+    const points = rows.slice(0, 8).flatMap((row, index) => number(row.metric) === null ? [] : [{ name: label(data.benchmark_aggregation === "semantic_provider" ? populationLabel(index, row.value) : row.value), value: number(row.metric)! }]);
     if (!points.length) return null;
     return <div className={s.chart} role="img" aria-label={`그룹별 지표 값 그래프, ${points.length}개 그룹`} style={{ height: Math.max(220, points.length * 40 + 42) }}>
       <ResponsiveContainer width="100%" height="100%">

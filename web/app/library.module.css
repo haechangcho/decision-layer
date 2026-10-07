@@ -116,6 +116,9 @@
 .runPage .badgeOpen { color:var(--warn); }
 .runScope { display:flex; align-items:center; flex-wrap:wrap; gap:6px 15px; margin:0 0 24px; color:var(--muted); font-size:12px; }
 .runScope strong { color:var(--text); font-size:13px; }
+.runPurposeContext { padding:12px 14px; margin-bottom:18px; border-radius:4px; background:var(--hover); color:var(--muted); font-size:12px; line-height:1.6; }
+.runPurposeContext p { margin:0 0 5px; }
+.runPurposeContext strong { color:var(--text); font-weight:500; margin-right:6px; }
 .runScope span + span::before { content:"·"; margin-right:15px; color:#9babb2; }
 .runAnswer { margin:28px 0; padding:0; color:var(--text); }
 .runAnswer>span { color:var(--muted); font-size:12px; font-weight:600; }

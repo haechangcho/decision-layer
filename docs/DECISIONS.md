@@ -1003,3 +1003,24 @@ Method versions, semantic validation, parameters, thresholds and result statuses
 The candidate explains that registration is not result approval. A pipeline still stops on refusal;
 later exploratory steps are not inferred as conditional fallback branches. No new workflow engine
 or remembered Run filter defaults are introduced.
+
+---
+
+## ADR-069 — Separate recorded intent from execution scope
+
+**Status:** Accepted (2026-10-07). Extends ADR-060/061.
+
+Run promotion preserves the original step purpose verbatim and records `purpose_context`
+as `source_run`; explicitly authored procedural descriptions use `procedure`. This is
+descriptive provenance, not an executable period or filter rule. The Web separates
+original intent from the current Run scope; MCP returns both context and actual scope.
+Editing a description marks it as procedural. Historical promoted Recipes without
+this marker use their recorded `origin_runs` for presentation only; no stored records,
+filters, periods or selection rules are rewritten. Natural-language dates are not parsed
+or stripped to guess a reusable intent.
+
+Population comparisons preserve the semantic layer's aggregation over each population,
+not an inferred average across members. Results expose this basis and state that the
+Method does not perform significance tests even if counts exist. Calculation and
+validation thresholds do not change. Historical result views use existing aggregation
+metadata to explain the same contract without modifying evidence.

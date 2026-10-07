@@ -199,7 +199,9 @@ def _compact_run(run: dict) -> dict:
            "conclusion": run.get("conclusion"), "author": run.get("author"), "conclusion_author": run.get("conclusion_author"),
            "needs_input": run.get("needs_input"), "scope_revision": run.get("scope_revision", 0),
            "scope_resolution": run.get("scope_resolution"),
-           "steps": [{"id": s["step"].get("id"), "purpose": s["step"].get("purpose"), "method": s["step"]["method"], "bindings": s["step"]["bindings"],
+           "steps": [{"id": s["step"].get("id"), "purpose": s["step"].get("purpose"),
+                      "purpose_context": s["step"].get("purpose_context") or ("source_run" if recipe.get("origin_runs") else "procedure"),
+                      "method": s["step"]["method"], "bindings": s["step"]["bindings"],
                       "params": s["step"]["params"], "requested_step": s.get("requested_step"),
                       "input_resolutions": s.get("input_resolutions", []),
                       "author": s.get("author"), "result": _compact_result(s["result"])} for s in run["steps"]]}
@@ -210,6 +212,7 @@ def _compact_run(run: dict) -> dict:
     elif run["status"] == "open":
         out["next"] = {"tools": ["run_step", "complete_run"] if run["steps"] else ["run_step"], "run_id": run["id"]}
     if recipe:
+        out["scope_note"] = "The current scope defines the execution period. source_run purposes are original descriptions, not current period settings."
         limits = recipe.get("limits") or {}
         out["recipe_guide"] = {"mode": recipe["mode"], "instructions": recipe.get("instructions"),
                                "allowed_methods": recipe.get("allowed_methods") or sorted({s["method"] for s in recipe.get("steps") or []}),

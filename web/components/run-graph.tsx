@@ -61,7 +61,7 @@ export function RunGraph({ run, titles, selected, onSelect, draftSelection, onTo
   const nodes = [
     { id: "run-metric", type: "metric", position: compact ? { x: 20, y: 0 } : { x: 0, y: Math.max(0, (run.steps.length - 1) * spacing / 2) }, data: { names: metricNames.length ? metricNames : ["지표 미지정"], compact } },
     ...run.steps.map((record, index) => ({ id: `run-step:${index}`, type: "step", position: compact ? { x: 0, y: 135 + index * spacing } : { x: 330, y: index * spacing }, selected: index === selected,
-      data: { index, method: record.step.method, purpose: stepPurpose(record.step), finding: stepFinding(record), status: record.result.status, compact,
+      data: { index, method: record.step.method, purpose: stepPurpose(record.step, run), finding: stepFinding(record), status: record.result.status, compact,
         select: () => onSelect(index), draftSelected: draftSelection?.includes(index),
         toggleDraft: onToggleDraft && record.result.status === "success" ? () => onToggleDraft(index) : undefined } })),
   ];

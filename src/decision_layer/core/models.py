@@ -249,6 +249,7 @@ class PlanStep(BaseModel):
     method: str                                    # "query.drilldown"
     method_version: str | None = None              # optional replay pin from a recorded Run
     purpose: str | None = Field(default=None, max_length=240)  # intended question for this step, not evidence
+    purpose_context: Literal["procedure", "source_run"] | None = None
     bindings: dict[str, Any] = Field(default_factory=dict)  # refs, or $expressions in Recipes (checked at run)
     params: dict[str, Any] = Field(default_factory=dict)
 

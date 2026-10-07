@@ -197,7 +197,7 @@ function StepSettings({ step, manifest, onChange, objects, recipe, stepIndex, fi
       return spec.type === "drill_path" && sourceLabel(value) ? <div className={s.refField} key={name}><strong>{spec.label || parameterLabel(name)}</strong><span className={s.nodeStatus}>{describeSource(value, spec)}</span></div>
         : <ParameterField key={name} objects={objects} name={name} spec={spec} value={value} disabled={fixed(name)} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} onChange={value => param(name, value)} />;
     })}
-    <label>이 단계에서 확인할 내용<textarea rows={2} maxLength={240} value={step.purpose ?? ""} onChange={event => onChange({ ...step, purpose: event.target.value || null })} /></label>
+    <label>{step.purpose_context === "source_run" ? "원래 분석의 단계 설명 (재사용할 설명으로 수정 가능)" : "이 단계에서 확인할 내용"}<textarea rows={2} maxLength={240} value={step.purpose ?? ""} onChange={event => onChange({ ...step, purpose: event.target.value || null, purpose_context: "procedure" })} /></label>
   </>;
 }
 

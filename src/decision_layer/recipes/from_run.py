@@ -68,7 +68,9 @@ def candidate_from_run(run: Run, indices: list[int]) -> RecipeCandidate:
                 review_notes.append(f"{original.id or index + 1}.{name}: this fixed period will be reused on every execution.")
         steps.append(PlanStep(id=original.id or f"step_{index + 1}", method=record.step.method,
                               method_version=record.method.rpartition("@")[2] or None,
-                              purpose=original.purpose, bindings=original.bindings, params=params))
+                              purpose=original.purpose,
+                              purpose_context=original.purpose_context or ("procedure" if run.recipe_snapshot and not run.recipe_snapshot.origin_runs else "source_run"),
+                              bindings=original.bindings, params=params))
     if run.plan.scope.get("date_range") or run.plan.scope.get("filters"):
         review_notes.append("Run period and shared filters are execution context, not automatically fixed Recipe rules. Review the scope before publishing.")
     recipe = Recipe(name=f"analysis-{run.id[-8:].lower()}", version="1.0.0", status="draft",
