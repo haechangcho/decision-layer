@@ -1,27 +1,75 @@
 cubes:
-  - name: campaign_household_outcomes
-    sql: SELECT * FROM journey.campaign_household_outcomes WHERE eligible
-    title: Campaign household comparison
-    description: Previously active households with dataset-complete 30-day windows. One campaign and household per row; select one campaign for household comparisons. Non-targeted means absent from this campaign's list, not unexposed to all marketing.
-    dimensions:
-      - {name: observation_id, sql: observation_id, type: string, primary_key: true, title: Campaign household observation}
-      - {name: campaign_id, sql: campaign_id, type: string, title: Campaign}
-      - {name: household_id, sql: household_key, type: string, title: Household}
-      - {name: campaign_type, sql: campaign_type, type: string, title: Campaign type}
-      - name: campaign_start_date
-        sql: campaign_start_date
-        type: time
-        title: Campaign start date
-        description: Filters select campaigns by start date; purchase windows remain 30 days relative to that start.
-      - {name: is_targeted, sql: is_targeted, type: boolean, title: Campaign targeted}
-      - {name: pre_sales_band, sql: pre_sales_band, type: string, title: Prior 30-day sales band}
-      - {name: pre_frequency_band, sql: pre_frequency_band, type: string, title: Prior 30-day purchase frequency band}
-      - {name: age_code, sql: age_code, type: string, title: Age classification code}
-      - {name: income_code, sql: income_code, type: string, title: Income classification code}
-      - {name: composition_code, sql: composition_code, type: string, title: Household composition code}
-      - {name: overlapping_campaigns, sql: overlapping_campaigns, type: number, title: Other overlapping targeted campaigns}
-    measures:
-      - {name: count, type: count, title: Campaign household observations}
-      - {name: pre_sales_mean, sql: pre_sales_30d, type: avg, title: Prior 30-day mean household sales}
-      - {name: pre_frequency_mean, sql: pre_baskets_30d, type: avg, title: Prior 30-day mean purchase frequency}
-      - {name: post_sales_mean, sql: post_sales_30d, type: avg, title: Subsequent 30-day mean household sales}
+- name: campaign_household_outcomes
+  sql: SELECT * FROM journey.campaign_household_outcomes WHERE eligible
+  title: Campaign household comparison
+  description: Previously active households with dataset-complete 30-day windows.
+    One campaign and household per row; select one campaign for household comparisons.
+    Non-targeted means absent from this campaign's list, not unexposed to all marketing.
+  dimensions:
+  - name: observation_id
+    sql: observation_id
+    type: string
+    primary_key: true
+    title: Campaign household observation
+  - name: campaign_id
+    sql: campaign_id
+    type: string
+    title: Campaign
+  - name: household_id
+    sql: household_key
+    type: string
+    title: Household
+  - name: campaign_type
+    sql: campaign_type
+    type: string
+    title: Campaign type
+  - name: campaign_start_date
+    sql: campaign_start_date
+    type: time
+    title: Campaign start date
+    description: Filters select campaigns by start date; purchase windows remain 30
+      days relative to that start.
+  - name: is_targeted
+    sql: is_targeted
+    type: boolean
+    title: Campaign targeted
+  - name: pre_sales_band
+    sql: pre_sales_band
+    type: string
+    title: Prior 30-day sales band
+  - name: pre_frequency_band
+    sql: pre_frequency_band
+    type: string
+    title: Prior 30-day purchase frequency band
+  - name: age_code
+    sql: age_code
+    type: string
+    title: Age classification code
+  - name: income_code
+    sql: income_code
+    type: string
+    title: Income classification code
+  - name: composition_code
+    sql: composition_code
+    type: string
+    title: Household composition code
+  - name: overlapping_campaigns
+    sql: overlapping_campaigns
+    type: number
+    title: Other overlapping targeted campaigns
+  measures:
+  - name: count
+    type: count
+    title: Campaign household observations
+  - name: pre_sales_mean
+    sql: pre_sales_30d
+    type: avg
+    title: Prior 30-day mean household sales
+  - name: pre_frequency_mean
+    sql: pre_baskets_30d
+    type: avg
+    title: Prior 30-day mean purchase frequency
+  - name: post_sales_mean
+    sql: post_sales_30d
+    type: avg
+    title: Subsequent 30-day mean household sales
