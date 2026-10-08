@@ -6,7 +6,6 @@ model-paths: [models]
 models:
   complete_journey:
     +materialized: view
-    +grants:
-      select: [journey_reader]
+    +grants: "{{ {'select': ['journey_reader']} if target.type == 'postgres' else {} }}"
 on-run-end:
-  - "grant usage on schema journey_dbt to journey_reader"
+  - "{% if target.type == 'postgres' %}grant usage on schema journey_dbt to journey_reader{% endif %}"

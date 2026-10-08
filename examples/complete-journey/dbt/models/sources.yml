@@ -1,6 +1,7 @@
 version: 2
 sources:
   - name: journey
+    database: "{{ var('journey_database', target.database) }}"
     schema: journey
     tables:
       - name: transaction_data
