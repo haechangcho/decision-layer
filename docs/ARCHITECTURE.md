@@ -17,7 +17,7 @@ The architecture should make different extension axes independent:
 
 ```text
 Semantic Provider:
-  Cube -> MetricFlow -> ...
+  Cube -> dbt Semantic Layer -> ...
 
 Method:
   Drilldown -> CEM -> DiD -> Forecast -> ...
@@ -32,16 +32,13 @@ Interface:
 Adding one should not require modifying the others.
 
 Product connections are Cube REST and the official dbt Semantic Layer GraphQL API.
-The bundled dbt example also includes a local MetricFlow gateway (PostgreSQL).
+Only Cube REST and official dbt GraphQL are supported; no self-hosted API gateway is shipped (ADR-073).
 Sources selects one active provider and preserves each provider's connection settings.
 Canonical catalog objects declare `dimension_refs`, `time_dimension` and `count_measure`;
 Methods consume those declarations instead of inferring relationships from a provider's reference path.
 Connections do not require Decision Layer-specific model annotations. Adapters use native semantic
 declarations; unknown sample counts and ratio components remain unknown rather than being guessed
 from sibling metrics or custom `meta`. See ADR-057 for statistical capability limits.
-The MetricFlow gateway runs in a separate dependency environment and translates typed dataset specs
-into real MetricFlow engine requests. It does not expose raw SQL execution. See ADR-056 and
-the [MetricFlow connection guide](guides/metricflow.md) for capabilities and authentication boundaries.
 The hosted dbt adapter needs only a GraphQL endpoint, environment ID and caller token. It discovers
 native metadata, submits `createQuery`, polls status and reads all bounded result pages. Provider query
 IDs and available SQL remain in Run evidence. No local project or warehouse credentials are required;
@@ -60,6 +57,8 @@ semantic dimension paths or required typed runtime inputs without remembered def
 This is a new-procedure policy, not recovery of historical intent (ADR-061).
 
 Method authoring metadata generates shared input controls and canonical step defaults.
+Alternative group-splitting roles use a shared `exclusive_group` picker; group parameters
+declare `semantic_role` to render their typed definitions before matching conditions (ADR-067).
 `configure_step` / `POST /recipes:configure-step` materializes explicit source rules,
 not provider semantics or arbitrary agent code. Missing required targets become typed
 runtime inputs without remembered values. See ADR-062 and the Method contribution guide.
@@ -70,11 +69,37 @@ the dataset boundary. Waiting Runs keep pending intent and resume through a revi
 owner scope update; no placeholder result is promoted to a Recipe. Relative rules resolve
 against the execution clock, with provenance and policy revision stored on the Run. See ADR-064.
 
+Query trend/drilldown use explicit current dates before the Run dates, including when
+no comparison is requested. Current dates cannot expand a bounded Run scope; comparison
+dates may precede it under the same execution policy. Calendar end and observed date
+coverage are separate validations. Coverage uses native metric observations and actual
+branch filters, not invented count semantics or a guarantee of ingestion completeness.
+See ADR-072; historical Run evidence remains unchanged.
+
 CEM supports native average outcomes through an explicit row count and a provider-declared queryable
 primary unit, verifying one finite outcome and one counted row per unique unit. Continuous-outcome
-significance is not implemented. The local MetricFlow adapter preserves aggregation types from the
-native dbt artifact before planner normalization; hosted dbt metadata that cannot establish this
-contract still fails closed. Sample campaign modeling stays outside the generic engine. See ADR-065.
+significance is not implemented. Hosted dbt metadata that cannot establish this
+contract fails closed. Sample campaign modeling stays outside the generic engine. See ADR-065.
+
+Run semantic improvements record missing analytical requirements without defining business
+semantics. Owner review, caller-scoped metadata rechecks and linked new Runs use the same
+REST/Python orchestration from `runs/remediation.py`; MCP cannot approve a proposal.
+Reanalysis preserves questions/goals, not previous literal result selections. Metadata
+readiness does not bypass Method execution validation. See ADR-075.
+The default Web journey now shows suggestions without approval or retry controls:
+users update their semantic layer externally and ask again (ADR-078). Explicit
+review/retry APIs remain available for existing integrations.
+
+Blocked analysis can be recorded with `POST /analyses:blocked` and MCP
+`report_analysis_blocked` in one Run document write, before any Method executes.
+Typed goal outcomes and semantic proposals are validated without inventing results
+or requiring the user to manage Run creation. See ADR-076.
+
+Semantic proposals may carry review-only Cube/dbt YAML drafts, API-based rationale
+and unresolved schema details. They are stored as evidence, never applied or executed.
+Shared missing definitions can cover several recorded goals without duplicate
+proposals. The Web distinguishes proposed drafts from unbound format examples for
+historical records. See ADR-077.
 
 ---
 
@@ -984,6 +1009,37 @@ Decision -> supported_by -> Result
 ```
 
 This future layer should reference Decision Layer, not become a prerequisite for it.
+
+## Question Coverage And Routing (ADR-070)
+
+Candidate discovery exposes executable procedure and reuse constraints separately from
+`source_question` and historical step purposes (ADR-071). A runtime period is not fixed
+by a date mentioned in historical prose. Literal Method periods, defaults and required
+filters remain visible and enforceable. MCP starts recompute current candidates;
+starting a new procedure when candidates exist requires explicit skip reasons.
+Runs persist candidate snapshots and selected/skipped reviews as caller-reported
+evidence, without claiming that narrative explanations are verified.
+
+The MCP client discovers semantic objects and Method capabilities, records typed goals,
+and asks `find_recipes` for candidates. `recipes.routing` checks references, configured
+capabilities and interpretation; text overlap helps discovery but is not proof of fit.
+The client chooses and explains a candidate. RunEngine rechecks compatibility at start
+or `use_recipe`. There is no server-side LLM or automatic natural-language router.
+
+Simple aggregate lookup uses `query.aggregate`; analytical calculations use registered
+Methods. Both use ExecutionContext, the current caller's provider credentials, explicit
+period resolution, shared filters and Run budgets. Execution attempts are saved before
+provider execution and failures remain chargeable. Legacy query history is retained.
+
+Each recorded goal receives a completion outcome. `runs.goals` validates supported
+outcomes against successful results' references, capabilities and interpretation.
+It does not fact-check narrative. Runs may contain one pipeline Recipe invocation and
+surrounding exploration, with explicit step membership and unchanged Recipe restrictions.
+The Recipe snapshot stays immutable; temporary reference aliases prevent step ID clashes.
+
+`runs.proposals` prepares a public missing-Method issue draft from explicit public text.
+It neither reads private Run content into that draft nor publishes to GitHub. Web and
+MCP use the same owner-authorized REST endpoint. Existing Runs without goals remain readable.
 
 ## Reusable Step Inputs (ADR-060)
 

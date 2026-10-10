@@ -40,3 +40,45 @@ test("explicit procedural purposes are not treated as historical intent", async 
   await expect(page.getByRole("region", { name: "실행 그래프" })).toContainText("선택한 집단을 비교 집단과 비교");
   await expect(page.getByText("등록 당시 단계 설명", { exact: true })).toHaveCount(0);
 });
+
+test("Recipe reuse shows the current goal rather than historical dates and avoids duplicate registration", async ({ page }) => {
+  await page.route("**/api/runs/context-run", route => route.fulfill({ json: { ...run,
+    goals: [{ id: "compare", description: "이번 기간 최고 집단을 나머지 집단과 비교", semantic_refs: [], required_capabilities: [], interpretation: "descriptive" }],
+    conclusion: { answer: "비교했습니다.", findings: [], limitations: [], goal_outcomes: [
+      { goal_id: "compare", status: "supported", step_indices: [0], reason: "" },
+    ] },
+  } }));
+  await page.goto("/runs/context-run");
+  await expect(page.getByRole("region", { name: "실행 그래프" })).toContainText("이번 기간 최고 집단을 나머지 집단과 비교");
+  await expect(page.getByRole("region", { name: "Recipe 등록" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Recipe로 등록", exact: true })).toHaveCount(0);
+  const actions = page.locator('footer[aria-label="실행 기록 작업"]');
+  await expect(actions.getByRole("link", { name: "Recipe 보기", exact: true })).toBeVisible();
+  const spacing = await actions.evaluate(element => {
+    const [recipe, share] = [...element.children].map(child => child.getBoundingClientRect());
+    return { gap: share.left - recipe.right, height: share.height };
+  });
+  expect(spacing.gap).toBeGreaterThanOrEqual(12);
+  expect(spacing.height).toBeGreaterThanOrEqual(40);
+  await actions.getByRole("button", { name: "공유 설정", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "공유 설정", exact: true })).toBeVisible();
+});
+
+test("exploration still offers one-click registration", async ({ page }) => {
+  await page.route("**/api/runs/context-run", route => route.fulfill({ json: { ...run,
+    plan: { ...run.plan, recipe: null }, recipe_snapshot: null,
+  } }));
+  await page.goto("/runs/context-run");
+  await expect(page.getByRole("button", { name: "Recipe로 등록", exact: true })).toBeEnabled();
+});
+
+test("additional exploration can be saved without replacing the used Recipe", async ({ page }) => {
+  await page.route("**/api/runs/context-run", route => route.fulfill({ json: { ...run,
+    recipe_invocation: { id: "invocation", recipe: run.plan.recipe, completed: true, goal_ids: [], step_ids: ["compare"] },
+    steps: [{ ...run.steps[0], invocation_id: "invocation" },
+      { ...run.steps[0], step: { ...step, id: "followup", purpose_context: "procedure" } }],
+  } }));
+  await page.goto("/runs/context-run");
+  await expect(page.getByRole("heading", { name: "추가 분석을 포함해 새 Recipe로 저장" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Recipe로 등록", exact: true })).toBeEnabled();
+});

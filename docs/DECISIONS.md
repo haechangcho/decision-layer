@@ -1006,6 +1006,50 @@ or remembered Run filter defaults are introduced.
 
 ---
 
+## ADR-067 — Explicit comparison groups in the shared Recipe editor
+
+**Status:** Accepted (2026-10-06). Refines ADR-062/063.
+
+Optional scalar roles may declare a shared `exclusive_group` to represent alternative
+semantic inputs in one catalog picker. CEM's dimension/measure group-splitting roles
+use this declaration; exactly one is required when validating a Recipe. Basic group
+parameters declare their associated `semantic_role`, so the shared renderer places
+target/comparison definitions directly after the selected criterion, before matching
+conditions. Boolean, explicit values, exclusions and numeric ranges use typed controls,
+not Method-specific React components or inferred business meaning. Changing the criterion
+clears unfixed associated definitions; fixed policies prevent changing their criterion.
+Existing hidden parameters, sample bindings and historical Runs remain intact. Empty,
+nonfinite, mixed and inverted group definitions fail canonical parameter validation.
+The numerical Method version and statistical thresholds do not change. CEM's existing
+provider/metric capability checks still apply; a catalog entry alone is not a promise
+that the requested comparison can execute.
+
+---
+
+## ADR-068 — Paired groups and verified authoring count defaults
+
+**Status:** Accepted (2026-10-06). Extends ADR-062/065/067.
+
+The shared editor places target and comparison definitions side by side and shows the
+actual boolean or one-sided numeric opposite when the existing Method rule determines it.
+It does not invent categorical values or rename boolean values into domain concepts.
+An unresolved multi-category comparison remains an execution-time question.
+
+A count role may declare `default_binding: unit_count`. Canonical `configure_step`
+accepts the caller-visible catalog and writes an explicit count binding only for a
+native average with a declared primary unit and exactly one same-unit native row count
+(count aggregation, with its self count declaration). It never uses names, sibling sums,
+distinct counts or guessed relationships. Ambiguous or absent candidates require input.
+Existing explicit choices remain intact. REST configuration uses current provider credentials;
+Python callers may pass the same catalog. This is an authoring default, not a new runtime
+inference path. ADR-065's one-row/non-null outcome checks still run and may refuse even a
+unique candidate (including filtered counts). Statistical thresholds are unchanged.
+The normal editor hides an established count binding, keeps it in YAML/provenance, and
+shows a corrective prompt for missing or incompatible bindings. Historical Runs and
+saved Recipes are not migrated or automatically rewritten.
+
+---
+
 ## ADR-069 — Separate recorded intent from execution scope
 
 **Status:** Accepted (2026-10-07). Extends ADR-060/061.
@@ -1024,3 +1068,216 @@ not an inferred average across members. Results expose this basis and state that
 Method does not perform significance tests even if counts exist. Calculation and
 validation thresholds do not change. Historical result views use existing aggregation
 metadata to explain the same contract without modifying evidence.
+
+## ADR-070 — Governed lookup, Recipe candidates and goal evidence
+
+**Status:** Accepted (2026-10-07). Extends ADR-007/020/021/030/064.
+
+- Aggregate lookup is the registered `query.aggregate` Method, not an arbitrary SQL
+  or Python escape hatch. REST preview uses the same Run engine and requires an
+  explicit period decision; entity analysis remains a registered Method responsibility.
+- `/recipes:search` and MCP `find_recipes` return candidates, not an automatic selection.
+  Search combines text overlap with goals, semantic references, configured capabilities
+  and interpretation. Execution rechecks the selected version and compatibility.
+  Structural compatibility does not verify the business meaning of natural language.
+- MCP starts require typed goals; subsequent steps require goal links. Completion
+  records an outcome for every goal. Supported outcomes require successful results
+  with relevant references, actual capabilities and appropriate interpretation.
+  Caller-written narrative and missing-Method diagnoses are not independently verified.
+- Methods declare `provides` and optional parameter-dependent `provides_when`; results
+  report only capabilities actually provided. Lookup cannot prove a causal effect.
+- Provider executions are persisted before execution, including failure/interruption.
+  Failed attempts consume Run budgets, including legacy Runs. Identical explicit step
+  IDs are retry-safe under a per-Run lock. This counts logical executions, not every
+  provider-internal polling or pagination HTTP request.
+- One pipeline Recipe invocation may coexist with exploration before and after it.
+  `use_recipe` attaches it to an open Run, preserving its snapshot and namespacing
+  step references. Shared scope, access, metric and parameter restrictions still apply.
+  Nested/multiple invocations and attaching investigation Recipes are deferred.
+  Follow-up execution can be disabled by policy.
+- Unresolved goals remain input needed, unsupported, blocked or inconclusive.
+  Unsupported/blocked-only questions may finish without a query or resolved period.
+  Historical Runs use optional additive fields and are not rewritten.
+- Missing-Method outcomes may prepare a public GitHub issue draft using only explicitly
+  supplied public text. Run data, questions, queries and references are not copied.
+  The user reviews and submits on GitHub. No automatic publishing, credential storage
+  or arbitrary Method execution is introduced.
+
+## ADR-071 — Recipe reuse context and recorded selection
+
+**Status:** Accepted (2026-10-07). Extends ADR-060/069/070.
+
+Run promotion preserves `source_question` separately from an authored routing objective.
+Historical promoted Recipes without that field use their description as source context
+when presenting candidates, without rewriting YAML or stripping dates from prose.
+Candidate information includes the executable procedure, role bindings, settings,
+runtime shared period, actual defaults, required filters and literal Method periods.
+Source questions and source step purposes are provenance, not execution constraints.
+Explicit defaults and fixed Method settings are never erased or generalized.
+
+MCP starts recompute up to five currently visible candidates. Starting without a Recipe
+requires a concrete skipped `recipe_review` for those candidates. A selected Recipe
+records the selection reason; later `use_recipe` appends the new decision. The Run keeps
+the candidate snapshot and reasons so subsequent edits cannot alter this evidence.
+Reviews are caller-reported, not proof of semantic suitability or verified explanations.
+No unrelated Recipe is forced and no server LLM, date parsing or generated code is added.
+Other canonical callers may provide reviews; historical Runs remain readable with none.
+Shared access checks also cover references in candidate snapshots.
+
+Recipe-disabled MCP profiles retain read-only candidate search for recording reasons,
+but cannot execute Recipes. Updating MCP clients requires restarting their tool session.
+
+## ADR-072 — Step periods and observed date coverage
+
+**Status:** Accepted (2026-10-07). Clarifies ADR-032/064.
+
+Trend and drilldown apply an explicit current period even without a comparison.
+The current period must be within a bounded Run period; expanding it requires updating
+the Run scope. Comparison periods may precede the Run period and remain subject to
+execution policy and query limits. Results record the actual series period and its source.
+
+Calendar completion means the end date has passed, not that ingestion is complete.
+Observed date coverage queries the same metric time dimension and scope/branch filters,
+using a provider-declared count when available and otherwise the metric itself. This
+bounded query uses the existing execution policy, access checks and query budget.
+Unsupported daily grouping or unavailable observations yield an unknown warning.
+An earlier observation warns about comparison coverage, without claiming missing
+ingestion: inactivity and missing ingestion cannot be distinguished. Existing Runs
+are not rewritten and no provider model annotations or domain rules are introduced.
+
+## ADR-073 — Remove the custom MetricFlow gateway
+
+**Status:** Accepted (2026-10-08). Supersedes the local gateway portion of ADR-056/058.
+
+Product connections are Cube REST and the official dbt Semantic Layer GraphQL API.
+Remove the custom MetricFlow gateway, provider, optional dependencies, Docker stack,
+UI option and gateway-specific tests and instructions. The local retail example runs
+Cube only. dbt SQL/YAML models remain reference definitions for an existing dbt
+deployment, not a bundled hosted API or proof of hosted adapter compatibility.
+
+MetricFlow and dbt semantic interfaces are open source; dbt's service layer and
+Semantic Layer APIs are proprietary hosted components, as documented in the
+[official architecture](https://docs.getdbt.com/docs/use-dbt-semantic-layer/sl-architecture).
+Decision Layer does not implement a replacement semantic API or claim that a local
+gateway verifies enterprise authentication and warehouse behavior.
+
+Retain the official adapter and its GraphQL contract tests and opt-in authenticated
+smoke test. Never rewrite historical Runs or rebind Recipe references implicitly.
+Unsupported saved gateway configurations fail with an explicit error; configure
+Cube or official dbt through the canonical source API. Existing data volumes are
+not deleted. No changes to Method, Recipe or Run execution contracts are required.
+
+## ADR-074 — Fail-closed CEM inference and range validation
+
+**Status:** Accepted (2026-10-08). Tightens ADR-020/028/065.
+
+`causal.cem@1.1.1` does not identify a count percentage from numerical coincidence.
+Intervals require a provider-declared count/count ratio whose denominator is the
+matching count. The Method queries the declared numerator in the same scope and
+checks finite integer counts, numerator <= denominator and the percentage against
+100 * numerator / denominator. Unknown definitions or other scales remain descriptive
+matched comparisons without interval artifacts. This does not establish independent
+sampling, identify causal effects, or support continuous-outcome inference.
+
+Failed matching quality checks expose no significance artifacts. Outcomes must be
+finite and counts non-negative integers. Explicit ranges must be finite, strictly
+increasing, and refer to numeric matching conditions. Ambiguous exclusion/range
+group combinations refuse instead of potentially querying overlapping populations.
+Balance reports identify their basis as `coarsened_strata`; zero weighted imbalance
+does not mean continuous covariates within a bin are identical.
+
+Historical Runs and pinned Recipes are not rewritten. Review pinned Method versions
+before upgrading. The additional numerator is subject to existing access, scope and
+query limits. No provider-specific model annotations or client-only calculation are added.
+
+## ADR-075 — Reviewed semantic improvements and linked reanalysis
+
+**Status:** Accepted (2026-10-08).
+
+Runs can contain proposed semantic improvements tied to a recorded analysis goal.
+Keep the inspected evidence, rationale, suggested improvement and typed requirements;
+unknown references remain unset. Absence from the caller's catalog does not distinguish
+missing definitions from denied access. Input, permission, Method and data-quality
+problems must not be automatically classified as semantic-model defects.
+
+Only the Run owner can review, dismiss, check or retry a proposal. Review is an
+authenticated owner action, not proof of domain validity or a separately verified
+human approval. MCP exposes proposal recording, rechecking and retry, but no approval
+tool. Original proposals, review changes, catalog checks and retry links remain in
+the Run JSON document. No extra database or semantic definitions in Recipes are added.
+
+Rechecking refreshes caller-scoped catalog metadata (including Cube's cached meta),
+checks visibility, kind, declared type/aggregation and requested entity/time metadata.
+This is NOT a dry execution, proof of join/grain validity or confirmation of causal
+assumptions. Normal Method, dataset, permission and period checks still run on execution.
+Connection failures never become a successful check. Models are edited externally.
+
+Retry requires a confirmed proposal and repeats the metadata check using current
+credentials. A new Run preserves the question and analytical goals, snapshots the
+reviewed requirements and links back to the original. Explicit period changes are
+allowed; replacing goal semantics or rewriting old evidence is not. A chosen Recipe
+uses canonical start/selection/version checks. Without a Recipe, the new investigation
+awaits fresh Method choices; old literal result selections are never blindly replayed.
+The Web labels this as starting reanalysis, not completed analysis. The API/MCP client
+can select a suitable Recipe or continue the new Run through normal execution APIs.
+
+Revision checks and existing per-Run locks prevent stale single-process edits; this
+does not claim distributed transaction/idempotency support across multiple API workers.
+GitHub submission, model auto-editing, PR orchestration and a separate proposal inbox
+are out of scope. Private model suggestions remain in the Run, not public issues.
+
+## ADR-076 — Record blocked analysis without asking users to manage Runs
+
+**Status:** Accepted (2026-10-08). Extends ADR-059/069/075.
+
+Missing semantic definitions can be found before any Method executes. Asking users
+whether to create a Run or record a gap makes product internals their responsibility.
+`POST /analyses:blocked` / MCP `report_analysis_blocked` records the original question,
+all goal outcomes, caller-reported evidence, proposed semantic requirements and a
+conclusion in one Run document write. New records cannot report supported goals
+without executed evidence. Missing semantic outcomes require typed proposals;
+input, access, Method and execution failures must not become model proposals.
+Existing partial analyses are finished in their owned open Run with validated
+evidence links; their question, goals and earlier steps cannot be replaced.
+
+No provider query, substitute metric, model edit, approval, GitHub submission or
+new analytical calculation occurs. Proposals remain unconfirmed. Diagnostic intent
+is recorded even when no executable scope or Recipe is available; execution policy
+still applies if reanalysis starts. The record is not proof that caller explanations
+or catalog absence are correct. MCP returns a Run URL (`DL_WEB_URL`, local default
+http://localhost:3000) and requires recording before an inability-to-answer response.
+
+This removes multi-tool bookkeeping once invoked, not LLM host behavior entirely:
+a server cannot observe natural-language questions or replies that never reach its
+tools. Client instructions and real-client regression testing are still required.
+Do not claim guaranteed automatic capture of every chat or user approval.
+
+## ADR-077 — Review-only semantic model drafts
+
+**Status:** Accepted
+
+Semantic improvement proposals can include bounded provider-specific YAML text,
+its API-based rationale and unresolved physical-schema details. These are
+caller-proposed external-edit drafts, not canonical semantic definitions,
+validated model patches or executable code. Decision Layer never applies them.
+Unknown columns, model names, joins and grain must remain explicit placeholders.
+API catalog visibility cannot establish the underlying warehouse schema.
+
+One proposal may reference additional recorded goals through `related_goal_ids`
+when they require the same missing definition. Blocked recording validates their
+semantic-missing outcomes and rejects duplicate coverage. Historical proposals
+are not merged by fuzzy text similarity. Existing Runs default to no drafts or
+additional goals; the Web can show clearly unbound dimension-format examples.
+Review, caller-scoped recheck and linked reanalysis remain the ADR-075 flow.
+
+## ADR-078 — Model suggestions without a Web approval workflow
+
+**Status:** Accepted
+
+The Run page shows semantic improvement suggestions, YAML and evidence only.
+It does not ask users to approve suggestions, link definitions, recheck metadata
+or launch a linked retry. Users edit their semantic layer externally and ask
+again; normal discovery and execution validation apply to the new analysis.
+This supersedes the default Web journey in ADR-075, not model ownership or
+execution safeguards. Existing review/retry APIs and historical records remain
+compatible; no model is changed and no approval is inferred automatically.

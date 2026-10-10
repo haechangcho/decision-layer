@@ -76,6 +76,7 @@ def candidate_from_run(run: Run, indices: list[int]) -> RecipeCandidate:
     recipe = Recipe(name=f"analysis-{run.id[-8:].lower()}", version="1.0.0", status="draft",
                     description=run.plan.question or _("Analysis from Run {run_id}", run_id=run.id),
                     origin_runs=[run.id],
+                    source_question=run.plan.question,
                     semantic_scope=SemanticScope(primary_metric=primary, related_metrics=related,
                                                  preferred_dimensions=run.recipe_snapshot.semantic_scope.preferred_dimensions if run.recipe_snapshot else [],
                                                  required_filters=run.recipe_snapshot.semantic_scope.required_filters if run.recipe_snapshot else []),

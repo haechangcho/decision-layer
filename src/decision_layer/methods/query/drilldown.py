@@ -26,7 +26,7 @@ from ..context import ExecutionContext, Refused
 from ..stats import difference_test, is_proportion
 from ...i18n import _
 from .change import group_contributions, period_change, periods
-from .common import path_filters, rnd, totals
+from .common import analysis_period, path_filters, rnd, totals
 
 MAX_GROUPS = 5_000
 NEXT_CANDIDATES = 3
@@ -64,6 +64,7 @@ class Drilldown(Method):
         execution="semantic_pushdown", interpretation="descriptive",
         outputs=["breakdown_table", "estimate", "interval"],
         selection_outputs=["ranked_groups"],
+        provides=["group_breakdown"],
     )
 
     async def run(self, ctx: ExecutionContext, bindings: dict[str, Any], params: dict[str, Any]) -> MethodOutput:
@@ -87,8 +88,9 @@ class Drilldown(Method):
 
         count = ctx.units_measure(metric)
         measures = [metric, *([count] if count and count != metric else [])]
-        overall = (await totals(ctx, measures, metric, None, filters) or [{}])[0]
-        rows = await totals(ctx, measures, metric, None, filters, dimensions=[dim], limit_rows=MAX_GROUPS)
+        span = analysis_period(ctx, params)
+        overall = (await totals(ctx, measures, metric, span, filters) or [{}])[0]
+        rows = await totals(ctx, measures, metric, span, filters, dimensions=[dim], limit_rows=MAX_GROUPS)
         total_value, total_n = overall.get(metric), overall.get(count) if count else None
         proportion = is_proportion(total_value, total_n)
 
@@ -154,6 +156,7 @@ class Drilldown(Method):
         return MethodOutput(
             primary=Artifact(type="breakdown_table", title=f"{ctx.obj(metric).title} by {ctx.obj(dim).title}", data={
                 "metric": metric, "dimension": dim, "drill_path": path,
+                "analysis_period": {"date_range": list(span) if span else None, "source": "method_parameters" if params.get("current") else "run_scope"},
                 "rank_by": key, "direction": params["direction"], "selected_among": n_eligible,
                 "rows": eligible[:top_n], "total_groups": len(rows), "ranked_groups": len(eligible),
                 "shown_groups": min(top_n, len(eligible)), "excluded_small": len(small),
@@ -161,9 +164,9 @@ class Drilldown(Method):
             }),
             artifacts=artifacts, warnings=warnings, selections={"ranked_groups": selection},
             validation=[v.non_empty(len(rows), _("groups")),
-                        v.complete_period(ctx.scope.date_range),
+                        v.complete_period(span),
                         *([v.min_sample(total_n, min_count, _("sample in this population"))] if count else []),
-                        await v.freshness(ctx, metric, ctx.scope.date_range)],
+                        await v.freshness(ctx, metric, span, filters=filters)],
         )
 
 
@@ -189,6 +192,7 @@ class Drilldown(Method):
                                                                  metric=ctx.obj(metric).title, dimension=ctx.obj(dim).title),
                              data={"metric": metric, "dimension": dim, "drill_path": path, "decomposition": kind,
                                    "current_period": list(current), "comparison_period": list(comparison),
+                                   "analysis_period": {"date_range": list(current), "source": "method_parameters"},
                                    "rows": rows[:top_n], "groups": len(rows), "shown_groups": min(top_n, len(rows)),
                                    # what the hidden groups add, so shown rows + this = the whole change
                                    "other_contribution": rnd(sum(r.get(key) or 0 for r in rows[top_n:])) if kind else None,
@@ -197,7 +201,7 @@ class Drilldown(Method):
             artifacts=[Artifact(type="estimate", title=_("change between the periods"), data=summary)],
             warnings=warnings,
             validation=[v.non_empty(len(rows), _("groups")), *validation,
-                        await v.freshness(ctx, metric, current)],
+                        await v.freshness(ctx, metric, current, filters=filters)],
         )
 
 

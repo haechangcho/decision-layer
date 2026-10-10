@@ -15,7 +15,6 @@ jobs:
         with: {python-version: "3.11"}
       - run: pip install -e '.[dev]'
       - run: pytest            # unit tests, incl. domain-neutral and i18n guards
-      - run: pytest examples/method-template/test_method.py
 
   web:
     runs-on: ubuntu-latest
@@ -53,7 +52,7 @@ jobs:
         run: docker compose down
 
   example:
-    # One dataset, independently selected semantic providers, SQL and real MCP.
+    # Local Cube sample, independent SQL and real MCP.
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -61,7 +60,6 @@ jobs:
       matrix:
         include:
           - {provider: cube, compose: compose.override.yaml}
-          - {provider: metricflow, compose: compose.dbt.yaml}
     env:
       COMPOSE_FILE: examples/complete-journey/compose.yaml:examples/complete-journey/${{ matrix.compose }}
       DL_JOURNEY_PROVIDER: ${{ matrix.provider }}

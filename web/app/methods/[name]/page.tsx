@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "@/components/loading-indicator";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -10,7 +11,7 @@ export default function MethodPage() {
   const { name } = useParams<{ name: string }>();
   const { data: method, error } = useApi<MethodManifest>(`/methods/${name}`);
   if (error) return <p role="alert">{error.message}</p>;
-  if (!method) return <div className={styles.page}><div className={styles.skeleton} /></div>;
+  if (!method) return <div className={styles.page}><LoadingState /></div>;
   return <div className={styles.page}>
     <Link className={styles.back} href="/methods"><ArrowLeft size={15} />분석 방법</Link>
     <div className={styles.heading}><div><h1>{methodName(method.name)}</h1><p className={styles.methodId}>{method.name} · v{method.version}</p><p className={styles.intro}>{method.description}</p></div>

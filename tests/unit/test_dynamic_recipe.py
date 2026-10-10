@@ -52,6 +52,8 @@ async def test_same_recipe_reselects_department_and_member_and_preserves_global_
     assert first.steps[1].requested_step.params["drill_path"] == source("groups")
     assert first.steps[2].input_resolutions[0]["resolved"] == [{"member": SELLER, "value": "S1"}]
     assert first.plan.steps[1].params["drill_path"] == source("groups")
+    promoted = runtime_recipe_from_run(first)
+    promoted.status = "published"
     counts = {}
     for row in provider.orders:
         if row[CAT] == "B" and Q3[0] <= row[DT] <= Q3[1]:
@@ -66,6 +68,12 @@ async def test_same_recipe_reselects_department_and_member_and_preserves_global_
     assert second.steps[2].result.primary.data["rows"][1]["metric"] == 70
     assert second.steps[2].result.primary.data["rows"][2]["metric"] < 70
     assert first.steps[2].step.params["subject"][0]["value"] == "S1"
+    replay = await execute(provider, tmp_path / "promoted", promoted)
+    assert replay.status == "completed"
+    assert replay.steps[1].step.params["drill_path"] == [{"member": CAT, "value": "B"}]
+    assert replay.steps[2].step.params["subject"] == [{"member": SELLER, "value": "S6"}]
+    assert replay.steps[2].requested_step.params["subject"] == source("members", "condition")
+    assert first.steps[1].step.params["drill_path"] == [{"member": CAT, "value": "A"}]
 
 
 async def test_editor_defaults_execute_through_the_canonical_engine(provider, tmp_path):

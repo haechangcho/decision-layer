@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "@/components/loading-indicator";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -36,7 +37,7 @@ export default function RunsPage() {
       <button className={styles.refreshButton} onClick={reload} disabled={loading} aria-label="새로고침" title="새로고침"><RefreshCw size={17} /></button></div>
     {deleted && <p role="status">실행 기록을 삭제했습니다.</p>}
     {error && <div className={styles.error} role="alert">실행 기록을 불러오지 못했습니다. {error.message} <button className="ghost" onClick={reload}>다시 시도</button></div>}
-    {!loading && data?.length === 0 ? <section className={styles.empty}><History size={24} /><h2>아직 실행 기록이 없습니다</h2><p>분석 절차를 실행하면 결과가 여기에 남습니다.</p><div className={styles.emptyActions}><Link href="/recipes">분석 라이브러리 열기 <ArrowRight size={15} /></Link></div></section> : <section className={styles.libraryList} aria-label="실행 기록 목록">
+    {!loading && data?.length === 0 ? <section className={styles.empty}><History size={24} /><h2>아직 실행 기록이 없습니다</h2><p>분석 절차를 실행하면 결과가 여기에 남습니다.</p><div className={styles.emptyActions}><Link href="/recipes">레시피 열기 <ArrowRight size={15} /></Link></div></section> : <section className={styles.libraryList} aria-label="실행 기록 목록">
       <div className={`${styles.libraryToolbar} ${styles.runToolbar}`}><label className={styles.librarySearch}><Search size={17} /><input aria-label="실행 기록 검색" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="분석 이름 또는 질문 검색" />
         {search && <button type="button" aria-label="검색 지우기" title="검색 지우기" onClick={() => setSearch("")}><X size={15} /></button>}
       </label><select className={styles.originSelect} aria-label="실행 출처" value={origin} onChange={(event) => setOrigin(event.target.value)}>
@@ -46,7 +47,7 @@ export default function RunsPage() {
         {[["all", "전체"], ["open", "진행·대기"], ["completed", "완료"], ["failed", "실패"]].map(([value, label]) => <button type="button" key={value} aria-pressed={status === value} onClick={() => setStatus(value)}>{label} <span>{count(value)}</span></button>)}
       </div>
       <div className={`${styles.libraryColumns} ${styles.runColumns}`} aria-hidden="true"><span>질문과 결과</span><span>실행 시각</span><span>상태</span><span /></div>
-      {loading && !data ? <div aria-label="불러오는 중">{[0, 1, 2].map((row) => <div className={styles.skeleton} key={row} />)}</div> : shown.map((run) => <div key={run.id} className={styles.libraryItem}><Link href={`/runs/${run.id}`} className={`${styles.libraryRow} ${styles.runRow}`}>
+      {loading && !data ? <LoadingState /> : shown.map((run) => <div key={run.id} className={styles.libraryItem}><Link href={`/runs/${run.id}`} className={`${styles.libraryRow} ${styles.runRow}`}>
         <span className={styles.libraryName}><strong>{run.plan.question || displayName(run)}</strong>{run.conclusion?.source !== "execution" && run.conclusion?.answer && <span className={styles.runListSummary}>{run.conclusion.answer}</span>}<span className={styles.runMetadata}><RunProcedure run={run} /><small>{runOriginLabel(run.origin)}</small><small>{run.steps.length}단계</small></span></span>
         <span className={styles.libraryMetric}>{new Date(run.created_at).toLocaleString()}</span>
         <span className={`${styles.libraryState} ${run.status === "completed" ? styles.libraryStateComplete : run.status === "failed" ? styles.libraryStateFailed : styles.libraryStateOpen}`}>{runStatusLabel(run)}</span>

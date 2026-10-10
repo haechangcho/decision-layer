@@ -13,6 +13,14 @@ python3.11 -m venv .venv
 
 Use the absolute path to `.venv/bin/decision-layer-mcp`. The examples use API port 8000; change it if your stack uses another port.
 
+Users ask business questions; they do not need to request Run creation or IDs.
+When analysis is blocked, the client uses `report_analysis_blocked` to save the
+question, reasons and any proposed model improvements before replying with the Run
+link. Recording does not approve a proposal or modify the semantic model. Set
+`DL_WEB_URL` in the MCP environment if the Web app is not at `http://localhost:3000`.
+Restart the MCP session after updating tool definitions. Capture still requires the
+AI client to invoke a tool; Decision Layer cannot observe chat-only answers.
+
 ## Codex
 
 From the repository root:
@@ -66,7 +74,57 @@ Every Method executes through `run_step` on an existing Run ID, with a required 
 
 Use **Register as Recipe** on a completed Run to save its procedure immediately, without a configuration dialog. Purposes, Method versions and analytical settings are retained; group targets default to runtime selection rather than previous winners. Run-specific dates and shared filters are not silently fixed into the Recipe. Use **Edit before saving** for custom fixed settings. There is no automatic background registration. Adding to an existing Recipe and a shared approval inbox are not implemented. A recorded Method version that is no longer installed requires review.
 
-## Authentication
+## Choose A Procedure And Record Coverage
+
+Restart your MCP client after this update: `start_analysis` and `start_run` require
+`goals`; `run_step` requires `goal_ids`. Existing Runs remain readable.
+
+1. Discover semantic objects and inspect registered Methods' `provides`.
+2. Call `find_recipes` with the original question and typed goals. Candidates expose
+   covered goals, conflicts and missing inputs. No candidate is a valid outcome.
+   Candidate ordering is not proof of business relevance.
+3. Start one Run with each requested answer as a goal: `id`, `description`,
+   `semantic_refs`, `required_capabilities`, and `interpretation`. Select a Recipe only
+   if its objective fits; record `recipe_selection.reason` and `goal_ids`.
+4. Use `query.aggregate` for lookup and registered Methods for analytical calculations.
+   Supply each step's purpose and goal IDs. An omitted period requests input; it never
+   silently means all data.
+5. Complete with one `goal_outcome` per goal. Supported answers reference successful
+   evidence steps. Unresolved answers include a reason; do not silently drop them.
+
+Capabilities include `metric_lookup`, `group_breakdown`, `time_series`, `period_change`,
+`peer_comparison`, and `matched_comparison`. Read manifests instead of guessing names.
+Lookup cannot replace comparison validation or prove a causal effect.
+
+`use_recipe` attaches one pipeline Recipe after exploration in the same open Run.
+After successful execution, additional steps use `exploration=true`. Recipe metric,
+parameter, shared scope and query restrictions remain in effect. Multiple/nested
+invocations and attaching investigation Recipes are not supported.
+
+For `unsupported` goals with `reason_code=method_missing`, ask whether the user wants
+to propose a Method. `prepare_method_proposal` prepares a draft and existing-issue link
+using explicitly supplied public text. It never copies Run data or publishes an issue.
+The user reviews and submits on GitHub. This does not permit unregistered analysis code.
+
+## Reuse With A Different Period
+
+Candidates separate `source_question` from the authored `objective` and executable
+`reuse.procedure`. A historical date in the source question does not fix the next
+execution. Inspect `reuse.period.fixed_method_periods` and `reuse.required_filters` for
+actual constraints. The shared period is a runtime input; defaults remain defaults.
+An unspecified objective does not by itself invalidate a compatible procedure.
+
+If no candidate fits, pass `recipe_review` to `start_analysis`, for example:
+
+```json
+[{"recipe":"recipe://sales-review@1.0.0","decision":"skipped","reason":"This question needs a trend, not the Recipe's ranked group comparison."}]
+```
+
+The server checks current candidates before creating the Run. Selection/skip reasons
+and candidate snapshots are recorded; they are client-reported, not fact-checked.
+Use `recipe_selection` when executing a Recipe. Restart the MCP client after upgrading.
+
+## Source Credentials
 
 The local Cube and dbt samples enable a development service identity, so they need no `DL_TOKEN`. For an existing source, set `DL_TOKEN` to its bearer token in the adapter's private environment. Use the same source and identity in Web and MCP to access the same Runs. See [Cube connection](cube.md) or [dbt Semantic Layer](dbt.md). Never commit tokens or reuse sample secrets in a shared deployment.
 

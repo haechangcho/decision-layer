@@ -4,9 +4,12 @@
 // grids for objects. A new Method's output shows up without a new component.
 
 import type { Artifact, Result, SemanticObject, Validation } from "@/lib/api";
+import { useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { populationLabel } from "@/lib/run-story";
 import { RunQueries, RunSources } from "./run-evidence";
+import styles from "./result-table.module.css";
 
 type Titles = Map<string, SemanticObject>;
 
@@ -68,18 +71,30 @@ function flatten(row: Record<string, unknown>, prefix = ""): Record<string, unkn
 
 export function DataTable({ rows, titles, columns, columnLabels }: { rows: Record<string, unknown>[]; titles: Titles; columns?: string[]; columnLabels?: Record<string, string> }) {
   const t = useT();
+  const [page, setPage] = useState(0);
   const flat = rows.map((r) => flatten(r));
-  const cols = columns ?? [...new Set(flat.flatMap((r) => Object.keys(r)))];
+  const cols = (columns ?? [...new Set(flat.flatMap((r) => Object.keys(r)))]).filter(c => flat.some(r => r[c] != null));
+  const numeric = new Set(cols.filter(c => flat.some(r => typeof r[c] === "number") && flat.every(r => r[c] == null || typeof r[c] === "number")));
+  const pageSize = 12;
+  const lastPage = Math.max(0, Math.ceil(flat.length / pageSize) - 1);
+  const currentPage = Math.min(page, lastPage);
+  const visible = flat.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
   return (
-    <div className="scroll">
-      <table>
-        <thead><tr>{cols.map((c) => <th key={c}>{columnLabels?.[c] ?? t(labelFor(c, titles))}</th>)}</tr></thead>
+    <div className={styles.container}>
+      <div className={styles.scroll} tabIndex={0} role="region" aria-label="결과 데이터 표">
+      <table className={styles.table}>
+        <thead><tr>{cols.map((c) => <th scope="col" key={c} className={numeric.has(c) ? styles.numeric : ""}>{columnLabels?.[c] ?? t(labelFor(c, titles))}</th>)}</tr></thead>
         <tbody>
-          {flat.map((r, i) => (
-            <tr key={i}>{cols.map((c) => <td key={c} className={typeof r[c] === "number" ? "num" : ""}>{fmt(r[c], titles)}</td>)}</tr>
+          {visible.map((r, i) => (
+            <tr key={i}>{cols.map((c) => <td key={c} className={numeric.has(c) ? styles.numeric : ""}>{fmt(r[c], titles)}</td>)}</tr>
           ))}
         </tbody>
       </table>
+      </div>
+      {lastPage > 0 && <div className={styles.pagination}><span aria-live="polite">{currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, flat.length)} / {flat.length}행</span><div>
+        <button type="button" aria-label="이전 행" title="이전 행" disabled={!currentPage} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={16} /></button>
+        <button type="button" aria-label="다음 행" title="다음 행" disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}><ChevronRight size={16} /></button>
+      </div></div>}
     </div>
   );
 }
@@ -184,10 +199,10 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
   const supportingArtifacts = result.artifacts.filter((artifact) => !Array.isArray(artifact.data) || artifact.data.length > 0);
   return (
     <div className="result">
-      <div className="row">
-        <span className={`status ${result.status}`}>{statusLabel}</span>
+      {(result.status !== "success" || (showRunLink && result.run_id)) && <div className="row">
+        {result.status !== "success" && <span className={`status ${result.status}`}>{statusLabel}</span>}
         {showRunLink && result.run_id && <a href={`/runs/${result.run_id}`}>{t("Open run")}</a>}
-      </div>
+      </div>}
       {!expanded && leading && <p className="result-lead">{breakdown?.subject ? "비교 대상" : "대표 그룹"} <strong>{fmt(leading.value, titles)}</strong>{leading.metric != null && <span> · 지표 값 {fmt(leading.metric, titles)}</span>}</p>}
       {result.needs_input && (
         <div className="notice">
@@ -198,7 +213,7 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
           <div className="hint">{t("Put one of these values into the {field} parameter and run again.", { field: result.needs_input.field })}</div>
         </div>
       )}
-      {result.warnings.length > 0 && <ul className="warnings">{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+      {!expanded && result.warnings.length > 0 && <ul className="warnings">{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
       {!expanded && <ValidationList items={result.validation} />}
       {result.primary && <ArtifactView artifact={result.primary} titles={titles} expanded={expanded} />}
       {!expanded && supportingArtifacts.length > 0 && <details className="artifact-details">

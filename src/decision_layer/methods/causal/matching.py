@@ -190,6 +190,7 @@ def match(strata: list[Stratum], missing: dict[str, float], quality: dict[str, A
                          "comparison_missing_condition": missing.get(COMPARISON, 0.0)},
             "imbalance_before": round(imbalance, 4) if imbalance is not None else None,
             "imbalance_after": 0.0 if common else None,
+            "balance_basis": "coarsened_strata",
             "thresholds": q,
         },
         "reasons": reasons,

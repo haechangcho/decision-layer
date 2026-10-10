@@ -20,6 +20,13 @@
 .queries>section>section { padding:16px; border-top:1px solid var(--line); }
 .queryContext { padding:12px 18px 0; display:flex; flex-wrap:wrap; gap:8px 16px; color:var(--muted); font-size:12px; }
 .sources .method { padding:14px 16px; background:var(--bg); border-radius:6px; }
+.sourceSection { margin-bottom:28px; }
+.sourceSection h3 { display:flex; align-items:center; gap:12px; margin:0 0 12px; font-size:13px; font-weight:600; }
+.sourceSection h3 small { color:var(--muted); font-size:12px; font-weight:400; }
+.sources .method { padding:0; background:transparent; }
+.sources ul { margin:0; gap:14px; }
+.sources li { grid-template-columns:64px minmax(0,1fr); max-width:780px; }
+.sources li div small { line-height:1.6; }
 .sources .method small { padding:2px 6px; border:1px solid var(--line); border-radius:4px; background:var(--panel); font-variant-numeric:tabular-nums; }
 .sources li>span { width:fit-content; padding:2px 6px; background:var(--bg); border-radius:4px; font-size:11px; }
 .settings { max-width:760px; padding-top:24px; }

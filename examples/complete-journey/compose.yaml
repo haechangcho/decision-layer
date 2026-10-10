@@ -33,8 +33,6 @@ services:
       import: {condition: service_completed_successfully}
     environment:
       DL_DEFAULT_CUBE_URL: http://cube:4000/cubejs-api/v1
-      DL_DEFAULT_METRICFLOW_URL: http://metricflow:4100
-      DL_DEFAULT_METRICFLOW_INSTANCE: journey
       DL_ALLOW_SERVICE_CREDENTIALS: "true"
       DL_EXECUTION_POLICY: '{"allow_all":true,"max_period_days":1096}'
       DL_RECIPES_DIR: /recipes

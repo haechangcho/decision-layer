@@ -6,7 +6,7 @@ provider-neutral: Cube specifics live in semantic/providers/cube.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -122,6 +122,14 @@ class QueryProvenance(BaseModel):
     executed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class QueryAttempt(BaseModel):
+    spec: DatasetSpec
+    step_id: str | None = None
+    status: Literal["running", "success", "failed", "interrupted"] = "running"
+    error_code: str | None = None
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
 class Dataset(BaseModel):
     spec: DatasetSpec
     columns: list[Column]
@@ -139,9 +147,10 @@ class RoleSpec(BaseModel):
     multiple: bool = False
     description: str = ""
     label: str = ""
-    default_binding: Literal["primary_metric", "preferred_dimensions"] | None = None
+    default_binding: Literal["primary_metric", "preferred_dimensions", "unit_count"] | None = None
     ui_group: Literal["basic", "options"] = "basic"
     editor_parameter: str | None = None
+    exclusive_group: str | None = None  # alternative semantic inputs, shown as one picker
 
 
 class InputSourcePolicy(BaseModel):
@@ -190,13 +199,26 @@ class MethodManifest(BaseModel):
     requires_capabilities: list[str] = Field(default_factory=list)
     interpretation: Interpretation                 # ADR-019
     outputs: list[ArtifactType]
+    provides: list[str] = Field(default_factory=list)
+    provides_when: dict[str, list[str]] = Field(default_factory=dict)
     selection_outputs: list[str] = Field(default_factory=list)
     requires_period: bool = False
     label: str = ""
 
     @model_validator(mode="after")
     def _input_contract(self) -> "MethodManifest":
+        if set(self.provides_when) - set(self.provides) or any(
+                not names or set(names) - set(self.parameters) for names in self.provides_when.values()):
+            raise ValueError("Conditional result capabilities must reference declared capabilities and parameters")
+        groups: dict[str, list[RoleSpec]] = {}
+        for role in self.roles.values():
+            if role.exclusive_group:
+                groups.setdefault(role.exclusive_group, []).append(role)
+        if any(len(roles) < 2 or any(role.multiple or role.required for role in roles) for roles in groups.values()):
+            raise ValueError("exclusive_group requires at least two optional scalar roles")
         for name, role in self.roles.items():
+            if role.default_binding == "unit_count" and (role.kind != "measure" or role.multiple):
+                raise ValueError(f"{name}: unit_count requires a scalar measure role")
             if role.editor_parameter:
                 spec = self.parameters.get(role.editor_parameter)
                 if not spec or spec.type != "string" or spec.semantic_role != name or spec.semantic_kind != role.kind:
@@ -224,10 +246,15 @@ class MethodManifest(BaseModel):
                     raise ValueError(f"{name}: parent source requires a non-dependent group input")
         return self
 
+    def result_capabilities(self, params: dict[str, Any]) -> list[str]:
+        return [capability for capability in self.provides if capability not in self.provides_when
+                or any(params.get(name) not in (None, False, [], "") for name in self.provides_when[capability])]
+
 
 # ── Recipes & plans ─────────────────────────────────────────────────────────
 
 class Routing(BaseModel):
+    objective: str = Field(default="", max_length=600)
     use_for: list[str] = Field(default_factory=list)
     do_not_use_for: list[str] = Field(default_factory=list)
 
@@ -250,6 +277,8 @@ class PlanStep(BaseModel):
     method_version: str | None = None              # optional replay pin from a recorded Run
     purpose: str | None = Field(default=None, max_length=240)  # intended question for this step, not evidence
     purpose_context: Literal["procedure", "source_run"] | None = None
+    goal_ids: list[str] = Field(default_factory=list)
+    exploration: bool = False
     bindings: dict[str, Any] = Field(default_factory=dict)  # refs, or $expressions in Recipes (checked at run)
     params: dict[str, Any] = Field(default_factory=dict)
 
@@ -284,6 +313,7 @@ class Recipe(BaseModel):
     description: str
     status: Literal["draft", "published"] = "published"  # legacy files remain executable
     origin_runs: list[str] = Field(default_factory=list)  # reviewed source Runs, never execution inputs
+    source_question: str | None = None
     default_scope: RunDefaults | None = None
     inputs: dict[str, ParamSpec] = Field(default_factory=dict)
     routing: Routing = Field(default_factory=Routing)
@@ -341,6 +371,7 @@ class Result(BaseModel):
     kind: Literal["analysis_result"] = "analysis_result"
     status: Literal["success", "needs_input", "refused", "failed"]
     interpretation: Interpretation | None = None
+    provides: list[str] = Field(default_factory=list)
     primary: Artifact | None = None
     artifacts: list[Artifact] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -414,9 +445,95 @@ class RunFinding(BaseModel):
     step_indices: list[int] = Field(default_factory=list, max_length=12, description="Zero-based recorded steps supporting this observation. These links do not verify the text.")
 
 
+class AnalysisGoal(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,63}$")
+    description: str = Field(min_length=1, max_length=400)
+    semantic_refs: list[SemanticRefStr] = Field(default_factory=list, max_length=20)
+    required_capabilities: list[str] = Field(default_factory=list, max_length=8)
+    interpretation: Interpretation = "descriptive"
+
+
+class GoalOutcome(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    goal_id: str
+    status: Literal["supported", "needs_input", "unsupported", "blocked", "inconclusive"]
+    step_indices: list[int] = Field(default_factory=list, max_length=12)
+    reason: str = Field(default="", max_length=600)
+    reason_code: Literal["method_missing", "semantic_missing", "input_missing", "policy_blocked",
+                         "data_insufficient", "execution_error", "access_denied"] | None = None
+
+
+class SemanticRequirement(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    description: str = Field(min_length=1, max_length=400)
+    kind: SemanticKind
+    ref: SemanticRefStr | None = None
+    data_type: DataType | None = None
+    metric_kind: MetricKind | None = None
+    needs_entity: bool = False
+    needs_time: bool = False
+
+
+class SemanticModelDraft(BaseModel):
+    """Caller-proposed text for external review; never executable by Decision Layer."""
+    model_config = ConfigDict(extra="forbid")
+    provider: Literal["cube", "dbt"]
+    title: str = Field(min_length=1, max_length=160)
+    yaml: str = Field(min_length=1, max_length=12000)
+    unresolved: list[Annotated[str, Field(min_length=1, max_length=600)]] = Field(default_factory=list, max_length=12)
+    basis: list[Annotated[str, Field(min_length=1, max_length=1200)]] = Field(min_length=1, max_length=12)
+
+
+class RunRemediation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: str
+    goal_id: str
+    reason: str
+    evidence: str
+    proposal: str
+    requirements: list[SemanticRequirement]
+    model_drafts: list[SemanticModelDraft] = Field(default_factory=list, max_length=3)
+    related_goal_ids: list[str] = Field(default_factory=list, max_length=12)
+    revision: int = 0
+    status: Literal["proposed", "confirmed", "dismissed"] = "proposed"
+    events: list[dict[str, Any]] = Field(default_factory=list)
+    checks: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class RunRetryLink(BaseModel):
+    run_id: str
+    remediation_id: str
+    remediation_revision: int
+    checked_at: datetime
+    requirements: list[SemanticRequirement]
+
+
+class RecipeSelection(BaseModel):
+    reason: str = Field(min_length=1, max_length=600)
+    goal_ids: list[str] = Field(default_factory=list)
+
+
+class RecipeReview(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    recipe: VersionedRefStr
+    decision: Literal["selected", "skipped"]
+    reason: str = Field(min_length=1, max_length=600, pattern=r"\S")
+
+
+class RecipeInvocation(BaseModel):
+    id: str = "recipe_1"
+    recipe: VersionedRefStr
+    goal_ids: list[str] = Field(default_factory=list)
+    step_ids: list[str] = Field(default_factory=list)
+    completed: bool = False
+    step_id_map: dict[str, str] = Field(default_factory=dict)
+
+
 class RunConclusion(BaseModel):
     """Caller explanation or explicitly labelled execution summary, not validation."""
     source: Literal["caller", "execution"] = "caller"
+    goal_outcomes: list[GoalOutcome] = Field(default_factory=list, max_length=12)
     answer: str = Field(min_length=1, max_length=600, description="Answer the question in one or two plain-language sentences. Include at most one essential number. Put confidence intervals, sample counts, settings and diagnostic detail in step evidence, not this headline.")
     findings: list[RunFinding] = Field(default_factory=list, max_length=8)
     limitations: list[str] = Field(default_factory=list, max_length=8, description="Short plain-language limits on the conclusion. Avoid internal field names, validator codes and implementation jargon.")
@@ -432,6 +549,7 @@ class StepRecord(BaseModel):
     finished_at: datetime
     parameter_sources: dict[str, Literal["method_default", "recipe", "recipe_fixed", "request"]] = Field(default_factory=dict)
     author: ExecutionAuthor | None = None
+    invocation_id: str | None = None
 
 
 class RunningJob(BaseModel):
@@ -446,6 +564,17 @@ class Run(BaseModel):
     plan: AnalysisPlan
     origin: Literal["unknown", "python", "api", "web", "mcp"] = "unknown"
     recipe_snapshot: Recipe | None = None          # immutable copy, not a pointer (MVP_PLAN §15)
+    goals: list[AnalysisGoal] = Field(default_factory=list, max_length=12)
+    remediations: list[RunRemediation] = Field(default_factory=list)
+    retry_of: RunRetryLink | None = None
+    recipe_selection: RecipeSelection | None = None
+    recipe_review: list[RecipeReview] = Field(default_factory=list, max_length=6)
+    recipe_candidates: list[dict[str, Any]] = Field(default_factory=list, max_length=6)
+    recipe_invocation: RecipeInvocation | None = None
+    query_attempts: list[QueryAttempt] = Field(default_factory=list)
+    query_attempt_baseline: int | None = Field(default=None, ge=0)
+    active_step: PlanStep | None = None
+    interactive: bool = False
     preview: bool = False                           # unsaved Recipe snapshot, executed through the same engine
     steps: list[StepRecord] = Field(default_factory=list)
     caller: CallerInfo = Field(default_factory=CallerInfo)      # the owner

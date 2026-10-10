@@ -17,7 +17,7 @@ from ...validation import builtin as v
 from ..base import Method, MethodOutput, registry
 from ..context import ExecutionContext, Refused
 from .change import period_change, periods
-from .common import path_filters, rnd
+from .common import analysis_period, path_filters, rnd
 
 MAX_PERIODS = 400
 
@@ -46,6 +46,8 @@ class Trend(Method):
         },
         execution="semantic_pushdown", interpretation="descriptive", requires_period=True,
         outputs=["time_series", "estimate", "interval"],
+        provides=["time_series", "period_change"],
+        provides_when={"period_change": ["comparison", "vs_previous"]},
     )
 
     async def run(self, ctx: ExecutionContext, bindings: dict[str, Any], params: dict[str, Any]) -> MethodOutput:
@@ -56,8 +58,8 @@ class Trend(Method):
         compared = periods(ctx, params)
         if compared:  # the series spans both periods
             span = (min(p[0] for p in compared), max(p[1] for p in compared))
-        elif ctx.scope.date_range:
-            span = ctx.scope.date_range
+        elif analysis_period(ctx, params):
+            span = analysis_period(ctx, params)
         else:
             raise Refused(_("A period is needed (scope.date_range)"))
 
@@ -94,14 +96,16 @@ class Trend(Method):
             validation += checks
         else:
             validation.append(v.complete_period(span))
-        validation.append(await v.freshness(ctx, metric, compared[0] if compared else span))
+        validation.append(await v.freshness(ctx, metric, compared[0] if compared else span, filters=filters))
         return MethodOutput(
             primary=Artifact(type="time_series", title=_("{metric} over time", metric=ctx.obj(metric).title), data={
                 "metric": metric, "related": related, "granularity": params["granularity"],
+                "analysis_period": {"date_range": list(span), "source": "method_parameters" if params.get("current") or compared else "run_scope"},
                 "units": {m: u for m, u in units.items() if u and u != m}, "rows": series}),
             artifacts=artifacts,
             warnings=[_("Moving together over time does not show that the measures are related.")] if related else [],
             validation=validation,
+            provides=["time_series", "period_change"] if compared else ["time_series"],
         )
 
 

@@ -58,8 +58,9 @@ async def test_catalog_pagination_native_metadata_and_token():
     assert REGION in data.get(METRIC).dimension_refs
 
 
+@pytest.mark.parametrize("intermediate", ["RUNNING", "COMPILED"])
 @respx.mock
-async def test_query_polling_pagination_filters_time_order_and_provenance():
+async def test_query_polling_pagination_filters_time_order_and_provenance(intermediate):
     calls = []
     def serve(request):
         body = json.loads(request.content)
@@ -70,7 +71,7 @@ async def test_query_polling_pagination_filters_time_order_and_provenance():
             return response({"createQuery": {"queryId": "query-123"}})
         polls = [c for c in calls if "query Result" in c["query"]]
         if len(polls) == 1:
-            return response({"query": {"status": "RUNNING"}})
+            return response({"query": {"status": intermediate}})
         page = body["variables"]["pageNum"]
         return response(result([{"CUSTOMER__REGION": "O'Reilly", "METRIC_TIME__MONTH": f"2026-0{page}-01T00:00:00", "REVENUE": page * 100}], pages=2))
     respx.post(URL).mock(side_effect=serve)
@@ -88,6 +89,8 @@ async def test_query_polling_pagination_filters_time_order_and_provenance():
     assert evidence.pages == 2 and evidence.native_query["queryId"] == "query-123"
     assert evidence.compiled_sql == "select governed_revenue"
     assert "dbt-test-token" not in dataset.model_dump_json()
+    assert sum("mutation" in call["query"] for call in calls) == 1
+    assert all(call["variables"]["queryId"] == "query-123" for call in calls if "query Result" in call["query"])
 
 
 @pytest.mark.parametrize("status,payload,error", [
@@ -114,15 +117,27 @@ async def test_query_failure_retains_query_id(state):
     assert exc.value.details["query_id"] == "q-failed"
 
 
+@pytest.mark.parametrize("state", ["RUNNING", "COMPILED"])
 @respx.mock
-async def test_timeout_does_not_resubmit_query():
+async def test_timeout_does_not_resubmit_query(state):
     def serve(request):
         query = json.loads(request.content)["query"]
-        return response(catalog() if "Catalog(" in query else {"createQuery": {"queryId": "pending"}} if "mutation" in query else {"query": {"status": "RUNNING"}})
+        return response(catalog() if "Catalog(" in query else {"createQuery": {"queryId": "pending"}} if "mutation" in query else {"query": {"status": state}})
     route = respx.post(URL).mock(side_effect=serve)
     with pytest.raises(ProviderError, match="wait limit"):
         await DbtSemanticLayerProvider(URL, "company", 123, timeout=.02).execute(DatasetSpec(grain="aggregate", measures=[METRIC]), CREDS)
     assert sum("mutation" in json.loads(c.request.content)["query"] for c in route.calls) == 1
+
+
+@pytest.mark.parametrize("state", [None, "secret-token-with-sensitive-data", {"token": "secret"}])
+@respx.mock
+async def test_invalid_query_status_is_redacted(state, caplog):
+    respx.post(URL).mock(side_effect=[response(catalog()), response({"createQuery": {"queryId": "q-invalid"}}),
+                                      response({"query": {"status": state}})])
+    with pytest.raises(ProviderError) as exc:
+        await DbtSemanticLayerProvider(URL, "company", 123).execute(DatasetSpec(grain="aggregate", measures=[METRIC]), CREDS)
+    assert exc.value.details["query_status"] == "INVALID_RESPONSE"
+    assert "secret" not in str(exc.value) + caplog.text
 
 
 @pytest.mark.parametrize("value", ["{{ run_query('select 1') }}", "{% import 'x' %}", "a\\'b", float("inf")])
@@ -184,7 +199,8 @@ def test_sources_and_canonical_preview_use_official_api():
         assert client.post("/sources/current:test", json=body, headers=headers).json()["measures"] == 1
         assert client.put("/sources/current", json=body).status_code == 200
         assert client.get("/sources/current").json()["environment_id"] == 123
-        preview = client.post("/datasets/preview", json={"grain": "aggregate", "measures": [METRIC]}, headers=headers)
+        preview = client.post("/datasets/preview", json={"grain": "aggregate", "measures": [METRIC],
+            "time": {"dimension": TIME, "date_range": ["2026-01-01", "2026-01-31"]}}, headers=headers)
         assert preview.status_code == 200, preview.text
         assert preview.json()["rows"] == [[100]]
         assert client.get("/semantic/catalog").status_code == 401
@@ -202,6 +218,8 @@ def test_method_run_and_recipe_preserve_dbt_bindings_and_evidence():
             queries[query_id] = body["variables"]
             return response({"createQuery": {"queryId": query_id}})
         native = queries[body["variables"]["queryId"]]
+        if native["groupBy"] and native["groupBy"][0].get("name") == "metric_time":
+            return response(result([{"metric_time__day": "2026-09-30", "revenue": 150}]))
         rows = ([{"customer__region": "North", "revenue": 100}, {"customer__region": "South", "revenue": 50}]
                 if native["groupBy"] else [{"revenue": 150}])
         return response(result(rows))
@@ -209,11 +227,11 @@ def test_method_run_and_recipe_preserve_dbt_bindings_and_evidence():
     with TestClient(create_app(Settings(database_url="memory"))) as client:
         headers = {"Authorization": "Bearer dbt-test-token", "X-Decision-Layer-Client": "mcp"}
         client.put("/sources/current", json={"provider": "dbt", "api_url": URL, "environment_id": 123, "instance": "company"})
-        started = client.post("/runs", headers=headers, json={"question": "Which region has the highest revenue?", "scope": {"date_range": ["2026-07-01", "2026-09-30"]}})
+        started = client.post("/runs", headers=headers, json={"question": "Which region has the highest revenue?", "goals": [{"id": "region", "description": "Leading region", "semantic_refs": [METRIC], "required_capabilities": ["group_breakdown"]}], "scope": {"date_range": ["2026-07-01", "2026-09-30"]}})
         assert started.status_code == 200, started.text
         run_id = started.json()["id"]
         executed = client.post(f"/runs/{run_id}/steps", headers=headers, json={
-            "method": "query.drilldown", "purpose": "Find the leading region", "bindings": {"metric": METRIC, "dimensions": [REGION]}})
+            "method": "query.drilldown", "goal_ids": ["region"], "purpose": "Find the leading region", "bindings": {"metric": METRIC, "dimensions": [REGION]}})
         assert executed.status_code == 200, executed.text
         data = executed.json()
         assert data["status"] == "success"

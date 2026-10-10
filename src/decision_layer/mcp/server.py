@@ -18,8 +18,10 @@ from typing import Any
 import httpx
 from mcp.server.mcpserver import Context, MCPServer
 
-from ..core.models import ExecutionAuthor, RunConclusion
+from ..core.models import AnalysisGoal, ExecutionAuthor, Recipe, RecipeReview, RecipeSelection, RunConclusion
+from ..recipes.routing import reuse_contract
 from ..core.periods import PeriodChoice
+from ..service import BlockedAnalysisRequest, RemediationCreateRequest, RemediationRetryRequest
 
 from ..env import env
 from ..i18n import _, negotiate, set_locale
@@ -29,6 +31,8 @@ LOCALE = negotiate(env("DL_LOCALE"))
 set_locale(LOCALE)
 
 SECTIONS = {
+    "reuse": "Recipe reuse: compare the executable reuse.procedure, required_filters and fixed_method_periods with the question. source_question and source_purpose are historical evidence, not execution constraints. If the period binding is runtime, a different requested period does not make the Recipe unsuitable. An empty objective means no separate description was authored, not that the procedure is invalid. Prefer a suitable existing Recipe over rebuilding the same steps. If starting without a Recipe when candidates exist, provide recipe_review entries with decision='skipped' and concrete reasons. The server records these decisions but does not verify narrative truth.",
+    "routing": "Before choosing a Recipe, call find_recipes with the original question and goals using discovered semantic refs and manifest provides capabilities. Candidate rank and reference availability are not proof of relevance. No matching Recipe is valid: use query.aggregate for metric lookup and registered Methods for analytical calculations. Never replace trend validation, matching or significance checks with plain lookup. Record every requested part as a goal, including unsupported parts. Complete with one goal_outcome per goal and evidence links for supported outcomes. If semantic definitions are insufficient, record_semantic_gap with evidence and typed requirements; undiscovered is not proof of absent data. Leave ref unset when unknown. Never modify semantic models or assert user approval. Review takes place in the Web or owner API. A successful catalog check is not proof of joins, data quality or causality; normal Method validation still applies. A missing Method may be proposed on GitHub only if the user wants to contribute; prepare_method_proposal creates a draft from explicitly provided public text, never submits it. Do not copy private questions, metrics, queries or results into public text.",
     "periods": "Periods: omission is unresolved, not all data. Use an explicit date range from the request or conversation, a relative period rule, or period={mode: 'all'} when appropriate and permitted. If Run.needs_input is present, resolve it with set_run_scope before calling another Method. You may propose a period; ask the user when their intent is unclear. Never invent a date range silently or treat source labels as user approval. Server policy cannot be overridden.",
     "conclude": "Complete each analysis with complete_run and a structured conclusion. A Run remains open until an answer and findings linked to recorded steps are saved. Do not leave the final answer only in the chat.",
     "attribution": "If your host explicitly supplies the model provider, model ID or revision, pass the known values in author on start, step and completion calls. Omit unknown values; never infer a model from the client product or claim a version from memory. Client/model attribution is informational, not an authenticated identity.",
@@ -73,10 +77,14 @@ def allowed(method: str) -> bool:
 
 def instructions() -> str:
     rules = _(SECTIONS["rules"]) + "\n" + _(SECTIONS["periods"]) + "\n" + _(SECTIONS["numbers_strict" if RULES == "strict" else "numbers_relaxed"])
-    parts = [_(SECTIONS["intro"]), _("Start one Run with the original question. Execute every Method with run_step on that run_id, supplying a purpose. Finish with complete_run and evidence-linked findings. Even a single Method needs a Run."), *([_(SECTIONS["proceed"])] if RECIPES else []), _(SECTIONS["record_question"]), _(SECTIONS["conclude"]), _(SECTIONS["attribution"]), rules,
+    parts = [_(SECTIONS["intro"]), _("Start one Run with the original question. Execute every Method with run_step on that run_id, supplying a purpose. Finish with complete_run and evidence-linked findings. Even a single Method needs a Run."), *([_(SECTIONS["proceed"]), _(SECTIONS["routing"]), _(SECTIONS["reuse"])] if RECIPES else []), _(SECTIONS["record_question"]), _(SECTIONS["conclude"]), _(SECTIONS["attribution"]), rules,
              *([_(SECTIONS["changes"])] if allowed("query.trend") else []),
              *([_(SECTIONS["factors"])] if allowed("causal.cem") else []),
              *([_(SECTIONS["drilldown"])] if allowed("query.drilldown") else [])]
+    if not RECIPES:
+        parts.append(_("Recipe execution is disabled in this client profile. Use find_recipes to review candidates and record skipped recipe_review reasons before starting with registered Methods."))
+    parts.append(_("Recording is automatic, not a user task. Before replying that an analysis cannot proceed, call report_analysis_blocked with the original question, all goals, classified outcomes and the inspected evidence. For semantic_missing include proposed requirements with unknown refs unset. If a Run already exists, finish that Run rather than starting another. Do not ask whether to record, mention internal tool names as instructions for the user, substitute a different business question, or request approval for private execution records. Return the recorded Run link with the plain-language reason. Model changes and proposal approval still require owner review. Do not claim a record was saved if the tool failed. Discovery-only catalog browsing is not an analysis question."))
+    parts.append("For semantic improvements, combine goals blocked by the same missing definition in one proposal using related_goal_ids. Keep distinct definitions separate. Provide concise actions and optional model_drafts derived only from inspected APIs, with placeholders and unresolved details for unknown physical schema. Never use local project files as evidence of API-visible definitions or claim that a proposed YAML is verified or applied.")
     return "\n\n".join(parts)
 
 
@@ -140,6 +148,7 @@ async def list_methods() -> dict:
     if isinstance(ms, dict):
         return ms
     return {"methods": [{"name": m["name"], "description": m["description"], "interpretation": m["interpretation"],
+                         "provides": m.get("provides", []),
                          "roles": {k: r["kind"] + ("[]" if r["multiple"] else "") for k, r in m["roles"].items()}}
                         for m in ms if allowed(m["name"])]}
 
@@ -192,18 +201,25 @@ def _compact_run(run: dict) -> dict:
     queries = sum(s["result"]["provenance"].get("queries", 0) if isinstance(s["result"]["provenance"].get("queries"), int)
                   else len(s["result"]["provenance"].get("queries") or []) for s in run["steps"])
     queries += len(run.get("validation_queries") or [])
+    queries = max(queries, (run.get("query_attempt_baseline") or 0) + len(run.get("query_attempts") or []))
     out = {"run_id": run["id"], "status": run["status"], "recipe": run["plan"].get("recipe"),
+           "run_url": env("DL_WEB_URL", "http://localhost:3000").rstrip("/") + "/runs/" + run["id"],
            "owner": run["caller"].get("subject"), "shared_with": run.get("shared_with") or [],
            "question": run["plan"].get("question"), "scope": run["plan"].get("scope"),
            "validation": run.get("validation"), "summary": run.get("summary"), "error": run.get("error"),
            "conclusion": run.get("conclusion"), "author": run.get("author"), "conclusion_author": run.get("conclusion_author"),
            "needs_input": run.get("needs_input"), "scope_revision": run.get("scope_revision", 0),
            "scope_resolution": run.get("scope_resolution"),
+           "goals": run.get("goals", []), "recipe_selection": run.get("recipe_selection"),
+           "remediations": run.get("remediations", []), "retry_of": run.get("retry_of"),
+           "recipe_review": run.get("recipe_review", []),
+           "recipe_invocation": run.get("recipe_invocation"),
            "steps": [{"id": s["step"].get("id"), "purpose": s["step"].get("purpose"),
                       "purpose_context": s["step"].get("purpose_context") or ("source_run" if recipe.get("origin_runs") else "procedure"),
                       "method": s["step"]["method"], "bindings": s["step"]["bindings"],
                       "params": s["step"]["params"], "requested_step": s.get("requested_step"),
                       "input_resolutions": s.get("input_resolutions", []),
+                      "invocation_id": s.get("invocation_id"), "goal_ids": s["step"].get("goal_ids", []),
                       "author": s.get("author"), "result": _compact_result(s["result"])} for s in run["steps"]]}
     if run.get("needs_input"):
         out["next"] = {"tool": "set_run_scope", "run_id": run["id"], "base_revision": run.get("scope_revision", 0)}
@@ -222,6 +238,13 @@ def _compact_run(run: dict) -> dict:
     return out
 
 
+@mcp.tool(description=_("Find Recipe candidates for a question and typed goals. Structural matches do not verify natural-language relevance. No suitable Recipe is a valid outcome."))
+async def find_recipes(question: str, goals: list[AnalysisGoal] | None = None,
+                       inputs: dict[str, Any] | None = None, limit: int = 5) -> dict:
+    return await _call("POST", "/recipes:search", json={"question": question,
+        "goals": [goal.model_dump(mode="json") for goal in goals or []], "inputs": inputs or {}, "limit": limit})
+
+
 @mcp.tool(description=_(DOCS["list_recipes"]))
 async def list_recipes() -> dict:
     rs = await _call("GET", "/recipes")
@@ -233,10 +256,14 @@ async def list_recipes() -> dict:
         available.append({"available": check.get("valid") is True,
                           "unavailable_reason": check.get("error")})
     return {"recipes": [{"name": r["name"], "version": r["version"], "mode": r["mode"], "description": r["description"],
+                         "description_role": "source_question" if r.get("origin_runs") else "procedure",
+                         "objective": r["routing"].get("objective") or ("" if r.get("origin_runs") else r["description"]),
+                         "source_question": r.get("source_question") or (r["description"] if r.get("origin_runs") else None),
+                         **({"reuse": reuse_contract(Recipe.model_validate(r))} if availability["available"] else {}),
                          "use_for": r["routing"]["use_for"], "do_not_use_for": r["routing"]["do_not_use_for"],
                          "primary_metric": r["semantic_scope"]["primary_metric"], "inputs": r.get("inputs", {}), **availability}
                         for r, availability in zip(rs, available)],
-            "guidance": "Only execute available recipes. Otherwise use registered Methods with the current semantic catalog; never rewrite provider references automatically."}
+            "guidance": "Availability checks references only, not relevance, joins or result validity. Use find_recipes for candidates, compare their objective with the question, and never rewrite provider references automatically."}
 
 
 def _author(author: ExecutionAuthor | None, ctx: Context | None) -> dict | None:
@@ -253,18 +280,31 @@ def _author(author: ExecutionAuthor | None, ctx: Context | None) -> dict | None:
 async def start_run(recipe: str, question: str, date_range: list[str] | None = None,
                     time_dimension: str | None = None, filters: list[dict[str, Any]] | None = None,
                     author: ExecutionAuthor | None = None, ctx: Context = None, inputs: dict[str, Any] | None = None,
-                    period: PeriodChoice | None = None) -> dict:
+                    period: PeriodChoice | None = None, recipe_selection: RecipeSelection | None = None,
+                    *, goals: list[AnalysisGoal], recipe_review: list[RecipeReview] | None = None) -> dict:
     body = {"recipe": recipe, "question": question, "author": _author(author, ctx),
+            "goals": [goal.model_dump(mode="json") for goal in goals or []],
+            "recipe_selection": recipe_selection.model_dump(mode="json") if recipe_selection else None,
+            "recipe_review": [item.model_dump(mode="json") for item in recipe_review or []],
             "scope": {key: value for key, value in {"date_range": date_range, "time_dimension": time_dimension,
                                                     "filters": filters, "inputs": inputs, "period": period.model_dump(mode="json") if period else None}.items() if value is not None}}
     return _running_or(await _call("POST", "/runs", json=body, params={"wait": WAIT_SECONDS}), _compact_run)
 
 
+@mcp.tool(description=_("Use one pipeline Recipe inside an existing open Run. Supply the recorded goals it covers and a selection reason. Earlier query scope is preserved; conflicting shared filters require a new Run."))
+async def use_recipe(run_id: str, recipe: str, selection: RecipeSelection, inputs: dict[str, Any] | None = None) -> dict:
+    return _running_or(await _call("POST", f"/runs/{run_id}:use-recipe", json={"recipe": recipe,
+        "selection": selection.model_dump(mode="json"), "inputs": inputs or {}}, params={"wait": WAIT_SECONDS}), _compact_run)
+
+
 @mcp.tool(description=_(DOCS["start_analysis"]))
 async def start_analysis(question: str, date_range: list[str] | None = None,
                          time_dimension: str | None = None, filters: list[dict[str, Any]] | None = None,
-                         author: ExecutionAuthor | None = None, ctx: Context = None, period: PeriodChoice | None = None) -> dict:
+                         author: ExecutionAuthor | None = None, ctx: Context = None, period: PeriodChoice | None = None,
+                         *, goals: list[AnalysisGoal], recipe_review: list[RecipeReview] | None = None) -> dict:
     body = {"recipe": None, "question": question, "author": _author(author, ctx),
+            "goals": [goal.model_dump(mode="json") for goal in goals or []],
+            "recipe_review": [item.model_dump(mode="json") for item in recipe_review or []],
             "scope": {"date_range": date_range, "time_dimension": time_dimension, "filters": filters or [],
                       "period": period.model_dump(mode="json") if period else None}}
     return _compact_run(await _call("POST", "/runs", json=body))
@@ -283,10 +323,11 @@ async def set_run_scope(run_id: str, base_revision: int, period: PeriodChoice,
 @mcp.tool(description=_(DOCS["run_step"]))
 async def run_step(run_id: str, method: str, bindings: dict[str, str | list[str]],
                    purpose: str, params: dict[str, Any] | None = None, step_id: str | None = None,
-                   author: ExecutionAuthor | None = None, ctx: Context = None) -> dict:
+                   author: ExecutionAuthor | None = None, ctx: Context = None,
+                   exploration: bool = False, *, goal_ids: list[str]) -> dict:
     if not allowed(method):
         return _not_exposed(method)
-    body = {"id": step_id, "method": method, "purpose": purpose, "author": _author(author, ctx), "bindings": bindings, "params": params or {}}
+    body = {"id": step_id, "method": method, "purpose": purpose, "author": _author(author, ctx), "bindings": bindings, "params": params or {}, "goal_ids": goal_ids or [], "exploration": exploration}
     return _running_or(await _call("POST", f"/runs/{run_id}/steps", json=body, params={"wait": WAIT_SECONDS}),
                        _compact_result)
 
@@ -298,9 +339,43 @@ async def complete_run(run_id: str, conclusion: RunConclusion, summary: str | No
         "conclusion": conclusion.model_dump(mode="json") if conclusion else None, "author": _author(author, ctx)}))
 
 
+@mcp.tool(description=_("Prepare a GitHub Method proposal draft only when the user requests it. Requires a recorded method_missing goal. Supply explicitly public, anonymized text. Returns a review link; it does not submit an issue."))
+async def prepare_method_proposal(run_id: str, goal_id: str, title: str,
+                                  public_question: str, expected_result: str) -> dict:
+    return await _call("POST", f"/runs/{run_id}/method-proposal", json={"goal_id": goal_id,
+        "title": title, "public_question": public_question, "expected_result": expected_result})
+
+
 @mcp.tool(description=_(DOCS["share_run"]))
 async def share_run(run_id: str, subjects: list[str]) -> dict:
     return _compact_run(await _call("POST", f"/runs/{run_id}:share", json={"subjects": subjects}))
+
+
+@mcp.tool(description="Record a proposed semantic-model improvement for a recorded Run goal. Include inspected API evidence and a short actionable proposal. When possible provide model_drafts with provider, title, YAML, basis and unresolved details. Use only API-confirmed information; never assume access to local files or warehouse columns. Use placeholders for unknown columns, model names, joins or grain and list them in unresolved. YAML is an unverified external-edit draft, never applied or executed here. Never invent refs; leave unknown requirement refs null. This does not change the semantic model or approve the proposal.")
+async def record_semantic_gap(run_id: str, proposal: RemediationCreateRequest) -> dict:
+    return _compact_run(await _call("POST", f"/runs/{run_id}/remediations", json=proposal.model_dump(mode="json")))
+
+
+@mcp.tool(description="Record an analysis that cannot answer all requested goals before replying to the user. No user instruction to create a Run or approve logging is needed. One call saves the original question, classified outcomes, evidence-based semantic proposals and conclusion and returns its Run link. For semantic gaps include concise actions and optional model_drafts (provider, title, YAML, basis, unresolved). Derive drafts only from inspected APIs, never local files or assumed warehouse columns. Mark unknown columns, model names, joins and grain with placeholders and unresolved details. Drafts are unverified, never executable here. Use an existing run_id for partial analyses. New records cannot claim supported answers without executed evidence. Missing definitions are caller-reported proposals, not verified facts. No queries, substitute analysis, model edits, approval or public issue submission occur.")
+async def report_analysis_blocked(request: BlockedAnalysisRequest, author: ExecutionAuthor | None = None,
+                                  ctx: Context = None) -> dict:
+    body = request.model_dump(mode="json", exclude_unset=True)
+    body["author"] = _author(author or request.author, ctx)
+    return _compact_run(await _call("POST", "/analyses:blocked", json=body))
+
+
+@mcp.tool(description="Refresh catalog metadata and check an owner-confirmed semantic improvement. Use its current revision from get_run. A metadata pass is not an analysis result or evidence of causal validity.")
+async def recheck_semantic_gap(run_id: str, remediation_id: str, base_revision: int) -> dict:
+    return _compact_run(await _call("POST", f"/runs/{run_id}/remediations/{remediation_id}:check",
+        json={"base_revision": base_revision}))
+
+
+@mcp.tool(description="Start a linked new Run after owner review and a fresh catalog check. Keep the original question and goals. Select and review Recipes normally; without a Recipe, replan Methods using current data, never replay old literal selections. Existing scope is preserved unless explicitly changed. Previous conclusions remain unchanged.")
+async def retry_after_semantic_update(run_id: str, remediation_id: str, request: RemediationRetryRequest) -> dict:
+    if not RECIPES and request.recipe:
+        return {"error": {"code": "RECIPE_NOT_EXPOSED", "message": "Recipes are not available in this MCP profile."}}
+    return _running_or(await _call("POST", f"/runs/{run_id}/remediations/{remediation_id}:retry",
+        json=request.model_dump(mode="json", exclude_unset=True), params={"wait": WAIT_SECONDS}), _compact_run)
 
 
 @mcp.tool(description=_(DOCS["wait_for_run"]))
@@ -326,7 +401,7 @@ async def get_run(run_id: str) -> dict:
 
 
 if not RECIPES:
-    for tool in ("list_recipes", "start_run"):
+    for tool in ("list_recipes", "start_run", "use_recipe"):
         mcp.remove_tool(tool)
 
 

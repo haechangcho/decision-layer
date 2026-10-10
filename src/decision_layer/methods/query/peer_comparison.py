@@ -27,6 +27,7 @@ class PeerComparison(Method):
                                    description="Minimum source row count for a comparison; not a significance threshold"),
         },
         execution="semantic_pushdown", interpretation="descriptive", outputs=["breakdown_table"],
+        provides=["peer_comparison"],
     )
 
     async def run(self, ctx, bindings, params):

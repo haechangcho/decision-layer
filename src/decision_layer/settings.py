@@ -37,3 +37,4 @@ class Settings:
     source_admin_token: str | None = field(default_factory=lambda: os.environ.get("DL_SOURCE_ADMIN_TOKEN") or None)
     # Fernet key, provisioned outside the database; empty disables secret writes.
     source_config_key: str | None = field(default_factory=lambda: os.environ.get("DL_SOURCE_CONFIG_KEY") or None)
+    issue_repository: str = field(default_factory=lambda: env("DL_ISSUE_REPOSITORY", "haechangcho/decision-layer"))

@@ -102,6 +102,8 @@ def validate_recipe(recipe: Recipe) -> None:
                 if name not in manifest.parameters or name in policy.fixed:
                     raise _invalid(f"Parameter cannot be selected at runtime: {name}.", f"{field}.runtime_allowed")
     for i, step in enumerate(recipe.steps):
+        if step.exploration or step.goal_ids:
+            raise _invalid("Run goal links and exploration flags do not belong in reusable Recipe steps.", f"steps[{i}]")
         try:
             manifest = registry.get(step.method).manifest
         except InvalidBinding as e:
@@ -113,6 +115,11 @@ def validate_recipe(recipe: Recipe) -> None:
             key = sorted(unknown)[0]
             section = "bindings" if key in step.bindings else "params"
             raise _invalid(f"Unknown Method input or parameter: {key}.", f"steps[{i}].{section}.{key}")
+        groups = {role.exclusive_group for role in manifest.roles.values() if role.exclusive_group}
+        for group in groups:
+            keys = [key for key, role in manifest.roles.items() if role.exclusive_group == group]
+            if sum(bool(step.bindings.get(key)) for key in keys) != 1:
+                raise _invalid("Choose exactly one group-splitting semantic field.", f"steps[{i}].bindings.{keys[0]}")
         for key, role in manifest.roles.items():
             if role.required and not step.bindings.get(key):
                 raise _invalid(f"{key} is required.", f"steps[{i}].bindings.{key}")

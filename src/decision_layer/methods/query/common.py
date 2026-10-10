@@ -8,14 +8,28 @@ from ...validation.builtin import period_days
 from ..context import ExecutionContext, Refused
 from ..stats import pct_change
 from ...i18n import _
+from ...core.periods import checked_range
 
 
 def parse_range(value: Any, name: str) -> tuple[str, str] | None:
     if value is None:
         return None
     if isinstance(value, (list, tuple)) and len(value) == 2 and all(isinstance(v, str) for v in value):
+        try:
+            checked_range(tuple(value))
+        except ValueError as exc:
+            raise Refused(str(exc)) from exc
         return (value[0], value[1])
     raise Refused(_("{name} must be ['YYYY-MM-DD', 'YYYY-MM-DD']", name=name))
+
+
+def analysis_period(ctx: ExecutionContext, params: dict[str, Any]) -> tuple[str, str] | None:
+    current = parse_range(params.get("current"), "current")
+    if current and ctx.scope.date_range:
+        start, end = ctx.scope.date_range
+        if current[0] < start or current[1] > end:
+            raise Refused(_("The step analysis period must be within the Run period. Update the Run period to expand it."))
+    return current or ctx.scope.date_range
 
 
 def path_filters(ctx: ExecutionContext, drill_path: list[dict[str, Any]] | None) -> list[Filter]:

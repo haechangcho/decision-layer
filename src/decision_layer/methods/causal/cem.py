@@ -41,28 +41,32 @@ KPI_CONSISTENCY = 0.005
 
 class CEM(Method):
     manifest = MethodManifest(
-        name="causal.cem", version="1.1.0", kind="causal",
+        name="causal.cem", version="1.1.1", kind="causal",
         description=("Compares the metric of a target and a comparison group after matching them on conditions "
                      "(dimension values; numeric dimensions by range) — coarsened exact matching. Shows how a treatment "
                      "relates to the metric with the conditions held equal. A dimension treatment is aggregated in the "
                      "semantic layer; a measure treatment is evaluated per unit (the metric cube's primary key)."),
         roles={
-            "metric": RoleSpec(kind="measure", description="Metric to compare"),
+            "metric": RoleSpec(kind="measure", default_binding="primary_metric", description="Metric to compare"),
             "treatment": RoleSpec(kind="dimension", required=False,
+                                  label="Group-splitting field", exclusive_group="comparison_split",
                                   description="Dimension splitting the groups (yes/no or categorical). Either this or treatment_measure"),
             "treatment_measure": RoleSpec(kind="measure", required=False,
+                                          label="Group-splitting field", exclusive_group="comparison_split",
                                           description="Numeric measure splitting the groups by its per-unit value"),
-            "conditions": RoleSpec(kind="dimension", multiple=True, description="Conditions to match on; numeric dimensions match by range"),
+            "conditions": RoleSpec(kind="dimension", multiple=True, label="Conditions to match", description="Conditions to match on; numeric dimensions match by range"),
             "sample_count": RoleSpec(kind="measure", required=False, metric_kinds=["count"],
+                                     label="Sample count metric", ui_group="options",
+                                     default_binding="unit_count",
                                      description="For a native average: an explicit row count on the same provider-declared primary unit. Each unit must have exactly one non-null outcome. No continuous-outcome significance test is performed."),
         },
         parameters={
             "target": ParamSpec(type="group", description=(
                 "Target group: a value list [\"x\"] | {\"values\": [...]} | a range {\"gte\": 3}. "
-                "Defaults to true for a yes/no dimension")),
+                "Defaults to true for a yes/no dimension"), label="Target group", ui_group="basic", semantic_role="treatment", meaning="comparison_subject"),
             "comparison": ParamSpec(type="group", description=(
                 "Comparison group: the same forms, or {\"exclude\": [target values]} for everyone else. "
-                "If omitted the server asks, or uses the natural opposite")),
+                "If omitted the server asks, or uses the natural opposite"), label="Comparison group", ui_group="basic", semantic_role="treatment", meaning="comparison_population"),
             "ranges": ParamSpec(type="ranges", description="Range edges for numeric conditions {member ref: [10, 100, 1000]}"),
             "drill_path": ParamSpec(type="drill_path", default=[], description="[{member, value}] narrows the population (optional)"),
             "selected_among": ParamSpec(type="integer", minimum=1, description="N when the target was picked among N candidates (selection correction)"),
@@ -71,6 +75,7 @@ class CEM(Method):
         },
         execution="semantic_pushdown", interpretation="causal_conditional",
         outputs=["estimate", "balance", "interval", "table"],
+        provides=["matched_comparison"],
     )
 
     async def run(self, ctx: ExecutionContext, bindings: dict[str, Any], params: dict[str, Any]) -> MethodOutput:
@@ -78,6 +83,27 @@ class CEM(Method):
         if bool(bindings.get("treatment")) == bool(bindings.get("treatment_measure")):
             raise Refused(_("Give either treatment (dimension) or treatment_measure (measure), not both"))
         treatment = bindings.get("treatment") or bindings["treatment_measure"]
+        target_spec = params.get("target")
+        if target_spec is None and ctx.obj(treatment).data_type == "boolean":
+            target_spec = {"values": [True]}
+        comparison_spec = params.get("comparison")
+        if target_spec is not None and comparison_spec is not None:
+            target_group, comparison_group = Group.parse(target_spec), Group.parse(comparison_spec)
+            if target_group.values or comparison_group.values:
+                values, other = (target_group.values, comparison_group) if target_group.values else (comparison_group.values, target_group)
+                try:
+                    overlap = any(other.contains(value) for value in values)
+                except (TypeError, ValueError) as exc:
+                    raise Refused(_("Group values must match the selected field's type.")) from exc
+            elif not target_group.exclude and not comparison_group.exclude:
+                overlap = max(target_group.gte if target_group.gte is not None else -math.inf,
+                              comparison_group.gte if comparison_group.gte is not None else -math.inf) < min(
+                    target_group.lt if target_group.lt is not None else math.inf,
+                    comparison_group.lt if comparison_group.lt is not None else math.inf)
+            else:
+                raise Refused(_("Use explicit, non-overlapping groups. These exclusion and range definitions cannot be verified as disjoint."))
+            if overlap:
+                raise Refused(_("The target and comparison groups overlap."))
         conditions = bindings["conditions"] if isinstance(bindings["conditions"], list) else [bindings["conditions"]]
         if treatment in conditions:
             raise Refused(_("The treatment can't also be a condition"))
@@ -86,6 +112,9 @@ class CEM(Method):
             entity = ctx.obj(metric).entity
             if not units or not entity or ctx.obj(units).entity != entity or ctx.count_measure(units) != units:
                 raise Refused(_("Average matching needs an explicit native row count and a shared provider-declared primary unit."))
+            unit_object = ctx.catalog.get(entity)
+            if unit_object is None or not unit_object.public:
+                raise Refused(_("The individual analysis unit is not available with the current semantic-layer permissions."))
             if bindings.get("treatment_measure"):
                 raise Refused(_("Average matching currently requires a dimension treatment."))
         else:
@@ -100,23 +129,25 @@ class CEM(Method):
         quality = {"min_target_retention": params["min_target_retention"],
                    "min_units_per_group": params["min_units_per_group"], "min_strata": 2}
         ranges = {c: [float(x) for x in e] for c, e in (params.get("ranges") or {}).items()}
+        if set(ranges) - set(numeric):
+            raise Refused(_("Range edges must refer to numeric matching conditions."))
 
         if ctx.obj(metric).metric_kind == "average":
             target, comparison = await self._groups(ctx, metric, treatment, units, base, params)
             strata, raw, missing, edges = await self._average_units(ctx, metric, units, treatment, target, comparison,
                                                                   categorical, numeric, ranges, base)
-            path, unit_average = "average_units", False
+            path, unit_average, proportion_verified = "average_units", False, False
         elif ctx.obj(treatment).kind == "measure":
-            target, comparison, strata, raw, missing, edges = await self._units(
+            target, comparison, strata, raw, missing, edges, proportion_verified = await self._units(
                 ctx, metric, units, treatment, categorical, numeric, ranges, base, params)
             path, unit_average = "unit", True
         else:
             target, comparison = await self._groups(ctx, metric, treatment, units, base, params)
-            strata, raw, missing, edges = await self._strata(ctx, metric, units, treatment, target, comparison,
+            strata, raw, missing, edges, proportion_verified = await self._strata(ctx, metric, units, treatment, target, comparison,
                                                              categorical, numeric, ranges, base)
             path, unit_average = "strata", False
         return self._finish(ctx, metric, treatment, target, comparison, categorical, numeric, ranges, edges,
-                            strata, raw, missing, quality, params.get("selected_among"), path, unit_average)
+                            strata, raw, missing, quality, params.get("selected_among"), path, unit_average, proportion_verified)
 
     # ── groups ────────────────────────────────────────────────────────────
     async def _groups(self, ctx, metric, member, units, base, params) -> tuple[Group, Group]:
@@ -145,6 +176,8 @@ class CEM(Method):
 
     # ── stratum path ──────────────────────────────────────────────────────
     async def _strata(self, ctx, metric, units, treatment, target, comparison, categorical, numeric, ranges, base):
+        numerator = _proportion_numerator(ctx, metric, units)
+        proportion_checks = []
         groups = {TARGET: [*base, *target.filters(treatment)], COMPARISON: [*base, *comparison.filters(treatment)]}
         edges = {}
         for c in numeric:
@@ -155,14 +188,16 @@ class CEM(Method):
         sem = asyncio.Semaphore(CONCURRENCY)
 
         async def query(filters, dims):
-            spec = DatasetSpec(grain="aggregate", measures=list(dict.fromkeys([metric, units])), dimensions=dims,
+            spec = DatasetSpec(grain="aggregate", measures=list(dict.fromkeys([metric, units, *([numerator] if numerator else [])])), dimensions=dims,
                                time=ctx.time_scope(metric), filters=[*ctx.scope.filters, *filters],
                                limit_rows=MAX_GROUP_ROWS)
             async with sem:
                 ds = await ctx.dataset(spec)
             if len(ds.rows) >= MAX_GROUP_ROWS:
                 raise Refused(_("Too many strata. Use fewer conditions"))
-            return [dict(zip([col.ref for col in ds.columns], r)) for r in ds.rows]
+            rows = [dict(zip([col.ref for col in ds.columns], r)) for r in ds.rows]
+            proportion_checks.extend(_verified_percentage(row, metric, units, numerator) for row in rows if row.get(units))
+            return rows
 
         async def fetch(group, combo):
             filters = [*groups[group]]
@@ -189,7 +224,8 @@ class CEM(Method):
                 strata.setdefault(key, m.Stratum(key, label)).cells[group] = m.Cell(n, row.get(metric))
                 stratified[group] += n
         missing = {g: max(raw[g][1] - stratified[g], 0.0) for g in groups}
-        return list(strata.values()), {g: raw[g][0] for g in groups}, missing, edges
+        verified = bool(numerator and proportion_checks and all(proportion_checks))
+        return list(strata.values()), {g: raw[g][0] for g in groups}, missing, edges, verified
 
     # ── unit path ─────────────────────────────────────────────────────────
     async def _average_units(self, ctx, metric, units, treatment, target, comparison,
@@ -246,7 +282,11 @@ class CEM(Method):
         entity = ctx.obj(metric).entity
         if not entity:
             raise Refused(_("The metric '{title}' has no declared entity key, so it can't be evaluated per unit", title=ctx.obj(metric).title))
-        spec = DatasetSpec(grain="entity", entity=entity, measures=list(dict.fromkeys([measure, metric, units])),
+        unit_object = ctx.catalog.get(entity)
+        if unit_object is None or not unit_object.public:
+            raise Refused(_("The individual analysis unit is not available with the current semantic-layer permissions."))
+        numerator = _proportion_numerator(ctx, metric, units)
+        spec = DatasetSpec(grain="entity", entity=entity, measures=list(dict.fromkeys([measure, metric, units, *([numerator] if numerator else [])])),
                            dimensions=[*categorical, *numeric], time=ctx.time_scope(metric),
                            filters=[*ctx.scope.filters, *base])
         ds = await ctx.dataset(spec)
@@ -300,7 +340,8 @@ class CEM(Method):
                 st.cells[group] = m.Cell(den, num / den if den else None)
             strata.append(st)
         raw = {g: (s[0] / s[1] if s[1] else None) for g, s in raw_sums.items()}
-        return target, comparison or Group(), strata, raw, missing, edges
+        verified = bool(numerator and rows and all(_verified_percentage(row, metric, units, numerator) for row in rows))
+        return target, comparison or Group(), strata, raw, missing, edges, verified
 
     async def _auto_edges(self, ctx, metric, units, member, groups) -> list[float]:
         pairs = []
@@ -317,7 +358,13 @@ class CEM(Method):
 
     # ── shared tail ───────────────────────────────────────────────────────
     def _finish(self, ctx, metric, treatment, target, comparison, categorical, numeric, ranges, edges, strata,
-                raw, missing, quality, selected_among, path, unit_average) -> MethodOutput:
+                raw, missing, quality, selected_among, path, unit_average, proportion_verified) -> MethodOutput:
+        for stratum in strata:
+            for cell in stratum.cells.values():
+                if (isinstance(cell.units, bool) or not isinstance(cell.units, (int, float)) or
+                    not math.isfinite(cell.units) or cell.units < 0 or not float(cell.units).is_integer() or
+                    (cell.kpi is not None and (isinstance(cell.kpi, bool) or not isinstance(cell.kpi, (int, float)) or not math.isfinite(cell.kpi)))):
+                    raise Refused(_("Matching requires finite outcomes and non-negative integer sample counts."))
         res = m.match(strata, missing, quality)
         title = ctx.obj(treatment).title
         groups = {"treatment": treatment,
@@ -347,9 +394,10 @@ class CEM(Method):
                                  n=res["balance"]["excluded"]["target_without_comparison"]))
 
         average = ctx.obj(metric).metric_kind == "average"
-        interval = None if average else m.matched_interval(res["common"], selected_among)
-        raw_interval = None if average else difference_test(raw.get(TARGET), res["balance"]["target_units"], raw.get(COMPARISON),
-                                                          res["balance"]["comparison_units"])
+        interval = m.matched_interval(res["common"], selected_among) if proportion_verified and not res["reasons"] else None
+        raw_interval = difference_test(raw.get(TARGET), res["balance"]["target_units"], raw.get(COMPARISON),
+                                      res["balance"]["comparison_units"], selected_among) if proportion_verified and not res["reasons"] else None
+        estimate["statistical_judgement"] = "tested" if interval else "not_tested"
         if average:
             estimate["statistical_judgement"] = "not_tested"
             limitations.append(_("Continuous-outcome uncertainty is not implemented; this matched mean difference is not a significance test."))
@@ -362,7 +410,9 @@ class CEM(Method):
         artifacts.append(Artifact(type="table", title=_("Top {n} shared strata", n=len(preview)), data=[
             {"condition": s.label, "target": {"units": s.cells[TARGET].units, "metric": rnd(s.cells[TARGET].kpi)},
              "comparison": {"units": s.cells[COMPARISON].units, "metric": rnd(s.cells[COMPARISON].kpi)}} for s in preview]))
-        if not interval and not average:
+        if res["reasons"]:
+            limitations.append(_("Matching quality checks failed; no significance test was performed."))
+        elif not interval and not average:
             limitations.append(_("The metric could not be verified as a count proportion, so no interval was computed."))
 
         comparable = (ValidationResult(validator="comparability", status="fail", code="NOT_COMPARABLE",
@@ -394,6 +444,26 @@ def _standardized_all(strata: list[m.Stratum]) -> float | None:
 
 def _inconsistent(a: float | None, b: float | None) -> bool:
     return a is not None and b is not None and abs(a - b) > KPI_CONSISTENCY * max(abs(b), 1e-9)
+
+
+def _proportion_numerator(ctx, metric, units):
+    obj = ctx.obj(metric)
+    if obj.metric_kind != "ratio" or not obj.ratio_parts or obj.ratio_parts[1] != units:
+        return None
+    numerator, denominator = obj.ratio_parts
+    if all(ctx.obj(ref).metric_kind == "count" for ref in (numerator, denominator)):
+        return numerator
+    return None
+
+
+def _verified_percentage(row, metric, units, numerator):
+    values = [row.get(ref) for ref in (metric, units, numerator)]
+    if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) for value in values):
+        return False
+    value, count, events = values
+    return count > 0 and float(count).is_integer() and \
+        events >= 0 and events <= count and float(events).is_integer() and \
+        math.isclose(value, 100 * events / count, rel_tol=1e-9, abs_tol=1e-7)
 
 
 registry.register(CEM())

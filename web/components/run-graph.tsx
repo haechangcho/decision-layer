@@ -8,6 +8,7 @@ import { Check, Database, Workflow } from "lucide-react";
 import type { Run, SemanticObject } from "@/lib/api";
 import { methodName } from "@/lib/method-name";
 import { stepFinding, stepPurpose } from "@/lib/run-story";
+import { useT } from "@/lib/i18n";
 import s from "./run-graph.module.css";
 
 function MetricNode({ data }: NodeProps) {
@@ -20,12 +21,14 @@ function MetricNode({ data }: NodeProps) {
 }
 
 function StepNode({ data, selected }: NodeProps) {
+  const t = useT();
   const value = data as { index: number; method: string; purpose: string; finding: string; status: string; compact: boolean;
-    select: () => void; draftSelected?: boolean; toggleDraft?: () => void };
+    select: () => void; draftSelected?: boolean; toggleDraft?: () => void; source?: string };
   return <div className={`${s.node} ${selected ? s.selected : ""}`}>
     <Handle type="target" position={value.index === 0 && !value.compact ? Position.Left : Position.Top} isConnectable={false} />
     <button type="button" className={s.nodeButton} onClick={value.select} aria-label={`${value.index + 1}단계 ${methodName(value.method)} 결과 보기`}>
       <span className={s.eyebrow}><Workflow size={14} />{value.index + 1}단계 · {methodName(value.method)}</span>
+      {value.source && <span className={s.source}>{t(value.source)}</span>}
       <strong>{value.purpose}</strong>
       <span className={s.finding}>{value.finding}</span>
       <span className={s.status} data-status={value.status}>{value.status === "success" && <Check size={12} />}{value.status === "success" ? "완료" : value.status === "failed" ? "실패" : value.status === "refused" ? "비교 불가" : "입력 필요"}</span>
@@ -58,10 +61,13 @@ export function RunGraph({ run, titles, selected, onSelect, draftSelection, onTo
   const metricRefs = [...new Set(run.steps.flatMap((record) => typeof record.step.bindings.metric === "string" ? [record.step.bindings.metric] : []))];
   const metricNames = metricRefs.map((ref) => titles.get(ref)?.title ?? "지표 이름 확인 필요");
   const spacing = onToggleDraft ? 248 : 216;
+  const mixedProcedure = !!run.recipe_invocation && run.steps.some(record => !record.invocation_id);
   const nodes = [
     { id: "run-metric", type: "metric", position: compact ? { x: 20, y: 0 } : { x: 0, y: Math.max(0, (run.steps.length - 1) * spacing / 2) }, data: { names: metricNames.length ? metricNames : ["지표 미지정"], compact } },
     ...run.steps.map((record, index) => ({ id: `run-step:${index}`, type: "step", position: compact ? { x: 0, y: 135 + index * spacing } : { x: 330, y: index * spacing }, selected: index === selected,
       data: { index, method: record.step.method, purpose: stepPurpose(record.step, run), finding: stepFinding(record), status: record.result.status, compact,
+        source: mixedProcedure ? record.invocation_id ? "Recipe step" :
+          index < run.steps.findIndex(item => !!item.invocation_id) ? "Exploration step" : "Additional analysis" : undefined,
         select: () => onSelect(index), draftSelected: draftSelection?.includes(index),
         toggleDraft: onToggleDraft && record.result.status === "success" ? () => onToggleDraft(index) : undefined } })),
   ];

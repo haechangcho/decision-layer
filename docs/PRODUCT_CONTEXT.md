@@ -98,7 +98,6 @@ An external governed semantic system.
 MVP:
 - Cube
 - dbt Semantic Layer's official GraphQL API (ADR-058)
-- Local dbt MetricFlow with PostgreSQL for the bundled example (ADR-056)
 
 Future candidates:
 - Malloy

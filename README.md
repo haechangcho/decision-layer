@@ -8,36 +8,23 @@ Decision Layer connects semantic metrics to registered analytical **Methods** an
 
 Web, Python, REST and MCP share one execution engine. AI clients select registered Methods and Recipes; they do not execute generated analysis code.
 
+Unanswered questions can carry reviewed semantic-model improvements and link to a fresh analysis after the model is updated. [See the workflow](https://decision-layer-docs.vercel.app/guides/runs#model-improvements-and-reanalysis).
+
 ![A business question follows a reusable Recipe, executed through Web or AI with recorded evidence](docs/assets/decision-layer-overview.png)
 
 ## Quickstart
 
-With Docker and Compose installed, clone the project and choose **Cube or dbt**:
+With Docker and Compose installed, run the local retail example:
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
 cd decision-layer/examples/complete-journey
-```
-
-**Cube**
-
-```bash
 docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
-**dbt MetricFlow**
+Open [localhost:3000](http://localhost:3000). The first start downloads and imports the dataset and can take a few minutes. The sample connects Cube and starts without Recipes. See the [sample guide](examples/complete-journey/README.md) for data details and teardown. This is a local development environment, not production.
 
-```bash
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
-```
-
-Each example keeps its database, connection settings, Runs and Recipes separately. They use the same ports, so run one at a time. Use the shutdown commands in the [sample guide](examples/complete-journey/README.md) before switching.
-
-Run one option, then open [localhost:3000](http://localhost:3000). Both use the same dataset. The first start downloads and imports it and can take a few minutes.
-
-The sample includes a connected semantic source and starts without Recipes. See the [sample guide](examples/complete-journey/README.md) for data details and teardown. This setup is for local development, not production.
-
-The dbt example includes a local MetricFlow runtime for trying the product without a dbt account. Existing company environments connect directly through the official [dbt Semantic Layer API](https://decision-layer-docs.vercel.app/guides/dbt).
+For your organization's dbt environment, connect its official [dbt Semantic Layer API](https://decision-layer-docs.vercel.app/guides/dbt). The hosted API is not included in the Docker sample.
 
 ## Run Your First Analysis
 

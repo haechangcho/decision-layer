@@ -45,7 +45,6 @@ export default defineConfig({
         { text: 'Quickstart', link: '/' },
         { text: 'Connect Cube', link: '/guides/cube' },
         { text: 'Connect dbt Semantic Layer', link: '/guides/dbt' },
-        { text: 'Local dbt example', link: '/guides/metricflow' },
         { text: 'Connect an AI client', link: '/guides/mcp' }
       ] },
       { text: 'Use Decision Layer', items: [
@@ -81,7 +80,6 @@ export default defineConfig({
             { text: '빠른 시작', link: '/ko/' },
             { text: 'Cube 연결', link: '/ko/guides/cube' },
             { text: 'dbt Semantic Layer 연결', link: '/ko/guides/dbt' },
-            { text: '로컬 dbt 예제', link: '/ko/guides/metricflow' },
             { text: 'AI 도구 연결', link: '/ko/guides/mcp' }
           ] },
           { text: '분석 사용하기', items: [

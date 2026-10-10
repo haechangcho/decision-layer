@@ -13,7 +13,15 @@ export function isSourcePurpose(step: PlanStep, run: Run): boolean {
 }
 
 export function stepPurpose(step: PlanStep, run?: Run): string {
-  if (run && isSourcePurpose(step, run)) return defaultPurposes[step.method] || "저장된 분석 단계 실행";
+  if (run && isSourcePurpose(step, run)) {
+    const index = run.steps.findIndex(record => record.step === step);
+    const outcomes = run.conclusion?.goal_outcomes?.filter(outcome => outcome.step_indices.includes(index));
+    const ids = outcomes?.length ? outcomes.map(outcome => outcome.goal_id) : step.goal_ids || [];
+    const goals = run.goals?.filter(goal => ids.includes(goal.id)) || [];
+    // Historical purposes may contain the original dates. Use only unambiguous current goal links.
+    if (goals.length === 1) return goals[0].description;
+    return defaultPurposes[step.method] || "저장된 분석 단계 실행";
+  }
   return step.purpose?.trim() || defaultPurposes[step.method] || "이 방법으로 결과 확인";
 }
 

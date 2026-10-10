@@ -1,4 +1,4 @@
-.page { max-width: 920px; margin: 0 auto; padding: 34px 28px 56px; }
+.page { max-width: 760px; margin: 0 auto; padding: 34px 28px 56px; }
 .back { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 22px; color: var(--muted); font-size: 12px; }.heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; }.icon,.adminIcon { display: grid; place-items: center; flex: 0 0 auto; width: 38px; height: 38px; border-radius: 5px; color: var(--accent); background: var(--link-soft); }.heading h1 { margin: 0; color: var(--text); font-size: 23px; }.heading p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
 .formSection,.admin,.readiness { border-top: 1px solid var(--line); padding-top: 19px; }.sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 17px; }.sectionHeading h2 { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--text); font-size: 15px; }.sectionHeading>span { color: #77847c; font-size: 11px; }
 .field { display: grid; gap: 6px; margin: 0 0 16px; }.field>span,.adminForm>label { color: var(--text); font-size: 12px; font-weight: 650; }.field input,.field select,.adminForm input { width: 100%; min-height: 39px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; color: var(--text); background: #fff; font: inherit; font-size: 13px; }.field input:focus,.field select:focus,.adminForm input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }.field input:disabled,.field select:disabled { color: var(--muted); background: var(--bg); }.field small { display: flex; align-items: center; gap: 5px; color: var(--muted); font-size: 11px; line-height: 1.45; }
@@ -27,3 +27,23 @@
 .summary dd { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .summary dd small { display: inline-flex; align-items: center; gap: 4px; color: var(--muted, #8a968d); font-size: 12px; }
 .summary code { font-size: 13px; }
+.sectionHeading>span { color: var(--muted); }
+.formSection { border-top: 0; padding-top: 8px; }
+.formSection>.help { margin-bottom: 16px; }
+.connectionActions { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.connectionActions .actions { margin-top: 0; }
+.actionHint { margin: 0 0 12px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+.credential { display: flex; align-items: center; gap: 8px; margin: 0 0 20px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.advanced { margin-top: 22px; color: var(--muted); }
+.advanced summary { padding: 8px 0; }
+.advanced[open] summary { margin-bottom: 12px; }
+.success { border: 0; color: var(--dl-data); background: var(--dl-data-soft); }
+.testSummary { color: var(--dl-data); background: var(--bg); border: 1px solid var(--line); padding: 16px; gap: 12px; }
+.testSummary strong { color: var(--text); }
+.testSummary small { color: var(--muted); }
+.readinessRow>div:nth-child(2) span { color: var(--dl-data); }
+.summary dd { min-width: 0; overflow-wrap: anywhere; }
+.skeleton { display: grid; gap: 22px; padding: 24px 0; }
+.skeleton>div { height: 50px; border-radius: 4px; background: var(--bg); }
+.alert button { display: block; margin-top: 8px; }
+@media (max-width: 620px) { .summary>div { grid-template-columns: 1fr; gap: 4px; }.testSummary button,.testSummary>a { margin-left: 0; }.sectionHeading { align-items: flex-start; }.testSummary>div { flex: 1; } }

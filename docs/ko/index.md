@@ -5,7 +5,7 @@ description: 샘플을 실행하고 지표와 분석 기록을 확인합니다.
 
 # 빠른 시작
 
-Cube 예제와 dbt MetricFlow 예제 중 하나를 선택하세요. 같은 소매점 데이터로 지표 확인부터 분석 기록까지 경험할 수 있으며 Recipe는 비어 있는 상태로 시작합니다.
+로컬 Cube 예제의 소매점 데이터로 지표 확인부터 분석 기록까지 경험할 수 있으며 Recipe는 비어 있는 상태로 시작합니다.
 
 ## 1. 예제 실행
 
@@ -16,25 +16,13 @@ git clone https://github.com/haechangcho/decision-layer.git
 cd decision-layer/examples/complete-journey
 ```
 
-아래 탭에서 사용할 제공자를 선택하고 명령을 실행하세요.
-
-::: code-group
-
-```bash [Cube]
+```bash
 docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
-```bash [dbt MetricFlow]
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait --wait-timeout 900
-```
+웹은 localhost:3000, API는 localhost:8000, Cube는 localhost:4000입니다. 첫 실행은 데이터를 내려받아 적재하므로 몇 분 걸릴 수 있습니다. 처음에는 실행 기록과 Recipe가 비어 있고, 다시 실행하면 기록이 유지됩니다.
 
-:::
-
-웹은 `localhost:3000`, API는 `localhost:8000`입니다. Cube 예제는 `localhost:4000`, dbt 예제는 MetricFlow `localhost:4100`을 사용합니다. 첫 실행은 데이터를 내려받아 적재하므로 몇 분 걸릴 수 있습니다. 처음 설치하면 선택한 제공자가 자동 연결됩니다. 예제는 하나씩 실행하며, 전환·종료 방법은 [샘플 안내](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)에 있습니다.
-
-예제별 DB, 연결 설정, Runs와 Recipe 폴더는 분리됩니다. 처음 실행한 예제에는 Run이 없고, 다시 실행하면 기록이 유지됩니다. 연결 설정에 보이는 값은 예제 기본값이며 다른 설치에서 가져온 설정이 아닙니다.
-
-dbt 예제는 계정 없이 체험할 수 있도록 로컬 MetricFlow 게이트웨이를 포함합니다. 회사의 기존 dbt 환경은 Sources에서 **dbt Semantic Layer**를 선택하고 [공식 API로 연결](./guides/dbt.md)하세요. 회사 환경에 별도 게이트웨이를 설치할 필요는 없습니다.
+회사의 dbt 환경은 [공식 Semantic Layer API](./guides/dbt.md)로 연결합니다. dbt 공식 API는 로컬 Docker 예제로 제공하지 않습니다. 종료 방법은 [샘플 안내](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)를 확인하세요.
 
 ## 2. 지표 확인
 
@@ -52,7 +40,6 @@ dbt 예제는 계정 없이 체험할 수 있도록 로컬 MetricFlow 게이트�
 
 - [기존 Cube 연결](./guides/cube.md): 조직의 지표로 분석하기
 - [dbt Semantic Layer 연결](./guides/dbt.md): 조직의 공식 API로 분석하기
-- [로컬 dbt 예제](./guides/metricflow.md): SQL·YAML 모델과 실행 환경 살펴보기
 - [Recipe 만들기](./guides/recipes.md): 반복하는 질문을 절차로 저장하기
 - [실행 기록 읽기](./guides/runs.md): 결과와 근거 검토하기
 - [Method 기여하기](./guides/methods.md): 새로운 분석 기능 추가하기

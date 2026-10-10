@@ -1,7 +1,7 @@
 # 캠페인 대상·비대상 가구 비교
 
 importer가 `journey.campaign_household_outcomes`를 생성하고 다음 import 때 갱신합니다.
-Cube와 dbt는 이 모델의 같은 대상 행을 읽습니다. 원천 테이블은 그대로 유지합니다.
+Cube는 이 모델의 대상 행을 읽습니다. dbt 참고 모델은 실제 dbt 환경에 배포할 때 같은 행을 읽습니다. 원천 테이블은 그대로 유지합니다.
 **한 행은 캠페인 하나와 가구 하나**입니다. 거래행이나 쿠폰 사용 이력이 분석 단위가 아닙니다.
 
 ## 분석 정의
@@ -37,7 +37,7 @@ Cube와 dbt는 이 모델의 같은 대상 행을 읽습니다. 원천 테이블
 결과는 맞춤 전후 평균과 표본 유지율입니다. **평균 판매금액의 신뢰구간·통계적 유의성은 아직 지원하지 않습니다.**
 가구 특성까지 맞추면 결측과 희소한 조건 조합으로 비교 불가가 될 수 있습니다. 결과를 얻으려고 기준을 낮추면 안 됩니다.
 
-dbt 예제는 로컬 MetricFlow로 검증합니다. 현재 공식 hosted dbt API의 metadata만으로는 이 평균·행 수·기본 단위 계약을
+현재 공식 hosted dbt API의 metadata만으로는 이 평균·행 수·기본 단위 계약을
 확인할 수 없어 제품의 해당 경로는 여전히 거절합니다. SQL 추측이나 전용 meta로 우회하지 않습니다.
 
 ## 기존 환경 업데이트
@@ -48,16 +48,6 @@ Cube 예제 폴더에서:
 docker compose -p decision-layer-cube build import api
 docker compose -p decision-layer-cube run --rm --no-deps import
 docker compose -p decision-layer-cube up -d --no-deps --wait cube api
-```
-
-dbt 예제 폴더에서:
-
-```bash
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml build import dbt-setup metricflow api
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps import
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup dbt test --target setup --project-dir /project --profiles-dir /project
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --no-deps --wait metricflow api
 ```
 
 볼륨 삭제나 원천 재다운로드는 필요 없습니다. 집계 갱신 중에는 새 모델에 잠금이 걸리므로 분석 중 갱신하지 마세요.

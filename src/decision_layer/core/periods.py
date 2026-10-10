@@ -57,6 +57,7 @@ class ExecutionPolicy(BaseModel):
     deadline_seconds: float = Field(default=120, gt=0)
     max_queries: int = Field(default=30, ge=1)
     max_result_rows: int = Field(default=50000, ge=1)
+    allow_recipe_extension: bool = True
     default_period: PeriodChoice | None = None
 
     @property

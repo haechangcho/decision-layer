@@ -21,6 +21,18 @@ Parameters declare `type`, `label`, `required`, bounds and `ui_group` (`basic`, 
 `semantic_kind` makes a string/ref-list input a catalog picker. `visible_when` can
 depend on a declared parameter. These metadata generate the shared editor, not custom UI code.
 
+Optional scalar roles with the same `exclusive_group` appear as one alternative-field
+picker; a valid Recipe selects exactly one. Basic `group` parameters use `semantic_role`
+to appear beside their criterion, with typed boolean, value-list, exclusion and numeric
+range controls. Changing the criterion resets unfixed group definitions, not hidden
+validation thresholds. Use these contracts rather than contributing a custom UI panel.
+
+A native average can declare a count role with `default_binding="unit_count"`.
+`configure_step(..., catalog=catalog)` writes an explicit binding only when the visible
+catalog declares exactly one native row count on that average's primary unit. REST
+configuration uses the current caller's catalog. No candidate or multiple candidates
+require input; existing choices are preserved. Per-unit runtime validation still applies.
+
 Group inputs can declare `InputSourcePolicy(allowed=["literal", "step", "input"],
 default="previous_result", project="condition")`. This selects the first ranked group
 from the most recent earlier capable step. `parameter_parents` derives a comparison
@@ -34,7 +46,7 @@ Methods are reviewed Python implementations installed with the server. There is 
 
 Read the working examples:
 
-- [Runnable contribution template](https://github.com/haechangcho/decision-layer/blob/main/examples/method-template/README.md), including a standalone contract test.
+- [Minimal Method and executable contract tests](https://github.com/haechangcho/decision-layer/blob/main/tests/unit/test_method_contribution.py). The example uses an isolated registry; it is not installed as a production Method.
 
 - [Base contract and registry](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/base.py).
 - [Execution context](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/context.py).
@@ -51,9 +63,21 @@ Read the working examples:
 5. Register with `registry.register(...)` and import the module in [methods/__init__.py](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/__init__.py).
 6. Use existing localization helpers and add Korean user-facing messages in [ko.json](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/i18n/ko.json).
 
-Keep metric SQL, joins and access semantics in Cube. Do not bypass the context with raw source queries. Methods must work through the canonical API, not only a Web screen.
+Keep metric SQL, joins and access semantics in the connected semantic layer. Do not bypass the context with raw source queries. Methods must work through the canonical API, not only a Web screen.
 
-## Validate and document
+## Declare Result Capabilities
+
+Declare stable `provides` names in the Method manifest, for example `metric_lookup` or
+`matched_comparison`. Recipe candidates and Run goal evidence use these declarations,
+not the Method's display name. For parameter-dependent output, `provides_when` maps a
+capability to parameter names (any truthy parameter enables it). Return `MethodOutput`
+with explicit `provides` when runtime validation changes the available capabilities.
+Results may only expose declared capabilities; refused results expose none. Add tests
+showing both sufficient and insufficient inputs, not only successful calculations.
+
+Do not declare causal or inferential capability for a descriptive aggregate lookup.
+
+## Validate And Document
 
 | Part | Evidence |
 | --- | --- |
@@ -69,6 +93,7 @@ Add focused tests for valid inputs, missing roles, invalid parameters, empty dat
 
 ```bash
 .venv/bin/pytest tests/unit/test_methods.py
+.venv/bin/pytest tests/unit/test_method_contribution.py tests/unit/test_causal.py
 .venv/bin/pytest
 ```
 
@@ -94,4 +119,21 @@ accept arbitrary SQL. Unknown contracts refuse; hosted dbt API metadata currentl
 Results carry `statistical_judgement: not_tested`: continuous-outcome uncertainty is not implemented,
 and an average is never passed into a percentage/proportion significance test.
 The [campaign example](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/CAMPAIGN_ANALYSIS.md)
-demonstrates Cube/local MetricFlow parity and insufficient-overlap refusal, not causal ground truth.
+demonstrates Cube results and insufficient-overlap refusal, not causal ground truth.
+
+## CEM Review Scenarios
+
+`causal.cem@1.1.1` tightens range and inference checks. Existing pinned Recipes require
+review before upgrading; historical Runs remain unchanged.
+
+- Compare two populations with different condition mixes but identical within-condition outcomes. Matching must remove the composition-only difference.
+- Verify target-composition weights against hand-calculated values, not the Method's own result.
+- Test absent common strata, low retention, insufficient counts and missing conditions. Failed comparisons expose no supported capability or significance artifact.
+- Reject overlapping groups, reversed/duplicate/non-finite edges and ranges on unselected or nonnumeric conditions before querying.
+- Never infer a percentage from values in 0..100. Intervals require declared count numerator/denominator and a same-scope check of the actual counts and percentage scale. Unknown definitions and fraction-scale outputs do not receive percentage intervals.
+- Test native averages with missing counts, duplicate units and null outcomes. Continuous-outcome inference remains unsupported.
+- Record that post-match balance concerns the coarsened strata, not exact equality within numeric bins. Covariate timing and independent sampling require analytical review; this implementation does not establish them.
+
+The contribution contract tests cover valid execution, invalid inputs, empty results,
+query limits and provenance. Extend them with a Method-specific independent reference,
+provider compatibility checks and an editor test when declaring a new input type.

@@ -43,13 +43,15 @@ class MethodOutput:
 
     def __init__(self, primary: Artifact | None = None, artifacts: list[Artifact] | None = None,
                  warnings: list[str] | None = None, validation: list[ValidationResult] | None = None,
-                 runtime: dict[str, str] | None = None, selections: dict[str, SelectionOutput] | None = None) -> None:
+                 runtime: dict[str, str] | None = None, selections: dict[str, SelectionOutput] | None = None,
+                 provides: list[str] | None = None) -> None:
         self.primary = primary
         self.artifacts = artifacts or []
         self.warnings = warnings or []
         self.validation = validation or []
         self.runtime = runtime or {}
         self.selections = selections or {}
+        self.provides = provides
 
 
 class MethodRegistry:
@@ -85,8 +87,18 @@ class MethodRegistry:
                 if ref not in refs:
                     refs.append(ref)
         first_query = len(ctx.queries)
+        first_attempt = len(ctx.attempts)
+        def used_refs():
+            used = list(refs)
+            for attempt in ctx.attempts[first_attempt:]:
+                spec = attempt.spec
+                candidates = [*spec.measures, *spec.dimensions, *(item.member for item in spec.filters)]
+                candidates += [spec.time.dimension] if spec.time else []
+                candidates += [spec.entity] if spec.entity else []
+                used.extend(ref for ref in candidates if ref not in used)
+            return used
         provenance = lambda: Provenance(  # noqa: E731
-            method=method.ref, semantic_refs=refs, queries=ctx.queries[first_query:],
+            method=method.ref, semantic_refs=used_refs(), queries=ctx.queries[first_query:],
             runtime={"decision-layer": __version__})
         try:
             out = await method.run(ctx, bindings, params)
@@ -99,12 +111,16 @@ class MethodRegistry:
         failed = [v for v in out.validation if v.status == "fail"]
         if set(out.selections) - set(method.manifest.selection_outputs):
             raise InvalidBinding("The Method returned an undeclared selection output.")
+        provided = out.provides if out.provides is not None else method.manifest.result_capabilities(params)
+        if set(provided) - set(method.manifest.provides):
+            raise InvalidBinding("The Method returned an undeclared result capability.")
         evidence = provenance()
         evidence.runtime.update(out.runtime)
         evidence.runtime["decision-layer"] = __version__
         return Result(
             status="refused" if failed else "success",
             interpretation=method.manifest.interpretation,
+            provides=provided if not failed and out.primary is not None else [],
             primary=out.primary, artifacts=out.artifacts, warnings=out.warnings,
             validation=out.validation, provenance=evidence, selections=out.selections,
         )
@@ -167,6 +183,25 @@ class MethodRegistry:
                     not isinstance(edges, list) or any(isinstance(edge, bool) or not isinstance(edge, (int, float))
                     or not isfinite(edge) for edge in edges) for edges in value.values())):
                 raise InvalidBinding(_("{name} has an invalid structure", name=k))
+            if p.type == "ranges" and any(any(a >= b for a, b in zip(edges, edges[1:])) for edges in value.values()):
+                raise InvalidBinding(_("Range edges must be strictly increasing without duplicates."))
+            if p.type == "group":
+                scalar = lambda item: isinstance(item, (str, bool, int, float)) and not (isinstance(item, (int, float)) and not isfinite(item))
+                valid = scalar(value)
+                if isinstance(value, list):
+                    valid = bool(value) and all(scalar(item) for item in value)
+                elif isinstance(value, dict):
+                    keys = set(value)
+                    if keys in ({"values"}, {"exclude"}):
+                        items = next(iter(value.values()))
+                        valid = isinstance(items, list) and bool(items) and all(scalar(item) for item in items)
+                    elif keys and keys <= {"gte", "lt"}:
+                        valid = all(isinstance(item, (int, float)) and not isinstance(item, bool) and isfinite(item) for item in value.values())
+                        valid = valid and ("gte" not in value or "lt" not in value or value["gte"] < value["lt"])
+                    else:
+                        valid = False
+                if not valid:
+                    raise InvalidBinding(_("{name} has an invalid structure", name=k))
             if p.minimum is not None and value < p.minimum:
                 raise InvalidBinding(_("{name} must be at least {minimum}", name=k, minimum=p.minimum))
             if p.maximum is not None and value > p.maximum:

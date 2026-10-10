@@ -71,13 +71,7 @@ DL_DATABASE_URL=sqlite:///./data/journey-development.db \
 
 샘플 PostgreSQL에는 원본 데이터가 저장됩니다. 직접 실행한 API는 별도 SQLite DB를 사용하므로 컨테이너 API의 Run 기록을 자동으로 공유하지 않습니다. Recipe는 지정한 폴더의 YAML 파일입니다. 로컬 데이터와 인증 정보는 커밋하지 마세요.
 
-dbt 개발 환경은 예제 폴더에서 대신 다음 명령으로 시작합니다.
-
-```bash
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait postgres import dbt-setup metricflow
-```
-
-저장소 루트에서 API를 실행할 때는 위 Recipe·DB 설정과 함께 `DL_DEFAULT_SOURCE_PROVIDER=metricflow`, `DL_DEFAULT_METRICFLOW_URL=http://localhost:4100`, `DL_DEFAULT_METRICFLOW_INSTANCE=journey`, `METRICFLOW_AUTH_METHOD=none`, `DL_ALLOW_SERVICE_CREDENTIALS=true`를 사용하세요. 기존 연결이 기본값보다 우선하므로 새 기본 연결을 테스트할 때는 별도의 Run DB를 사용합니다. SQL과 YAML은 `examples/complete-journey/dbt/models/`에 있습니다. 수정 후 같은 Compose 파일로 `dbt-setup`을 빌드·실행하고 `metricflow`를 다시 생성하세요. 자세한 내용은 [MetricFlow 가이드](metricflow.md)에 있습니다.
+dbt 개발은 기존 dbt Semantic Layer 환경에 [공식 API로 연결](dbt.md)하세요. 어댑터 계약 테스트는 GraphQL 응답을 모의하며, 실제 연동 검증에는 dbt 환경과 인증 정보가 필요합니다.
 
 ## 코드 위치
 

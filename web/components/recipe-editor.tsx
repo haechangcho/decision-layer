@@ -16,6 +16,8 @@ import { declaredPath, selectionLabel, sourceLabel } from "./step-input-source";
 import { RecipeRuntimeInputs } from "./recipe-runtime-inputs";
 import { RunPeriodInput } from "./run-period-input";
 import { ParamInput } from "./forms";
+import { GroupInput } from "./group-input";
+import groupsStyle from "./group-input.module.css";
 import { suggestedDateRange, suggestedTimeDimension } from "@/lib/semantic-dates";
 import s from "./analysis-canvas.module.css";
 
@@ -84,7 +86,7 @@ function RefField({ label, value, objects, multiple, onChange, inherited, select
 }
 
 function roleObjects(role: RoleSpec, objects: SemanticObject[]) {
-  if (role.kind === "measure") return objects.filter((object) => object.kind === "measure");
+  if (role.kind === "measure") return objects.filter((object) => object.kind === "measure" && (!role.metric_kinds || role.metric_kinds.includes(object.metric_kind ?? "")));
   if (role.kind === "dimension") return objects.filter((object) => object.kind === "dimension" || object.kind === "time_dimension");
   if (role.kind === "time_dimension") return objects.filter((object) => object.kind === "time_dimension");
   return objects.filter((object) => !!object.entity);
@@ -96,12 +98,13 @@ const roleLabels: Record<string, string> = {
 };
 const parameterLabel = (name: string) => ({ subject: "비교 대상", peers: "동료 집단 조건", drill_path: "분석 범위", granularity: "시간 단위", vs_previous: "직전 같은 길이와 비교", top_n: "표시할 그룹 수", min_count: "최소 그룹 건수", rank_by: "정렬 기준" } as Record<string, string>)[name] || name;
 
-function ParameterField({ name, spec, value, onChange, disabled = false, error, fieldPath, objects = [] }: { name: string; spec: ParamSpec; value: unknown; onChange: (value: unknown) => void; disabled?: boolean; error?: string; fieldPath?: string; objects?: SemanticObject[] }) {
+function ParameterField({ name, spec, value, onChange, disabled = false, error, fieldPath, objects = [], dataType, oppositeValue }: { name: string; spec: ParamSpec; value: unknown; onChange: (value: unknown) => void; disabled?: boolean; error?: string; fieldPath?: string; objects?: SemanticObject[]; dataType?: string; oppositeValue?: unknown }) {
   const label = spec.label || parameterLabel(name);
   const current = value ?? spec.default;
   const source = sourceLabel(current);
   if (source) return <p>{source}</p>;
   if (typeof current === "string" && current.startsWith("$")) return <div className={s.refField}><span>{label}</span><code className={s.expression}>{current}</code></div>;
+  if (spec.type === "group") return <fieldset className={s.fields} disabled={disabled} data-recipe-field={fieldPath}><GroupInput label={label} spec={spec} value={current} dataType={dataType} oppositeValue={oppositeValue} onChange={onChange} />{error && <small className={s.fieldError} role="alert">{error}</small>}</fieldset>;
   if (spec.type === "drill_path") {
     const items = Array.isArray(current) ? current as { member: string; value: unknown }[] : [];
     const change = (index: number, patch: Record<string, unknown>) => onChange(items.map((item, i) => i === index ? { ...item, ...patch } : item));
@@ -154,10 +157,74 @@ function StepSettings({ step, manifest, onChange, objects, recipe, stepIndex, fi
   const usesRecipeMetric = metricBinding === "$scope.primary_metric";
   const metricRef = usesRecipeMetric ? recipe.semantic_scope.primary_metric : metricBinding;
   const metricTitle = typeof metricRef === "string" ? objects.find(o => o.ref === metricRef)?.title || metricRef || "지표 미설정" : "지표 미설정";
+  const metricObject = objects.find(object => object.ref === metricRef);
+  const countRoles = Object.entries(manifest.roles).filter(([, role]) => role.default_binding === "unit_count");
+  const [countBusy, setCountBusy] = useState(false);
+  const [countError, setCountError] = useState("");
+  const [countRetry, setCountRetry] = useState(0);
+  const latestStep = useRef(step); latestStep.current = step;
+  const latestChange = useRef(onChange); latestChange.current = onChange;
+  const missingCount = metricObject?.metric_kind === "average" && countRoles.some(([key]) => !step.bindings[key]);
+  useEffect(() => {
+    if (!missingCount) { setCountBusy(false); return; }
+    let cancelled = false;
+    setCountBusy(true); setCountError("");
+    api<Recipe>("/recipes:configure-step", { body: { recipe, step_index: stepIndex } }).then(configured => {
+      if (cancelled) return;
+      const bindings = { ...latestStep.current.bindings };
+      let changed = false;
+      for (const [key] of countRoles) if (!bindings[key] && configured.steps[stepIndex].bindings[key]) { bindings[key] = configured.steps[stepIndex].bindings[key]; changed = true; }
+      if (changed) latestChange.current({ ...latestStep.current, bindings });
+    }).catch(error => { if (!cancelled) setCountError(explainError(error)); }).finally(() => { if (!cancelled) setCountBusy(false); });
+    return () => { cancelled = true; };
+  }, [metricRef, missingCount, manifest.name, stepIndex, countRetry]);
+  const roleAlternatives = (name: string) => {
+    const group = manifest.roles[name]?.exclusive_group;
+    return Object.entries(manifest.roles).filter(([key, role]) => group ? role.exclusive_group === group : key === name);
+  };
+  const parameterField = ([name, spec]: [string, ParamSpec]) => {
+    const path = `steps[${stepIndex}].params.${name}`;
+    const value = parameterValue(name);
+    const boundRole = spec.semantic_role ? roleAlternatives(spec.semantic_role).find(([key]) => step.bindings[key])?.[0] : undefined;
+    const reference = boundRole ? step.bindings[boundRole] : undefined;
+    const subject = Object.entries(manifest.parameters).find(([, item]) => item.type === "group" && item.semantic_role === spec.semantic_role && item.meaning === "comparison_subject");
+    return <ParameterField key={`${name}:${reference}`} objects={objects} name={name} spec={spec} value={value} disabled={fixed(name)} fieldPath={path} dataType={objects.find(object => object.ref === reference)?.data_type} oppositeValue={subject ? parameterValue(subject[0]) : undefined} error={fieldError?.field === path ? fieldError.message : undefined} onChange={value => param(name, value)} />;
+  };
   const roleField = ([name, role]: [string, RoleSpec]) => {
     const inherited = name === "metric" ? objects.find(o => o.ref === recipe.semantic_scope.primary_metric)?.title || "미선택"
       : name === "dimensions" ? recipe.semantic_scope.preferred_dimensions.map(ref => objects.find(o => o.ref === ref)?.title || ref).join(" → ") || "미선택" : undefined;
     const path = `steps[${stepIndex}].bindings.${name}`;
+    if (role.default_binding === "unit_count") {
+      if (metricObject?.metric_kind !== "average") return step.bindings[name] ? <div key={name} className={groupsStyle.countIssue}><p>변경한 지표에는 이전 건수 연결을 사용할 수 없습니다.</p><button type="button" className={s.secondary} onClick={() => { const bindings = { ...step.bindings }; delete bindings[name]; onChange({ ...step, bindings }); }}>이전 건수 연결 제거</button></div> : null;
+      const current = objects.find(object => object.ref === step.bindings[name]);
+      if (current && metricObject.entity && current.count_measure === current.ref && current.entity === metricObject.entity && current.metric_kind === "count") return null;
+      const candidates = roleObjects(role, objects).filter(object => !!metricObject.entity && object.entity === metricObject.entity && object.count_measure === object.ref);
+      return <div key={name} className={groupsStyle.countIssue}>
+        <p>{countBusy ? "비교할 분석 단위를 확인하고 있습니다…" : "평균을 비교하려면 같은 분석 단위의 건수를 확인해야 합니다. 자동으로 확인할 수 없어 연결이 필요합니다."}</p>
+        {countError && <><p role="alert">{countError}</p><button type="button" className={s.secondary} onClick={() => setCountRetry(value => value + 1)}>다시 확인</button></>}
+        {!countBusy && (candidates.length ? <RefField label="분석 단위의 건수 확인" value={step.bindings[name]} objects={candidates} onChange={next => { const bindings = { ...step.bindings }; if (next) bindings[name] = next; else delete bindings[name]; onChange({ ...step, bindings }); }} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} /> : <p>연결된 semantic layer에서 기본 분석 단위와 같은 단위의 행 건수를 제공해야 합니다. 모델 담당자에게 확인해 주세요. <Link href="/sources">연결 상태 확인</Link></p>)}
+      </div>;
+    }
+    if (role.exclusive_group) {
+      const alternatives = roleAlternatives(name);
+      if (alternatives[0][0] !== name) return null;
+      const keys = alternatives.map(([key]) => key);
+      const value = alternatives.map(([key]) => step.bindings[key]).find(Boolean);
+      const parameters = basicParameters.filter(([, spec]) => spec.semantic_role && keys.includes(spec.semantic_role));
+      const candidates = objects.filter(object => alternatives.some(([, alternative]) => roleObjects(alternative, [object]).length));
+      return <div key={name} className={s.fields}>
+        <h3 className={groupsStyle.heading}>비교할 두 집단</h3>
+        <fieldset className={s.fields} disabled={parameters.some(([key]) => fixed(key))}><RefField label={role.label || roleLabels[name] || name} value={value} objects={candidates} fieldPath={path} error={fieldError && keys.some(key => fieldError.field === `steps[${stepIndex}].bindings.${key}`) ? fieldError.message : undefined} onChange={next => {
+          const bindings = { ...step.bindings }; keys.forEach(key => delete bindings[key]);
+          const chosen = objects.find(object => object.ref === next);
+          const selectedRole = alternatives.find(([, alternative]) => chosen && roleObjects(alternative, [chosen]).length);
+          if (selectedRole) bindings[selectedRole[0]] = next;
+          const params = { ...step.params }; parameters.forEach(([key]) => { if (!fixed(key)) delete params[key]; });
+          onChange({ ...step, bindings, params });
+        }} /></fieldset>
+        {!!value && <div className={`${groupsStyle.pair} ${s.comparisonPair}`}>{parameters.map(parameterField)}</div>}
+      </div>;
+    }
     const selector = Object.entries(manifest.parameters).find(([parameter, spec]) => role.editor_parameter === parameter && spec.type === "string" && spec.semantic_role === name && spec.semantic_kind === role.kind);
     if (selector) {
       const [parameter] = selector;
@@ -183,19 +250,19 @@ function StepSettings({ step, manifest, onChange, objects, recipe, stepIndex, fi
     return sourceLabel(value) || Array.isArray(value) && value.length ? describeSource(value, spec) : null;
   }).filter(Boolean);
   return <>
-    {manifest.roles.metric && <div className={s.inherited}><strong>{metricTitle}</strong><button type="button" className={s.secondary} onClick={() => setEditingMetric(!editingMetric)}>{editingMetric ? "완료" : "지표 변경"}</button></div>}
+    {manifest.roles.metric && <div><p className={s.nodeStatus}>{Object.values(manifest.roles).some(role => role.exclusive_group) ? "비교할 지표" : "분석 지표"}</p><div className={s.inherited}><strong>{metricTitle}</strong><button type="button" className={s.secondary} onClick={() => setEditingMetric(!editingMetric)}>{editingMetric ? "완료" : "지표 변경"}</button></div></div>}
     {editingMetric && manifest.roles.metric && <>
       <RefField label="이 단계에서 사용할 지표" value={metricBinding} objects={roleObjects(manifest.roles.metric, objects)} inherited={metricTitle} fieldPath={`steps[${stepIndex}].bindings.metric`} error={fieldError?.field === `steps[${stepIndex}].bindings.metric` ? fieldError.message : undefined} onChange={next => bind("metric", next)} />
       {!usesRecipeMetric && <button type="button" className={s.secondary} onClick={() => { bind("metric", "$scope.primary_metric"); setEditingMetric(false); }}><Undo2 size={13} />Recipe 지표 사용</button>}
     </>}
     {context.map((text, index) => <p key={index} className={s.nodeStatus}>{text}</p>)}
     {policy && <p className={s.nodeStatus}>이 절차에 지정된 실행 제약을 유지합니다. 변경은 코드 보기에서 할 수 있습니다.</p>}
-    {Object.entries(manifest.roles).filter(([name, role]) => name !== "metric" && role.required).map(roleField)}
-    {basicParameters.map(([name, spec]) => {
+    {Object.entries(manifest.roles).filter(([name, role]) => name !== "metric" && (role.required || role.exclusive_group || step.bindings[name] || role.default_binding === "unit_count" && metricObject?.metric_kind === "average")).map(roleField)}
+    {basicParameters.filter(([, spec]) => !spec.semantic_role || !manifest.roles[spec.semantic_role]?.exclusive_group).map(([name, spec]) => {
       const path = `steps[${stepIndex}].params.${name}`;
       const value = parameterValue(name);
       return spec.type === "drill_path" && sourceLabel(value) ? <div className={s.refField} key={name}><strong>{spec.label || parameterLabel(name)}</strong><span className={s.nodeStatus}>{describeSource(value, spec)}</span></div>
-        : <ParameterField key={name} objects={objects} name={name} spec={spec} value={value} disabled={fixed(name)} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} onChange={value => param(name, value)} />;
+        : parameterField([name, spec]);
     })}
     <label>{step.purpose_context === "source_run" ? "원래 분석의 단계 설명 (재사용할 설명으로 수정 가능)" : "이 단계에서 확인할 내용"}<textarea rows={2} maxLength={240} value={step.purpose ?? ""} onChange={event => onChange({ ...step, purpose: event.target.value || null, purpose_context: "procedure" })} /></label>
   </>;
@@ -271,7 +338,13 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const activeManifest = methods?.find(method => method.name === active?.method);
   useEffect(() => { setPreviewFormOpen(false); }, [selected]);
   const displayMethod = (name: string) => methods?.find(method => method.name === name)?.label || methodName(name);
-  const missingRoles = activeManifest ? Object.entries(activeManifest.roles).filter(([name, role]) => role.required && (!active.bindings[name] || (Array.isArray(active.bindings[name]) && !(active.bindings[name] as unknown[]).length))) : [];
+  const missingRoles = activeManifest ? Object.entries(activeManifest.roles).filter(([name, role]) => {
+    if (role.exclusive_group) {
+      const alternatives = Object.entries(activeManifest.roles).filter(([, item]) => item.exclusive_group === role.exclusive_group);
+      return alternatives[0][0] === name && alternatives.filter(([key]) => active.bindings[key]).length !== 1;
+    }
+    return role.required && (!active.bindings[name] || Array.isArray(active.bindings[name]) && !(active.bindings[name] as unknown[]).length);
+  }) : [];
   const stoppedPreviewStep = previewRun && !previewRun.running && previewRun.steps.length < previewIndex + 1
     ? previewRun.steps.at(-1)?.result.status !== "success" && previewRun.steps.length ? previewRun.steps.length - 1
       : previewRun.error && previewRun.steps.length ? previewRun.steps.length : null
@@ -450,7 +523,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
     } catch (e) { writeError(e); } finally { setBusy(false); }
   }
   return <div className={s.page}>
-    <header className={s.header}><div><Link className={s.back} href="/recipes"><ArrowLeft size={14} />분석 라이브러리</Link><h1>{saved ? "분석 절차 편집" : "새 분석 절차"}</h1><span className={s.nodeStatus}>{dirty ? "저장되지 않은 변경" : `v${saved?.version} · ${saved?.status === "draft" ? "초안" : "발행됨"}`}</span></div><div className={s.actions}>
+    <header className={s.header}><div><Link className={s.back} href="/recipes"><ArrowLeft size={14} />레시피</Link><h1>{saved ? "분석 절차 편집" : "새 분석 절차"}</h1><span className={s.nodeStatus}>{dirty ? "저장되지 않은 변경" : `v${saved?.version} · ${saved?.status === "draft" ? "초안" : "발행됨"}`}</span></div><div className={s.actions}>
       <button type="button" className={s.secondary} aria-pressed={yamlOpen} onClick={() => setYamlOpen(!yamlOpen)}><Code2 size={16} />{yamlOpen ? "코드 닫기" : "코드 보기"}</button>
       {dirty && saved && <button className={s.secondary} title="저장된 버전으로 되돌리기" onClick={() => { setRecipe(saved); setSelected(-1); setPositions([]); setFieldError(null); }}><Undo2 size={16} />되돌리기</button>}
       {dirty && steps.length > 0 && <button disabled={busy || !recipe.semantic_scope.primary_metric} onClick={() => { setError(""); setDialog(true); }}><Save size={16} />초안 저장</button>}
@@ -469,7 +542,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       </section>
       <aside ref={inspector} className={s.inspector}>
         {adding ? <><h2>분석 방법 선택</h2><label className={s.search}><Search size={16} /><input aria-label="분석 방법 검색" value={search} placeholder="추이, 항목별, 조건 맞춤" onChange={e => setSearch(e.target.value)} /></label><div className={s.choices}>{(methods || []).filter(m => (pipeline || !recipe.allowed_methods.includes(m.name)) && `${displayMethod(m.name)} ${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase())).map(m => <button key={m.name} onClick={() => add(m.name)}><span>{displayMethod(m.name)}</span><Plus size={16} /><small>{m.description}</small></button>)}</div><button className={s.secondary} onClick={() => setAdding(false)}>취소</button></> : !active ? <div className={s.fields}>
-          <h2>분석 절차 정보</h2><label>어떤 분석인가요?<textarea rows={2} value={recipe.description} placeholder="예: 지급액 변화를 확인하고 지급 항목별로 살펴보기" onChange={e => change({ ...recipe, description: e.target.value })} /></label>
+          <h2>분석 절차 정보</h2><label>어떤 질문에 사용하는 분석인가요?<textarea rows={2} value={recipe.routing.objective || recipe.description} placeholder="예: 지표의 변화를 확인하고 영향이 큰 항목 찾기" onChange={e => change({ ...recipe, description: e.target.value, routing: { ...recipe.routing, objective: e.target.value } })} /></label>
           <RefField label="분석할 지표" selectRef={metricSelect} value={recipe.semantic_scope.primary_metric} objects={objects.filter(o => o.kind === "measure")} fieldPath="semantic_scope.primary_metric" error={fieldError?.field === "semantic_scope.primary_metric" ? fieldError.message : undefined} onChange={v => change({ ...recipe, name: recipe.name || newName(String(v)), semantic_scope: { ...recipe.semantic_scope, primary_metric: String(v) } })} />
         </div> : <div className={s.fields}>
           <button type="button" className={s.inspectorBack} onClick={() => { setSelected(-1); setAdding(false); }}><ArrowLeft size={14} />분석 절차 정보</button>
@@ -514,7 +587,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       {error && <p className={s.error} role="alert">{error}</p>}
     </section></div>}
     {publishDialog && <div className={s.overlay}><section className={s.dialog} role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title"><div className={s.inspectorHeading}><h2 id="publish-dialog-title">분석 절차 발행</h2><button className={s.icon} disabled={busy} aria-label="닫기" onClick={() => setPublishDialog(false)}><X size={18} /></button></div>
-      <p>{recipe.description || recipe.name} · 초안 v{saved?.version} · {steps.length}단계</p><p>발행하면 새 버전이 분석 라이브러리와 MCP에 표시되고 실행할 수 있습니다. 현재 초안은 그대로 보관됩니다.</p>
+      <p>{recipe.description || recipe.name} · 초안 v{saved?.version} · {steps.length}단계</p><p>발행하면 새 버전이 레시피 목록과 MCP에 표시되고 실행할 수 있습니다. 현재 초안은 그대로 보관됩니다.</p>
       <ul className={s.changeList}><li>분석 지표 · {title(recipe.semantic_scope.primary_metric)}</li>{steps.map((step, index) => <li key={step.id || index}>{index + 1}단계 · {displayMethod(step.method)}</li>)}</ul>
       <button className={s.run} disabled={busy} onClick={publish}><Check size={16} />{busy ? "검증 중…" : "검증하고 발행"}</button>{error && <p className={s.error} role="alert">{error}</p>}
     </section></div>}

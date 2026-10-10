@@ -28,7 +28,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-metricflow = ["dbt-metricflow==0.15.0", "dbt-postgres==1.11.0", "dbt-core==1.12.5"]
 mcp = ["mcp>=2.2,<3"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21", "mcp>=2.2,<3"]
 

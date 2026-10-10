@@ -5,7 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from decision_layer.api.app import create_app
-from decision_layer.core.models import PlanStep, RunConclusion, RunFinding
+from decision_layer.core.models import AnalysisGoal, GoalOutcome, PlanStep, RecipeSelection, RunConclusion, RunFinding
 from decision_layer.methods.base import InvalidBinding
 from decision_layer.recipes.loader import RecipeStore, UnknownRecipe
 from decision_layer.runs.engine import AnalysisContractError, MethodNotAllowed, RunBusy, RunClosed, RunEngine, RunLimitExceeded
@@ -17,6 +17,8 @@ from test_methods import AMOUNT, CAT, COUNT, CREDS, Q3, RR, FakeProvider
 REPO_RECIPES = Path(__file__).parents[1] / "fixtures" / "recipes"
 SCOPE = {"date_range": list(Q3)}
 ME = CallerInfo(subject="alice")
+MCP_GOALS = [AnalysisGoal(id="answer", description="Inspect the requested metric", semantic_refs=[RR])]
+MCP_OUTCOMES = [GoalOutcome(goal_id="answer", status="supported", step_indices=[0])]
 
 
 @pytest.fixture
@@ -222,13 +224,13 @@ async def test_recipe_free_question_keeps_multiple_methods_in_one_run(provider, 
     e = engine(provider, SqliteRunStore(str(tmp_path / "runs.db")), recipes_dir=tmp_path / "empty")
     assert e.recipes.list() == []
     run = await e.start(CREDS, ME, recipe=None, question="반품률이 어떻게 변했고 어느 범주가 높은가?", scope=SCOPE,
-                        origin="mcp")
+                        origin="mcp", goals=MCP_GOALS)
     assert run.status == "open" and run.recipe_snapshot is None
-    await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", purpose="기간별 반품률을 확인", bindings={"metric": RR}))
-    await e.step(CREDS, ME, run.id, PlanStep(method="query.drilldown", purpose="높은 반품률의 범주 확인", bindings={"metric": RR, "dimensions": [CAT]}))
+    await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", goal_ids=["answer"], purpose="기간별 반품률을 확인", bindings={"metric": RR}))
+    await e.step(CREDS, ME, run.id, PlanStep(method="query.drilldown", goal_ids=["answer"], purpose="높은 반품률의 범주 확인", bindings={"metric": RR, "dimensions": [CAT]}))
     assert (await e.store.get(run.id)).status == "open"
     done = await e.complete(ME, run.id, conclusion=RunConclusion(answer="두 분석 단계의 결과를 확인함",
-        findings=[RunFinding(text="기간과 범주별 값을 확인함", step_indices=[0, 1])]))
+        findings=[RunFinding(text="기간과 범주별 값을 확인함", step_indices=[0, 1])], goal_outcomes=MCP_OUTCOMES))
     stored = await e.store.get(run.id)
     assert done.status == "completed" and stored.origin == "mcp"
     assert stored.plan.question == "반품률이 어떻게 변했고 어느 범주가 높은가?"
@@ -238,20 +240,20 @@ async def test_recipe_free_question_keeps_multiple_methods_in_one_run(provider, 
 
 
 async def test_mcp_contract_rejects_fragmented_or_incomplete_analysis(provider, tmp_path):
-    e = engine(provider, SqliteRunStore(str(tmp_path / "runs.db")))
+    e = engine(provider, SqliteRunStore(str(tmp_path / "runs.db")), recipes_dir=tmp_path / "empty")
     with pytest.raises(AnalysisContractError):
         await e.start(CREDS, ME, recipe=None, question="  ", scope=SCOPE, origin="mcp")
     with pytest.raises(AnalysisContractError):
         await e.adhoc(CREDS, ME, PlanStep(method="query.trend", bindings={"metric": RR}), SCOPE, origin="mcp")
     assert await e.list(ME) == []
-    run = await e.start(CREDS, ME, recipe=None, question="Compare changes and groups", scope=SCOPE, origin="mcp")
+    run = await e.start(CREDS, ME, recipe=None, question="Compare changes and groups", scope=SCOPE, origin="mcp", goals=MCP_GOALS)
     with pytest.raises(AnalysisContractError):
         await e.complete(ME, run.id, conclusion=RunConclusion(answer="No evidence"))
     for purpose in (None, "  "):
         with pytest.raises(AnalysisContractError):
             await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", purpose=purpose, bindings={"metric": RR}))
     assert (await e.store.get(run.id)).steps == []
-    await e.step(CREDS, ME, run.id, PlanStep(id="trend", method="query.trend", purpose="Check changes", bindings={"metric": RR}))
+    await e.step(CREDS, ME, run.id, PlanStep(id="trend", method="query.trend", purpose="Check changes", goal_ids=["answer"], bindings={"metric": RR}))
     with pytest.raises(InvalidBinding):
         await e.step(CREDS, ME, run.id, PlanStep(id="trend", method="query.trend", purpose="Retry", bindings={"metric": RR}))
     for conclusion in (None, RunConclusion(answer="Answer"), RunConclusion(answer="Answer", findings=[RunFinding(text="Unlinked")])):
@@ -261,7 +263,7 @@ async def test_mcp_contract_rejects_fragmented_or_incomplete_analysis(provider, 
         await e.complete(ME, run.id, conclusion=RunConclusion(answer="Answer", findings=[RunFinding(text="Bad link", step_indices=[2])]))
     pending = await e.store.get(run.id)
     assert pending.status == "open" and pending.conclusion is None and len(pending.steps) == 1
-    done = await e.complete(ME, run.id, conclusion=RunConclusion(answer="Recorded answer", findings=[RunFinding(text="Observed change", step_indices=[0])]))
+    done = await e.complete(ME, run.id, conclusion=RunConclusion(answer="Recorded answer", findings=[RunFinding(text="Observed change", step_indices=[0])], goal_outcomes=MCP_OUTCOMES))
     assert done.status == "completed" and done.conclusion.source == "caller"
     with pytest.raises(RunClosed):
         await e.step(CREDS, ME, run.id, PlanStep(method="query.trend", purpose="Late", bindings={"metric": RR}))
@@ -269,9 +271,10 @@ async def test_mcp_contract_rejects_fragmented_or_incomplete_analysis(provider, 
 
 async def test_mcp_pipeline_waits_for_conclusion(provider):
     e = engine(provider)
-    run = await e.start(CREDS, ME, recipe="return-rate-drilldown", question="Compare categories and sellers", scope=SCOPE, origin="mcp")
+    run = await e.start(CREDS, ME, recipe="return-rate-drilldown", question="Compare categories and sellers", scope=SCOPE, origin="mcp", goals=MCP_GOALS,
+        recipe_selection=RecipeSelection(reason="Matches the requested group comparison", goal_ids=["answer"]))
     assert run.status == "open" and not run.running and len(run.steps) == 2 and run.conclusion is None
-    done = await e.complete(ME, run.id, conclusion=RunConclusion(answer="Reviewed results", findings=[RunFinding(text="Compared groups", step_indices=[0, 1])]))
+    done = await e.complete(ME, run.id, conclusion=RunConclusion(answer="Reviewed results", findings=[RunFinding(text="Compared groups", step_indices=[0, 1])], goal_outcomes=MCP_OUTCOMES))
     assert done.status == "completed"
 
 
@@ -284,14 +287,14 @@ def test_mcp_rest_execution_cannot_bypass_question_run_contract(provider, tmp_pa
     assert denied.status_code == 422 and denied.json()["error"]["code"] == "ANALYSIS_CONTRACT_REQUIRED"
     assert client.get("/runs").json() == []
     assert client.post("/runs", json={"question": " "}).status_code == 422
-    run = client.post("/runs", json={"question": "How did the metric change?", "scope": SCOPE}).json()
+    run = client.post("/runs", json={"question": "How did the metric change?", "scope": SCOPE, "goals": [goal.model_dump(mode="json") for goal in MCP_GOALS]}).json()
     path = f"/runs/{run['id']}"
     assert client.post(path + "/steps", json={"method": "query.trend", "bindings": {"metric": RR}}).status_code == 422
-    assert client.post(path + "/steps", json={"method": "query.trend", "purpose": "Check change", "bindings": {"metric": RR}}).status_code == 200
+    assert client.post(path + "/steps", json={"method": "query.trend", "goal_ids": ["answer"], "purpose": "Check change", "bindings": {"metric": RR}}).status_code == 200
     assert client.post(path + ":complete", json={"summary": "Done"}).status_code == 422
     assert client.post(path + "/recipe").status_code == 422
     assert client.get(path).json()["status"] == "open"
-    assert client.post(path + ":complete", json={"conclusion": {"answer": "Reviewed", "findings": [{"text": "Change result", "step_indices": [0]}]}}).status_code == 200
+    assert client.post(path + ":complete", json={"conclusion": {"answer": "Reviewed", "findings": [{"text": "Change result", "step_indices": [0]}], "goal_outcomes": [outcome.model_dump(mode="json") for outcome in MCP_OUTCOMES]}}).status_code == 200
     assert client.post(path + "/recipe", json={"reviewed": True}).status_code == 200
     assert len(client.get("/runs").json()) == 1
 
@@ -508,9 +511,9 @@ def test_api_runs(provider):
     from decision_layer.recipes.from_run import candidate_from_run
     from decision_layer.core.models import Run
     recorded = Run.model_validate(c.get(f"/runs/{adhoc['run_id']}").json())
-    recorded.steps[0].step.bindings["metric"] = "metricflow://journey/metrics/receipts"
+    recorded.steps[0].step.bindings["metric"] = "dbt://journey/metrics/receipts"
     promoted = candidate_from_run(recorded, [0])
-    assert promoted.recipe.semantic_scope.primary_metric == "metricflow://journey/metrics/receipts"
+    assert promoted.recipe.semantic_scope.primary_metric == "dbt://journey/metrics/receipts"
     assert promoted.recipe.steps[0].params == recorded.steps[0].step.params
 
 

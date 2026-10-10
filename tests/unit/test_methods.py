@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 
 from decision_layer.api.app import create_app
 from decision_layer.core.errors import ProviderAccessDenied, UnknownSemanticObject
-from decision_layer.core.models import Column, Dataset, DatasetSpec, QueryProvenance
+from decision_layer.core.models import Column, Dataset, DatasetSpec, ProviderCapabilities, QueryProvenance
 from decision_layer.methods import registry
 from decision_layer.methods.base import InvalidBinding
 from decision_layer.methods.context import ExecutionContext, Scope
@@ -96,6 +96,13 @@ class FakeProvider:
                 raise UnknownSemanticObject(f"'{ref}' was not found or you don't have access to it", ref=ref)
             objects.append(obj)
         return objects
+
+    def capabilities(self):
+        return ProviderCapabilities(aggregate_queries=True, entity_grain_queries=True, time_dimensions=True,
+            compiled_sql=False, hierarchies=False, max_rows_per_query=50000)
+
+    async def validate_dataset(self, spec, credentials):
+        await self.resolve([*spec.measures, *spec.dimensions], credentials)
 
     async def execute(self, spec: DatasetSpec, credentials, *, with_sql=False) -> Dataset:
         self.calls += 1
@@ -248,7 +255,7 @@ async def test_bindings_and_params_are_checked(provider):
 def test_api_routes(provider):
     s = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="s", cube_service_groups=("ecommerce",), database_url="memory", allow_service_credentials=True)
     c = TestClient(create_app(s, provider))
-    assert {m["name"] for m in c.get("/methods").json()} == {"query.drilldown", "query.trend", "query.peer_comparison", "causal.cem"}
+    assert {m["name"] for m in c.get("/methods").json()} == {"query.aggregate", "query.drilldown", "query.trend", "query.peer_comparison", "causal.cem"}
     assert c.get("/methods/query.drilldown").json()["roles"]["dimensions"]["multiple"] is True
     r = c.post("/methods/query.drilldown:run", json={"bindings": {"metric": RR, "dimensions": [CAT, SELLER]},
                                                      "scope": {"date_range": list(Q3)}})

@@ -32,25 +32,22 @@ test.beforeEach(async ({ page }) => {
 test("root opens Recipes and a catalog metric starts a prefilled Recipe", async ({ page }, info) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/recipes$/);
-  await expect(page.getByRole("heading", { name: /Analysis library|분석 라이브러리/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Recipes|레시피/ })).toBeVisible();
   await page.goto("/catalog");
   await expect(page.getByRole("heading", { name: "지표 탐색" })).toBeVisible();
   await page.screenshot({ path: info.outputPath("catalog.png"), fullPage: true });
   await expect(page.getByRole("button", { name: /반품률/ })).toBeVisible();
   await page.getByLabel("지표 검색").fill("배송");
   await expect(page.getByRole("button", { name: /배송 소요일/ })).toBeVisible();
-  await page.getByRole("button", { name: "확인 필요 1" }).click();
-  await expect(page.getByRole("button", { name: /배송 소요일/ })).toBeVisible();
   await page.getByRole("button", { name: /배송 소요일/ }).click();
-  await expect(page.getByText("시간 추이 분석을 사용할 수 없습니다.")).toBeVisible();
+  await expect(page.getByText("확인되지 않음", { exact: true })).toBeVisible();
   if (info.project.name === "mobile") await page.getByRole("button", { name: "닫기", exact: true }).click();
   await page.getByLabel("지표 검색").fill("");
-  await page.getByRole("button", { name: "전체 3" }).click();
   await page.getByRole("button", { name: /반품률/ }).click();
   await expect(page.getByText(objects[0].ref, { exact: true })).not.toBeVisible();
   await page.getByText("기술 정보", { exact: true }).click();
   await expect(page.getByText(objects[0].ref, { exact: true })).toBeVisible();
-  await expect(page.getByText("분자 / 분모")).toBeVisible();
+  await expect(page.getByRole("list").getByText("분자 / 분모", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Recipe 만들기" }).click();
   await expect(page).toHaveURL(/\/recipes\/new\?method=query\.trend&metric=/);
   await expect(page.getByLabel("분석할 지표", { exact: true })).toHaveValue(objects[0].ref);
@@ -65,7 +62,7 @@ test("drafts are separate from the executable analysis library", async ({ page }
   await page.route("**/api/recipes:drafts", route => route.fulfill({ json: [draft] }));
   await page.goto("/recipes");
   await expect(page.getByRole("region", { name: "작성 중인 초안" })).toContainText("반품 분석 초안");
-  await expect(page.getByRole("region", { name: "Analysis library" })).not.toContainText("반품 분석 초안");
+  await expect(page.getByRole("region", { name: "Recipes" })).not.toContainText("반품 분석 초안");
   await page.getByRole("region", { name: "작성 중인 초안" }).getByRole("link", { name: /반품 분석 초안/ }).click();
   await expect(page).toHaveURL(/\/recipes\/review-draft\/edit$/);
 });
@@ -107,7 +104,7 @@ test("token-free local Cube does not ask for a user token", async ({ page }) => 
 test("legacy design route returns to the product entry and mobile has no overflow", async ({ page }) => {
   await page.goto("/design");
   await expect(page).toHaveURL(/\/recipes$/);
-  await expect(page.getByRole("heading", { name: /Analysis library|분석 라이브러리/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Recipes|레시피/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

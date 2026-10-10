@@ -69,6 +69,92 @@ async function codeEdit(page: Page, update: (recipe: Recipe) => void) {
   await page.getByRole("button", { name: "코드 닫기", exact: true }).click();
 }
 
+test("comparison groups use generic typed controls and reset on criterion changes", async ({ page }, info) => {
+  const initial = existing();
+  const flag = "cube://local/fact_payment/flag";
+  const score = "cube://local/fact_payment/score";
+  initial.steps = [{ id: "match", method: "example.match", bindings: { metric: "$scope.primary_metric", assignment: flag, covariates: [dimension] }, params: { retention: 0.73 } }];
+  const state = await mockApi(page, initial);
+  await page.route("**/api/methods", route => route.fulfill({ json: [{ name: "example.match", version: "1.0.0", roles: {
+    metric: { kind: "measure", required: true },
+    assignment: { kind: "dimension", required: false, label: "그룹을 나누는 기준", exclusive_group: "split" },
+    score: { kind: "measure", required: false, label: "그룹을 나누는 기준", exclusive_group: "split" },
+    covariates: { kind: "dimension", required: true, multiple: true, label: "맞출 조건" },
+  }, parameters: {
+    exposed: { type: "group", label: "대상 그룹", ui_group: "basic", semantic_role: "assignment", meaning: "comparison_subject" },
+    controls: { type: "group", label: "비교 그룹", ui_group: "basic", semantic_role: "assignment", meaning: "comparison_population" },
+    retention: { type: "number", default: 0.5, ui_group: "hidden" },
+  } }] }));
+  await page.route("**/api/semantic/catalog", route => route.fulfill({ json: { objects: [
+    { ref: metric, kind: "measure", title: "평균 지급액", data_type: "number" },
+    { ref: flag, kind: "dimension", title: "대상 여부", data_type: "boolean" },
+    { ref: dimension, kind: "dimension", title: "지급 유형", data_type: "string" },
+    { ref: score, kind: "measure", title: "이전 구매금액", data_type: "number" },
+  ] } }));
+  await page.goto("/recipes/insurance-review/edit");
+  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await expect(page.getByLabel("대상 그룹", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("비교 그룹", { exact: true })).toContainText("아니요 · 반대 그룹");
+  const targetBox = await page.getByLabel("대상 그룹", { exact: true }).boundingBox();
+  const comparisonBox = await page.getByLabel("비교 그룹", { exact: true }).boundingBox();
+  expect(targetBox && comparisonBox && comparisonBox.x > targetBox.x && Math.abs(comparisonBox.y - targetBox.y) < 2).toBe(true);
+  await page.getByLabel("대상 그룹", { exact: true }).selectOption("false");
+  await expect(page.getByLabel("비교 그룹", { exact: true })).toContainText("예 · 반대 그룹");
+  await page.getByLabel("비교 그룹", { exact: true }).selectOption("true");
+  await page.screenshot({ path: info.outputPath("boolean-groups.png"), fullPage: true });
+  await page.getByLabel("그룹을 나누는 기준", { exact: true }).selectOption(dimension);
+  await expect(page.getByLabel("대상 그룹 정의")).toHaveValue("values");
+  await expect(page.getByLabel("대상 그룹 값", { exact: true })).toHaveValue("");
+  await page.getByLabel("대상 그룹 정의").selectOption("values");
+  await page.getByLabel("대상 그룹 값", { exact: true }).fill("A");
+  await page.getByRole("button", { name: "대상 그룹 값 추가", exact: true }).click();
+  await page.getByLabel("비교 그룹 정의").selectOption("exclude");
+  await page.getByLabel("비교 그룹 값", { exact: true }).fill("A");
+  await page.getByRole("button", { name: "비교 그룹 값 추가", exact: true }).click();
+  await page.getByLabel("그룹을 나누는 기준", { exact: true }).selectOption(score);
+  await expect(page.getByLabel("대상 그룹 정의")).toHaveValue("auto");
+  await page.getByLabel("대상 그룹 정의").selectOption("range");
+  await page.getByLabel("대상 그룹 이상", { exact: true }).fill("100");
+  await expect(page.getByLabel("비교 그룹 정의")).toContainText("100 미만 · 반대 범위");
+  await page.getByLabel("비교 그룹 정의").selectOption("range");
+  await page.getByLabel("비교 그룹 미만", { exact: true }).fill("100");
+  await save(page);
+  await expect.poll(() => state.submission()?.recipe.steps[0].bindings).toEqual({ metric: "$scope.primary_metric", score, covariates: [dimension] });
+  await expect.poll(() => state.submission()?.recipe.steps[0].params).toEqual({ retention: 0.73, exposed: { gte: 100 }, controls: { lt: 100 } });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const automatic of [true, false]) test(`average count connection is ${automatic ? "automatic" : "requested only when ambiguous"}`, async ({ page }) => {
+  const initial = existing();
+  const count = "cube://local/fact_payment/rows";
+  const entity = "cube://local/fact_payment/id";
+  initial.steps = [{ id: "average", method: "example.average", bindings: { metric: "$scope.primary_metric" }, params: {} }];
+  const state = await mockApi(page, initial);
+  await page.route("**/api/methods", route => route.fulfill({ json: [{ name: "example.average", version: "1.0.0", roles: {
+    metric: { kind: "measure", required: true },
+    sample: { kind: "measure", required: false, label: "표본 건수 지표", default_binding: "unit_count", metric_kinds: ["count"], ui_group: "options" },
+  }, parameters: {} }] }));
+  await page.route("**/api/semantic/catalog", route => route.fulfill({ json: { objects: [
+    { ref: metric, kind: "measure", title: "평균 판매금액", data_type: "number", metric_kind: "average", entity },
+    { ref: count, kind: "measure", title: "관측 건수", data_type: "number", metric_kind: "count", count_measure: count, entity },
+  ] } }));
+  await page.route("**/api/recipes:configure-step", route => {
+    const recipe = route.request().postDataJSON().recipe;
+    if (automatic) recipe.steps[0].bindings.sample = count;
+    return route.fulfill({ json: recipe });
+  });
+  await page.goto("/recipes/insurance-review/edit");
+  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await expect(page.getByLabel("표본 건수 지표", { exact: true })).toHaveCount(0);
+  if (!automatic) {
+    await expect(page.getByText(/자동으로 확인할 수 없어 연결이 필요합니다/)).toBeVisible();
+    await page.getByLabel("분석 단위의 건수 확인").selectOption(count);
+  }
+  await expect(page.getByLabel("분석 단위의 건수 확인")).toHaveCount(0);
+  await save(page);
+  await expect.poll(() => state.submission()?.recipe.steps[0].bindings.sample).toBe(count);
+});
+
 test("write a two-step Recipe with purpose, metric and dimensions only", async ({ page }, info) => {
   const state = await mockApi(page);
   await page.goto("/recipes/new");
@@ -77,7 +163,7 @@ test("write a two-step Recipe with purpose, metric and dimensions only", async (
   await expect(page.getByRole("button", { name: "초안 저장", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "지표 선택", exact: true }).click();
   await expect(page.getByLabel("분석할 지표", { exact: true })).toBeFocused();
-  await page.getByLabel("어떤 분석인가요?").fill("보험금 지급액 변화를 확인하고 지급 유형별로 분석");
+  await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("보험금 지급액 변화를 확인하고 지급 유형별로 분석");
   await page.getByLabel("분석할 지표", { exact: true }).selectOption(metric);
   await page.getByRole("button", { name: "코드 보기", exact: true }).click();
   await page.getByLabel("Recipe ID").fill("insurance-review");
@@ -151,7 +237,7 @@ test("Recipe-fixed parameters stay preserved outside basic editing", async ({ pa
   await expect(page.getByText(/이 절차에 지정된 실행 제약/)).toBeVisible();
   await expect(page.getByLabel("표시할 그룹 수")).toHaveCount(0);
   await page.getByRole("button", { name: "분석 절차 정보" }).click();
-  await page.getByLabel("어떤 분석인가요?").fill("보험금 지급액 분석 절차");
+  await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("보험금 지급액 분석 절차");
   await save(page);
   await expect.poll(() => state.submission()?.recipe.method_parameters?.["query.drilldown"].fixed.top_n).toBe(7);
 });
@@ -182,15 +268,15 @@ test("YAML edits update the graph and graph edits refresh YAML", async ({ page }
   await expect(page.getByLabel("Recipe YAML")).toContainText("description: 보험금 지급액 분석");
   await page.getByLabel("Recipe YAML").fill("name: insurance-review\ndescription: 새 분석 절차\n");
   await page.getByRole("button", { name: "YAML 적용" }).click();
-  await expect(page.getByLabel("어떤 분석인가요?")).toHaveValue("새 분석 절차");
+  await expect(page.getByLabel("어떤 질문에 사용하는 분석인가요?")).toHaveValue("새 분석 절차");
   await expect(page.locator('.react-flow__node[data-id="scope"]')).toContainText("새 분석 절차");
-  await page.getByLabel("어떤 분석인가요?").fill("그래프에서 수정");
+  await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("그래프에서 수정");
   await expect(page.getByLabel("Recipe YAML")).toContainText("description: 그래프에서 수정");
   await page.getByLabel("Recipe YAML").fill("name: insurance-review\ndescription: 덮어쓰기 시도\n");
-  await page.getByLabel("어떤 분석인가요?").fill("더 최근 그래프 변경");
+  await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("더 최근 그래프 변경");
   await page.getByRole("button", { name: "YAML 적용" }).click();
   await expect(page.getByText("그래프가 변경되었습니다. YAML을 새로고침한 뒤 다시 편집해 주세요.")).toBeVisible();
-  await expect(page.getByLabel("어떤 분석인가요?")).toHaveValue("더 최근 그래프 변경");
+  await expect(page.getByLabel("어떤 질문에 사용하는 분석인가요?")).toHaveValue("더 최근 그래프 변경");
 });
 
 test("a hidden-setting save error opens code for repair", async ({ page }, info) => {
@@ -212,7 +298,7 @@ test("a hidden-setting save error opens code for repair", async ({ page }, info)
 test("save review summarizes changed fields without raw JSON", async ({ page }, info) => {
   await mockApi(page, existing());
   await page.goto("/recipes/insurance-review/edit");
-  await page.getByLabel("어떤 분석인가요?").fill("지급액 변화 확인");
+  await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("지급액 변화 확인");
   await page.locator('.react-flow__node[data-id="step:0"]').click();
   await codeEdit(page, recipe => { recipe.steps[0].params.top_n = 8; });
   await page.getByRole("button", { name: "초안 저장", exact: true }).click();
@@ -286,7 +372,7 @@ test("editing an existing step-specific metric preserves its override", async ({
   await expect(page.locator('[class*="inherited"]').getByText("청구 건수", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "지표 변경", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "분석 절차 정보" }).click();
-  await page.getByLabel("어떤 분석인가요?").fill("수정한 분석 목적");
+  await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("수정한 분석 목적");
   await save(page);
   await expect.poll(() => state.submission()?.recipe.steps[0].bindings.metric).toBe(alternateMetric);
 });
@@ -295,10 +381,10 @@ test("editing purpose preserves hidden options, scope and procedure", async ({ p
   const before = existing();
   const state = await mockApi(page, before);
   await page.goto("/recipes/insurance-review/edit");
-  await page.getByLabel("어떤 분석인가요?").fill("수정한 분석 목적");
+  await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("수정한 분석 목적");
   await save(page);
   await expect.poll(() => state.submission()?.recipe.version).toBe("1.0.1");
-  expect(state.submission()).toEqual({ recipe: { ...before, description: "수정한 분석 목적", version: "1.0.1", status: "draft" }, base_version: "1.0.0" });
+  expect(state.submission()).toEqual({ recipe: { ...before, description: "수정한 분석 목적", routing: { ...before.routing, objective: "수정한 분석 목적" }, version: "1.0.1", status: "draft" }, base_version: "1.0.0" });
 });
 
 test("restore one advanced default without clearing other explicit values", async ({ page }) => {
@@ -355,8 +441,8 @@ test("existing investigation stays editable without a destructive mode switch", 
   const state = await mockApi(page, before);
   await page.goto("/recipes/insurance-review/edit");
   await expect(page.getByRole("group", { name: "Recipe 실행 방식" })).toHaveCount(0);
-  await page.getByLabel("어떤 분석인가요?").fill("MCP 보험 분석");
+  await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("MCP 보험 분석");
   await save(page);
   await expect.poll(() => state.submission()?.recipe.version).toBe("1.0.1");
-  expect(state.submission()!.recipe).toEqual({ ...before, version: "1.0.1", status: "draft", description: "MCP 보험 분석" });
+  expect(state.submission()!.recipe).toEqual({ ...before, version: "1.0.1", status: "draft", description: "MCP 보험 분석", routing: { ...before.routing, objective: "MCP 보험 분석" } });
 });

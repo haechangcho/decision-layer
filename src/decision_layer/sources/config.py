@@ -20,7 +20,7 @@ class SourceConfigError(DecisionLayerError):
 
 class SourceConfigInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    provider: Literal["cube", "dbt", "metricflow"] = "cube"
+    provider: Literal["cube", "dbt"] = "cube"
     environment_id: int | None = Field(default=None, gt=0)
     instance: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.-]+$")
     api_url: str
@@ -82,10 +82,10 @@ class SourceConfigManager:
     async def effective(self, *, resolve_secret: bool = True, provider: str | None = None) -> EffectiveSource:
         document = await self.store.get() or {}
         name = provider or os.environ.get("DL_SOURCE_PROVIDER") or document.get("provider") or os.environ.get("DL_DEFAULT_SOURCE_PROVIDER", "cube")
-        if name not in ("cube", "dbt", "metricflow"):
-            raise SourceConfigError("SOURCE_PROVIDER_INVALID", "Choose Cube, dbt Semantic Layer or the local MetricFlow example.")
+        if name not in ("cube", "dbt"):
+            raise SourceConfigError("SOURCE_PROVIDER_INVALID", "Choose Cube or the official dbt Semantic Layer API. The local MetricFlow gateway is no longer supported; configure a supported connection without changing historical Runs.")
         saved = document.get("connections", {}).get(name, document if document.get("provider", "cube") == name else {})
-        prefix = {"cube": "CUBE", "dbt": "DBT", "metricflow": "METRICFLOW"}[name]
+        prefix = {"cube": "CUBE", "dbt": "DBT"}[name]
         env_environment = os.environ.get("DBT_ENVIRONMENT_ID") if name == "dbt" else None
         environment_id = env_environment or saved.get("environment_id") if name == "dbt" else None
         if environment_id is not None:
@@ -117,12 +117,12 @@ class SourceConfigManager:
             raise SourceConfigError("SOURCE_AUTH_METHOD_INVALID", "dbt Semantic Layer requires an access token.")
         groups = env_groups.split(",") if env_groups is not None else saved.get(
             "service_groups", list(self.settings.cube_service_groups) if name == "cube" else [])
-        instance = env_instance or saved.get("instance") or (self.settings.cube_instance if name == "cube" else os.environ.get("DL_DEFAULT_METRICFLOW_INSTANCE", "local"))
+        instance = env_instance or saved.get("instance") or self.settings.cube_instance
         if name == "dbt":
             instance = env_instance or saved.get("instance") or (f"env-{environment_id}" if environment_id else "production")
         if provider is None:
             self.current_provider, self.current_instance = name, instance
-        default_url = (os.environ.get("DL_DEFAULT_CUBE_URL") or self.settings.cube_api_url) if name == "cube" else os.environ.get("DL_DEFAULT_METRICFLOW_URL", "http://localhost:4100")
+        default_url = os.environ.get("DL_DEFAULT_CUBE_URL") or self.settings.cube_api_url
         if name == "dbt":
             default_url = "https://semantic-layer.cloud.getdbt.com/api/graphql"
         return EffectiveSource(

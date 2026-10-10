@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 from datetime import date, timedelta
 import json
+import logging
 import math
 import re
 import time
@@ -40,6 +41,7 @@ RESULT = """query Result($environmentId: BigInt!, $queryId: String!, $pageNum: I
 }"""
 NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 MAX_ROWS = 50000
+logger = logging.getLogger(__name__)
 
 
 def _literal(value):
@@ -261,11 +263,13 @@ class DbtSemanticLayerProvider:
                     status = result.get("status")
                     if status in ("FAILED", "CANCELLED", "CANCELED"):
                         raise ProviderError("The dbt query failed. Inspect the query in dbt using its query ID.", query_id=query_id)
-                    if status in ("PENDING", "RUNNING", "QUEUED", "CREATED", "COMPILING"):
+                    if status in ("PENDING", "RUNNING", "QUEUED", "CREATED", "COMPILING", "COMPILED"):
                         await asyncio.sleep(self.poll_interval)
                         continue
                     if status != "SUCCESSFUL":
-                        raise ProviderError("dbt returned an unknown query state.", query_id=query_id)
+                        safe_status = status if isinstance(status, str) and re.fullmatch(r"[A-Z_]{1,32}", status) else "INVALID_RESPONSE"
+                        logger.warning("dbt returned an unsupported query state: %s", safe_status)
+                        raise ProviderError(f"dbt returned an unknown query state ({safe_status}).", query_id=query_id, query_status=safe_status)
                     try:
                         table = json.loads(result["jsonResult"])
                         fields = {f["name"].lower(): f["name"] for f in table["schema"]["fields"]}

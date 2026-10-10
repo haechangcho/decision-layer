@@ -17,13 +17,13 @@ test("env-managed connection shows status and a test button only", async ({ page
   await page.route("**/api/sources/current/readiness", route => route.fulfill({ json: { metrics: [{ metric: {
     ref: "cube://local/dim_customer/count", title: "고객 수" }, checks: { decomposition: { status: "not_applicable" }, time: { status: "ready" }, entity_key: { status: "ready" } } }] } }));
   await page.goto("/sources");
-  await expect(page.getByRole("heading", { name: "Cube connection" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Semantic layer connection" })).toBeVisible();
   // the real URL is shown, with the env var that fixes it
   await expect(page.getByText("http://cube:4000/cubejs-api/v1")).toBeVisible();
   await expect(page.getByText("CUBE_API_URL")).toBeVisible();
   await expect(page.getByText("Managed by environment variables").first()).toBeVisible();
   // no editable inputs, no admin key prompt
-  await expect(page.getByLabel("Cube API URL")).toHaveCount(0);
+  await expect(page.getByLabel("API URL", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Server administrator key")).toHaveCount(0);
   // the test button works
   await page.getByRole("button", { name: "Test connection" }).click();
@@ -52,15 +52,36 @@ test("local install edits a token connection without an admin key", async ({ pag
   });
   await page.goto("/sources");
   await expect(page.getByText("Server administrator key")).toHaveCount(0);           // not asked on local
-  await page.getByLabel("Cube API URL").fill("https://chosen.example/cubejs-api/v1");
+  await page.getByLabel("API URL", { exact: true }).fill("https://chosen.example/cubejs-api/v1");
   await page.getByPlaceholder("Enter without the Bearer prefix").fill("my-token");
+  await expect(page.getByLabel("Instance")).toBeHidden();
+  const inputBox = await page.getByLabel("API URL", { exact: true }).boundingBox();
+  const testBox = await page.getByRole("button", { name: "Test connection" }).boundingBox();
+  expect(testBox!.y).toBeGreaterThan(inputBox!.y);
   const save = page.getByRole("button", { name: "Save settings" });
   await expect(save).toBeDisabled();                                                 // must test first
   await page.getByRole("button", { name: "Test connection" }).click();
   await expect(save).toBeEnabled();
+  await page.getByLabel("API URL", { exact: true }).fill("https://revised.example/cubejs-api/v1");
+  await expect(save).toBeDisabled();
+  await expect(page.getByText(/Catalog access verified/)).toHaveCount(0);
+  await page.getByLabel("API URL", { exact: true }).fill("https://chosen.example/cubejs-api/v1");
+  await page.getByRole("button", { name: "Test connection" }).click();
   await save.click();
   await expect(page.getByRole("status")).toContainText("Connection settings saved");
   expect(saved!.api_url).toBe("https://chosen.example/cubejs-api/v1");
+});
+
+test("a failed settings load offers a working retry", async ({ page }) => {
+  let failed = true;
+  await page.route("**/api/sources/current", route => failed
+    ? route.fulfill({ status: 503, json: { detail: "Connection settings unavailable" } })
+    : route.fulfill({ json: { ...base, environment_overrides: {} } }));
+  await page.goto("/sources");
+  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  failed = false;
+  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(page.getByLabel("API URL", { exact: true })).toHaveValue(base.api_url);
 });
 
 // 3. Shared deployment (admin token configured): editing is gated by the admin key.
@@ -74,9 +95,9 @@ test("shared deployment requires the admin key before editing", async ({ page })
   });
   await page.goto("/sources");
   await expect(page.getByRole("heading", { name: "Server administrator key" })).toBeVisible();
-  await expect(page.getByLabel("Cube API URL")).toHaveCount(0);                       // locked until unlocked
+  await expect(page.getByLabel("API URL", { exact: true })).toHaveCount(0);                       // locked until unlocked
   await page.getByLabel("Server administrator key").fill("secret-admin-key");
   await page.getByRole("button", { name: "Open settings" }).click();
-  await expect(page.getByLabel("Cube API URL")).toBeVisible();                        // now editable
+  await expect(page.getByLabel("API URL", { exact: true })).toBeVisible();                        // now editable
   expect(adminKeys).toContain("secret-admin-key");                                    // the key was sent on reload
 });

@@ -1,0 +1,12 @@
+.row { display:flex; align-items:center; gap:8px; margin-top:8px; min-width:0; }
+.row input { flex:1; min-width:0; }
+.row span { flex:1; overflow-wrap:anywhere; }
+.row button { flex:none; width:34px; height:34px; padding:0; background:transparent; color:var(--text); border-color:var(--line); }
+.row button:hover:not(:disabled) { background:var(--bg); }
+.range { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; margin-top:8px; }
+.pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; min-width:0; align-items:start; }
+.pair > fieldset { min-width:0; }
+.pair .range { grid-template-columns:minmax(0,1fr); }
+.heading { margin:0; font-size:14px; font-weight:600; }
+.countIssue { font-size:12px; line-height:1.6; padding:12px; background:var(--bg); }
+.countIssue p { margin:0 0 10px; }

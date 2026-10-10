@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from ..core.models import DatasetSpec, ValidationResult
+from ..core.models import DatasetSpec, Filter, ValidationResult
 from ..methods.context import ExecutionContext
 from ..i18n import _
+from ..core.errors import CapabilityMissing
 
 
 def non_empty(rows: int, what: str | None = None) -> ValidationResult:
@@ -36,7 +37,7 @@ def complete_period(date_range: tuple[str, str] | None, today: date | None = Non
     today = today or date.today()
     end = date.fromisoformat(date_range[1])
     if end < today:
-        return ValidationResult(validator="complete_period", status="pass", code="OK", message=_("The period is complete"))
+        return ValidationResult(validator="complete_period", status="pass", code="OK", message=_("The calendar period has ended; data coverage is checked separately"))
     return ValidationResult(validator="complete_period", status="warning", code="INCOMPLETE_PERIOD",
                             message=_("The period ends ({end}) today ({today}) or later, so it is not complete. "
                                       "Data for the last day may not all be in yet", end=end, today=today),
@@ -44,29 +45,43 @@ def complete_period(date_range: tuple[str, str] | None, today: date | None = Non
 
 
 async def freshness(ctx: ExecutionContext, metric: str, date_range: tuple[str, str] | None,
-                    tolerance_days: int = 1) -> ValidationResult:
-    """Latest date with data ≥ period end − tolerance. One extra query."""
+                    tolerance_days: int = 0, *, filters: list[Filter] | None = None) -> ValidationResult:
+    """Observed date coverage, not a guarantee of ingestion completeness. One bounded query."""
     if not date_range:
         return ValidationResult(validator="freshness", status="pass", code="SKIPPED", message=_("No period"))
     count = ctx.count_measure(metric)
     time = ctx.time_scope(metric, date_range, granularity="day")
-    if not count or not time:
+    if not time:
         return ValidationResult(validator="freshness", status="warning", code="FRESHNESS_UNKNOWN",
                                 message=_("The latest data date could not be determined"))
-    ds = await ctx.dataset(DatasetSpec(grain="aggregate", measures=[count], time=time,
-                                       filters=list(ctx.scope.filters), order=[(time.dimension, "desc")],
-                                       limit_rows=1))
+    observed_measure = count or metric
+    try:
+        ds = await ctx.dataset(DatasetSpec(grain="aggregate", measures=[observed_measure], time=time,
+                                           filters=[*ctx.scope.filters, *(filters or [])], order=[(time.dimension, "desc")],
+                                           limit_rows=1))
+    except CapabilityMissing:
+        return ValidationResult(validator="freshness", status="warning", code="FRESHNESS_UNKNOWN",
+                                message=_("The latest data date could not be determined"))
     if not ds.rows:
         return ValidationResult(validator="freshness", status="fail", code="NO_DATA",
                                 message=_("There is no data in the period"))
-    latest = date.fromisoformat(str(ds.rows[0][0])[:10])
+    refs = [column.ref for column in ds.columns]
+    row = dict(zip(refs, ds.rows[0]))
+    raw_date, observed = row.get(time.dimension), row.get(observed_measure)
+    try:
+        latest = date.fromisoformat(str(raw_date)[:10])
+    except ValueError:
+        latest = None
+    if latest is None or observed is None or (count and observed <= 0):
+        return ValidationResult(validator="freshness", status="warning", code="FRESHNESS_UNKNOWN",
+                                message=_("The latest data date could not be determined"))
     end = date.fromisoformat(date_range[1])
     if latest >= end - timedelta(days=tolerance_days):
         return ValidationResult(validator="freshness", status="pass", code="OK",
-                                message=_("Latest data {date}", date=latest), details={"latest": latest.isoformat()})
+                                message=_("Observed data reaches {date}; this does not prove every day is complete", date=latest), details={"latest": latest.isoformat(), "end": end.isoformat(), "basis": "observed_metric"})
     return ValidationResult(validator="freshness", status="warning", code="DATA_STALE",
-                            message=_("Data only reaches {latest}, {days} days before the period end ({end})", latest=latest, days=(end - latest).days, end=end),
-                            details={"latest": latest.isoformat(), "end": end.isoformat()})
+                            message=_("Observed data reaches {latest}, before the period end ({end}). No activity and missing ingestion cannot be distinguished.", latest=latest, end=end),
+                            details={"latest": latest.isoformat(), "end": end.isoformat(), "basis": "observed_metric"})
 
 
 def period_days(date_range: tuple[str, str]) -> int:

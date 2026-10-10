@@ -21,9 +21,9 @@ test("period hints follow provider declarations instead of reference paths", () 
   expect(suggestedTimeDimension([measure, object], metric)?.ref).toBe(time);
   expect(suggestedTimeDimension([object], "cube://production/finance/revenue")).toBeUndefined();
   expect(suggestedTimeDimension([object, { ...object, ref: "cube://production/manufacturing/shipment_date" }], metric)).toBeUndefined();
-  const metricflowTime = { ...object, ref: "metricflow://production/dimensions/metric_time" };
-  const metricflowMetric = { ...measure, ref: "metricflow://production/metrics/defects", time_dimension: metricflowTime.ref };
-  expect(suggestedTimeDimension([metricflowTime, metricflowMetric], metricflowMetric.ref)?.ref).toBe(metricflowTime.ref);
+  const dbtTime = { ...object, ref: "dbt://production/dimensions/metric_time" };
+  const dbtMetric = { ...measure, ref: "dbt://production/metrics/defects", time_dimension: dbtTime.ref };
+  expect(suggestedTimeDimension([dbtTime, dbtMetric], dbtMetric.ref)?.ref).toBe(dbtTime.ref);
 });
 
 test("provider period suggestions work outside the sample domain and preserve Recipe defaults", async ({ page }) => {

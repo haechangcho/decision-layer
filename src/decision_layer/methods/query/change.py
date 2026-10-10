@@ -21,7 +21,7 @@ from ...i18n import _
 from ...validation import builtin as v
 from ..context import ExecutionContext, Refused, previous_period
 from ..stats import difference_test, pct_change, safe_div
-from .common import parse_range, per_day, rnd, totals
+from .common import analysis_period, parse_range, per_day, rnd, totals
 
 MAX_CHAINS = 6
 MAX_DEPTH = 4
@@ -34,7 +34,7 @@ def periods(ctx: ExecutionContext, params: dict[str, Any]) -> tuple[tuple[str, s
     comparison = parse_range(params.get("comparison"), "comparison")
     if comparison is None and not params.get("vs_previous"):
         return None
-    current = parse_range(params.get("current"), "current") or ctx.scope.date_range
+    current = analysis_period(ctx, params)
     if not current:
         raise Refused(_("A current period is needed (current or scope.date_range)"))
     return current, comparison or previous_period(current)

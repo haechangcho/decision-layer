@@ -61,9 +61,11 @@ def test_relative_period_uses_timezone_and_execution_clock():
 
 async def test_pending_step_has_no_query_or_result_and_resumes_once(setup):
     engine, provider = setup
-    run = await engine.start(CREDS, ME, recipe=None, question="Which category?", scope={}, origin="mcp")
+    from decision_layer.core.models import AnalysisGoal
+    run = await engine.start(CREDS, ME, recipe=None, question="Which category?", scope={}, origin="mcp", goals=[AnalysisGoal(id="answer", description="Leading category")])
+    step = STEP.model_copy(update={"goal_ids": ["answer"]})
     assert run.needs_input and not run.steps
-    run, result = await engine.step(CREDS, ME, run.id, STEP)
+    run, result = await engine.step(CREDS, ME, run.id, step)
     assert result.status == "needs_input" and not run.steps and not run.plan.steps
     provider.execute.assert_not_awaited()
     resumed = await engine.set_scope(CREDS, ME, run.id, DATES, run.scope_revision)

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "@/components/loading-indicator";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -12,6 +13,7 @@ import { RecipeRuntimeInputs } from "@/components/recipe-runtime-inputs";
 import { suggestedDateRange, suggestedTimeDimension } from "@/lib/semantic-dates";
 import { useApi, useCatalog } from "@/lib/hooks";
 import styles from "../../library.module.css";
+import { methodName } from "@/lib/method-name";
 
 function formatDate(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -101,7 +103,7 @@ export default function RecipePage() {
 
   if (error) return <div className={styles.page}><p className={styles.error} role="alert">Recipe를 불러오지 못했습니다. {error.message}</p><Link className={styles.back} href="/recipes"><ArrowLeft size={15} />Recipe 목록</Link></div>;
   if (name === "new") return <RecipeEditor />;
-  if (loading || !recipe) return <div className={styles.page}><div className={styles.skeleton} role="status" aria-label="불러오는 중" /></div>;
+  if (loading || !recipe) return <div className={styles.page}><LoadingState /></div>;
 
   return <div className={styles.page}>
     <Link className={styles.back} href="/recipes"><ArrowLeft size={15} />Recipe 목록</Link>
@@ -142,7 +144,10 @@ export default function RecipePage() {
       </section>
       <aside className={styles.recipeRunAside}>
         <h2>이 분석이 확인하는 내용</h2>
-        <p>{recipe.routing.use_for.length ? recipe.routing.use_for.join(" · ") : recipe.description}</p>
+        <p>{recipe.routing.objective || (recipe.routing.use_for.length ? recipe.routing.use_for.join(" · ") :
+          recipe.origin_runs?.length ? recipe.steps.map(step => methodName(step.method)).join(" → ") : recipe.description)}</p>
+        {!!recipe.origin_runs?.length && <div className={styles.runContext}><strong>처음 분석한 질문</strong><p>{recipe.source_question || recipe.description}</p></div>}
+        <div className={styles.runContext}><strong>이번 실행 조건</strong><p>위에서 선택한 기간으로 실행합니다. 단계에 고정된 비교 기간이나 조건이 있다면 그대로 적용됩니다.</p></div>
         {recipe.routing.do_not_use_for.length > 0 && <div className={styles.runContext}><strong>다른 절차가 필요한 질문</strong><p>{recipe.routing.do_not_use_for.join(" · ")}</p></div>}
         <Link href="/runs">최근 실행 기록 보기 <ArrowRight size={14} /></Link>
       </aside>

@@ -1,4 +1,5 @@
 "use client";
+import { LoadingState } from "@/components/loading-indicator";
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
@@ -28,7 +29,7 @@ export default function RecipesPage() {
 
   return <div className={styles.page}>
     <div className={styles.libraryHeader}>
-      <div><h1>{t("Analysis library")}</h1><p>{t("{count} saved analyses", { count: data?.length ?? 0 })}</p></div>
+      <div><h1>{t("Recipes")}</h1><p>{t("{count} saved analyses", { count: data?.length ?? 0 })}</p></div>
       <Link className={styles.createLink} href="/recipes/new"><Plus size={16} />{t("New analysis procedure")}</Link>
     </div>
     {deleted && <p role="status">{deleted}</p>}
@@ -37,7 +38,7 @@ export default function RecipesPage() {
       <BookOpen size={24} /><h2>{t("No analysis procedures yet")}</h2>
       <p>{t("Connect a semantic layer and choose a metric to create the first one.")}</p>
       <div className={styles.emptyActions}><Link href="/catalog">{t("Explore metrics")} <ArrowRight size={15} /></Link><Link href="/recipes/new">{t("New analysis procedure")} <ArrowRight size={15} /></Link></div>
-    </section> : <section className={styles.libraryList} aria-label={t("Analysis library")}>
+    </section> : <section className={styles.libraryList} aria-label={t("Recipes")}>
       <div className={styles.libraryToolbar}>
         <label className={styles.librarySearch}><Search size={17} /><input aria-label={t("Search analyses")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search by purpose or metric")} />
           {search && <button type="button" onClick={() => setSearch("")} aria-label={t("Clear search")} title={t("Clear search")}><X size={15} /></button>}
@@ -45,7 +46,7 @@ export default function RecipesPage() {
         <span className={styles.libraryCount}>{t("{count} results", { count: shown.length })}</span>
       </div>
       <div className={styles.libraryColumns} aria-hidden="true"><span>{t("Analysis procedure")}</span><span>{t("Primary metric")}</span><span>{t("Steps")}</span><span /></div>
-      {loading && !data ? <div aria-label={t("Loading analyses")}>{[0, 1, 2, 3].map((row) => <div className={styles.skeleton} key={row} />)}</div> : shown.map((recipe) => <div key={recipe.name} className={styles.libraryItem}><Link className={styles.libraryRow} href={`/recipes/${encodeURIComponent(recipe.name)}`}>
+      {loading && !data ? <LoadingState label={t("Loading analyses")} /> : shown.map((recipe) => <div key={recipe.name} className={styles.libraryItem}><Link className={styles.libraryRow} href={`/recipes/${encodeURIComponent(recipe.name)}`}>
         <span className={styles.libraryName}><strong>{recipe.description || recipe.name}</strong>{(repeated.get(recipe.description) ?? 0) > 1 && <small>{recipe.name}</small>}</span>
         <span className={styles.libraryMetric}>{title(recipe.semantic_scope.primary_metric)}</span>
         <span className={styles.librarySteps}>{recipe.mode === "pipeline" ? t("{count} steps", { count: recipe.steps.length }) : t("Guided exploration")}</span>

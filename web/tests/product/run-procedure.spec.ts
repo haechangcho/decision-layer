@@ -51,3 +51,21 @@ test("long Recipe names stay compact without obscuring the question and answer",
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("run-list.png"), fullPage: true });
 });
+
+test("detail explains why an available Recipe was skipped", async ({ page }, info) => {
+  await page.addInitScript(() => localStorage.setItem("decision-layer.locale", "ko"));
+  await page.route("**/api/me", route => route.fulfill({ json: { subject: "alice" } }));
+  await page.route("**/api/semantic/catalog", route => route.fulfill({ json: { objects: [], hierarchies: {} } }));
+  await page.route("**/api/methods", route => route.fulfill({ json: [] }));
+  await page.route("**/api/runs/recipe-run", route => route.fulfill({ json: { ...base,
+    recipe_candidates: [{ recipe: "recipe://department-analysis@1.2.0", name: "department-analysis" }],
+    recipe_review: [{ recipe: "recipe://department-analysis@1.2.0", decision: "skipped", reason: "이번 질문은 순위가 아니라 월별 추이를 확인합니다." }],
+  } }));
+  await page.goto("/runs/recipe-run");
+  const review = page.getByRole("region", { name: "Recipe 선택 이유" });
+  await expect(review).toContainText("사용하지 않음");
+  await expect(review).toContainText("이번 질문은 순위가 아니라 월별 추이를 확인합니다.");
+  await expect(review.getByRole("link")).toHaveAttribute("href", "/recipes/department-analysis");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath("recipe-choice.png"), fullPage: true });
+});

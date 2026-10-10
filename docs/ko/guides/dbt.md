@@ -2,7 +2,7 @@
 
 회사에서 운영하는 dbt Semantic Layer의 공식 GraphQL API에 연결합니다. Decision Layer가 지표와 차원을 조회하고 분석 요청을 보내면, dbt가 SQL 생성과 데이터 조회를 처리합니다. 결과와 실행 근거는 Run에 남습니다.
 
-로컬 MetricFlow 게이트웨이 설치, dbt 프로젝트 업로드, 데이터베이스 계정 제공, Decision Layer 전용 메타데이터 추가는 필요하지 않습니다.
+별도 게이트웨이 설치, dbt 프로젝트 업로드, 데이터베이스 계정 제공, Decision Layer 전용 메타데이터 추가는 필요하지 않습니다.
 
 ## 연결하기
 
@@ -60,4 +60,4 @@ API 프로세스에서 `DL_SOURCE_PROVIDER=dbt`, `DBT_API_URL`, `DBT_ENVIRONMENT
 | 주소가 응답하지 않음 | 리전에 맞는 Semantic Layer GraphQL 주소인지 |
 | 쿼리 실패 | dbt에서 쿼리 ID로 확인하고 지표·차원·필터 조합 점검 |
 | 대기 시간 초과 | 재시도 전에 dbt의 쿼리 상태 확인. 클라이언트 대기가 끝나도 원격 쿼리는 계속 실행될 수 있음 |
-| dbt Core 프로젝트만 있음 | 개발은 [로컬 dbt 예제](metricflow.md), 공식 API 연결은 별도의 Semantic Layer 환경 필요 |
+| dbt Core 프로젝트만 있음 | 공식 API를 제공하는 dbt 플랫폼 환경이 필요합니다. dbt Core만으로는 이 API를 사용할 수 없습니다. |

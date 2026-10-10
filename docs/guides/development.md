@@ -66,13 +66,7 @@ Use your actual host Cube port if customized. Start Web as above. Cube models un
 
 The sample's PostgreSQL stores source data, not Runs. The native API uses its own SQLite database and does not automatically share the container API's Run history. Recipes live in the specified folder. Do not commit local datasets or credentials.
 
-For dbt development, start its data services from the example folder instead:
-
-```bash
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --build --wait postgres import dbt-setup metricflow
-```
-
-Start the native API from the repository root with `DL_DEFAULT_SOURCE_PROVIDER=metricflow`, `DL_DEFAULT_METRICFLOW_URL=http://localhost:4100`, `DL_DEFAULT_METRICFLOW_INSTANCE=journey`, `METRICFLOW_AUTH_METHOD=none` and `DL_ALLOW_SERVICE_CREDENTIALS=true`, along with the same Recipe and DB settings above. Use a separate Run database for a fresh provider default; saved connections otherwise take precedence. SQL and YAML live in `examples/complete-journey/dbt/models/`. After editing them, rebuild and run `dbt-setup`, then recreate `metricflow` using the same Compose files. See the [MetricFlow guide](metricflow.md).
+For dbt development, use an existing dbt Semantic Layer environment and the [official API connection](dbt.md). The adapter contract tests use mocked GraphQL responses; production verification requires real credentials.
 
 ## Code map
 

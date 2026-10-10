@@ -1,7 +1,7 @@
 # Campaign Household Comparison
 
 The importer builds `journey.campaign_household_outcomes` once and refreshes it on subsequent imports.
-Cube reads its eligible rows; dbt's `campaign_household_outcomes` model reads the same rows. The source
+Cube reads its eligible rows. Reference dbt model definitions read the same rows when deployed to your own dbt environment. The source
 tables are unchanged. Each observation is one campaign and household, not a transaction or coupon redemption.
 
 ## Definitions
@@ -29,19 +29,19 @@ and controls can receive other campaigns. No campaign causal ground truth is sup
 
 Use `causal.cem`, a campaign filter and an explicit period containing its start date. Bind:
 
-| Role | Cube member | MetricFlow member |
-| --- | --- | --- |
-| metric | campaign_household_outcomes.post_sales_mean | campaign_post_sales_mean |
-| sample_count | campaign_household_outcomes.count | campaign_household_count |
-| treatment | campaign_household_outcomes.is_targeted | campaign_household__is_targeted |
-| conditions | pre_sales_band, pre_frequency_band (same cube) | campaign_household__pre_sales_band, campaign_household__pre_frequency_band |
+| Role | Cube member |
+| --- | --- |
+| metric | campaign_household_outcomes.post_sales_mean |
+| sample_count | campaign_household_outcomes.count |
+| treatment | campaign_household_outcomes.is_targeted |
+| conditions | pre_sales_band, pre_frequency_band (same cube) |
 
 Use target `[true]` and comparison `[false]`. The Method verifies one non-null outcome and one counted row
 per provider-declared primary unit. Results show raw/matched means and retention, **not continuous-outcome
 confidence intervals or significance**. Add demographic conditions as a separate step; default overlap checks
 may refuse because of missing values and sparse shared strata. Do not lower thresholds just to obtain a result.
 
-The local MetricFlow example exposes the native primary key and count declaration. Hosted dbt GraphQL
+Hosted dbt GraphQL
 metadata currently cannot verify this contract, so the product adapter still refuses rather than guessing.
 
 ## Existing Volumes
@@ -54,21 +54,10 @@ docker compose -p decision-layer-cube run --rm --no-deps import
 docker compose -p decision-layer-cube up -d --no-deps --wait cube api
 ```
 
-dbt, from this example directory:
-
-```bash
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml build import dbt-setup metricflow api
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps import
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml run --rm --no-deps dbt-setup dbt test --target setup --project-dir /project --profiles-dir /project
-docker compose -p decision-layer-dbt -f compose.yaml -f compose.dbt.yaml up -d --no-deps --wait metricflow api
-```
-
 No volume deletion or source re-download is required. Refresh takes an exclusive lock on this sample
 materialized view; do not refresh during active analyses. For a fresh install, the normal startup commands
 already create it. CEM is now version 1.1.0: review older pinned Recipes explicitly; old Runs are unchanged.
 
-Opt-in boundary and cross-provider tests are in `tests/provider/test_campaign_outcomes_live.py`.
-Set `DL_JOURNEY_DATABASE_URL` for isolated SQL tests; also set `DL_JOURNEY_CUBE_URL`,
-`DL_JOURNEY_CUBE_SECRET` and `DL_JOURNEY_METRICFLOW_URL` for result parity tests. They require both
-providers running against the same imported dataset, but do not switch the API's active source.
+Opt-in boundary and Cube tests are in `tests/provider/test_campaign_outcomes_live.py`.
+Set `DL_JOURNEY_DATABASE_URL` for isolated SQL tests and `DL_JOURNEY_CUBE_URL` plus
+`DL_JOURNEY_CUBE_SECRET` for Cube verification against the independent SQL baseline.

@@ -3,6 +3,9 @@
   "scenarios": [
     {
       "id": "largest_department",
+      "require_single_run": true,
+      "require_run_coverage": true,
+      "must_call_tools": ["find_recipes", "complete_run"],
       "question": "Decision Layer MCP로 전체 데이터에서 수취액이 가장 큰 상품 부문을 분석해줘. Recipe가 맞지 않으면 등록된 드릴다운 Method를 사용하고 원래 질문과 단계 목적을 Run에 남겨줘. 부문, 금액, Run ID를 알려줘. 수취액을 이익으로 해석하지 마.",
       "must_call": ["query.drilldown"],
       "expect_status": ["success"],

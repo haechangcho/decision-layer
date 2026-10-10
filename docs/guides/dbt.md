@@ -2,7 +2,7 @@
 
 Connect your existing dbt Semantic Layer through its official GraphQL API. Decision Layer discovers metrics and dimensions, submits queries and records the results in Runs. Your dbt environment handles SQL generation and warehouse access.
 
-You do not need to install our local MetricFlow gateway, upload a dbt project, share warehouse credentials or add Decision Layer metadata to your models.
+You do not need to install a gateway, upload a dbt project, share warehouse credentials or add Decision Layer metadata to your models.
 
 ## Connect
 
@@ -60,4 +60,4 @@ The API process can also read `DL_SOURCE_PROVIDER=dbt`, `DBT_API_URL`, `DBT_ENVI
 | Wrong endpoint response | Use the regional Semantic Layer GraphQL endpoint, not a dbt job or admin API |
 | Query failed | Inspect the query ID in dbt; verify compatible metrics, dimensions and filters |
 | Query timed out | Check the recorded provider query ID before retrying; a remote query can continue after the client stops waiting |
-| dbt Core project only | Use the [local dbt example](metricflow.md) for development, or configure a hosted Semantic Layer environment for official API access |
+| dbt Core project only | The official API requires a dbt platform Semantic Layer environment; dbt Core alone does not provide it. |

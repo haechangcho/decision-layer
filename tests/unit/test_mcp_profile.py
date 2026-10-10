@@ -1,6 +1,7 @@
 """MCP exposure knobs (ADR-032): method allow-list, recipe tools off, relaxed number rule."""
 import asyncio
 import importlib
+from decision_layer.core.models import AnalysisGoal
 
 
 def test_compact_run_separates_original_intent_from_current_scope(monkeypatch):
@@ -41,6 +42,30 @@ def test_defaults_expose_everything(monkeypatch):
     assert {"run_id", "method", "bindings", "purpose"} <= set(step.input_schema["required"])
 
 
+def test_blocked_recording_is_required_in_every_profile(monkeypatch):
+    for profile in ("on", "off"):
+        s = load(monkeypatch, DL_MCP_RECIPES=profile)
+        names = {tool.name for tool in asyncio.run(s.mcp.list_tools())}
+        assert "report_analysis_blocked" in names
+        assert "Do not ask whether to record" in s.INSTRUCTIONS
+    monkeypatch.delenv("DL_MCP_RECIPES")
+    importlib.reload(s)
+
+
+def test_blocked_tool_uses_atomic_api_and_returns_web_link(monkeypatch):
+    from decision_layer.service import BlockedAnalysisRequest
+    s = load(monkeypatch, DL_WEB_URL="https://analytics.example.com/")
+    async def call(method, path, **kwargs):
+        assert (method, path) == ("POST", "/analyses:blocked")
+        assert kwargs["json"]["question"] == "Business question"
+        return {"id": "run_saved", "status": "completed", "caller": {}, "plan": {"question": "Business question"}, "steps": []}
+    monkeypatch.setattr(s, "_call", call)
+    req = BlockedAnalysisRequest(question="Business question", goals=[AnalysisGoal(id="answer", description="Answer")],
+        conclusion={"answer": "Unavailable", "goal_outcomes": [{"goal_id": "answer", "status": "unsupported", "reason": "No Method", "reason_code": "method_missing"}]})
+    result = asyncio.run(s.report_analysis_blocked(req))
+    assert result["run_url"] == "https://analytics.example.com/runs/run_saved"
+
+
 def test_strict_rule(monkeypatch):
     s = load(monkeypatch, DL_MCP_RULES="strict")
     assert "simple arithmetic" not in s.INSTRUCTIONS and "Never compute" in s.INSTRUCTIONS
@@ -74,7 +99,7 @@ def test_method_execution_only_appends_to_the_requested_run(monkeypatch):
 
     monkeypatch.setattr(s, "_call", fake_call)
     result = asyncio.run(s.run_step("run_test", "query.trend", {"metric": "cube://local/sales/revenue"},
-                                   purpose="Check the change"))
+                                   purpose="Check the change", goal_ids=["answer"]))
     assert result["run_id"] == "run_test"
     assert seen["purpose"] == "Check the change" and "question" not in seen
 
@@ -115,7 +140,7 @@ def test_recipe_free_analysis_starts_one_open_run(monkeypatch):
                          "scope": kwargs["json"]["scope"]}}
 
     monkeypatch.setattr(s, "_call", fake_call)
-    result = asyncio.run(s.start_analysis("Which payment type is largest?", ["2026-06-01", "2026-06-30"]))
+    result = asyncio.run(s.start_analysis("Which payment type is largest?", ["2026-06-01", "2026-06-30"], goals=[AnalysisGoal(id="answer", description="Find largest payment type")]))
     assert result["run_id"] == "run_test" and result["status"] == "open"
     assert seen["recipe"] is None and seen["question"] == "Which payment type is largest?"
     assert seen["scope"]["date_range"] == ["2026-06-01", "2026-06-30"]
@@ -131,7 +156,7 @@ def test_step_purpose_is_forwarded_as_intent(monkeypatch):
 
     monkeypatch.setattr(s, "_call", fake_call)
     asyncio.run(s.run_step("run_test", "query.trend", {"metric": "cube://local/sales/revenue"},
-                           purpose="Check how revenue changed over time"))
+                           purpose="Check how revenue changed over time", goal_ids=["answer"]))
     assert seen["purpose"] == "Check how revenue changed over time"
 
 
@@ -168,7 +193,7 @@ def test_restricted_profile(monkeypatch):
     assert "complete_run" in names
     assert "simple arithmetic" in s.INSTRUCTIONS and "causal.cem" not in s.INSTRUCTIONS
     assert "list_recipes" not in s.INSTRUCTIONS
-    r = asyncio.run(s.run_step("run_test", "query.compare", {"metric": "x"}, purpose="Compare"))
+    r = asyncio.run(s.run_step("run_test", "query.compare", {"metric": "x"}, purpose="Compare", goal_ids=["answer"]))
     assert r["error"]["code"] == "METHOD_NOT_EXPOSED"
     monkeypatch.delenv("DL_MCP_METHODS")
     monkeypatch.delenv("DL_MCP_RECIPES")

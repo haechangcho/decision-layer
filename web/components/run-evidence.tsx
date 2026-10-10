@@ -38,7 +38,10 @@ export function readableValue(value: unknown, titles: Titles): string {
 
 export function RunSettings({ record, titles, manifest }: { record: Run["steps"][number]; titles: Titles; manifest?: MethodManifest }) {
   const params = Object.entries(record.step.params).filter(([, value]) => value != null && (!Array.isArray(value) || value.length));
+  const data = record.result.primary?.data;
+  const period = data && typeof data === "object" && !Array.isArray(data) ? (data as Record<string, unknown>).analysis_period as { date_range?: string[] | null; source?: string } | undefined : undefined;
   return <div className={s.settings}>
+    {period && <section><h3>실제 조회 기간</h3><dl><div><dt>적용 기간</dt><dd>{period.date_range?.join(" ~ ") ?? "전체 기간"}<small>{period.source === "method_parameters" ? "단계 설정" : "Run 공통 기간"}</small></dd></div></dl></section>}
     <section><h3>분석에 사용한 입력</h3><dl>{Object.entries(record.step.bindings).map(([name, value]) => <div key={name}><dt>{names[name] ?? name}</dt><dd>{readableValue(value, titles)}</dd></div>)}</dl></section>
     <section><h3>적용한 옵션</h3><dl>{params.map(([name, value]) => <div key={name}><dt>{manifest?.parameters[name]?.type === "group" ? name === "target" ? "대상 집단" : "비교 집단" : names[name] ?? name.replaceAll("_", " ")}</dt><dd><span>{name === "min_target_retention" && typeof value === "number" ? `${value * 100}%` : readableValue(value, titles)}</span><small>{record.parameter_sources?.[name] ? sources[record.parameter_sources[name]] : "출처 기록 없음"}</small></dd></div>)}</dl></section>
     {!!record.input_resolutions?.length && <section><h3>이번 실행에서 선택된 값</h3><dl>{record.input_resolutions.map((item, index) => <div key={index}><dt>{names[item.field.split(".").at(-1) ?? ""] ?? item.field}</dt><dd><span>{sourceLabel(item.source)}</span><strong>{readableValue(item.resolved, titles)}</strong></dd></div>)}</dl></section>}
@@ -51,7 +54,7 @@ export function AuthorInfo({ author, label }: { author?: ExecutionAuthor | null;
   return <section className={s.author}><h3>{label}</h3><dl>
     <div><dt>사용 제품</dt><dd>{author?.client_name || "미제공"}{author?.client_version && ` · ${author.client_version}`}{author?.client_name && <small>{source[author.client_source ?? "client_reported"]}</small>}</dd></div>
     <div><dt>AI 모델</dt><dd>{[author?.model_provider, author?.model_id].filter(Boolean).join(" · ") || "미제공"}{author?.model_id && <small>{source[author.model_source ?? "client_reported"]}</small>}</dd></div>
-    <div><dt>모델 리비전</dt><dd>{author?.model_revision || "미제공"}</dd></div>
+    {author?.model_revision && <div><dt>모델 리비전</dt><dd>{author.model_revision}</dd></div>}
   </dl></section>;
 }
 
@@ -62,14 +65,18 @@ export function RunSources({ result, titles, author }: { result: Result; titles:
   const [method, version] = reference.replace("method://", "").split("@");
   const label = methodName(method.replaceAll("/", "."));
   const kinds: Record<string, string> = { measure: "지표", dimension: "분류", time_dimension: "날짜 기준" };
+  const connections = [...new Set(result.provenance.semantic_refs.map(ref => ref.split("://")[0]))];
   return <div className={s.sources}>
-    {reference && <div className={s.method}><span>분석 방법</span><strong>{label}</strong><small>v{version || "미기록"}</small></div>}
+    <section className={s.sourceSection}><h3>사용한 분석 방법</h3>
+    {reference && <div className={s.method}><strong>{label}</strong><small>v{version || "미기록"}</small></div>}
+    </section>
+    <section className={s.sourceSection}><h3>사용한 데이터{connections.length > 0 && <small>{connections.join(", ")}</small>}</h3>
     <ul>{result.provenance.semantic_refs.map(ref => {
       const object = titles.get(ref);
-      const [provider, path = ""] = ref.split("://");
-      const [instance, ...parts] = path.split("/");
-      return <li key={ref}><span>{object ? kinds[object.kind] ?? "참조" : "참조"}</span><div><strong>{object?.title ?? "이름 확인 필요"}</strong><small>{parts.join(" / ")}</small></div><small>{provider} · {instance}</small></li>;
+      return <li key={ref}><span>{object ? kinds[object.kind] ?? "참조" : "참조"}</span><div><strong>{object?.title ?? ref}</strong>{object?.description && <small>{object.description}</small>}</div></li>;
     })}</ul>
+    {!result.provenance.semantic_refs.length && <p className={s.muted}>기록된 데이터 참조가 없습니다.</p>}
+    </section>
     <AuthorInfo author={author} label="이 단계의 실행 요청" />
     {result.provenance.runtime && Object.keys(result.provenance.runtime).length > 0 && <section className={s.author}><h3>분석 실행 환경</h3><dl>{Object.entries(result.provenance.runtime).map(([name, version]) => <div key={name}><dt>{name}</dt><dd>{version}</dd></div>)}</dl></section>}
     <button type="button" className={s.rawButton} onClick={() => { setRawOpen(true); dialog.current?.showModal(); }}><FileCode2 size={15} />원본 기록 보기</button>

@@ -17,6 +17,31 @@ from decision_layer.core.models import SemanticCatalog, SemanticObject
 from decision_layer.semantic.providers.cube.client import CubeConnectionError
 
 
+def test_removed_gateway_is_rejected_and_saved_state_can_be_reconfigured(monkeypatch):
+    from pydantic import ValidationError
+    from decision_layer.sources.provider import make_provider
+
+    monkeypatch.delenv("DL_SOURCE_PROVIDER", raising=False)
+    monkeypatch.delenv("DL_DEFAULT_SOURCE_PROVIDER", raising=False)
+    with pytest.raises(ValidationError):
+        SourceConfigInput(provider="metricflow", api_url="http://legacy:4100")
+    with pytest.raises(ValueError, match="Unsupported semantic provider"):
+        make_provider("metricflow", "http://legacy:4100", "legacy")
+
+    async def check():
+        store = MemorySourceStore()
+        await store.save({"provider": "metricflow", "api_url": "http://legacy:4100", "instance": "legacy"})
+        manager = SourceConfigManager(store, Settings(database_url="memory"))
+        with pytest.raises(SourceConfigError) as error:
+            await manager.view()
+        assert error.value.code == "SOURCE_PROVIDER_INVALID"
+        await manager.save(SourceConfigInput(provider="dbt", api_url="https://dbt.example/api/graphql", environment_id=123))
+        assert (await manager.view())["provider"] == "dbt"
+        assert (await store.get())["connections"]["metricflow"]["instance"] == "legacy"
+
+    asyncio.run(check())
+
+
 def test_saved_secret_is_encrypted_and_never_returned(tmp_path, monkeypatch):
     for key in ("CUBE_API_URL", "CUBE_API_SECRET", "CUBE_AUTH_METHOD", "CUBE_SERVICE_GROUPS", "CUBE_INSTANCE"):
         monkeypatch.delenv(key, raising=False)
@@ -112,32 +137,32 @@ def test_connection_failure_diagnostics(cube_meta, error, code, status):
 
 def test_readiness_uses_canonical_entity_relations_not_cube_ref_format():
     class OtherProvider:
-        name = "metricflow"
+        name = "dbt"
         instance = "warehouse"
 
         def capabilities(self):
             return CubeProvider(FakeClient({"cubes": []}), "warehouse").capabilities()
 
         async def discover(self, credentials):
-            key = "metricflow://warehouse/orders/order_id"
+            key = "dbt://warehouse/orders/order_id"
             return SemanticCatalog(provider=self.name, instance=self.instance, objects=[
-                SemanticObject(ref="metricflow://warehouse/orders/return_rate", kind="measure",
+                SemanticObject(ref="dbt://warehouse/orders/return_rate", kind="measure",
                                data_type="number", title="Return rate", metric_kind="ratio",
-                               ratio_parts=("metricflow://warehouse/orders/returned", "metricflow://warehouse/orders/count"),
+                               ratio_parts=("dbt://warehouse/orders/returned", "dbt://warehouse/orders/count"),
                                entity=key),
-                SemanticObject(ref="metricflow://warehouse/orders/returned", kind="measure",
+                SemanticObject(ref="dbt://warehouse/orders/returned", kind="measure",
                                data_type="number", title="Returned", entity=key),
-                SemanticObject(ref="metricflow://warehouse/orders/count", kind="measure",
+                SemanticObject(ref="dbt://warehouse/orders/count", kind="measure",
                                data_type="number", title="Count", entity=key),
                 SemanticObject(ref=key, kind="dimension", data_type="string", title="Order ID", entity=key),
-                SemanticObject(ref="metricflow://warehouse/orders/created_at", kind="time_dimension",
+                SemanticObject(ref="dbt://warehouse/orders/created_at", kind="time_dimension",
                                data_type="time", title="Created at", entity=key),
-                SemanticObject(ref="metricflow://warehouse/customers/segment", kind="dimension",
+                SemanticObject(ref="dbt://warehouse/customers/segment", kind="dimension",
                                data_type="string", title="Customer segment",
-                               entity="metricflow://warehouse/customers/customer_id"),
-                SemanticObject(ref="metricflow://warehouse/customers/lifetime_value", kind="measure",
+                               entity="dbt://warehouse/customers/customer_id"),
+                SemanticObject(ref="dbt://warehouse/customers/lifetime_value", kind="measure",
                                data_type="number", title="Lifetime value",
-                               entity="metricflow://warehouse/customers/customer_id"),
+                               entity="dbt://warehouse/customers/customer_id"),
             ])
 
     settings = Settings(database_url="memory", allow_service_credentials=True, cube_api_secret="test-secret")
@@ -145,17 +170,19 @@ def test_readiness_uses_canonical_entity_relations_not_cube_ref_format():
         response = client.get("/sources/current/readiness", headers={"Authorization": "Bearer test-user"})
     assert response.status_code == 200
     readiness = response.json()
-    assert readiness["provider"] == "metricflow"
+    assert readiness["provider"] == "dbt"
     metric = next(row for row in readiness["metrics"]
-                  if row["metric"]["ref"] == "metricflow://warehouse/orders/return_rate")
+                  if row["metric"]["ref"] == "dbt://warehouse/orders/return_rate")
     assert metric["checks"]["time"]["status"] == "ready"
     assert metric["checks"]["entity_key"]["status"] == "ready"
     assert metric["checks"]["decomposition"]["status"] == "ready"
-    assert metric["checks"]["time"]["dimensions"] == ["metricflow://warehouse/orders/created_at"]
+    assert metric["checks"]["time"]["dimensions"] == ["dbt://warehouse/orders/created_at"]
     other = next(row for row in readiness["metrics"]
-                 if row["metric"]["ref"] == "metricflow://warehouse/customers/lifetime_value")
+                 if row["metric"]["ref"] == "dbt://warehouse/customers/lifetime_value")
     assert other["checks"]["time"]["status"] == "unknown"
     assert other["checks"]["time"]["dimensions"] == []
+    assert other["checks"]["entity_key"]["status"] == "missing"
+    assert other["checks"]["entity_key"]["impact"] is None
 
 
 @pytest.mark.parametrize("mode,allowed,token,status", [

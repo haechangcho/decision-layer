@@ -32,8 +32,9 @@ export interface SemanticCatalog {
 
 export interface RoleSpec {
   label?: string;
-  default_binding?: "primary_metric" | "preferred_dimensions" | null;
+  default_binding?: "primary_metric" | "preferred_dimensions" | "unit_count" | null;
   editor_parameter?: string | null;
+  exclusive_group?: string | null;
   ui_group?: "basic" | "options";
   kind: Kind | "entity";
   metric_kinds?: string[] | null;
@@ -60,6 +61,7 @@ export interface ParamSpec {
 }
 
 export interface MethodManifest {
+  provides?: string[];
   label?: string;
   name: string;
   version: string;
@@ -78,6 +80,7 @@ export interface Artifact { type: string; title?: string | null; data: unknown }
 export interface Validation { validator: string; status: "pass" | "warning" | "fail"; code: string; message: string; details?: Record<string, unknown> }
 
 export interface Result {
+  provides?: string[];
   status: "success" | "needs_input" | "refused" | "failed";
   interpretation?: string | null;
   primary?: Artifact | null;
@@ -90,7 +93,7 @@ export interface Result {
   selections?: Record<string, { complete: boolean; rank_by: string; direction: string; candidates: { path: { member: string; value: unknown }[]; score: number }[] }>;
 }
 
-export interface PlanStep { id?: string | null; method: string; method_version?: string | null; purpose?: string | null; purpose_context?: "procedure" | "source_run" | null; bindings: Record<string, unknown>; params: Record<string, unknown> }
+export interface PlanStep { id?: string | null; method: string; method_version?: string | null; purpose?: string | null; purpose_context?: "procedure" | "source_run" | null; goal_ids?: string[]; exploration?: boolean; bindings: Record<string, unknown>; params: Record<string, unknown> }
 
 export interface Recipe {
   name: string;
@@ -98,9 +101,10 @@ export interface Recipe {
   description: string;
   status?: "draft" | "published";
   origin_runs?: string[];
+  source_question?: string | null;
   default_scope?: { date_range?: [string, string] | null; time_dimension?: string | null; period?: PeriodChoice | null } | null;
   inputs?: Record<string, ParamSpec>;
-  routing: { use_for: string[]; do_not_use_for: string[] };
+  routing: { objective?: string; use_for: string[]; do_not_use_for: string[] };
   semantic_scope: { primary_metric: string; related_metrics: string[]; preferred_dimensions: string[]; required_filters: unknown[] };
   mode: "pipeline" | "investigation";
   steps: PlanStep[];
@@ -131,6 +135,13 @@ export async function resultWhenDone(runId: string, onTick?: (seconds: number) =
 }
 
 export interface Run {
+  remediations?: RunRemediation[];
+  retry_of?: { run_id: string; remediation_id: string; checked_at: string } | null;
+  goals?: AnalysisGoal[];
+  recipe_selection?: { reason: string; goal_ids: string[] } | null;
+  recipe_review?: { recipe: string; decision: "selected" | "skipped"; reason: string }[];
+  recipe_candidates?: { recipe: string; name?: string }[];
+  recipe_invocation?: { id: string; recipe: string; goal_ids: string[]; step_ids: string[]; completed: boolean } | null;
   id: string;
   origin?: "unknown" | "python" | "api" | "web" | "mcp";
   preview?: boolean;
@@ -138,7 +149,7 @@ export interface Run {
   recipe_snapshot?: Recipe | null;
   steps: { step: PlanStep; method: string; result: Result; started_at: string; finished_at: string;
     requested_step?: PlanStep | null; input_resolutions?: { field: string; source: Record<string, unknown>; resolved: unknown }[];
-    parameter_sources?: Record<string, "method_default" | "recipe" | "recipe_fixed" | "request">; author?: ExecutionAuthor | null }[];
+    parameter_sources?: Record<string, "method_default" | "recipe" | "recipe_fixed" | "request">; author?: ExecutionAuthor | null; invocation_id?: string | null }[];
   caller: { subject?: string | null; groups: string[] };
   shared_with: string[];
   status: "open" | "completed" | "failed";
@@ -150,12 +161,24 @@ export interface Run {
   scope_resolution?: { source?: string; source_trust?: string; requested?: PeriodChoice; resolved_at?: string; policy_revision?: string };
   validation: Validation[];
   summary?: string | null;
-  conclusion?: { source?: "caller" | "execution"; answer: string; findings: { text: string; step_indices: number[] }[]; limitations: string[] } | null;
+  conclusion?: { source?: "caller" | "execution"; answer: string; findings: { text: string; step_indices: number[] }[]; limitations: string[]; goal_outcomes?: GoalOutcome[] } | null;
   author?: ExecutionAuthor | null;
   conclusion_author?: ExecutionAuthor | null;
   created_at: string;
   finished_at?: string | null;
 }
+
+export interface AnalysisGoal { id: string; description: string; semantic_refs: string[]; required_capabilities: string[]; interpretation: string }
+export interface SemanticRequirement { description: string; kind: Kind; ref?: string | null; data_type?: string | null; metric_kind?: string | null; needs_entity?: boolean; needs_time?: boolean }
+export interface RunRemediation {
+  id: string; goal_id: string; reason: string; evidence: string; proposal: string;
+  requirements: SemanticRequirement[]; revision: number; status: "proposed" | "confirmed" | "dismissed";
+  model_drafts?: { provider: "cube" | "dbt"; title: string; yaml: string; unresolved: string[]; basis: string[] }[];
+  related_goal_ids?: string[];
+  checks: { at: string; revision: number; ready: boolean; results: { description: string; ref?: string | null; title?: string | null; issues: string[] }[] }[];
+  events: { action: string; at: string; note?: string; run_id?: string }[];
+}
+export interface GoalOutcome { goal_id: string; status: "supported" | "needs_input" | "unsupported" | "blocked" | "inconclusive"; step_indices: number[]; reason: string; reason_code?: string | null }
 
 export interface ExecutionAuthor {
   client_name?: string | null; client_version?: string | null;
@@ -168,7 +191,7 @@ export interface PeriodChoice { mode: "range" | "all" | "relative" | "unresolved
 export interface Scope { period?: PeriodChoice | null; date_range?: [string, string] | null; time_dimension?: string | null; filters?: unknown[]; inputs?: Record<string, unknown> }
 
 export interface SourceConfig {
-  provider: "cube" | "dbt" | "metricflow";
+  provider: "cube" | "dbt";
   environment_id?: number | null;
   instance: string;
   api_url: string;

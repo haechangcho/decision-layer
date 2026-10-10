@@ -11,6 +11,11 @@
 @media(max-width:760px){.previewOutput{padding:18px}}
 .page .inspectorBack{align-self:start;min-height:28px;padding:0;border:0;background:transparent;color:var(--accent);font-size:12px}
 .page .inspectorBack:hover{color:var(--accent-hover);text-decoration:underline}
+.comparisonPair { min-width:0; }
+.inspector:has(.comparisonPair) > .fields { gap:14px; }
+.inspector:has(.comparisonPair) h2 { margin:4px 0 10px; }
+.inspector:has(.comparisonPair) h3 { margin:0; }
+@media(min-width:761px){.workspace:has(.comparisonPair){grid-template-columns:minmax(0,1fr) 380px}.workspace:has(.comparisonPair) .canvas{height:640px}.workspace:has(.comparisonPair) .inspector{max-height:640px}}
 .page [aria-invalid="true"]{border-color:#ba3942;box-shadow:0 0 0 2px #ba39421a}.fieldError{color:#a12e35;font-size:12px}.changeList{list-style:none;padding:0;margin:0;max-height:300px;overflow:auto;border-top:1px solid var(--line)}.changeList li{padding:10px 0;border-bottom:1px solid var(--line);font-size:13px;line-height:1.5;overflow-wrap:anywhere}
 .previewStopped{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line);font-size:13px}
 .policyEditor{display:grid;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.policyEditor h3{margin:0;font-size:13px}.policyRow{display:grid;gap:8px;padding:6px 0}.policyAllowed{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}

@@ -1,9 +1,9 @@
 """Deterministic authoring defaults, shared by every product surface."""
-from ..core.models import ParamSpec, Recipe
+from ..core.models import ParamSpec, Recipe, SemanticCatalog
 from ..methods.base import registry
 
 
-def configure_step(recipe: Recipe, index: int, reset: list[str] | None = None) -> Recipe:
+def configure_step(recipe: Recipe, index: int, reset: list[str] | None = None, *, catalog: SemanticCatalog | None = None) -> Recipe:
     if index < 0 or index >= len(recipe.steps):
         raise ValueError("Step index is outside the Recipe")
     result = recipe.model_copy(deep=True)
@@ -18,6 +18,18 @@ def configure_step(recipe: Recipe, index: int, reset: list[str] | None = None) -
         step.params.pop(name, None)
     for name, role in manifest.roles.items():
         if name not in step.bindings and role.default_binding:
+            if role.default_binding == "unit_count":
+                metric_ref = step.bindings.get("metric")
+                if metric_ref == "$scope.primary_metric":
+                    metric_ref = result.semantic_scope.primary_metric
+                metric = catalog.get(metric_ref) if catalog and isinstance(metric_ref, str) else None
+                if metric and metric.metric_kind == "average" and metric.entity:
+                    candidates = [obj for obj in catalog.objects if obj.public and obj.kind == "measure"
+                                  and obj.metric_kind == "count" and obj.count_measure == obj.ref
+                                  and obj.entity == metric.entity]
+                    if len(candidates) == 1:
+                        step.bindings[name] = candidates[0].ref
+                continue
             value = getattr(result.semantic_scope, role.default_binding)
             if value:
                 step.bindings[name] = f"$scope.{role.default_binding}"

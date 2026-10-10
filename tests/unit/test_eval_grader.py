@@ -29,3 +29,31 @@ def test_numbers_are_extracted_whole():
 def test_display_units_are_grounded():
     from run_eval import grounded
     assert grounded(0.61, [61186940.0]) and grounded(9.06, [0.0906]) and not grounded(0.52, [61186940.0, 102514453.8])
+
+
+def test_grader_checks_recorded_coverage_not_only_answer_text():
+    scenario = {"question": "Sales and forecast", "require_single_run": True,
+                "require_run_coverage": True, "expect_goal_statuses": ["unsupported"]}
+    calls = [{"name": "start_analysis", "input": {}, "output": {"run_id": "r"}},
+             {"name": "complete_run", "input": {"run_id": "r"}, "output": {
+                 "status": "completed", "goals": [{"id": "forecast"}],
+                 "conclusion": {"goal_outcomes": [{"goal_id": "forecast", "status": "unsupported"}]}}}]
+    result = grade(scenario, {"calls": calls, "answers": ["Forecast unsupported"]})
+    assert result["passed"]
+    calls[-1]["output"]["conclusion"]["goal_outcomes"] = []
+    assert not grade(scenario, {"calls": calls, "answers": ["Forecast unsupported"]})["passed"]
+
+
+def test_recipe_reuse_requires_completed_invocation_and_recorded_selection():
+    ref = "recipe://sales@1.0.0"
+    scenario = {"question": "Sales", "must_use_recipe": ref}
+    output = {"status": "completed", "recipe": ref,
+              "recipe_invocation": {"completed": True},
+              "recipe_review": [{"recipe": ref, "decision": "selected"}]}
+    run = {"calls": [{"name": "complete_run", "input": {}, "output": output}], "answers": ["Sales"]}
+    assert grade(scenario, run)["checks"]["recipe_reused"]
+    output["recipe_review"] = []
+    assert not grade(scenario, run)["checks"]["recipe_reused"]
+    output["recipe_review"] = [{"recipe": ref, "decision": "selected"}]
+    output["recipe_invocation"]["completed"] = False
+    assert not grade(scenario, run)["checks"]["recipe_reused"]

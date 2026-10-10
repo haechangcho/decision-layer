@@ -7,9 +7,17 @@
 .recipeBadge svg { color:inherit; }
 .direct { color:var(--muted); background:var(--hover); }
 .name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px; min-width:0; }
-.detail { margin:0 0 18px; gap:8px 12px; font-size:13px; }
+.detail { margin:0; gap:8px 12px; font-size:13px; }
 .label { color:var(--muted); }
 .detail a { display:inline-flex; align-items:center; gap:4px; color:var(--text); font-weight:600; overflow-wrap:anywhere; min-width:0; }
 .detail a:hover { text-decoration:underline; }
 .detail a:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 .detail a svg { flex-shrink:0; }
+.reviews { margin:16px 0 0; min-width:0; max-width:900px; }
+.reviews h3 { margin:0 0 6px; color:var(--muted); font-size:11px; font-weight:500; }
+.reviews ul { list-style:none; padding:0; margin:0; display:grid; gap:12px; }
+.reviews li { min-width:0; font-size:12px; line-height:1.6; }
+.reviews li > div { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 14px; }
+.reviews a { color:var(--text); font-weight:600; overflow-wrap:anywhere; }
+.reviews span, .reviews p { color:var(--muted); }
+.reviews p { margin:3px 0 0; overflow-wrap:anywhere; }

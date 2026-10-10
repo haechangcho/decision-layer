@@ -22,7 +22,8 @@ def test_catalog_and_preview(cube_meta):
     cat = c.get("/semantic/catalog").json()
     assert any(o["ref"] == ref("ecom_order.return_rate") for o in cat["objects"])
     r = c.post("/datasets/preview", json={"grain": "aggregate", "measures": [ref("ecom_order.count")],
-                                           "dimensions": [ref("ecom_order.channel")]})
+                                           "dimensions": [ref("ecom_order.channel")],
+                                           "time": {"dimension": ref("ecom_order.order_dt"), "date_range": ["2026-07-01", "2026-09-30"]}})
     assert r.status_code == 200 and len(r.json()["rows"]) == 3
 
 
@@ -33,7 +34,7 @@ def test_errors_are_structured(cube_meta):
     r = c.get("/semantic/objects", params={"ref": ref("ecom_order.nope")}, headers={"Authorization": "Bearer t"})
     assert r.status_code == 404 and r.json()["error"]["code"] == "UNKNOWN_SEMANTIC_OBJECT"
     r = c.post("/datasets/preview", json={"grain": "entity", "measures": [ref("ecom_order.count")]},
-               headers={"Authorization": "Bearer t"})
+               headers={"Authorization": f"Bearer {jwt.encode({'sub': 'alice'}, 'test-secret')}"})
     assert r.status_code == 422  # contract validation (entity grain without entity)
 
 
@@ -58,7 +59,7 @@ def test_recipe_writes_use_caller_identity_and_create_new_versions(cube_meta, tm
     assert c.get("/recipes/orders-test", headers=caller).json()["description"] == "updated"
 
 
-@pytest.mark.parametrize("missing", ["cube://local/ecom_order/nope", "metricflow://local/metrics/nope"])
+@pytest.mark.parametrize("missing", ["cube://local/ecom_order/nope", "dbt://local/metrics/nope"])
 def test_live_recipe_validation_identifies_the_field_for_an_unknown_semantic_ref(cube_meta, missing):
     c = client(cube_meta, secret="s")
     candidate = {"name": "orders-test", "version": "1.0.0", "description": "test",

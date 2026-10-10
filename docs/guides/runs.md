@@ -55,8 +55,41 @@ Saving does not approve its findings or relax thresholds. Re-execution stops if 
 fails again; a later exploratory comparison is not an automatic fallback branch.
 Input-waiting steps and refusals without a calculated output must be edited or excluded.
 
+## Model improvements and reanalysis
+
+When a definition needed for a recorded goal is unavailable, MCP can call
+`record_semantic_gap` with the inspected evidence, suggested improvement and typed
+requirements. Unknown references stay unset. Missing from a catalog may mean lack
+of access, not missing source data. Input, Method and data-quality failures remain
+separate reasons; they are not automatically converted into model proposals.
+
+1. Read the suggested change and copy the YAML draft if useful.
+2. Update the model in your semantic layer, outside Decision Layer.
+3. Ask the question again. The new analysis discovers available definitions and
+   performs normal Method validation. The original Run remains unchanged.
+
+The Web does not require proposal approval, definition linking or a retry wizard.
+Explicit linked-retry APIs remain available for existing integrations:
+
+REST uses `POST /runs/{id}/remediations`, `PUT /runs/{id}/remediations/{item}`,
+`POST .../{item}:check` and `POST .../{item}:retry`. Review/check/retry require the
+current `base_revision`. MCP exposes `record_semantic_gap`, `recheck_semantic_gap`
+and `retry_after_semantic_update`; approval is deliberately not an MCP tool.
+MCP retries must perform normal Recipe selection/review. Owners may update semantic
+references while preserving the original goal descriptions, capabilities and interpretation.
+Private proposals are not sent to GitHub and do not modify models automatically.
+
 ## Access and limits
 
 Runs belong to the caller identity accepted by Cube. A shared reader must still have semantic access to the referenced objects. In the local sample, Web and MCP use one development service identity; production authentication and author roles require a separate deployment decision.
 
 Next: [create a Recipe](./recipes.md) or [connect an AI client](./mcp.md).
+# Model Improvement Drafts
+
+Model improvements show why an answer is blocked, what to change and a YAML
+draft when one was supplied. Copy the draft for the semantic model owner to
+review outside Decision Layer. Unknown columns, model names and joins remain
+placeholders; API metadata does not establish the physical warehouse schema.
+Drafts are not applied or executed, and passing a catalog check does not validate
+the analysis. Historical records without drafts may show an unbound dimension
+format example instead. Several goals can share a proposal via `related_goal_ids`.

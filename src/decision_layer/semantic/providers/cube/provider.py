@@ -47,6 +47,11 @@ class CubeProvider:
     async def discover(self, credentials: Credentials) -> SemanticCatalog:
         return (await self._catalog(credentials))[0]
 
+    async def refresh_catalog(self, credentials: Credentials) -> SemanticCatalog:
+        key = hashlib.sha256((credentials.bearer() or "").encode()).hexdigest()
+        self._cache.pop(key, None)
+        return await self.discover(credentials)
+
     async def resolve(self, refs: list[str], credentials: Credentials) -> list[SemanticObject]:
         catalog, _views = await self._catalog(credentials)
         out = []

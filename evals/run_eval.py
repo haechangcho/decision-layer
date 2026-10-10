@@ -19,6 +19,12 @@ Scenario fields (all optional except id/question):
   expect_numbers     numbers the final answer must contain (±tolerance, default 0.01)
   must_mention       strings the answer must contain;  must_mention_any: at least one of them
   must_not_mention   strings the answer must not contain
+  must_call_tools    MCP tool names required in the trace
+  must_not_call      Methods/Recipes that must not execute
+  require_single_run all execution calls must use one Run
+  require_run_coverage completed Run must contain an outcome for each goal
+  expect_goal_statuses outcome statuses that must occur
+  must_use_recipe    exact Recipe reference required in the completed Run
 Every run also checks numbers_grounded (each decimal number in the answers appears in some tool output) and
 reports numbers_derivable (grounded, or a sum / difference / ratio of two tool-output numbers). Per scenario,
 path_consistency is the share of repeats that executed the most common sequence of methods.
@@ -180,6 +186,34 @@ def grade(s: dict, run: dict) -> dict:
         checks["must_mention_any"] = any(m in final for m in s["must_mention_any"])
     if s.get("must_not_mention"):
         checks["must_not_mention"] = not any(m in final for m in s["must_not_mention"])
+    if s.get("must_call_tools"):
+        checks["must_call_tools"] = set(s["must_call_tools"]) <= {call["name"] for call in run["calls"]}
+    if s.get("must_not_call"):
+        checks["must_not_call"] = not set(s["must_not_call"]) & set(names)
+    if s.get("require_single_run"):
+        ids = {call["input"]["run_id"] for call in run["calls"]
+               if call["name"] in {"run_step", "use_recipe", "complete_run"} and call["input"].get("run_id")}
+        ids.update(call["output"]["run_id"] for call in run["calls"]
+                   if call["name"] in {"start_run", "start_analysis"} and isinstance(call["output"], dict)
+                   and call["output"].get("run_id"))
+        checks["single_run"] = len(ids) == 1
+    completed = [call["output"] for call in run["calls"] if call["name"] == "complete_run"
+                 and isinstance(call["output"], dict) and call["output"].get("status") == "completed"]
+    if s.get("require_run_coverage"):
+        checks["run_coverage"] = bool(completed) and all(
+            item.get("goals") and {goal["id"] for goal in item["goals"]} ==
+            {outcome["goal_id"] for outcome in (item.get("conclusion") or {}).get("goal_outcomes", [])}
+            for item in completed)
+    if s.get("expect_goal_statuses"):
+        actual = {outcome["status"] for item in completed
+                  for outcome in (item.get("conclusion") or {}).get("goal_outcomes", [])}
+        checks["goal_statuses"] = set(s["expect_goal_statuses"]) <= actual
+    if s.get("must_use_recipe"):
+        checks["recipe_reused"] = bool(completed) and all(
+            item.get("recipe") == s["must_use_recipe"] and
+            (item.get("recipe_invocation") or {}).get("completed") and
+            any(review.get("decision") == "selected" and review.get("recipe") == s["must_use_recipe"]
+                for review in item.get("recipe_review", [])) for item in completed)
     pool = [n for c in run["calls"] for n in numbers_in(c["output"])] + numbers_in(s["question"]) \
         + numbers_in(" ".join(s.get("user_replies") or []))
     decimals = [x for x in numbers_in(final) if x != int(x)]

@@ -31,6 +31,12 @@ const catalogCache = new Map<string, Promise<SemanticObject[]>>();
 export function useCatalog() {
   const [objects, setObjects] = useState<SemanticObject[]>([]);
   const [error, setError] = useState<Error | null>(null);
+  const reload = useCallback(() => {
+    const callerToken = getSourceCallerToken();
+    const request = api<{ objects: SemanticObject[] }>("/semantic/catalog", { callerToken }).then(c => c.objects);
+    catalogCache.set(callerToken, request);
+    request.then(setObjects).catch(e => { catalogCache.delete(callerToken); setError(e); });
+  }, []);
   useEffect(() => {
     const callerToken = getSourceCallerToken();
     let request = catalogCache.get(callerToken);
@@ -44,5 +50,5 @@ export function useCatalog() {
     });
   }, []);
   const byRef = new Map(objects.map((o) => [o.ref, o]));
-  return { objects, byRef, error };
+  return { objects, byRef, error, reload };
 }

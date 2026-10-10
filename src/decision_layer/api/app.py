@@ -15,7 +15,7 @@ from ..auth import credentials, identify
 from ..i18n import _, negotiate, set_locale
 from ..core.errors import DecisionLayerError, ProviderAccessDenied, ProviderError, UnknownSemanticObject
 from ..core.models import (
-    CallerInfo, Dataset, DatasetSpec, MethodManifest, PlanStep, ProviderCapabilities, Recipe, Result, Run, SemanticCatalog,
+    CallerInfo, Column, Dataset, DatasetSpec, MethodManifest, PlanStep, ProviderCapabilities, Recipe, Result, Run, SemanticCatalog,
     SemanticObject,
 )
 from ..methods import registry
@@ -31,7 +31,9 @@ from ..recipes.from_run import RecipeCandidate, RunPromotionError, candidate_fro
 from ..runs.engine import RunEngine
 from ..runs.jobs import JobRunner
 from ..runs.store import RunStore, open_store
-from ..service import MethodRunRequest, RecipeConfigureRequest, RecipePreviewRequest, RecipePublishRequest, RecipeSaveRequest, RecipeYamlRequest, RunCompleteRequest, RunRecipeRequest, RunScopeRequest, RunShareRequest, RunStartRequest, RunStepRequest
+from ..service import MethodProposalRequest, MethodRunRequest, RecipeSearchRequest, RecipeConfigureRequest, RecipePreviewRequest, RecipePublishRequest, RecipeSaveRequest, RecipeYamlRequest, RunCompleteRequest, RunRecipeRequest, RunScopeRequest, RunShareRequest, RunStartRequest, RunStepRequest, RunUseRecipeRequest
+from ..service import BlockedAnalysisRequest, RemediationCreateRequest, RemediationReviewRequest, RemediationCheckRequest, RemediationRetryRequest
+from ..runs import remediation
 from ..settings import Settings
 from ..i18n import _
 
@@ -173,7 +175,7 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
     @app.get("/sources/providers")
     async def source_providers() -> list[dict]:
         entries = []
-        for name, title in (("cube", "Cube"), ("dbt", "dbt Semantic Layer"), ("metricflow", "dbt MetricFlow (local example)")):
+        for name, title in (("cube", "Cube"), ("dbt", "dbt Semantic Layer")):
             config = await source_manager.effective(resolve_secret=False, provider=name)
             entries.append({"provider": name, "title": title, "api_url": config.api_url,
                             "instance": config.instance, "auth_method": config.auth_method,
@@ -253,7 +255,7 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
                          "impact": None if times else ("A related time dimension could not be confirmed from metadata. Select and verify one when running."
                                                        if any_times else "Time-series analysis is unavailable: no time dimension is visible.")},
                 "entity_key": {"status": "ready" if has_key else "missing", "ref": entity_ref,
-                               "impact": None if has_key else "Matched/entity-level comparisons may be unavailable."},
+                               "impact": None},
             }
             items.append({"metric": metric.model_dump(mode="json"), "checks": checks})
         return {"provider": catalog.provider, "instance": catalog.instance, "metrics": items,
@@ -271,10 +273,32 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
         return await provider.resolve(ref, creds)
 
     @app.post("/datasets/preview", response_model=Dataset)
-    async def preview(spec: DatasetSpec, creds: Creds, with_sql: bool = False) -> Dataset:
-        """Run a DatasetSpec and return up to PREVIEW_ROWS rows (provenance keeps the full count)."""
-        dataset = await provider.execute(spec, creds, with_sql=with_sql)
-        return dataset.model_copy(update={"rows": dataset.rows[:PREVIEW_ROWS]})
+    async def preview(spec: DatasetSpec, creds: Creds, caller: Caller, with_sql: bool = False) -> Dataset:
+        """Compatibility endpoint: validated, bounded and recorded aggregate preview."""
+        from ..methods.base import InvalidBinding
+        await provider.validate_dataset(spec, creds)
+        if spec.grain != "aggregate" or not spec.measures:
+            raise InvalidBinding("Aggregate previews require a metric. Use a registered Method for entity data.")
+        if len(spec.order) > 1 or any(ref not in spec.measures for ref, direction in spec.order):
+            raise InvalidBinding("Preview supports ordering by one selected metric.")
+        params = {"limit": min(spec.limit_rows or PREVIEW_ROWS, PREVIEW_ROWS), "with_sql": with_sql}
+        if spec.order:
+            params.update(order_by=spec.order[0][0], direction=spec.order[0][1])
+        if spec.time and spec.time.granularity:
+            params["granularity"] = spec.time.granularity
+        run, result = await engine.adhoc(creds, caller, PlanStep(method="query.aggregate",
+            bindings={"metric": spec.measures[0], "related_metrics": spec.measures[1:], "dimensions": spec.dimensions}, params=params),
+            scope={"date_range": spec.time.date_range if spec.time else None,
+                   "time_dimension": spec.time.dimension if spec.time else None,
+                   "filters": [item.model_dump(mode="json") for item in spec.filters]}, preview=True)
+        if run.needs_input:
+            return JSONResponse(status_code=422, content={"error": {"code": "PERIOD_REQUIRED", "message": run.needs_input["question"], "details": {"run_id": run.id}}})
+        if not result or result.status != "success":
+            raise InvalidBinding("Preview could not execute.", run_id=run.id)
+        columns = [Column.model_validate(item) for item in result.artifacts[0].data["columns"]]
+        return Dataset(spec=run.query_attempts[-1].spec, columns=columns,
+            rows=[[row[column.ref] for column in columns] for row in result.primary.data],
+            provenance=result.provenance.queries)
 
     @app.get("/methods", response_model=list[MethodManifest])
     async def methods() -> list[MethodManifest]:
@@ -297,16 +321,26 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
     async def recipes_list(_caller: Caller) -> list[Recipe]:
         return recipes.list()
 
+    @app.post("/recipes:search")
+    async def recipe_search(req: RecipeSearchRequest, creds: Creds, caller: Caller):
+        from ..recipes.routing import search_recipes
+        return await search_recipes(recipes, provider, creds, req.question, req.goals, req.inputs, req.limit)
+
     @app.get("/recipes:drafts", response_model=list[Recipe])
     async def recipe_drafts(_caller: Caller) -> list[Recipe]:
         return recipes.list_drafts()
 
     @app.post("/recipes:configure-step", response_model=Recipe)
-    async def configure_recipe_step(req: RecipeConfigureRequest, caller: Caller):
+    async def configure_recipe_step(req: RecipeConfigureRequest, caller: Caller, creds: Creds):
         from ..recipes.configuration import configure_step
         from ..recipes.authoring import RecipeEditError
         try:
-            recipe = configure_step(req.recipe, req.step_index, req.reset_parameters)
+            catalog = None
+            if 0 <= req.step_index < len(req.recipe.steps):
+                manifest = registry.get(req.recipe.steps[req.step_index].method).manifest
+                if any(role.default_binding == "unit_count" for role in manifest.roles.values()):
+                    catalog = await provider.discover(creds)
+            recipe = configure_step(req.recipe, req.step_index, req.reset_parameters, catalog=catalog)
             for spec in recipe.inputs.values():
                 spec.label = _(spec.label)
             return recipe
@@ -403,13 +437,31 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
         """Start a Run. A pipeline Recipe executes right away (202 with the run while it is still running);
         an investigation Recipe waits for steps."""
         run = await engine.start(creds, caller, recipe=req.recipe, question=req.question, scope=req.scope.as_dict(),
-                                 wait=waited(wait), origin=run_origin(request), author=req.author)
+                                 wait=waited(wait), origin=run_origin(request), author=req.author,
+                                 goals=req.goals, recipe_selection=req.recipe_selection,
+                                 recipe_review=req.recipe_review, interactive=req.interactive)
         return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
 
     @app.get("/runs", response_model=list[Run])
     async def runs_list(caller: Caller, limit: int = 50, recipe: str | None = None) -> list[Run]:
         """The caller's own runs, newest first."""
         return await engine.list(caller, limit, recipe)
+
+    @app.post("/analyses:blocked", response_model=Run)
+    async def analysis_blocked(req: BlockedAnalysisRequest, caller: Caller, request: Request):
+        """Record an unanswered question and proposed improvements, without executing a query."""
+        return await remediation.record_blocked(engine, caller, req, run_origin(request))
+
+    @app.post("/runs/{run_id}/method-proposal")
+    async def run_method_proposal(run_id: str, req: MethodProposalRequest, caller: Caller):
+        from ..runs.proposals import method_proposal
+        run = await engine._owned(run_id, caller)
+        return method_proposal(run, req, settings.issue_repository)
+
+    @app.post("/runs/{run_id}:use-recipe", response_model=Run)
+    async def run_use_recipe(run_id: str, req: RunUseRecipeRequest, creds: Creds, caller: Caller, wait: float | None = None):
+        run = await engine.use_recipe(creds, caller, run_id, req.recipe, req.selection, req.inputs, waited(wait))
+        return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
 
     @app.get("/runs/{run_id}/recipe-candidate", response_model=RecipeCandidate)
     async def run_recipe_candidate(run_id: str, creds: Creds, caller: Caller, indices: list[int] = Query(...)) -> RecipeCandidate:
@@ -457,6 +509,24 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
     @app.get("/runs/{run_id}", response_model=Run)
     async def run_get(run_id: str, creds: Creds, caller: Caller) -> Run:
         return await engine.get(creds, caller, run_id)
+
+    @app.post("/runs/{run_id}/remediations", response_model=Run)
+    async def remediation_create(run_id: str, req: RemediationCreateRequest, caller: Caller):
+        return await remediation.create(engine, caller, run_id, req)
+
+    @app.put("/runs/{run_id}/remediations/{item_id}", response_model=Run)
+    async def remediation_review(run_id: str, item_id: str, req: RemediationReviewRequest, caller: Caller):
+        return await remediation.review(engine, caller, run_id, item_id, req)
+
+    @app.post("/runs/{run_id}/remediations/{item_id}:check", response_model=Run)
+    async def remediation_check(run_id: str, item_id: str, req: RemediationCheckRequest, creds: Creds, caller: Caller):
+        return await remediation.recheck(engine, creds, caller, run_id, item_id, req)
+
+    @app.post("/runs/{run_id}/remediations/{item_id}:retry", response_model=Run)
+    async def remediation_retry(run_id: str, item_id: str, req: RemediationRetryRequest, creds: Creds,
+                                caller: Caller, request: Request, wait: float | None = None):
+        run = await remediation.retry(engine, creds, caller, run_id, item_id, req, run_origin(request), waited(wait))
+        return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
 
     @app.put("/runs/{run_id}/scope", response_model=Run)
     async def run_scope(run_id: str, req: RunScopeRequest, creds: Creds, caller: Caller, wait: float | None = None):

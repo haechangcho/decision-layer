@@ -1,0 +1,19 @@
+.section { margin:32px 0; min-width:0; }
+.section h2 { margin:0 0 14px; font-size:15px; }
+.goals { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.goals li { min-width:0; padding:14px 16px; border:1px solid var(--line); border-radius:4px; }
+.goals li > div:first-child { display:flex; align-items:baseline; gap:16px; justify-content:space-between; }
+.goals strong { font-size:13px; font-weight:600; overflow-wrap:anywhere; }
+.status { flex-shrink:0; font-size:12px; color:var(--muted); }
+.goals p, .dialog p { margin:6px 0 10px; font-size:13px; line-height:1.6; color:var(--muted); overflow-wrap:anywhere; }
+.links { display:flex; flex-wrap:wrap; gap:14px; margin-top:8px; }
+.links a, .links button, .propose { display:inline-flex; align-items:center; gap:7px; border:0; background:none; padding:0; color:var(--accent); font-size:12px; cursor:pointer; text-decoration:none; }
+.propose { margin-top:8px; }
+.dialog { width:min(560px,calc(100vw - 32px)); max-height:85vh; padding:24px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--text); box-shadow:var(--dl-shadow); }
+.dialog::backdrop { background:rgb(0 0 0 / 30%); }
+.dialog header { display:flex; justify-content:space-between; align-items:center; gap:16px; }
+.dialog header button { background:none; border:0; padding:5px; color:var(--muted); cursor:pointer; }
+.dialog form, .dialog label { display:grid; gap:12px; }
+.dialog label { font-size:13px; gap:6px; margin:12px 0; }
+.dialog input, .dialog textarea { width:100%; border:1px solid var(--line); border-radius:6px; padding:10px; background:var(--panel); color:var(--text); font:inherit; line-height:1.5; }
+@media(max-width:700px) { .goals { grid-template-columns:minmax(0,1fr); } .goals li > div:first-child { flex-direction:column; gap:4px; } }

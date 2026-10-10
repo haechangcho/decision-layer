@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowRight, Database, Info, Search, ShieldCheck, X } from "lucide-react";
+import { Activity, ArrowRight, Database, Info, Search, X } from "lucide-react";
 
 import { api, getSourceCallerToken, type SemanticCatalog, type SemanticObject, type SourceReadiness } from "@/lib/api";
 import { LoadingIndicator } from "@/components/loading-indicator";
@@ -14,18 +14,11 @@ function getCube(ref: string) {
   return ref.split("/").at(-2) ?? "Cube";
 }
 
-function statusFor(metric: CatalogMetric) {
-  if (!metric.checks) return { label: "점검 필요", ready: false };
-  const missing = Object.values(metric.checks).some((check) => check.status === "missing");
-  return { label: missing ? "일부 제한" : "분석 준비됨", ready: !missing };
-}
-
 export default function CatalogPage() {
   const [metrics, setMetrics] = useState<CatalogMetric[]>([]);
   const [selected, setSelected] = useState<CatalogMetric | null>(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "ready" | "attention">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -62,16 +55,13 @@ export default function CatalogPage() {
   }, [mobileDetailOpen]);
 
   const shown = useMemo(() => metrics.filter((metric) => {
-    const status = statusFor(metric);
-    const matchesFilter = filter === "all" || (filter === "ready" ? status.ready : !status.ready);
     const haystack = `${metric.title} ${metric.ref} ${metric.description ?? ""} ${metric.cube}`.toLowerCase();
-    return matchesFilter && haystack.includes(search.trim().toLowerCase());
-  }), [metrics, filter, search]);
+    return haystack.includes(search.trim().toLowerCase());
+  }), [metrics, search]);
   const groups = useMemo(() => shown.reduce<Record<string, CatalogMetric[]>>((all, metric) => {
     (all[metric.cube] ??= []).push(metric);
     return all;
   }, {}), [shown]);
-  const readyCount = metrics.filter((metric) => statusFor(metric).ready).length;
 
   function methodHref(metric: CatalogMetric) {
     const method = metric.checks?.time.status === "ready" ? "query.trend" : "query.drilldown";
@@ -80,7 +70,7 @@ export default function CatalogPage() {
 
   return <div className={styles.page}>
     <div className={styles.heading}>
-      <div><h1>지표 탐색</h1><p className={styles.intro}>연결된 시맨틱 레이어의 지표와 분석 준비 상태를 확인하세요.</p></div>
+      <div><h1>지표 탐색</h1><p className={styles.intro}>연결된 시맨틱 레이어의 지표와 정의를 확인하세요.</p></div>
       <Link className={styles.sourceLink} href="/sources"><Database size={16} />데이터 연결 설정</Link>
     </div>
 
@@ -94,22 +84,17 @@ export default function CatalogPage() {
     </section> : <div className={styles.workspace}>
       <section className={styles.catalog} aria-label="지표 카탈로그">
         <div className={styles.toolbar}><label className={styles.search}><Search size={17} /><input aria-label="지표 검색" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="이름, 설명 또는 모델 검색" /></label><span className={styles.total}>{metrics.length}개 지표</span></div>
-        <div className={styles.filters} role="group" aria-label="준비 상태 필터">
-          {([ ["all", `전체 ${metrics.length}`], ["ready", `분석 준비됨 ${readyCount}`], ["attention", `확인 필요 ${metrics.length - readyCount}`] ] as const).map(([value, label]) => <button key={value} className={filter === value ? styles.activeFilter : ""} aria-pressed={filter === value} onClick={() => setFilter(value)}>{label}</button>)}
-        </div>
         {Object.entries(groups).map(([cube, items]) => <section className={styles.group} key={cube} aria-label={`${cube} 지표`}>
           <h2><Database size={15} />{cube}<span>{items.length}</span></h2>
           {items.map((metric) => {
-            const status = statusFor(metric);
             return <button key={metric.ref} className={`${styles.row} ${selected?.ref === metric.ref ? styles.selected : ""}`} onClick={() => { setSelected(metric); setMobileDetailOpen(true); }} aria-pressed={selected?.ref === metric.ref}>
               <span className={styles.metricIcon}><Activity size={17} /></span>
               <span className={styles.metricCopy}><strong>{metric.title}</strong>{metric.description && <small>{metric.description}</small>}</span>
               <span className={styles.kind}>{metric.metric_kind ?? "측정값"}</span>
-              <span className={`${styles.status} ${status.ready ? styles.ready : styles.warning}`}><i />{status.label}</span>
             </button>;
           })}
         </section>)}
-        {shown.length === 0 && <div className={styles.noResults}><Search size={22} /><strong>조건에 맞는 지표가 없습니다</strong><button onClick={() => { setSearch(""); setFilter("all"); }}>필터 초기화</button></div>}
+        {shown.length === 0 && <div className={styles.noResults}><Search size={22} /><strong>조건에 맞는 지표가 없습니다</strong><button onClick={() => setSearch("")}>검색 초기화</button></div>}
       </section>
 
       {mobileDetailOpen && <button type="button" className={styles.mobileBackdrop} onClick={() => setMobileDetailOpen(false)} aria-label="지표 상세 닫기" />}
@@ -119,14 +104,12 @@ export default function CatalogPage() {
           <h2>{selected.title}</h2><p className={styles.description}>{selected.description || "시맨틱 모델에 설명이 등록되지 않았습니다."}</p>
           <details className={styles.technicalDetails}><summary>기술 정보</summary><div className={styles.reference}><span>지표 참조</span><code>{selected.ref}</code></div>
             {selected.ratio_parts?.length ? <div className={styles.reference}><span>분자 / 분모</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
-            {selected.entity && <div className={styles.reference}><span>Entity key</span><code>{selected.entity}</code></div>}</details>
-          <div className={styles.readinessTitle}><ShieldCheck size={16} /><strong>분석 준비 상태</strong></div>
-          {!selected.checks ? <p className={styles.help}>준비 상태를 확인할 수 없어요. 연결 권한과 제공자 응답을 점검해 주세요.</p> : <ul className={styles.checks}>
-            <li className={selected.checks.time.status === "missing" ? styles.checkWarning : ""}><span>시간 추이</span><strong>{selected.checks.time.status === "ready" ? "가능" : "확인 필요"}</strong></li>
-            <li className={selected.checks.decomposition.status === "missing" ? styles.checkWarning : ""}><span>구성 분해</span><strong>{selected.checks.decomposition.status === "ready" ? "가능" : selected.checks.decomposition.status === "not_applicable" ? "해당 없음" : "확인 필요"}</strong></li>
-            <li className={selected.checks.entity_key.status === "missing" ? styles.checkWarning : ""}><span>기본 키</span><strong>{selected.checks.entity_key.status === "ready" ? "가능" : "확인 필요"}</strong></li>
+            {selected.entity && <div className={styles.reference}><span>개별 분석 단위 참조</span><code>{selected.entity}</code></div>}</details>
+          <div className={styles.readinessTitle}><Info size={16} /><strong>모델에서 확인한 정보</strong></div>
+          {!selected.checks ? <p className={styles.help}>추가 모델 정보를 불러오지 못했습니다. 분석 가능 여부는 실행할 때 확인합니다.</p> : <ul className={styles.checks}>
+            <li><span>시간 차원</span><strong>{selected.checks.time.status === "ready" ? "등록됨" : "확인되지 않음"}</strong></li>
+            {(selected.metric_kind === "ratio" || selected.checks.decomposition.status !== "not_applicable") && <li><span>분자 / 분모</span><strong>{selected.checks.decomposition.status === "ready" ? "등록됨" : "확인되지 않음"}</strong></li>}
           </ul>}
-          {selected.checks && [selected.checks.time.impact, selected.checks.decomposition.impact, selected.checks.entity_key.impact].filter(Boolean).map((impact) => <p className={styles.impact} key={impact}>{impact}</p>)}
           <Link className={styles.primaryButton} href={methodHref(selected)}>Recipe 만들기 <ArrowRight size={16} /></Link>
           <p className={styles.footnote}>지표 정의와 데이터 접근 권한은 연결된 시맨틱 레이어에서 관리합니다.</p>
         </> : <div className={styles.noSelection}>목록에서 지표를 선택하세요.</div>}

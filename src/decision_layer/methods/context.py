@@ -4,14 +4,15 @@ entry point and the query budget. Methods never call a provider directly
 """
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from ..core.errors import DecisionLayerError, UnknownSemanticObject
 from ..core.periods import ExecutionPolicy, PeriodChoice
 from ..core.models import (
-    Dataset, DatasetSpec, Filter, QueryProvenance, SemanticCatalog, SemanticObject, TimeScope,
+    Dataset, DatasetSpec, Filter, QueryAttempt, QueryProvenance, SemanticCatalog, SemanticObject, TimeScope,
 )
 from ..semantic.provider import Credentials, SemanticProvider
 from ..i18n import _
@@ -58,6 +59,11 @@ class ExecutionContext:
     max_queries: int = 30
     queries: list[QueryProvenance] = field(default_factory=list)
     execution_policy: ExecutionPolicy | None = None
+    attempts: list[QueryAttempt] = field(default_factory=list)
+    step_id: str | None = None
+    persist_attempts: Callable[[], Awaitable[None]] | None = None
+    allowed_measures: set[str] | None = None
+    _attempt_count: int = 0
 
     def obj(self, ref: str) -> SemanticObject:
         o = self.catalog.get(ref)
@@ -66,7 +72,7 @@ class ExecutionContext:
         return o
 
     async def dataset(self, spec: DatasetSpec, *, with_sql: bool = False) -> Dataset:
-        if len(self.queries) >= self.max_queries:
+        if max(self._attempt_count, len(self.queries)) >= self.max_queries:
             raise QueryBudgetExceeded(_("The query budget ({limit}) is used up", limit=self.max_queries))
         if self.execution_policy:
             dates = spec.time.date_range if spec.time else None
@@ -75,11 +81,39 @@ class ExecutionContext:
             issue = self.execution_policy.issue(PeriodChoice(mode="range", date_range=dates) if dates else PeriodChoice(mode="all"))
             if issue:
                 raise Refused(_(issue))
-        ds = await self.provider.execute(spec, self.credentials, with_sql=with_sql)
-        self.queries.extend(ds.provenance)
-        if self.execution_policy and len(ds.rows) > self.execution_policy.max_result_rows:
-            raise Refused(_("The result exceeds the server row limit. Narrow the period or filters."))
-        return ds
+        refs = [*spec.measures, *spec.dimensions, *(f.member for f in spec.filters), *(ref for ref, direction in spec.order)]
+        if spec.time:
+            refs.append(spec.time.dimension)
+        if spec.entity:
+            refs.append(spec.entity)
+        for ref in refs:
+            if not self.obj(ref).public:
+                raise UnknownSemanticObject("Semantic object is unavailable.")
+            if self.allowed_measures is not None and self.obj(ref).kind == "measure" and ref not in self.allowed_measures:
+                raise Refused("The query selects a measure outside this Recipe's scope.")
+        for required in self.scope.filters:
+            if required not in spec.filters:
+                raise Refused("The query did not apply a required Run filter.")
+        await self.provider.validate_dataset(spec, self.credentials)
+        attempt = QueryAttempt(spec=spec.model_copy(deep=True), step_id=self.step_id)
+        self.attempts.append(attempt)
+        self._attempt_count += 1
+        if self.persist_attempts:
+            await self.persist_attempts()
+        try:
+            ds = await self.provider.execute(spec, self.credentials, with_sql=with_sql)
+            self.queries.extend(ds.provenance)
+            if self.execution_policy and len(ds.rows) > self.execution_policy.max_result_rows:
+                raise Refused(_("The result exceeds the server row limit. Narrow the period or filters."))
+            attempt.status = "success"
+            return ds
+        except BaseException as exc:
+            attempt.status = "failed"
+            attempt.error_code = exc.code if isinstance(exc, DecisionLayerError) else "QUERY_INTERRUPTED" if isinstance(exc, asyncio.CancelledError) else "PROVIDER_ERROR"
+            raise
+        finally:
+            if self.persist_attempts:
+                await self.persist_attempts()
 
     # ── scope helpers ──────────────────────────────────────────────────────
     def time_dimension_for(self, metric: str) -> str:
