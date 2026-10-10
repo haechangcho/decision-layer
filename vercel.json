@@ -4,5 +4,27 @@
   "installCommand": "npm ci",
   "buildCommand": "npm run docs:build",
   "outputDirectory": "docs/.vitepress/dist",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "redirects": [
+    {
+      "source": "/PRODUCT_CONTEXT",
+      "destination": "https://github.com/haechangcho/decision-layer/blob/main/docs/PRODUCT_CONTEXT.md",
+      "permanent": true
+    },
+    {
+      "source": "/PRODUCT_CONTEXT.html",
+      "destination": "https://github.com/haechangcho/decision-layer/blob/main/docs/PRODUCT_CONTEXT.md",
+      "permanent": true
+    },
+    {
+      "source": "/DECISIONS",
+      "destination": "https://github.com/haechangcho/decision-layer/blob/main/docs/DECISIONS.md",
+      "permanent": true
+    },
+    {
+      "source": "/DECISIONS.html",
+      "destination": "https://github.com/haechangcho/decision-layer/blob/main/docs/DECISIONS.md",
+      "permanent": true
+    }
+  ]
 }

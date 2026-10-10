@@ -2,6 +2,34 @@ import { defineConfig } from 'vitepress'
 
 const github = 'https://github.com/haechangcho/decision-layer'
 
+function sidebar(locale: '' | 'ko') {
+  const ko = locale === 'ko'
+  const prefix = ko ? '/ko' : ''
+  const item = (en: string, kr: string, path: string) => ({ text: ko ? kr : en, link: prefix + path })
+  return [
+    { text: ko ? '시작하기' : 'Get started', items: [
+      item('Start here', '시작하기', '/'),
+      item('Run the sample', '샘플 실행', '/guides/quickstart'),
+      item('Connect Cube', 'Cube 연결', '/guides/cube'),
+      item('Connect dbt Semantic Layer', 'dbt Semantic Layer 연결', '/guides/dbt'),
+      item('Connect an AI client', 'AI 도구 연결', '/guides/mcp')
+    ] },
+    { text: ko ? '분석 사용하기' : 'Use Decision Layer', items: [
+      item('Recipes', 'Recipe 만들기', '/guides/recipes'),
+      item('Runs and evidence', '실행 기록과 근거', '/guides/runs')
+    ] },
+    { text: ko ? '개발과 기여' : 'Develop', items: [
+      item('First Method', '첫 Method 개발', '/guides/methods'),
+      item('Local development', '개발 환경', '/guides/development'),
+      item('Testing', '테스트', '/guides/testing')
+    ] },
+    { text: ko ? '참고 문서' : 'Reference', collapsed: true, items: [
+      item('Method contract', 'Method 계약', '/reference/method-contract'),
+      item('Architecture', '아키텍처', '/ARCHITECTURE')
+    ] }
+  ]
+}
+
 export default defineConfig({
   title: 'Decision Layer',
   description: 'Connect governed metrics to reusable analysis procedures.',
@@ -9,6 +37,7 @@ export default defineConfig({
   ignoreDeadLinks: 'localhostLinks',
   srcExclude: [
     'README.md', 'GETTING_STARTED.md', 'MVP_PLAN.md', 'REFERENCES.md',
+    'PRODUCT_CONTEXT.md', 'DECISIONS.md',
     'PRODUCT_UX_IMPLEMENTATION_PLAN.ko.md', 'PRODUCT_UX_MILESTONES.ko.md',
     'SOURCE_CONNECTION_DESIGN.ko.md', 'internal/**', 'design/**', 'research/**',
     'assets/README.md'
@@ -39,32 +68,7 @@ export default defineConfig({
       { text: 'Guides', link: '/' },
       { text: 'GitHub', link: github }
     ],
-    sidebar: [
-      { text: 'Get started', items: [
-        { text: 'Start here', link: '/' },
-        { text: 'Run the sample', link: '/guides/quickstart' },
-        { text: 'Connect Cube', link: '/guides/cube' },
-        { text: 'Connect dbt Semantic Layer', link: '/guides/dbt' },
-        { text: 'Connect an AI client', link: '/guides/mcp' }
-      ] },
-      { text: 'Use Decision Layer', items: [
-        { text: 'Recipes', link: '/guides/recipes' },
-        { text: 'Runs and evidence', link: '/guides/runs' }
-      ] },
-      { text: 'Develop', items: [
-        { text: 'First Method', link: '/guides/methods' },
-        { text: 'Local development', link: '/guides/development' },
-        { text: 'Testing', link: '/guides/testing' }
-      ] },
-      { text: 'Reference', collapsed: true, items: [
-        { text: 'Method contract', link: '/reference/method-contract' },
-        { text: 'Product context', link: '/PRODUCT_CONTEXT' },
-        { text: 'Architecture', link: '/ARCHITECTURE' },
-        { text: 'Decisions', link: '/DECISIONS' },
-        { text: 'Evaluation', link: '/guides/evaluation' },
-        { text: 'Interface design', link: '/guides/design-system' }
-      ] }
-    ]
+    sidebar: sidebar('')
   },
   locales: {
     root: { label: 'English', lang: 'en-US', link: '/' },
@@ -75,32 +79,7 @@ export default defineConfig({
           { text: '가이드', link: '/ko/' },
           { text: 'GitHub', link: github }
         ],
-        sidebar: [
-          { text: '시작하기', items: [
-            { text: '시작하기', link: '/ko/' },
-            { text: '샘플 실행', link: '/ko/guides/quickstart' },
-            { text: 'Cube 연결', link: '/ko/guides/cube' },
-            { text: 'dbt Semantic Layer 연결', link: '/ko/guides/dbt' },
-            { text: 'AI 도구 연결', link: '/ko/guides/mcp' }
-          ] },
-          { text: '분석 사용하기', items: [
-            { text: 'Recipe 만들기', link: '/ko/guides/recipes' },
-            { text: '실행 기록과 근거', link: '/ko/guides/runs' }
-          ] },
-          { text: '개발과 기여', items: [
-            { text: '첫 Method 개발', link: '/ko/guides/methods' },
-            { text: '개발 환경', link: '/ko/guides/development' },
-            { text: '테스트', link: '/ko/guides/testing' }
-          ] },
-          { text: '참고 문서', collapsed: true, items: [
-            { text: 'Method 계약', link: '/ko/reference/method-contract' },
-            { text: '아키텍처', link: '/ko/ARCHITECTURE' },
-            { text: '제품 맥락 (English)', link: '/PRODUCT_CONTEXT' },
-            { text: '설계 결정 (English)', link: '/DECISIONS' },
-            { text: '분석 품질 평가', link: '/ko/guides/evaluation' },
-            { text: '인터페이스 디자인', link: '/ko/guides/design-system' }
-          ] }
-        ],
+        sidebar: sidebar('ko'),
         outline: { level: [2, 3], label: '이 페이지에서' },
         editLink: { pattern: `${github}/edit/main/docs/:path`, text: 'GitHub에서 수정' },
         docFooter: { prev: '이전', next: '다음' },

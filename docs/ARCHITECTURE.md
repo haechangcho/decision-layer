@@ -1,9 +1,12 @@
 # Architecture
 
+Use this page when changing providers, execution or interfaces. For a first Method,
+start with [the tutorial](guides/methods.md).
+
 Decision Layer turns governed semantic references, reviewed analytical Methods and
 reusable Recipes into recorded analyses. Web, REST, Python and MCP use the same
-contracts and execution rules. [Product context](PRODUCT_CONTEXT.md) describes the
-purpose; [Decisions](DECISIONS.md) records the detailed policies and their history.
+contracts and execution rules. [Product context](https://github.com/haechangcho/decision-layer/blob/main/docs/PRODUCT_CONTEXT.md) describes the
+purpose; [Decisions](https://github.com/haechangcho/decision-layer/blob/main/docs/DECISIONS.md) records the detailed policies and their history.
 
 ## Code map
 

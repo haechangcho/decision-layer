@@ -81,3 +81,10 @@ For documentation, run `npm ci` and `npm run docs:build` in the repository root.
 See [Testing](testing.md) for browser and live integration checks,
 [Architecture](../ARCHITECTURE.md) for the code map, and
 [Contributing](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md) for PRs.
+
+## UI contributions
+
+For Web changes, see [Interface design](design-system.md).
+The repository keeps [Product context](https://github.com/haechangcho/decision-layer/blob/main/docs/PRODUCT_CONTEXT.md)
+and [Decisions](https://github.com/haechangcho/decision-layer/blob/main/docs/DECISIONS.md)
+for product direction and design history.

@@ -81,3 +81,9 @@ npm --prefix web run build
 문서를 수정했다면 저장소 루트에서 `npm ci`, `npm run docs:build`를 실행하세요.
 브라우저·실제 연동 검사는 [테스트](testing.md), 코드 위치는 [아키텍처](../ARCHITECTURE.md),
 PR 제출은 [기여 가이드](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)를 참고하세요.
+
+## UI 기여
+
+웹 화면을 수정할 때는 [인터페이스 디자인](design-system.md)을 참고하세요.
+제품 방향과 기존 설계 이유는 저장소의 [제품 맥락](https://github.com/haechangcho/decision-layer/blob/main/docs/PRODUCT_CONTEXT.md)과
+[설계 결정](https://github.com/haechangcho/decision-layer/blob/main/docs/DECISIONS.md)에 보존합니다.

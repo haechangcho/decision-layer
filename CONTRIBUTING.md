@@ -25,7 +25,7 @@ Web, documentation and live checks.
 | Change | Start here |
 | --- | --- |
 | New analytical capability | [Method contribution guide](docs/guides/methods.md) |
-| Procedure using existing Methods | [Recipe contribution guide](docs/guides/methods.md#recipes) and Recipe editor |
+| Procedure using existing Methods | [Recipe contribution guide](docs/guides/recipes.md) and Recipe editor |
 | Web interaction or presentation | `web/app/`, `web/features/`, `web/components/` and `web/tests/product/` |
 | Provider or execution contract | [Architecture](docs/ARCHITECTURE.md) and [ADRs](docs/DECISIONS.md) |
 | Setup or documentation | The relevant task guide under `docs/guides/` |
