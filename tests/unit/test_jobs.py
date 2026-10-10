@@ -12,8 +12,8 @@ from decision_layer.core.models import CallerInfo, Run, RunningJob
 from decision_layer.runs.engine import RunEngine
 from decision_layer.runs.store import MemoryRunStore
 from decision_layer.settings import Settings
-from test_methods import Q3, RR, FakeProvider
-from test_runs import REPO_RECIPES
+from tests.support.semantic import Q3, RR, FakeProvider
+from tests.support.runs import REPO_RECIPES
 
 SCOPE = {"date_range": list(Q3)}
 COMPARE = {"bindings": {"metric": RR}, "scope": SCOPE}

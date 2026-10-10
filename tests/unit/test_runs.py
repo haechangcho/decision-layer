@@ -1,4 +1,4 @@
-"""Recipe engine and run storage, on the in-memory provider from test_methods."""
+"""Recipe engine and run storage, on the shared synthetic provider."""
 from pathlib import Path
 
 import pytest
@@ -6,33 +6,15 @@ from fastapi.testclient import TestClient
 
 from decision_layer.api.app import create_app
 from decision_layer.core.models import AnalysisGoal, GoalOutcome, PlanStep, RecipeSelection, RunConclusion, RunFinding
-from decision_layer.methods.base import InvalidBinding
+from decision_layer.methods import InvalidBinding
 from decision_layer.recipes.loader import RecipeStore, UnknownRecipe
 from decision_layer.runs.engine import AnalysisContractError, MethodNotAllowed, RunBusy, RunClosed, RunEngine, RunLimitExceeded
 from decision_layer.runs.store import MemoryRunStore, SqliteRunStore, UnknownRun
 from decision_layer.settings import Settings
 from decision_layer.core.models import CallerInfo, RunningJob
-from test_methods import AMOUNT, CAT, COUNT, CREDS, Q3, RR, FakeProvider
+from tests.support.semantic import AMOUNT, CAT, COUNT, CREDS, Q3, RR, FakeProvider
 
-REPO_RECIPES = Path(__file__).parents[1] / "fixtures" / "recipes"
-SCOPE = {"date_range": list(Q3)}
-ME = CallerInfo(subject="alice")
-MCP_GOALS = [AnalysisGoal(id="answer", description="Inspect the requested metric", semantic_refs=[RR])]
-MCP_OUTCOMES = [GoalOutcome(goal_id="answer", status="supported", step_indices=[0])]
-
-
-@pytest.fixture
-def provider(cube_meta):
-    return FakeProvider(cube_meta)
-
-
-def engine(provider, store=None, recipes_dir=REPO_RECIPES):
-    return RunEngine(provider, RecipeStore(recipes_dir, "cube", "local"), store or MemoryRunStore())
-
-
-def write_recipe(tmp_path, text):
-    (tmp_path / "r.yaml").write_text(text)
-    return tmp_path
+from tests.support.runs import REPO_RECIPES, SCOPE, ME, MCP_GOALS, MCP_OUTCOMES, engine, write_recipe
 
 
 @pytest.mark.parametrize("backend", ["memory", "sqlite"])
@@ -76,7 +58,7 @@ def test_delete_run_endpoint_preserves_registered_recipe(provider, tmp_path):
 
 def test_registration_accepts_calculated_refusal_but_reexecution_still_refuses(provider, tmp_path, monkeypatch):
     from decision_layer.core.models import Artifact, ValidationResult
-    from decision_layer.methods.base import MethodOutput, registry
+    from decision_layer.methods import MethodOutput, registry
 
     async def insufficient_overlap(ctx, bindings, params):
         return MethodOutput(primary=Artifact(type="estimate", data={"difference": 3}),

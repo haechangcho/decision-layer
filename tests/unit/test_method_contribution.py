@@ -2,9 +2,9 @@
 import pytest
 
 from decision_layer.core.models import Artifact, DatasetSpec, MethodManifest, ParamSpec, RoleSpec
-from decision_layer.methods.base import InvalidBinding, Method, MethodOutput, MethodRegistry
+from decision_layer.methods import InvalidBinding, Method, MethodOutput, MethodRegistry
 from decision_layer.validation.builtin import non_empty
-from test_methods import AMOUNT, DT, Q3, ctx
+from tests.support.semantic import AMOUNT, DT, Q3, ctx
 
 
 class ExampleMethod(Method):
@@ -38,7 +38,7 @@ def contribution_registry():
 
 @pytest.fixture
 def provider(cube_meta):
-    from test_methods import FakeProvider
+    from tests.support.semantic import FakeProvider
     return FakeProvider(cube_meta)
 
 

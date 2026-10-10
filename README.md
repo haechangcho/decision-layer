@@ -8,23 +8,55 @@ Decision Layer connects semantic metrics to registered analytical **Methods** an
 
 Web, Python, REST and MCP share one execution engine. AI clients select registered Methods and Recipes; they do not execute generated analysis code.
 
-Unanswered questions can carry reviewed semantic-model improvements and link to a fresh analysis after the model is updated. [See the workflow](https://decision-layer-docs.vercel.app/guides/runs#model-improvements-and-reanalysis).
+Unanswered questions can record missing semantic requirements alongside their evidence. Update the semantic model externally and ask again.
 
 ![A business question follows a reusable Recipe, executed through Web or AI with recorded evidence](docs/assets/decision-layer-overview.png)
 
-## Quickstart
+## Start here
 
-With Docker and Compose installed, run the local retail example:
+| Goal | Start with |
+| --- | --- |
+| Develop a Method | The Python-only workflow below |
+| Develop Web/API | [Local development](docs/guides/development.md) |
+| Try real data and the product | [Complete Journey sample](examples/complete-journey/README.md) |
+
+## Develop your first Method
+
+Python 3.11+ is enough. From a fresh clone:
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer/examples/complete-journey
+cd decision-layer
+make setup
+make example
+```
+
+Open `examples/methods/first_method/method.py`, change the implementation and run
+`make example` again. Its test uses independent fixture data and checks the exact
+semantic query. No source credentials, Web server, Node or Docker are required.
+See [the Method guide](docs/guides/methods.md) for ordinary Python commands without Make.
+
+```bash
+.venv/bin/python -m pytest -q examples/methods/peer_comparison
+make test
+```
+
+The peer example tests three queries and their combination. Optional notebooks import
+these Python modules. [Contributing](CONTRIBUTING.md) explains the code map and checks.
+
+## Try the product with sample data
+
+With Docker and Compose installed:
+
+```bash
+cd examples/complete-journey
 docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
-Open [localhost:3000](http://localhost:3000). The first start downloads and imports the dataset and can take a few minutes. The sample connects Cube and starts without Recipes. See the [sample guide](examples/complete-journey/README.md) for data details and teardown. This is a local development environment, not production.
-
-For your organization's dbt environment, connect its official [dbt Semantic Layer API](https://decision-layer-docs.vercel.app/guides/dbt). The hosted API is not included in the Docker sample.
+Open [localhost:3000](http://localhost:3000). First startup imports the dataset and
+can take a few minutes. The sample starts without Recipes. See its guide for data
+provenance and teardown. For existing sources, connect [Cube](docs/guides/cube.md) or
+[the official dbt Semantic Layer API](docs/guides/dbt.md).
 
 ## Run Your First Analysis
 

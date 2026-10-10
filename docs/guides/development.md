@@ -2,20 +2,17 @@
 
 Use **Python 3.11+**, **Node.js 22**, and Docker with Compose for live sample data. Docker-only users can stay with the [quickstart](../index.md).
 
-## Install
+## Choose the development path
 
-From the repository root:
-
-```bash
-python3.11 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
-```
-
-From `web/`:
+For Method work, follow [the Python-only tutorial](methods.md). Start Web/API only
+when changing those surfaces. From the repository root:
 
 ```bash
-npm ci
+make setup
+make setup-web
 ```
+
+These wrap standard venv/pip and npm commands. No project-specific package manager is required.
 
 ## API
 
@@ -78,6 +75,6 @@ For dbt development, use an existing dbt Semantic Layer environment and the [off
 | Methods and registry | `src/decision_layer/methods/` |
 | Recipe authoring | `src/decision_layer/recipes/` |
 | Run execution and storage | `src/decision_layer/runs/` |
-| Web routes and shared UI | `web/app/`, `web/components/` |
+| Web routes and shared UI | `web/app/`, `web/features/`, `web/components/` |
 
 Next: [test a change](testing.md), [add a Method](methods.md), or [submit a contribution](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md).

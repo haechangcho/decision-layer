@@ -6,7 +6,7 @@ from decision_layer.core.models import Recipe
 from decision_layer.recipes.authoring import RecipeConflict, RecipeEditError
 from decision_layer.recipes.loader import RecipeStore, UnknownRecipe, parse_recipe
 from decision_layer.methods import registry
-from decision_layer.methods.base import InvalidBinding
+from decision_layer.methods import InvalidBinding
 
 
 def recipe():

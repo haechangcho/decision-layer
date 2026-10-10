@@ -75,7 +75,7 @@ def test_editor_metadata_preserves_execution_defaults():
 
 
 def test_custom_method_uses_contract_not_parameter_names(monkeypatch):
-    from decision_layer.methods.base import Method
+    from decision_layer.methods import Method
     class Custom(Method):
         async def run(self, ctx, bindings, params):
             raise NotImplementedError
@@ -121,7 +121,7 @@ def test_unit_count_defaults_only_when_native_same_unit_count_is_unique(candidat
 
 @pytest.mark.parametrize("group", [{}, {"gte": 10, "lt": 5}, {"gte": float("inf")}, {"values": []}, {"values": [None]}, {"values": ["A"], "exclude": ["B"]}])
 def test_group_definition_validation_rejects_invalid_ranges_and_values(group):
-    from decision_layer.methods.base import InvalidBinding
+    from decision_layer.methods import InvalidBinding
     with pytest.raises(InvalidBinding):
         registry.resolve_params("causal.cem", {"target": group})
 
@@ -149,7 +149,7 @@ def test_alternative_role_contract_and_recipe_validation():
 
 
 def test_configuration_api_shares_defaults_and_requires_identity(cube_meta):
-    from test_api import client
+    from tests.support.api import client
     document = {"recipe": recipe("query.drilldown", "query.peer_comparison").model_dump(), "step_index": 1}
     assert client(cube_meta).post("/recipes:configure-step", json=document).status_code == 401
     response = client(cube_meta, secret="s").post("/recipes:configure-step", json=document)

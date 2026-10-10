@@ -4,7 +4,7 @@ import { LoadingState } from "@/components/loading-indicator";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-import { RecipeEditor } from "@/components/recipe-editor";
+import { RecipeEditor } from "@/features/recipes/recipe-editor";
 import type { Recipe } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import styles from "../../../library.module.css";

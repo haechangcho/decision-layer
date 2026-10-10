@@ -1,5 +1,5 @@
 """Check result contracts, not the truth of caller-written sentences."""
-from ..methods.base import InvalidBinding
+from ..methods import InvalidBinding
 
 
 def validate_outcomes(run, conclusion):

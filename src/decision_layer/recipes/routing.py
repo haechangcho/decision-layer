@@ -3,7 +3,7 @@ import re
 
 from ..core.ids import is_semantic_ref, recipe_ref
 from ..core.models import AnalysisGoal, Recipe
-from ..methods.base import InvalidBinding, registry
+from ..methods import InvalidBinding, registry
 from ..runs.expressions import is_dynamic
 
 

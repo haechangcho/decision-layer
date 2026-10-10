@@ -7,6 +7,8 @@ description: 샘플을 실행하고 지표와 분석 기록을 확인합니다.
 
 로컬 Cube 예제의 소매점 데이터로 지표 확인부터 분석 기록까지 경험할 수 있으며 Recipe는 비어 있는 상태로 시작합니다.
 
+Method 기여자는 이 샘플 없이 [Python 전용 가이드](./guides/methods.md)로 시작할 수 있습니다.
+
 ## 1. 예제 실행
 
 Docker와 Compose가 필요합니다. 터미널에서 실행하세요.

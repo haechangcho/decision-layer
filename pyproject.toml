@@ -39,4 +39,6 @@ packages = ["src/decision_layer"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests"]
+testpaths = ["tests", "examples/methods"]
+pythonpath = ["."]
+addopts = "--import-mode=importlib"

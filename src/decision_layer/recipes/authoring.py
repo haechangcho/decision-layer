@@ -1,5 +1,8 @@
 """Versioned Recipe authoring, shared by API clients rather than owned by the Web."""
 from __future__ import annotations
+from ..semantic.provider import Credentials, SemanticProvider
+from ..core.errors import UnknownSemanticObject
+from ..core.ids import is_semantic_ref
 
 import re
 from typing import Any
@@ -8,7 +11,7 @@ from ..core.errors import DecisionLayerError
 from ..core.models import Recipe, SemanticScope, RuntimeInputSource, StepSelectionSource
 from ..runs.expressions import is_dynamic
 from ..methods import registry
-from ..methods.base import InvalidBinding
+from ..methods import InvalidBinding
 
 
 class RecipeEditError(DecisionLayerError):
@@ -157,3 +160,26 @@ def validate_recipe(recipe: Recipe) -> None:
         if step.id:
             previous.add(step.id)
             previous_outputs[step.id] = manifest.selection_outputs
+
+
+
+async def check_recipe_semantics(recipe: Recipe, provider: SemanticProvider, creds: Credentials) -> None:
+    paths: dict[str, str] = {}
+
+    def collect(value, path: str) -> None:
+        if is_semantic_ref(value):
+            paths.setdefault(value, path)
+        elif isinstance(value, dict):
+            for key, child in value.items():
+                collect(child, f"{path}.{key}" if path else key)
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                collect(child, f"{path}[{index}]")
+
+    collect(recipe.model_dump(mode="json"), "")
+    try:
+        await provider.resolve(sorted(paths), creds)
+    except UnknownSemanticObject as error:
+        if field := paths.get(error.details.get("ref")):
+            error.details["field"] = field
+        raise

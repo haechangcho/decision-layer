@@ -7,6 +7,8 @@ description: Run the sample, inspect governed metrics and record your first anal
 
 Run the local Cube example with an empty Recipe library. Follow the full path from metric to recorded analysis.
 
+Method contributors can start with the [Python-only tutorial](./guides/methods.md) without this sample.
+
 ## 1. Start the sample
 
 You need Docker with Compose. From a terminal:

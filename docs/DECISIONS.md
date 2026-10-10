@@ -1281,3 +1281,65 @@ again; normal discovery and execution validation apply to the new analysis.
 This supersedes the default Web journey in ADR-075, not model ownership or
 execution safeguards. Existing review/retry APIs and historical records remain
 compatible; no model is changed and no approval is inferred automatically.
+
+## ADR-079 — Python-first Method development helpers
+
+**Status:** Accepted (2026-10-10).
+
+Methods remain reviewed Python implementations with one manifest and the ordinary
+Registry/ExecutionContext contracts. `MethodSession` simplifies caller-scoped catalog
+discovery, explicit local registration, direct execution evidence and Recipe preview.
+Direct runs stay in the caller's event loop for breakpoints and create no stored Run;
+previews use the existing RunEngine, workers and session-local memory Run store.
+No code, credentials or evidence is installed or uploaded to a remote server.
+The helper is for trusted local Python, not a code sandbox. Live data still requires
+provider credentials and dataset validation. Direct runs have explicit scopes and
+the existing policy's period, query, row and deadline bounds.
+
+Strict fixture providers match complete expected DatasetSpecs to independently
+specified responses or errors. They are test tools, not semantic providers shipped
+as product connections or proof of warehouse aggregation/access correctness.
+Multi-query peer comparison is the first executable example, without Web/Docker.
+Implementations live in Python modules; generated notebooks import them and contain
+no saved outputs. Standard pytest remains the contribution test interface.
+
+The shared Registry rejects undeclared artifact types for all callers, extending
+its existing selection/capability checks. Aggregate, trend and drilldown manifests
+now list artifact types already emitted; calculation behavior and versions are
+unchanged. Historical Runs are not rewritten. Payload-shape and numerical correctness
+remain Method-specific tests; this does not claim a complete artifact data schema.
+
+An in-browser Python runtime, package installer, plugin marketplace and local-to-Web
+Run synchronization are deferred until concrete contributor demand justifies them.
+
+## ADR-080 — Fresh-clone contributor paths and explicit code ownership
+
+**Status:** Accepted (2026-10-10). Refines ADR-079.
+
+README routes Method contributors to Python-only fixture tests before Web/Docker.
+Standard pip/pytest/npm commands remain supported; Make only wraps repeated commands.
+First-Method and peer-comparison examples each own their ordinary Python modules and
+pytest tests. Optional notebooks import implementations. Remove the duplicated
+percent-cell files and notebook generator. The default suite includes example tests.
+
+Expose authoring types from `decision_layer.methods`. Keep built-in implementations
+flat under that package, with an explicit registration list. Preserve logical Method
+IDs, versions and analytical behavior; source imports using former query/causal
+subpackages must update. Separate the Method contract from Registry execution checks.
+No dynamic package installer or new execution framework is introduced.
+
+Move reusable test providers/client factories to `tests/support`; tests no longer
+import other test modules or execute example scripts with runpy. Use standard package
+imports and pytest importlib collection for duplicate example test filenames.
+
+REST assembly stays in api/app.py; resource route groups share authentication and
+response helpers and canonical engine/services. Recipe semantic validation is reused
+by authoring and promotion. Pure execution policy helpers have their own module;
+the RunEngine retains orchestration. Recipe/Run Web components live with their feature,
+while shared controls and renderers stay in components.
+
+Current product/architecture pages replace historical speculative implementation
+outlines. Detailed Method metadata is a reference page, not the first tutorial.
+Keep historical ADRs, licensed/public sample data definitions and analytical/access
+regressions. This changes contributor organization, not stored Runs, Recipe semantics
+or provider ownership. No data volume or local credential is deleted.

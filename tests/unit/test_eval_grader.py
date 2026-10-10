@@ -1,8 +1,4 @@
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parents[2] / "evals"))
-from run_eval import grade  # noqa: E402
+from evals.run_eval import grade
 
 CALLS = [
     {"name": "run_method", "input": {"name": "query.compare"},
@@ -22,12 +18,12 @@ def test_grade_checks():
 
 
 def test_numbers_are_extracted_whole():
-    from run_eval import numbers_in
+    from evals.run_eval import numbers_in
     assert numbers_in('{"a": 87161.879, "b": "1,234.5"} 12,345원') == [87161.879, 1234.5, 12345.0]
 
 
 def test_display_units_are_grounded():
-    from run_eval import grounded
+    from evals.run_eval import grounded
     assert grounded(0.61, [61186940.0]) and grounded(9.06, [0.0906]) and not grounded(0.52, [61186940.0, 102514453.8])
 
 

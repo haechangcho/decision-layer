@@ -2,7 +2,7 @@
 import re
 from urllib.parse import urlencode
 
-from ..methods.base import InvalidBinding
+from ..methods import InvalidBinding
 
 
 def method_proposal(run, request, repository):

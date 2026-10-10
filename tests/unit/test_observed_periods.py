@@ -5,7 +5,7 @@ import pytest
 from decision_layer.core.models import Filter
 from decision_layer.methods import registry
 from decision_layer.validation import builtin as validation
-from test_methods import AMOUNT, CAT, DT, Q3, ctx, provider
+from tests.support.semantic import AMOUNT, CAT, DT, Q3, ctx
 
 
 @pytest.mark.parametrize("method", ["query.trend", "query.drilldown"])
@@ -26,7 +26,7 @@ async def test_step_period_is_used_without_comparison(provider, monkeypatch, met
 
 @pytest.mark.parametrize("dates", [["2026-06-01", "2026-07-31"], ["2026-99-01", "2026-09-30"]])
 async def test_invalid_or_outside_current_period_never_queries(provider, dates):
-    from decision_layer.methods.base import InvalidBinding
+    from decision_layer.methods import InvalidBinding
     if dates[0] == "2026-99-01":
         with pytest.raises(InvalidBinding):
             await registry.run("query.trend", ctx(provider), {"metric": AMOUNT}, {"current": dates})

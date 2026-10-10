@@ -8,7 +8,7 @@ import { ArrowRight, BookOpen, Plus, Search, X } from "lucide-react";
 import type { Recipe } from "@/lib/api";
 import { useApi, useCatalog } from "@/lib/hooks";
 import { useT } from "@/lib/i18n";
-import { RecipeDelete } from "@/components/recipe-delete";
+import { RecipeDelete } from "@/features/recipes/recipe-delete";
 import styles from "../library.module.css";
 
 export default function RecipesPage() {

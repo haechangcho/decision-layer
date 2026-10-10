@@ -12,7 +12,7 @@ from decision_layer.i18n import _, available, catalog, negotiate, set_locale
 from decision_layer.methods import registry
 from decision_layer.mcp import server as mcp_server
 from decision_layer.settings import Settings
-from test_methods import Q3, RR, FakeProvider
+from tests.support.semantic import Q3, RR, FakeProvider
 
 SRC = Path(__file__).parents[2] / "src" / "decision_layer"
 HANGUL = re.compile("[가-힣]")

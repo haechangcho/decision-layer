@@ -6,13 +6,13 @@ from pydantic import ValidationError
 
 from decision_layer.core.models import CallerInfo, PlanStep, Recipe, RunDefaults
 from decision_layer.core.periods import ExecutionPolicy, PeriodChoice, resolve_scope
-from decision_layer.methods.base import InvalidBinding
+from decision_layer.methods import InvalidBinding
 from decision_layer.methods.context import ExecutionContext, Refused, Scope
 from decision_layer.recipes.loader import RecipeStore
 from decision_layer.runs.engine import ExecutionDeadlineExceeded, RunBusy, RunEngine
 from decision_layer.runs.store import MemoryRunStore, UnknownRun
 from decision_layer.service import ScopeIn
-from test_methods import CAT, CREDS, DT, Q3, RR, FakeProvider
+from tests.support.semantic import CAT, CREDS, DT, Q3, RR, FakeProvider
 
 ME = CallerInfo(subject="period-owner")
 DATES = {"date_range": list(Q3), "time_dimension": DT}

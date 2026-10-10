@@ -25,13 +25,14 @@ from ..core.models import (
 )
 from ..core.periods import ExecutionPolicy, PeriodChoice, resolve_scope
 from ..methods import registry as default_registry
-from ..methods.base import InvalidBinding, MethodRegistry
+from ..methods import InvalidBinding, MethodRegistry
 from ..methods.context import ExecutionContext, NeedsInput, Refused, Scope
 from ..recipes.loader import RecipeStore
 from ..semantic.provider import Credentials, SemanticProvider
 from ..validation import builtin as v
 from .expressions import resolve
 from .jobs import JobRunner
+from .policy import parameter_values, remaining_queries
 from .store import RunStore, UnknownRun
 from ..i18n import _
 
@@ -569,7 +570,7 @@ class RunEngine:
         max_steps = rec.limits.max_steps if rec else DEFAULT_MAX_STEPS
         if len(run.steps) >= max_steps:
             raise RunLimitExceeded(_("This run reached its step limit ({limit}). Finish it with complete_run", limit=max_steps))
-        if check_budget and self._queries_left(run) <= 0:
+        if check_budget and remaining_queries(run, self.policy) <= 0:
             raise RunLimitExceeded(_("This run has used its query budget. Finish it with complete_run"))
         if rec is None:
             return
@@ -587,28 +588,6 @@ class RunEngine:
                     if isinstance(ref, str) and ref.startswith("$"):
                         continue
                     raise InvalidBinding(_("'{ref}' is outside the metric scope of recipe '{recipe}'", ref=ref, recipe=rec.name), in_scope=sorted(in_scope))
-
-    @staticmethod
-    def _apply_parameter_policy(run: Run, method: str, params: dict[str, Any],
-                                origin: Literal["recipe", "request"]) -> tuple[dict[str, Any], set[str]]:
-        policy = run.recipe_snapshot.method_parameters.get(method) if run.recipe_snapshot else None
-        if policy is None:
-            return params, set()
-        if origin == "request" and policy.runtime_allowed is not None:
-            forbidden = set(params) - set(policy.runtime_allowed) - set(policy.fixed)
-            if forbidden:
-                raise InvalidBinding(_("Parameters not selectable at runtime: {names}", names=sorted(forbidden)),
-                                     allowed=policy.runtime_allowed)
-        for name, value in policy.fixed.items():
-            if name in params and params[name] != value:
-                raise InvalidBinding(_("{name} is fixed by this Recipe", name=name), parameter=name)
-        return {**params, **policy.fixed}, set(policy.fixed)
-
-    def _queries_left(self, run: Run) -> int:
-        budget = run.recipe_snapshot.limits.max_queries if run.recipe_snapshot else DEFAULT_MAX_QUERIES
-        legacy = len(run.validation_queries) + sum(len(s.result.provenance.queries) for s in run.steps)
-        used = (run.query_attempt_baseline or 0) + len(run.query_attempts)
-        return min(budget, self.policy.max_queries) - max(used, legacy)
 
     async def _execute(self, creds: Credentials, run: Run, step: PlanStep,
                        origin: Literal["recipe", "request"] = "request", author: ExecutionAuthor | None = None) -> Result:
@@ -637,7 +616,7 @@ class RunEngine:
             run.steps.append(record)
             run.plan.steps.append(step.model_copy(deep=True))
             return result
-        provided, fixed = self._apply_parameter_policy(run, resolved.method, resolved.params, origin)
+        provided, fixed = parameter_values(run, resolved.method, resolved.params, origin)
         sources = {name: "recipe_fixed" if name in fixed else origin if name in provided else "method_default"
                    for name in self.registry.get(resolved.method).manifest.parameters}
         resolved = resolved.model_copy(update={"params": self.registry.resolve_params(resolved.method, provided)})
@@ -681,7 +660,7 @@ class RunEngine:
             provider=self.provider, credentials=creds, catalog=catalog,
             scope=Scope(tuple(scope["date_range"]) if scope.get("date_range") else None, scope.get("time_dimension"),
                         [Filter.model_validate(f) for f in scope.get("filters") or []]),
-            max_queries=min(self._queries_left(run), self.policy.max_queries), execution_policy=self.policy,
+            max_queries=min(remaining_queries(run, self.policy), self.policy.max_queries), execution_policy=self.policy,
             attempts=run.query_attempts, persist_attempts=persist, allowed_measures=allowed)
 
     async def _recipe_validators(self, creds: Credentials, run: Run) -> list[ValidationResult]:

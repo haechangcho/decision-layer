@@ -11,6 +11,7 @@ def cube_meta():
     return json.loads((FIXTURES / "cube_meta_ecommerce.json").read_text())
 
 
-def ref(member: str) -> str:
-    cube, name = member.split(".")
-    return f"cube://local/{cube}/{name}"
+@pytest.fixture
+def provider(cube_meta):
+    from tests.support.semantic import FakeProvider
+    return FakeProvider(cube_meta)

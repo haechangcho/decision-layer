@@ -1,106 +1,106 @@
----
-title: Method 기여하기
-description: 검증 가능한 분석 기능을 공통 실행 엔진에 추가합니다.
----
+# 첫 Method 개발
 
-# Method 기여하기
+Method는 하나의 분석 기능입니다. 기존 Method 조합이나 설정으로 충분하면 Recipe를
+작성합니다. 처음 시작할 때 필요한 것은 Python 3.11+입니다.
 
-Method는 입력, 실행 조건, 결과 형식이 정해진 분석 기능입니다. 기존 Method를 다른 순서나 설정으로 쓰는 것만 필요하다면 [Recipe](./recipes.md)를 만드세요.
+## 설치와 첫 테스트
 
-## 시작할 코드
-
-### 입력 선언으로 편집 화면 만들기
-
-Role에 `label`과 `default_binding="primary_metric"`을 지정하면 Recipe 지표를
-기본으로 사용합니다. 파라미터는 타입, 표시 이름, 필수 여부, 범위와 `ui_group`
-(`basic`, `options`, `hidden`)을 선언합니다. `semantic_kind`는 카탈로그 선택창을,
-`visible_when`은 다른 파라미터 값에 따른 표시 조건을 지정합니다.
-별도 React 화면을 작성할 필요는 없습니다. 숨긴 입력도 명시된 값은 보존합니다.
-
-둘 중 하나를 선택하는 선택 역할에는 같은 `exclusive_group`을 선언합니다.
-카탈로그 선택창 하나로 표시하고, Recipe 검증에서는 정확히 하나를 요구합니다.
-`group` 기본 입력에 `semantic_role`을 지정하면 해당 기준 바로 아래에 대상·비교
-그룹을 표시합니다. 예/아니요, 값 목록, 제외할 값과 숫자 범위를 JSON 없이 편집합니다.
-기준을 바꾸면 고정되지 않은 그룹 정의만 초기화하며 검증 기준은 유지합니다.
-
-평균 비교의 건수 역할은 `default_binding="unit_count"`로 선언할 수 있습니다.
-`configure_step(..., catalog=catalog)`는 제공자가 선언한 같은 기본 단위의 네이티브
-행 건수가 하나일 때만 명시적으로 연결합니다. REST는 현재 사용자의 카탈로그를
-사용합니다. 없거나 여러 개면 선택이 필요하며 기존 연결은 유지합니다.
-실행 때의 중복·결측 검사는 생략하지 않습니다.
-
-일반 단계 편집에는 필수 역할, 대체 선택 역할, 이미 지정된 역할과 기본 입력을 표시합니다. 나머지 선택 역할과 엔진의
-세부 설정은 Recipe 코드 보기에서 확인·수정합니다. 기간이 필요한 Method는
-`requires_period=True`를 선언하세요. 결과 확인을 누른 뒤에만 기간을 받습니다.
-기간이 필요한 비교를 켜는 boolean 입력은 `meaning="period"`로 선언할 수 있습니다.
-프런트엔드에 Method 이름별 분기를 추가하지 않습니다.
-
-여러 값의 역할은 `editor_parameter`에 대응하는 단일 semantic 파라미터를
-명시할 수 있습니다. 드릴다운은 기존 분류 목록을 유지하면서 이 단계에서
-실제로 나눌 항목 하나만 보여 줍니다. 파라미터 이름으로 관계를 추측하지 않고
-manifest가 명시한 관계를 검사합니다.
-
-그룹 입력에 `InputSourcePolicy`를 선언하면 직접 지정, 앞 단계 결과, 실행 입력 중
-허용할 출처와 기본 연결을 정할 수 있습니다. `previous_result`는 가장 가까운 앞
-단계의 정렬 결과를 연결하고, `parameter_parents`는 다른 입력이 선택한 대상의
-상위 조건을 비교 집단으로 사용합니다. 앞 단계가 없는 필수 대상은 기본값 없는
-실행 입력이 됩니다. Python의 `configure_step`과 REST의
-`POST /recipes:configure-step`은 같은 명세를 만듭니다. 실행할 때 완전성, 동점과
-접근 권한은 다시 검사합니다. 통계·ML 계산은 검토한 Python 코드에 구현하며
-선언에 실행 코드나 프런트엔드 플러그인을 넣지 않습니다.
-
-[최소 Method 구현과 계약 테스트](https://github.com/haechangcho/decision-layer/blob/main/tests/unit/test_method_contribution.py)를 시작점으로 사용하세요. 별도 레지스트리에서 실행하므로 제품의 분석 방법 목록에는 추가되지 않습니다. Method는 검토한 Python 코드로 서버에 설치됩니다. 웹에서 사용자 코드를 올리거나 AI가 생성한 코드를 실행하지 않습니다.
-
-1. `src/decision_layer/methods/` 아래에 모듈을 추가합니다.
-2. Manifest에 이름, 버전, 입력 역할, 파라미터, 결과와 해석 범위를 선언합니다.
-3. `ctx.dataset(DatasetSpec(...))`으로 필요한 데이터 단위와 열을 요청합니다.
-4. 결과, 검증, 경고와 실행 근거를 반환합니다.
-5. 누락 입력, 작은 표본, 지원하지 않는 가정, 알려진 결과에 대한 테스트를 추가합니다.
-
-지표 SQL, 조인과 접근 권한은 연결된 시맨틱 레이어에 남겨야 합니다. 통계·ML 라이브러리는 사용할 수 있지만 의존성과 버전을 명시하고, 데이터 추출 한계와 해석 조건을 테스트해야 합니다.
-
-전체 계약과 코드 링크는 [영문 Method 가이드](/guides/methods)에 있습니다.
-
-## 결과가 제공하는 기능 선언
-
-Method manifest의 `provides`에 `metric_lookup`, `matched_comparison`처럼 결과가
-제공하는 기능을 선언합니다. Recipe 후보와 Run의 해결 상태는 표시 이름이 아니라
-이 계약을 확인합니다. `provides_when`은 기능과 설정 이름 목록을 연결하며, 그중
-하나가 활성화되면 기능을 제공합니다. 실제 결과에 따라 달라지면 `MethodOutput`의
-`provides`에 실제 제공한 기능만 반환합니다. 선언하지 않은 기능은 반환할 수 없고,
-거부된 계산은 기능을 제공하지 않습니다. 부족한 입력과 오해 가능한 결과도 테스트하세요.
-
-단순 조회에 인과 효과나 통계 검증 기능을 선언해서는 안 됩니다.
-
-## 평균 지표의 조건 맞춤 비교
-
-`causal.cem@1.1.0`은 원본에서 평균으로 선언된 지표에 `sample_count`를 명시적으로 받을 수 있습니다.
-두 지표에 동일한 원본 기본 키가 선언되어 있고 조회 가능해야 합니다. 각 기본 단위에 행 수 1과 누락되지 않은
-유한한 결과값이 있는지 확인합니다. 인접 지표나 SQL 표현으로 표본 의미를 추측하지 않으며, 계약이 불명확하면 거절합니다.
-현재 공식 hosted dbt API의 metadata만으로는 이 경로를 확인할 수 없습니다.
-
-연속형 평균의 불확실성 계산은 지원하지 않습니다. 결과에 `statistical_judgement: not_tested`를 기록하며
-평균을 비율용 유의성 검정에 넣지 않습니다.
-[캠페인 예제](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/CAMPAIGN_ANALYSIS.ko.md)는
-Cube 분석 결과와 표본 부족 시 거절을 보여 주는 예제이며, 인과 효과의 정답을 제공하지 않습니다.
-
-## CEM 검증 시나리오
-
-`causal.cem@1.1.1`에서는 구간과 유의성 판정 검사를 강화했습니다. 기존 Recipe의
-고정 버전은 검토 후 변경해야 하며, 과거 Run은 수정하지 않습니다.
-
-- 조건 구성만 다르고 조건별 결과는 같은 두 집단: 맞춘 뒤 구성 차이로 인한 차이가 사라지는지 확인합니다.
-- 손으로 계산한 가중 평균: 대상 집단의 조건 구성으로 계산한 값과 비교합니다.
-- 공통 조건 없음, 낮은 유지율, 작은 표본, 조건 누락: 품질 기준에 미달하면 비교를 거절하고 유의성 결과를 제공하지 않습니다.
-- 겹치는 집단, 역순·중복·무한 구간 경계, 잘못된 차원의 구간: 조회 전에 거절합니다.
-- 비율처럼 보이는 금액, 정의가 없는 비율, 0~1 비율: 숫자 모양만으로 백분율 검정을 하지 않습니다. 선언된 건수 분자·분모를 같은 범위에서 조회해 값과 백분율 단위를 확인해야 합니다.
-- 평균값에 표본 정보가 없거나 개별 단위가 중복·누락된 경우: 개별 단위 비교를 거절합니다. 연속형 평균의 유의성 검정은 지원하지 않습니다.
-- 맞춤 후 균형: 구간별 가중치를 맞췄다는 의미이며, 구간 안의 실제 값까지 같다는 뜻은 아닙니다. 처치 이전 조건인지와 표본의 독립성은 별도 분석 설계 검토가 필요합니다.
+저장소 루트에서 실행합니다.
 
 ```bash
-.venv/bin/pytest tests/unit/test_method_contribution.py tests/unit/test_causal.py
+make setup
+make example
 ```
 
-기여 계약 테스트는 정상 실행, 잘못된 입력, 빈 결과, 조회 한도와 실행 근거를 확인합니다.
-새 Method에는 별도로 계산 정답과 시맨틱 레이어 호환성 테스트를 추가하고,
-새 입력 형식을 도입하면 설정 화면도 검증하세요.
+Make 없이도 가능합니다.
+
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -e '.[dev]'
+.venv/bin/python -m pytest -q examples/methods/first_method
+```
+
+`examples/methods/first_method/`에서 시작합니다.
+
+| 파일 | 역할 |
+| --- | --- |
+| `method.py` | 입력 명세와 분석 구현 |
+| `fixtures.py` | 예상 semantic query와 독립적인 응답 데이터 |
+| `test_method.py` | 예상 정답 검사 |
+| `explore.ipynb` | 선택적으로 실제 Cube에서 탐색 |
+
+구현을 수정하고 테스트를 다시 실행합니다. 예상 그룹값은 30·20·10이며,
+기간·차원·정렬·조회 수가 기대한 것과 같은지 확인합니다.
+웹 서버, 실제 source, 인증 정보, Docker가 필요하지 않습니다.
+
+## 코드 이해하기
+
+```python
+from decision_layer.methods import (
+    Method, MethodOutput, MethodManifest, RoleSpec, ParamSpec, Artifact, DatasetSpec,
+)
+```
+
+`manifest`는 입력 역할·파라미터·출력·해석 수준을 선언합니다.
+`run(ctx, bindings, params)`는 `ctx.dataset()`으로 조회하고 `MethodOutput`을 반환합니다.
+지표 수식·join·권한은 semantic source가 관리합니다. 반환하는 모든 artifact 타입을
+명세에 선언해야 합니다. 공통 Registry가 선언되지 않은 출력을 거절합니다.
+
+## 여러 쿼리 조합
+
+```bash
+.venv/bin/python -m pytest -q examples/methods/peer_comparison
+```
+
+제품의 `methods/peer_comparison.py`를 import해 대상, 대상을 제외한 peers,
+대상을 제외한 전체 비교군을 각각 조회합니다. fixture의 12%·8%·6%에서 차이는
+4·6%p입니다. 통계적 유의성이나 인과효과를 주장하지 않습니다.
+여러 조회와 조합은 하나의 Method 안에서 수행할 수 있습니다.
+
+실패·예산·출력 계약은 다음 테스트에서 확인합니다.
+
+```bash
+.venv/bin/python -m pytest -q tests/unit/test_method_dev.py
+```
+
+## 실제 데이터 연결
+
+```python
+from decision_layer.dev import MethodSession
+from decision_layer.methods import Scope
+from decision_layer.semantic.credentials import RequestCredentials
+
+session = await MethodSession.cube(cube_url, RequestCredentials(token))
+session.metrics()
+session.dimensions(metric_ref)
+session.register(my_method)
+trial = await session.run(
+    my_method.manifest.name, bindings=bindings, params=params,
+    scope=Scope(date_range=("2026-09-01", "2026-09-30"), time_dimension=time_ref),
+)
+trial.result
+trial.attempts
+trial.queries
+```
+
+catalog에서 실제 참조를 선택합니다. 선언된 차원 관계는 탐색 정보이고,
+실제 조합은 provider가 검증합니다. 인증 정보는 노트북 셀과 출력에 저장하지 않습니다.
+직접 실행은 현재 이벤트 루프에서 동작해 breakpoint를 사용할 수 있습니다.
+provider·코드 예외는 다시 발생하고 `session.last_trial.attempts`에 중간 근거가 남습니다.
+직접 실행은 저장된 Run을 만들지 않습니다.
+
+`session.preview(recipe, step_index=..., scope=...)`는 기존 RunEngine으로 새 prefix를
+실행하며 worker와 로컬 메모리 저장소를 사용합니다. 원격 웹 서버로 업로드하지 않습니다.
+사용 후 `session.close()`를 호출합니다. 수정한 구현은 `replace=True`로 등록하고,
+모델 변경 후 `refresh_catalog()`로 갱신합니다. 예제 노트북에서 2단계 실행을 확인할 수 있습니다.
+
+## 등록과 기여
+
+검토할 구현을 `src/decision_layer/methods/`에 추가하고 `__init__.py`의
+`register_builtins()` 목록에 연결합니다. 각 모듈은 import만으로 자신을 등록하지 않습니다.
+`query.peer_comparison` 같은 등록 ID는 폴더 구조와 독립적입니다.
+
+관련 테스트와 `make test`를 실행한 뒤 구현·명세·독립적인 정답·실패 테스트·호출 예제를
+함께 PR로 제출합니다. 라이브러리 의존성은 명시적으로 선언하고 실행 중 설치하지 않습니다.
+
+[입출력 계약 참고](../reference/method-contract.md)와 [테스트 가이드](testing.md)를 확인하세요.

@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 from decision_layer.api.app import create_app
 from decision_layer.settings import Settings
-from test_methods import FakeProvider, AMOUNT, Q3
+from tests.support.semantic import FakeProvider, AMOUNT, Q3
 
 
 @pytest.fixture

@@ -7,9 +7,9 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, CalendarDays, Play } from "lucide-react";
 
 import { api, ApiError, type Recipe, type Run, type SemanticObject, type SourceReadiness } from "@/lib/api";
-import { RecipeEditor } from "@/components/recipe-editor";
-import { RecipeDelete } from "@/components/recipe-delete";
-import { RecipeRuntimeInputs } from "@/components/recipe-runtime-inputs";
+import { RecipeEditor } from "@/features/recipes/recipe-editor";
+import { RecipeDelete } from "@/features/recipes/recipe-delete";
+import { RecipeRuntimeInputs } from "@/features/recipes/recipe-runtime-inputs";
 import { suggestedDateRange, suggestedTimeDimension } from "@/lib/semantic-dates";
 import { useApi, useCatalog } from "@/lib/hooks";
 import styles from "../../library.module.css";

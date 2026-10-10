@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from ..core.ids import new_id
 from ..core.models import AnalysisPlan, Run, RunRemediation, RunRetryLink
-from ..methods.base import InvalidBinding
+from ..methods import InvalidBinding
 
 
 async def record_blocked(engine, caller, req, origin):

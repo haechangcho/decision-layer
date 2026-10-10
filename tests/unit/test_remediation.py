@@ -3,14 +3,14 @@ from fastapi.testclient import TestClient
 
 from decision_layer.api.app import create_app
 from decision_layer.core.models import AnalysisGoal, CallerInfo, SemanticObject
-from decision_layer.methods.base import InvalidBinding
+from decision_layer.methods import InvalidBinding
 from decision_layer.recipes.loader import RecipeStore
 from decision_layer.runs import remediation
 from decision_layer.runs.engine import RunBusy, RunEngine
 from decision_layer.runs.store import MemoryRunStore, SqliteRunStore, UnknownRun
 from decision_layer.service import RemediationCreateRequest, RemediationReviewRequest, RemediationCheckRequest, RemediationRetryRequest
 from decision_layer.settings import Settings
-from test_methods import FakeProvider, CREDS, AMOUNT, Q3
+from tests.support.semantic import FakeProvider, CREDS, AMOUNT, Q3
 
 MISSING = "cube://local/customer/pre_spending_band"
 ME = CallerInfo(subject="alice")

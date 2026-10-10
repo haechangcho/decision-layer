@@ -53,7 +53,8 @@ export default defineConfig({
       ] },
       { text: 'Develop', items: [
         { text: 'Local development', link: '/guides/development' },
-        { text: 'Add a Method', link: '/guides/methods' },
+        { text: 'First Method', link: '/guides/methods' },
+        { text: 'Method contract', link: '/reference/method-contract' },
         { text: 'Testing', link: '/guides/testing' },
         { text: 'Evaluation', link: '/guides/evaluation' },
         { text: 'Interface design', link: '/guides/design-system' }
@@ -87,7 +88,8 @@ export default defineConfig({
             { text: '실행 기록과 근거', link: '/ko/guides/runs' }
           ] },
           { text: '개발과 기여', items: [
-            { text: 'Method 추가', link: '/ko/guides/methods' },
+            { text: '첫 Method 개발', link: '/ko/guides/methods' },
+            { text: 'Method 계약', link: '/ko/reference/method-contract' },
             { text: '개발 환경', link: '/ko/guides/development' },
             { text: '테스트', link: '/ko/guides/testing' },
             { text: '분석 품질 평가', link: '/ko/guides/evaluation' },

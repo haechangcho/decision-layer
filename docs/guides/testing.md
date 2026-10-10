@@ -44,11 +44,11 @@ From the repository root:
 ```bash
 DL_JOURNEY_API_URL=http://127.0.0.1:8000 \
   .venv/bin/pytest -q -s tests/provider/test_complete_journey_live.py
-.venv/bin/pytest examples/method-template/test_method.py
+.venv/bin/python -m pytest -q examples/methods
 ```
 
 The live check records Recipe-free MCP drill-down and peer comparison, then reviews a Recipe candidate.
-The template test needs no Cube.
+Method example tests need no Cube.
 
 
 From `web/`, use the printed `JOURNEY_MCP_RUN_ID` for desktop/mobile review:
@@ -83,4 +83,4 @@ Without those settings the test skips. Hosted authentication and warehouse behav
 
 Try a question through [your AI client](mcp.md) separately. Record client/model, question, Run ID, Methods, warnings and reference comparison. Use the [evaluation protocol](evaluation.md) for comparative claims.
 
-CI checks Python contracts and the Method template, Web typechecking/build, Docker onboarding, and Complete Journey SQL/MCP execution. Browser checks above are explicit local checks, not implied CI coverage. The full sample job downloads the source archive and therefore requires upstream availability.
+CI checks Python contracts and the Method examples, Web typechecking/build, Docker onboarding, and Complete Journey SQL/MCP execution. Browser checks above are explicit local checks, not implied CI coverage. The full sample job downloads the source archive and therefore requires upstream availability.

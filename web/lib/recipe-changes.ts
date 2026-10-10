@@ -1,6 +1,6 @@
 import type { PlanStep, Recipe } from "./api";
 import { methodName } from "./method-name";
-import { sourceLabel } from "@/components/step-input-source";
+import { sourceLabel } from "@/features/recipes/step-input-source";
 
 const equal = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 const parameterLabels: Record<string, string> = {

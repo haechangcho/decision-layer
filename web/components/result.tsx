@@ -8,7 +8,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { populationLabel } from "@/lib/run-story";
-import { RunQueries, RunSources } from "./run-evidence";
+import { RunQueries, RunSources } from "@/features/runs/run-evidence";
 import styles from "./result-table.module.css";
 
 type Titles = Map<string, SemanticObject>;

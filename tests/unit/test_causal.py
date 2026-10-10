@@ -2,10 +2,10 @@
 import pytest
 
 from decision_layer.methods import registry
-from decision_layer.methods.causal import matching as m
-from test_methods import CAT, CHANNEL, RR, SELLER, FakeProvider, ctx
-from test_methods import AOV, COUNT, ORDER, RET
-from decision_layer.methods.base import InvalidBinding
+from decision_layer.methods import matching as m
+from tests.support.semantic import CAT, CHANNEL, RR, SELLER, FakeProvider, ctx
+from tests.support.semantic import AOV, COUNT, ORDER, RET
+from decision_layer.methods import InvalidBinding
 
 B_RATE, A_RATE = 50 / 500 * 100, 105 / 505 * 100   # Q3: B 10%, A (incl. S8) ≈ 20.79%
 

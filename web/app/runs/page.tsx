@@ -9,8 +9,8 @@ import type { Run } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { methodName } from "@/lib/method-name";
 import { runOriginLabel } from "@/lib/run-origin";
-import { RunDelete } from "@/components/run-delete";
-import { RunProcedure } from "@/components/run-procedure";
+import { RunDelete } from "@/features/runs/run-delete";
+import { RunProcedure } from "@/features/runs/run-procedure";
 import styles from "../library.module.css";
 
 const displayName = (run: Run) => run.recipe_snapshot?.description || run.recipe_snapshot?.name || run.plan.recipe?.replace("recipe://", "") || (run.steps[0] ? methodName(run.steps[0].step.method) : "분석 실행");

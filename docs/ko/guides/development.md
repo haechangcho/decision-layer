@@ -83,6 +83,6 @@ dbt 개발은 기존 dbt Semantic Layer 환경에 [공식 API로 연결](dbt.md)
 | Method와 레지스트리 | `src/decision_layer/methods/` |
 | Recipe 작성·저장 | `src/decision_layer/recipes/` |
 | Run 실행·저장 | `src/decision_layer/runs/` |
-| 웹 경로와 공통 UI | `web/app/`, `web/components/` |
+| 웹 경로와 공통 UI | `web/app/`, `web/features/`, `web/components/` |
 
 다음 단계: [변경 테스트](testing.md), [Method 기여](methods.md), [기여 절차](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md).

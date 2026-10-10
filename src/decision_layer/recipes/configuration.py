@@ -1,6 +1,6 @@
 """Deterministic authoring defaults, shared by every product surface."""
 from ..core.models import ParamSpec, Recipe, SemanticCatalog
-from ..methods.base import registry
+from ..methods import registry
 
 
 def configure_step(recipe: Recipe, index: int, reset: list[str] | None = None, *, catalog: SemanticCatalog | None = None) -> Recipe:

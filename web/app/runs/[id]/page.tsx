@@ -8,15 +8,15 @@ import { ArrowLeft, BookPlus, Check, History, LoaderCircle, Share2, SlidersHoriz
 
 import { clean, MethodInputs } from "@/components/forms";
 import { ArtifactView, ResultView } from "@/components/result";
-import { RunGraph } from "@/components/run-graph";
-import { RunAnswer } from "@/components/run-answer";
-import { RunGoals, suggestedOutcomes } from "@/components/run-goals";
-import { RunRemediations } from "@/components/run-remediation";
-import { RunDelete } from "@/components/run-delete";
-import { RunProcedure } from "@/components/run-procedure";
-import { RunResultChart } from "@/components/run-result-chart";
-import { RunPeriodInput, periodLabel } from "@/components/run-period-input";
-import { AuthorInfo, RunQueries, RunSettings, RunSources, readableValue } from "@/components/run-evidence";
+import { RunGraph } from "@/features/runs/run-graph";
+import { RunAnswer } from "@/features/runs/run-answer";
+import { RunGoals, suggestedOutcomes } from "@/features/runs/run-goals";
+import { RunRemediations } from "@/features/runs/run-remediation";
+import { RunDelete } from "@/features/runs/run-delete";
+import { RunProcedure } from "@/features/runs/run-procedure";
+import { RunResultChart } from "@/features/runs/run-result-chart";
+import { RunPeriodInput, periodLabel } from "@/features/runs/run-period-input";
+import { AuthorInfo, RunQueries, RunSettings, RunSources, readableValue } from "@/features/runs/run-evidence";
 import { api, MethodManifest, Recipe, Result, Run } from "@/lib/api";
 import { useApi, useCatalog } from "@/lib/hooks";
 import { useT } from "@/lib/i18n";

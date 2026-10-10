@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from decision_layer.api.app import create_app
 from decision_layer.core.models import AnalysisGoal, GoalOutcome, PlanStep, Recipe, RecipeReview, RecipeSelection, Run, RunConclusion, RunFinding
 from decision_layer.core.periods import ExecutionPolicy
-from decision_layer.methods.base import InvalidBinding
+from decision_layer.methods import InvalidBinding
 from decision_layer.recipes.loader import RecipeStore
 from decision_layer.recipes.routing import search_recipes
 from decision_layer.runs.engine import MethodNotAllowed, RunEngine, RunLimitExceeded
@@ -17,8 +17,8 @@ from decision_layer.runs.proposals import method_proposal
 from decision_layer.runs.store import MemoryRunStore, SqliteRunStore
 from decision_layer.service import MethodProposalRequest
 from decision_layer.settings import Settings
-from test_methods import AMOUNT, CAT, COUNT, CREDS, DT, Q3, RR, FakeProvider
-from test_runs import ME, SCOPE
+from tests.support.semantic import AMOUNT, CAT, COUNT, CREDS, DT, Q3, RR, FakeProvider
+from tests.support.runs import ME, SCOPE
 
 
 @pytest.fixture

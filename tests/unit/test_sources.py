@@ -11,7 +11,7 @@ from decision_layer.semantic.providers.cube.provider import CubeProvider
 from decision_layer.settings import Settings
 from decision_layer.sources.config import SourceConfigInput, SourceConfigManager, SourceConfigError
 from decision_layer.sources.store import MemorySourceStore, SqliteSourceStore
-from test_cube_provider import FakeClient
+from tests.support.cube import FakeClient
 from decision_layer.core.errors import ProviderAccessDenied, ProviderError
 from decision_layer.core.models import SemanticCatalog, SemanticObject
 from decision_layer.semantic.providers.cube.client import CubeConnectionError

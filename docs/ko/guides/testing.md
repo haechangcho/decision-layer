@@ -49,10 +49,10 @@ docker compose -p decision-layer-cube run --rm --no-deps import python verify.py
 ```bash
 DL_JOURNEY_API_URL=http://127.0.0.1:8000 \
   .venv/bin/pytest -q -s tests/provider/test_complete_journey_live.py
-.venv/bin/pytest examples/method-template/test_method.py
+.venv/bin/python -m pytest -q examples/methods
 ```
 
-실제 연동 테스트는 Recipe 없이 MCP로 드릴다운·동료 집단 비교를 실행하고 Recipe 후보를 검토합니다. Method 템플릿 테스트는 실제 소스 없이 실행됩니다.
+실제 연동 테스트는 Recipe 없이 MCP로 드릴다운·동료 집단 비교를 실행하고 Recipe 후보를 검토합니다. Method Method 예제 테스트는 실제 소스 없이 실행됩니다.
 
 
 출력된 `JOURNEY_MCP_RUN_ID`를 사용해 `web/`에서 화면을 확인합니다.

@@ -4,14 +4,14 @@ import pytest
 from decision_layer.core.models import CallerInfo, MethodParameterPolicy, ParamSpec, PlanStep, Recipe, Result, SelectionOutput
 from decision_layer.core.errors import ProviderAccessDenied
 from decision_layer.methods import registry
-from decision_layer.methods.base import InvalidBinding
+from decision_layer.methods import InvalidBinding
 from decision_layer.recipes.authoring import RecipeEditError, validate_recipe
 from decision_layer.recipes.from_run import RunPromotionError, candidate_from_run, runtime_recipe_from_run
 from decision_layer.recipes.loader import RecipeStore
 from decision_layer.runs.engine import RunEngine
 from decision_layer.runs.expressions import AmbiguousSelection, UnresolvedExpression, resolve
 from decision_layer.runs.store import MemoryRunStore
-from test_methods import CAT, CREDS, DT, Q3, RR, SELLER, FakeProvider, ctx
+from tests.support.semantic import CAT, CREDS, DT, Q3, RR, SELLER, FakeProvider, ctx
 
 
 @pytest.fixture
@@ -192,7 +192,7 @@ def test_full_precision_ties_and_projection_validation():
 
 
 async def test_truncated_provider_population_refuses_selection(provider, tmp_path, monkeypatch):
-    monkeypatch.setattr("decision_layer.methods.query.drilldown.MAX_GROUPS", 2)
+    monkeypatch.setattr("decision_layer.methods.drilldown.MAX_GROUPS", 2)
     run = await execute(provider, tmp_path)
     assert run.status == "failed" and len(run.steps) == 2
     assert not run.steps[0].result.selections["ranked_groups"].complete
