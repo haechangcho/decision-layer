@@ -5,22 +5,25 @@ Method는 하나의 분석 기능입니다. 기존 Method 조합이나 설정으
 
 ## 설치와 첫 테스트
 
-저장소 루트에서 실행합니다.
+저장소를 내려받고 실행합니다.
 
 ```bash
+git clone https://github.com/haechangcho/decision-layer.git
+cd decision-layer
 make setup
 make example
 ```
 
-Make 없이도 가능합니다.
+::: details Make 없이 실행하기
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
 .venv/bin/python -m pytest -q examples/methods/first_method
 ```
+:::
 
-`examples/methods/first_method/`에서 시작합니다.
+[첫 Method 예제](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/first_method)에서 시작합니다.
 
 | 파일 | 역할 |
 | --- | --- |

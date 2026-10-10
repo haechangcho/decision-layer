@@ -1,51 +1,47 @@
----
-title: 로컬 개발 환경
-description: API와 웹을 직접 실행하고 샘플 데이터에 연결합니다.
----
-
 # 로컬 개발 환경
 
-Python 3.11 이상, Node.js 22를 사용합니다. 실제 샘플 데이터까지 실행하려면 Docker와 Compose가 필요합니다. Docker만으로 제품을 실행하려면 [빠른 시작](../index.md)을 참고하세요.
+Method 개발은 [첫 Method 개발](methods.md)부터 시작하세요.
+웹·API를 수정하려면 Python 3.11 이상과 Node.js 22가 필요합니다.
+아래 명령은 모두 저장소 루트에서 실행합니다.
 
-## 의존성 설치
-
-저장소 루트에서 Python 환경을 준비합니다.
-
-```bash
-python3.11 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
-```
-
-`web/` 폴더에서 웹 의존성을 설치합니다.
+## 설치
 
 ```bash
-npm ci
+make setup
+make setup-web
 ```
 
-## API 실행
+## API와 웹 실행
 
-저장소 루트에서 실행합니다.
+한 터미널에서 API를 실행합니다.
 
 ```bash
-mkdir -p data recipes
-DL_RECIPES_DIR=./recipes DL_DATABASE_URL=sqlite:///./data/development.db \
-  .venv/bin/uvicorn decision_layer.api.app:app --reload --port 8000
+make api
 ```
 
-데이터 소스를 연결하지 않아도 API를 시작할 수 있습니다. `http://localhost:8000/docs`에서 REST 계약을, `/health`에서 상태를 확인하세요. 실제 분석 전에는 웹에서 소스를 연결해야 합니다.
-
-## 웹 실행
-
-다른 터미널의 `web/` 폴더에서 실행합니다.
+다른 터미널에서 웹을 실행합니다.
 
 ```bash
-DL_API_URL=http://localhost:8000 npm run dev
+make web
 ```
 
-`http://localhost:5210`을 여세요. 웹은 요청을 API로 전달하며 동일한 분석 엔진을 사용합니다. 8000 포트를 바꿨다면 웹의 `DL_API_URL`과 [MCP 설정](mcp.md)도 함께 바꾸세요.
+웹은 **http://localhost:5210**, REST API 문서는 **http://localhost:8000/docs**입니다.
+Docker 샘플의 웹 포트는 3000입니다.
 
-## 샘플 데이터 연결
+소스 연결 없이도 API는 시작됩니다. 실제 분석에는 [Cube](cube.md)나
+[dbt Semantic Layer](dbt.md)를 연결하세요. Run은 기본적으로 로컬 SQLite에 저장됩니다.
+Recipe 파일을 저장하려면 `DL_RECIPES_DIR=./recipes make api`로 실행하세요.
 
+8000 포트를 이미 사용 중이라면 포트를 바꿉니다.
+
+```bash
+.venv/bin/python -m uvicorn decision_layer.api.app:app --reload --port 8001
+DL_API_URL=http://localhost:8001 npm --prefix web run dev
+```
+
+두 명령은 각각 다른 터미널에서 실행합니다. [MCP 연결](mcp.md)도 같은 API 포트로 바꾸세요.
+
+::: details 샘플 데이터 연결 (선택)
 `examples/complete-journey/`에서 데이터 서비스만 실행합니다.
 
 ```bash
@@ -72,17 +68,16 @@ DL_DATABASE_URL=sqlite:///./data/journey-development.db \
 샘플 PostgreSQL에는 원본 데이터가 저장됩니다. 직접 실행한 API는 별도 SQLite DB를 사용하므로 컨테이너 API의 Run 기록을 자동으로 공유하지 않습니다. Recipe는 지정한 폴더의 YAML 파일입니다. 로컬 데이터와 인증 정보는 커밋하지 마세요.
 
 dbt 개발은 기존 dbt Semantic Layer 환경에 [공식 API로 연결](dbt.md)하세요. 어댑터 계약 테스트는 GraphQL 응답을 모의하며, 실제 연동 검증에는 dbt 환경과 인증 정보가 필요합니다.
+:::
 
-## 코드 위치
+## 변경 확인
 
-| 담당 영역 | 위치 |
-| --- | --- |
-| 공통 모델 | `src/decision_layer/core/models.py` |
-| REST API | `src/decision_layer/api/app.py` |
-| MCP 어댑터 | `src/decision_layer/mcp/server.py` |
-| Method와 레지스트리 | `src/decision_layer/methods/` |
-| Recipe 작성·저장 | `src/decision_layer/recipes/` |
-| Run 실행·저장 | `src/decision_layer/runs/` |
-| 웹 경로와 공통 UI | `web/app/`, `web/features/`, `web/components/` |
+```bash
+make test
+npm --prefix web run typecheck
+npm --prefix web run build
+```
 
-다음 단계: [변경 테스트](testing.md), [Method 기여](methods.md), [기여 절차](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md).
+문서를 수정했다면 저장소 루트에서 `npm ci`, `npm run docs:build`를 실행하세요.
+브라우저·실제 연동 검사는 [테스트](testing.md), 코드 위치는 [아키텍처](../ARCHITECTURE.md),
+PR 제출은 [기여 가이드](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)를 참고하세요.

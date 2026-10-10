@@ -6,22 +6,25 @@ source are optional for the first test.
 
 ## Install and run
 
-From the repository root:
+Clone the repository, then run:
 
 ```bash
+git clone https://github.com/haechangcho/decision-layer.git
+cd decision-layer
 make setup
 make example
 ```
 
-Without Make:
+::: details Without Make
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
 .venv/bin/python -m pytest -q examples/methods/first_method
 ```
+:::
 
-Open `examples/methods/first_method/`:
+Open [the first Method example](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/first_method):
 
 | File | Edit it to |
 | --- | --- |

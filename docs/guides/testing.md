@@ -7,8 +7,8 @@ Run the smallest relevant check first. Install [development dependencies](develo
 From the repository root:
 
 ```bash
-.venv/bin/pytest
-.venv/bin/pytest tests/unit/test_methods.py
+make test
+.venv/bin/python -m pytest -q examples/methods
 ```
 
 No running Cube is needed. Live tests skip unless their opt-in environment variables are set. Skipped tests do not verify integration. The synthetic metadata in `tests/fixtures/` is a self-contained contract fixture, not another deployable sample.
@@ -44,7 +44,6 @@ From the repository root:
 ```bash
 DL_JOURNEY_API_URL=http://127.0.0.1:8000 \
   .venv/bin/pytest -q -s tests/provider/test_complete_journey_live.py
-.venv/bin/python -m pytest -q examples/methods
 ```
 
 The live check records Recipe-free MCP drill-down and peer comparison, then reviews a Recipe candidate.

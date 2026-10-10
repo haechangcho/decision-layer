@@ -12,8 +12,8 @@ description: 단위 테스트부터 웹과 실제 MCP 실행까지 검증합니�
 저장소 루트에서 실행합니다.
 
 ```bash
-.venv/bin/pytest
-.venv/bin/pytest tests/unit/test_methods.py
+make test
+.venv/bin/python -m pytest -q examples/methods
 ```
 
 실행 중인 데이터 소스는 필요하지 않습니다. 실제 연동 테스트는 전용 환경변수를 설정하지 않으면 건너뜁니다. 건너뛴 테스트는 연동을 검증한 것이 아닙니다. `tests/fixtures/`의 합성 메타데이터는 계약 검증용이며 별도 배포 예제가 아닙니다.
@@ -49,10 +49,9 @@ docker compose -p decision-layer-cube run --rm --no-deps import python verify.py
 ```bash
 DL_JOURNEY_API_URL=http://127.0.0.1:8000 \
   .venv/bin/pytest -q -s tests/provider/test_complete_journey_live.py
-.venv/bin/python -m pytest -q examples/methods
 ```
 
-실제 연동 테스트는 Recipe 없이 MCP로 드릴다운·동료 집단 비교를 실행하고 Recipe 후보를 검토합니다. Method Method 예제 테스트는 실제 소스 없이 실행됩니다.
+실제 연동 테스트는 Recipe 없이 MCP로 드릴다운·동료 집단 비교를 실행하고 Recipe 후보를 검토합니다. Method 예제 테스트는 실제 소스 없이 실행됩니다.
 
 
 출력된 `JOURNEY_MCP_RUN_ID`를 사용해 `web/`에서 화면을 확인합니다.
@@ -88,4 +87,4 @@ JOURNEY_RUN_ID=run_replace_with_printed_id PLAYWRIGHT_BASE_URL=http://127.0.0.1:
 
 [AI 클라이언트](mcp.md)에서 직접 질문하는 과정도 별도로 확인하세요. 클라이언트·모델, 질문, Run ID, 사용 Method, 경고, 기준값 비교를 기록합니다. 제품 간 비교나 성능 주장은 [분석 품질 평가](evaluation.md)를 따르세요.
 
-CI는 Python 계약과 Method 템플릿, 웹 타입 검사·빌드, 문서 빌드, Docker 온보딩, Complete Journey SQL·MCP 실행을 검사합니다. 위 브라우저 테스트는 직접 수행하는 검사이며 CI에서 자동 실행된다고 가정하면 안 됩니다. 샘플 검증 작업은 원본 데이터 제공처에 접근할 수 있어야 합니다.
+CI는 Python 계약과 Method 예제, 웹 타입 검사·빌드, 문서 빌드, Docker 온보딩, Complete Journey SQL·MCP 실행을 검사합니다. 위 브라우저 테스트는 직접 수행하는 검사이며 CI에서 자동 실행된다고 가정하면 안 됩니다. 샘플 검증 작업은 원본 데이터 제공처에 접근할 수 있어야 합니다.

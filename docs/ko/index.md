@@ -1,51 +1,35 @@
 ---
-title: 빠른 시작
-description: 샘플을 실행하고 지표와 분석 기록을 확인합니다.
+title: 시작하기
+description: 시맨틱 데이터에 분석 절차를 연결하고 재사용합니다.
 ---
 
-# 빠른 시작
+# Decision Layer
 
-로컬 Cube 예제의 소매점 데이터로 지표 확인부터 분석 기록까지 경험할 수 있으며 Recipe는 비어 있는 상태로 시작합니다.
+Decision Layer는 시맨틱 레이어에 재사용할 수 있는 분석 절차를 연결합니다.
+웹, Python, REST, MCP에서 실행하고 입력·쿼리·결과를 확인할 수 있습니다.
 
-Method 기여자는 이 샘플 없이 [Python 전용 가이드](./guides/methods.md)로 시작할 수 있습니다.
+지표·차원·권한은 시맨틱 레이어가 정의합니다. Decision Layer는 그 데이터를 분석하는 절차를 관리합니다.
 
-## 1. 예제 실행
+## 목적에 맞게 시작하기
 
-Docker와 Compose가 필요합니다. 터미널에서 실행하세요.
+| 목적 | 따라갈 문서 | 필요한 환경 |
+| --- | --- | --- |
+| 샘플 데이터로 제품 체험 | [샘플 실행](guides/quickstart.md) | Docker와 Compose |
+| Method 작성·테스트 | [첫 Method 개발](guides/methods.md) | Python 3.11 이상 |
+| 웹·API 개발 | [로컬 개발 환경](guides/development.md) | Python 3.11 이상, Node.js 22 |
 
-```bash
-git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer/examples/complete-journey
-```
+## 세 가지 개념
 
-```bash
-docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
-```
+- **Method**: 추세, 동료 집단 비교 같은 하나의 분석 기능입니다. 여러 쿼리를 조합할 수 있습니다.
+- **Recipe**: 기존 Method와 시맨틱 참조로 구성한 팀의 분석 절차입니다.
+- **Run**: 실행에 사용한 버전·입력·쿼리 근거·한계를 남긴 기록입니다.
 
-웹은 localhost:3000, API는 localhost:8000, Cube는 localhost:4000입니다. 첫 실행은 데이터를 내려받아 적재하므로 몇 분 걸릴 수 있습니다. 처음에는 실행 기록과 Recipe가 비어 있고, 다시 실행하면 기록이 유지됩니다.
+기존 Method로 분석할 수 있으면 Recipe를 만듭니다. 새로운 계산이 필요하면 Method를 추가합니다.
 
-회사의 dbt 환경은 [공식 Semantic Layer API](./guides/dbt.md)로 연결합니다. dbt 공식 API는 로컬 Docker 예제로 제공하지 않습니다. 종료 방법은 [샘플 안내](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)를 확인하세요.
+## 내 데이터로 사용하기
 
-## 2. 지표 확인
+[Cube](guides/cube.md) 또는 [dbt Semantic Layer](guides/dbt.md)를 연결한 뒤
+[AI 클라이언트](guides/mcp.md)나 웹 앱에서 사용하세요.
+[Recipe 만들기](guides/recipes.md)와 [실행 기록 읽기](guides/runs.md)에서 이어갈 수 있습니다.
 
-[로컬 웹 앱](http://localhost:3000)을 열고 **Metrics**에서 **Retailer receipts**를 선택하세요. 지표 정의와 사용할 수 있는 차원을 확인할 수 있습니다. 지표의 의미는 선택한 시맨틱 레이어가 관리하고 Decision Layer는 카탈로그에서 읽습니다.
-
-## 3. MCP로 분석
-
-[Claude 또는 Codex](./guides/mcp.md)에 로컬 MCP 어댑터를 연결한 뒤 질문하세요.
-
-> 전체 데이터에서 수취액이 가장 큰 상품 부문은 어디야? 분석 단계와 근거도 보여줘.
-
-웹의 **Runs**에서 질문, 각 단계에 사용한 Method, 결과와 쿼리를 확인하세요. 분석이 완료되면 **Recipe로 등록**을 눌러 같은 절차와 설정을 다시 쓸 수 있습니다.
-
-## 다음 단계
-
-- [기존 Cube 연결](./guides/cube.md): 조직의 지표로 분석하기
-- [dbt Semantic Layer 연결](./guides/dbt.md): 조직의 공식 API로 분석하기
-- [Recipe 만들기](./guides/recipes.md): 반복하는 질문을 절차로 저장하기
-- [실행 기록 읽기](./guides/runs.md): 결과와 근거 검토하기
-- [Method 기여하기](./guides/methods.md): 새로운 분석 기능 추가하기
-
-::: info 예제 데이터
-원본의 상대적인 일자를 예제용 달력 날짜로 변환했습니다. 실제 구매 연도가 아니며 인과 효과가 확인된 데이터도 아닙니다. 결과를 해석하기 전에 [샘플 안내](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)를 확인하세요.
-:::
+구현 세부사항은 [아키텍처](ARCHITECTURE.md)와 [Method 계약](reference/method-contract.md)을 참고하세요.

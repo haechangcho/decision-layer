@@ -37,12 +37,12 @@ export default defineConfig({
     outline: { level: [2, 3], label: 'On this page' },
     nav: [
       { text: 'Guides', link: '/' },
-      { text: 'Web app', link: 'http://localhost:3000' },
       { text: 'GitHub', link: github }
     ],
     sidebar: [
       { text: 'Get started', items: [
-        { text: 'Quickstart', link: '/' },
+        { text: 'Start here', link: '/' },
+        { text: 'Run the sample', link: '/guides/quickstart' },
         { text: 'Connect Cube', link: '/guides/cube' },
         { text: 'Connect dbt Semantic Layer', link: '/guides/dbt' },
         { text: 'Connect an AI client', link: '/guides/mcp' }
@@ -52,17 +52,17 @@ export default defineConfig({
         { text: 'Runs and evidence', link: '/guides/runs' }
       ] },
       { text: 'Develop', items: [
-        { text: 'Local development', link: '/guides/development' },
         { text: 'First Method', link: '/guides/methods' },
-        { text: 'Method contract', link: '/reference/method-contract' },
-        { text: 'Testing', link: '/guides/testing' },
-        { text: 'Evaluation', link: '/guides/evaluation' },
-        { text: 'Interface design', link: '/guides/design-system' }
+        { text: 'Local development', link: '/guides/development' },
+        { text: 'Testing', link: '/guides/testing' }
       ] },
-      { text: 'Reference', items: [
+      { text: 'Reference', collapsed: true, items: [
+        { text: 'Method contract', link: '/reference/method-contract' },
         { text: 'Product context', link: '/PRODUCT_CONTEXT' },
         { text: 'Architecture', link: '/ARCHITECTURE' },
-        { text: 'Decisions', link: '/DECISIONS' }
+        { text: 'Decisions', link: '/DECISIONS' },
+        { text: 'Evaluation', link: '/guides/evaluation' },
+        { text: 'Interface design', link: '/guides/design-system' }
       ] }
     ]
   },
@@ -73,12 +73,12 @@ export default defineConfig({
       themeConfig: {
         nav: [
           { text: '가이드', link: '/ko/' },
-          { text: '웹 앱', link: 'http://localhost:3000' },
           { text: 'GitHub', link: github }
         ],
         sidebar: [
           { text: '시작하기', items: [
-            { text: '빠른 시작', link: '/ko/' },
+            { text: '시작하기', link: '/ko/' },
+            { text: '샘플 실행', link: '/ko/guides/quickstart' },
             { text: 'Cube 연결', link: '/ko/guides/cube' },
             { text: 'dbt Semantic Layer 연결', link: '/ko/guides/dbt' },
             { text: 'AI 도구 연결', link: '/ko/guides/mcp' }
@@ -89,12 +89,16 @@ export default defineConfig({
           ] },
           { text: '개발과 기여', items: [
             { text: '첫 Method 개발', link: '/ko/guides/methods' },
-            { text: 'Method 계약', link: '/ko/reference/method-contract' },
             { text: '개발 환경', link: '/ko/guides/development' },
-            { text: '테스트', link: '/ko/guides/testing' },
+            { text: '테스트', link: '/ko/guides/testing' }
+          ] },
+          { text: '참고 문서', collapsed: true, items: [
+            { text: 'Method 계약', link: '/ko/reference/method-contract' },
+            { text: '아키텍처', link: '/ko/ARCHITECTURE' },
+            { text: '제품 맥락 (English)', link: '/PRODUCT_CONTEXT' },
+            { text: '설계 결정 (English)', link: '/DECISIONS' },
             { text: '분석 품질 평가', link: '/ko/guides/evaluation' },
-            { text: '인터페이스 디자인', link: '/ko/guides/design-system' },
-            { text: '아키텍처', link: '/ko/ARCHITECTURE' }
+            { text: '인터페이스 디자인', link: '/ko/guides/design-system' }
           ] }
         ],
         outline: { level: [2, 3], label: '이 페이지에서' },
