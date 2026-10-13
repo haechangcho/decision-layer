@@ -10,6 +10,7 @@ cubes:
     sql: observation_id
     type: string
     primary_key: true
+    public: true
     title: Campaign household observation
   - name: campaign_id
     sql: campaign_id

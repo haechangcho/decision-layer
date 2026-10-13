@@ -41,7 +41,7 @@ MethodRegistry: input defaults, binding checks and result contract
         ↓
 Method.run(ExecutionContext, bindings, params)
         ↓
-ExecutionContext.dataset(DatasetSpec)
+ctx.aggregate/entities → ExecutionContext.dataset(DatasetSpec)
         ↓
 Semantic provider → bounded Dataset
         ↓
@@ -53,11 +53,18 @@ Python event loop for breakpoints. It is a development trial with fresh budgets,
 not a stored Run. `preview()` uses the RunEngine and memory storage. Neither uploads
 code or evidence to a remote server. See ADR-079/080 and the [Method guide](guides/methods.md).
 
+`@method` turns a typed Python signature into the existing manifest/Method adapter. Input maps normalize into canonical bindings. `ctx.aggregate/entities` build governed DatasetSpecs; `ctx.compute` uses in-process local debugging or bounded server child computation. Optional dependencies are checked before queries. No new provider planner, notebook product or dynamic code installer is introduced. See ADR-081 and the [manual scenarios](guides/method-scenarios.md).
+
+External-library APIs remain visible in authored calculation functions. `ctx.compute`
+is an execution boundary, not an estimator facade. Analysis-specific assumptions
+and fit conditions remain explicit; shared execution owns semantic access, extraction
+bounds and evidence. Existing builtin helper reuse does not define the extension API.
+
 ## Method and Recipe boundaries
 
 A Method is one reusable analytical capability. Several queries and local combination
-can belong to one Method. Current built-ins are aggregate, trend, drilldown,
-peer comparison and CEM. Implementations are directly under `methods/`; logical IDs
+can belong to one Method. Built-ins include aggregate, trend, drilldown, peer comparison, CEM,
+unit changes/distributions, OLS, DoWhy-adjusted differences, EconML DML and panel contrasts. Implementations are directly under `methods/`; logical IDs
 retain `query.*` / `causal.*` for compatibility. Folder names do not establish causal claims.
 
 `methods/__init__.py` exports authoring types and explicitly registers built-ins.
@@ -139,3 +146,5 @@ Extend a Method with reviewed Python and independent tests, a Recipe with canoni
 specs, or a provider through its existing contract. Heavy libraries require explicit
 dependencies and runtime version evidence. Notebook hosting, code-upload execution,
 plugin installers, custom frontend runtimes and workflow schedulers remain deferred.
+
+Python callers use named function arguments; normalization and role/parameter categorization remain internal. New statistical Methods have bounded, specific contracts without AnalysisDesign or assumption checkboxes. They report unverified assumptions and associational estimates. Legacy IDs/versions retain their original contracts in a compatibility module (ADR-084).

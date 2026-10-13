@@ -15,7 +15,8 @@ function refLabel(o: SemanticObject) {
 
 function candidates(objects: SemanticObject[], role: RoleSpec) {
   return objects.filter((o) => {
-    const kindOk = o.kind === role.kind || (role.kind === "dimension" && o.kind === "time_dimension");
+    const kindOk = (role.accepted_kinds ? role.accepted_kinds.includes(o.kind) : o.kind === role.kind || (role.kind === "dimension" && o.kind === "time_dimension")) ||
+      (role.kind === "entity" && o.kind === "dimension" && objects.some(member => member.entity === o.ref));
     const metricOk = !role.metric_kinds || role.kind !== "measure" || role.metric_kinds.includes(o.metric_kind ?? "");
     return kindOk && metricOk;
   });
@@ -80,7 +81,7 @@ export function RoleInput({ name, role, objects, value, onChange, restrictTo }: 
   );
 }
 
-const JSON_TYPES = new Set(["drill_path", "ref_list", "group", "ranges", "number_list", "string"]);
+const JSON_TYPES = new Set(["drill_path", "ref_list", "group", "ranges", "number_list", "string", "condition", "filters", "date_ranges", "design"]);
 
 export function ParamInput({ name, spec, value, onChange }: {
   name: string; spec: ParamSpec; value: unknown; onChange: (v: unknown) => void;

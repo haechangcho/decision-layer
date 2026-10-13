@@ -143,7 +143,7 @@ export function ArtifactView({ artifact, titles, expanded = false }: { artifact:
     const data = artifact.data as Record<string, unknown>;
     const rows = Array.isArray(data.rows) ? data.rows.filter((row): row is Record<string, unknown> => !!row && typeof row === "object" && !Array.isArray(row)) : [];
     const metric = typeof data.metric === "string" ? data.metric : "";
-    const metricTitle = titles.get(metric)?.title ?? "지표";
+    const metricTitle = titles.get(typeof data.metric_ref === "string" ? data.metric_ref : metric)?.title ?? "지표";
     const units = data.units && typeof data.units === "object" ? data.units as Record<string, unknown> : {};
     const columns = rows.length ? Object.keys(rows[0]) : [];
     const columnLabels = Object.fromEntries(columns.filter((column) => column.endsWith("#units")).map((column) => {

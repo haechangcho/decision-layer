@@ -1,109 +1,122 @@
-# 첫 Method 개발
+# 첫 Method 작성, 실행, 테스트
 
-Method는 하나의 분석 기능입니다. 기존 Method 조합이나 설정으로 충분하면 Recipe를
-작성합니다. 처음 시작할 때 필요한 것은 Python 3.11+입니다.
+일반 Python 함수 하나를 작성하고 명시적으로 등록합니다. 의미 정의, join, 권한은 semantic layer에 남습니다. 이 페이지의 코드는 구현된 API이며, 앞으로 구현할 의사 코드가 아닙니다. 기존 class 기반 Method도 계속 사용할 수 있습니다.
 
-## 설치와 첫 테스트
+**내 Method를 직접 작성하고 수정해보려면** VS Code/Jupyter에서 `examples/methods/patterns/write_your_method.ko.ipynb`를 여세요. 준비된 시나리오 실행뿐 아니라 함수 작성 → 등록 → 입력 선택 → 결과 확인 → 코드 수정이 셀로 이어집니다. 영어 notebook과 코드는 동일하며, 마지막 선택적 연결 셀에서 같은 함수를 현재 Cube에 사용합니다.
 
-저장소를 내려받고 실행합니다.
+## 1. 외부 연결 없이 시작
 
-```bash
-git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer
-make setup
-make example
-```
-
-::: details Make 없이 실행하기
+저장소 루트에서 실행하세요. 아래 첫 테스트는 Python 3.11+와 core 의존성으로 실행되고 통계 라이브러리가 필요한 사례는 건너뜁니다.
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
-.venv/bin/python -m pytest -q examples/methods/first_method
-```
-:::
-
-[첫 Method 예제](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/first_method)에서 시작합니다.
-
-| 파일 | 역할 |
-| --- | --- |
-| `method.py` | 입력 명세와 분석 구현 |
-| `fixtures.py` | 예상 semantic query와 독립적인 응답 데이터 |
-| `test_method.py` | 예상 정답 검사 |
-| `explore.ipynb` | 선택적으로 실제 Cube에서 탐색 |
-
-구현을 수정하고 테스트를 다시 실행합니다. 예상 그룹값은 30·20·10이며,
-기간·차원·정렬·조회 수가 기대한 것과 같은지 확인합니다.
-웹 서버, 실제 source, 인증 정보, Docker가 필요하지 않습니다.
-
-## 코드 이해하기
-
-```python
-from decision_layer.methods import (
-    Method, MethodOutput, MethodManifest, RoleSpec, ParamSpec, Artifact, DatasetSpec,
-)
+.venv/bin/python -m examples.methods.patterns --case by_group
+.venv/bin/python -m pytest -q examples/methods/patterns/test_patterns.py
 ```
 
-`manifest`는 입력 역할·파라미터·출력·해석 수준을 선언합니다.
-`run(ctx, bindings, params)`는 `ctx.dataset()`으로 조회하고 `MethodOutput`을 반환합니다.
-지표 수식·join·권한은 semantic source가 관리합니다. 반환하는 모든 artifact 타입을
-명세에 선언해야 합니다. 공통 Registry가 선언되지 않은 출력을 거절합니다.
+## 2. 함수 작성
 
-## 여러 쿼리 조합
+`Measure`, `Dimension`은 기존 semantic 객체의 참조를 받습니다. `ctx`가 기간과 필터, 권한, 제한을 적용합니다. 함수 signature에서 manifest가 생성되므로 역할 선언과 인자 매핑을 중복 작성하지 않습니다. 아래는 실제 테스트하는 소스입니다.
 
-```bash
-.venv/bin/python -m pytest -q examples/methods/peer_comparison
-```
+<<< @/../examples/methods/patterns/methods.py#group_metric
 
-제품의 `methods/peer_comparison.py`를 import해 대상, 대상을 제외한 peers,
-대상을 제외한 전체 비교군을 각각 조회합니다. fixture의 12%·8%·6%에서 차이는
-4·6%p입니다. 통계적 유의성이나 인과효과를 주장하지 않습니다.
-여러 조회와 조합은 하나의 Method 안에서 수행할 수 있습니다.
+### AI 요청과 Python 호출에서 입력이 채워지는 방식
 
-실패·예산·출력 계약은 다음 테스트에서 확인합니다.
+요청 예: “2001년 2월 store 364의 영수증 수를 department별 상위 3개 보여줘.”
 
-```bash
-.venv/bin/python -m pytest -q tests/unit/test_method_dev.py
-```
+AI는 semantic layer에서 영수증 수 지표와 department 분류 기준을 찾아 다음 입력에 넣습니다.
 
-## 실제 데이터 연결
+- `metric`: 영수증 수 지표가 정의된 모델과 지표의 경로
+- `group`: department가 정의된 모델과 분류 기준의 경로
+- `limit`: 요청한 3. 생략하면 함수 기본값 사용
+- `scope`: 2001년 2월, 날짜 기준, store 364 필터
+
+예를 들어 `cube://journey/transaction/receipts`는 다음 항목을 가리킵니다.
+
+- `cube://`: Cube semantic provider
+- `journey`: 연결된 Cube 인스턴스의 이름
+- `transaction`: Cube 모델 이름
+- `receipts`: 그 모델에 정의된 지표 이름
+
+Cube에 연결하면 catalog에서 이 경로를 확인해 `run(metric=...)`에 넣습니다. 이 경로는 DB 테이블이나 SQL 컬럼의 위치가 아닙니다. 다른 모델의 `cube://journey/product/department`도 `group`에 넣을 수 있으며, 연결 가능 여부와 join은 Cube가 판단합니다. 연습용 `cube://practice/observations/value`에서는 `practice`가 연습 연결 이름이고 `observations`와 `value`는 예제 catalog에 정의된 이름입니다.
+
+Python에서는 `run(...)`에 `metric`, `group`, `limit`, `scope`를 직접 넣습니다. 실행할 때 입력은 이렇게 전달됩니다.
+
+- `run(metric=...)`에 넣은 값은 Method 함수의 `metric`으로 전달됩니다. `group`, `limit`도 같은 방식입니다.
+- `scope`의 기간과 필터는 `ctx`에 들어갑니다. `ctx.aggregate(...)`가 조회에 적용합니다.
+- 데이터 연결, 권한, 실행 제한은 session에 설정되어 있으며 `ctx`가 조회할 때 사용합니다.
+
+입력이 부족하거나 모호하면 다음과 같이 처리합니다.
+
+- 요청한 지표나 기간이 불명확하면 AI가 사용자에게 질문합니다.
+- 런타임이 `needs_input`을 반환하면 AI가 해당 질문을 전달합니다.
+- 필수 Method 인자를 빠뜨리면 입력 오류가 발생합니다.
+
+Method는 `ctx.aggregate(...)`로 정해진 기간과 필터, 권한, 제한에 따라 조회합니다.
+
+Python 호출은 직접 실행하므로 대화를 진행하지 않습니다. AI는 서버에 등록된 Method의 입력 설명을 보고 MCP 호출을 준비합니다. Run을 만들 때 공통 조건을, 실행 단계에는 Method 인자를 전달하며 같은 실행 context와 registry를 사용합니다. 필수 타입 선언은 필수 입력을 뜻하며 자동 채팅 질문을 생성하지 않습니다. Method가 분석상 선택을 결정할 수 없으면 `NeedsInput`을 반환할 수 있고, 호출자는 답을 받아 유효한 입력으로 다시 실행해야 합니다. 기본값은 Method, Recipe가 정의한 범위에서 사용합니다. 연결 인증과 권한 규칙은 설정된 실행 환경에서 제공합니다.
+
+
+## 3. 등록하고 실행, 정답 확인
+
+아래 코드는 notebook의 셀 또는 async 함수 안에서 실행합니다. `FixtureProvider`는 Method가 만든 요청을 그대로 복사하지 않고 독립적으로 작성한 전체 `DatasetSpec`과 비교합니다. 값뿐 아니라 조회 조건이 틀려도 실패합니다.
 
 ```python
 from decision_layer.dev import MethodSession
 from decision_layer.methods import Scope
-from decision_layer.semantic.credentials import RequestCredentials
+from examples.methods.patterns.methods import group_metric
+from examples.methods.patterns.scenarios import scenarios, M, GROUP, DATE, FEB
 
-session = await MethodSession.cube(cube_url, RequestCredentials(token))
-session.metrics()
-session.dimensions(metric_ref)
-session.register(my_method)
+scenario = next(s for s in scenarios() if s.name == "by_group")
+provider = scenario.provider()
+session = await MethodSession.fixture(provider)
+session.register(group_metric)
 trial = await session.run(
-    my_method.manifest.name, bindings=bindings, params=params,
-    scope=Scope(date_range=("2026-09-01", "2026-09-30"), time_dimension=time_ref),
+    group_metric,
+    metric=M, group=GROUP,
+    scope=Scope(FEB, DATE), limit=3,
 )
-trial.result
-trial.attempts
-trial.queries
+assert [r["metric"] for r in trial.result.primary.data] == [30, 20, 10]
+provider.assert_consumed()
+print(trial.queries)
+print([(a.label, a.status) for a in trial.attempts])
+session.close()
 ```
 
-catalog에서 실제 참조를 선택합니다. 선언된 차원 관계는 탐색 정보이고,
-실제 조합은 provider가 검증합니다. 인증 정보는 노트북 셀과 출력에 저장하지 않습니다.
-직접 실행은 현재 이벤트 루프에서 동작해 breakpoint를 사용할 수 있습니다.
-provider·코드 예외는 다시 발생하고 `session.last_trial.attempts`에 중간 근거가 남습니다.
-직접 실행은 저장된 Run을 만들지 않습니다.
+## 4. 실제 semantic source 연결
 
-`session.preview(recipe, step_index=..., scope=...)`는 기존 RunEngine으로 새 prefix를
-실행하며 worker와 로컬 메모리 저장소를 사용합니다. 원격 웹 서버로 업로드하지 않습니다.
-사용 후 `session.close()`를 호출합니다. 수정한 구현은 `replace=True`로 등록하고,
-모델 변경 후 `refresh_catalog()`로 갱신합니다. 예제 노트북에서 2단계 실행을 확인할 수 있습니다.
+```python
+import os
+from decision_layer.dev import MethodSession
+from decision_layer.methods import Scope, Filter
+from decision_layer.semantic.credentials import RequestCredentials
 
-## 등록과 기여
+session = await MethodSession.cube(
+    os.environ["CUBE_API_URL"], RequestCredentials(os.environ["CUBE_TOKEN"]),
+    instance="journey",
+)
+metrics = session.catalog.search(kind="measure", text="sales")
+metric = metrics[0].ref  # Inspect titles/definitions before choosing.
+print(session.object(metric))
+print(session.catalog.relations(metric))  # declared or unknown, not a join guarantee
+print(session.catalog.search(kind="dimension", text="department", compatible_with=metric))
+print(session.catalog.search(kind="time_dimension"))
+# Copy actual references from this caller-visible catalog into the invocation.
+# session.register(group_metric)
+# trial = await session.run(group_metric, metric=metric,
+#     group=selected_dimension,
+#     scope=Scope(selected_period, selected_time),
+#     filters=[Filter(member=selected_filter_dimension, operator="equals", values=[selected_value])])
+session.close()
+```
 
-검토할 구현을 `src/decision_layer/methods/`에 추가하고 `__init__.py`의
-`register_builtins()` 목록에 연결합니다. 각 모듈은 import만으로 자신을 등록하지 않습니다.
-`query.peer_comparison` 같은 등록 ID는 폴더 구조와 독립적입니다.
+탐색 API는 접근 가능한 객체만 반환합니다. `compatible_with`는 참조를 확인하는 탐색 힌트이며 모르는 join을 임의로 제외하거나 가능하다고 보증하지 않습니다. 실제 조합은 provider가 검증합니다.
 
-관련 테스트와 `make test`를 실행한 뒤 구현·명세·독립적인 정답·실패 테스트·호출 예제를
-함께 PR로 제출합니다. 라이브러리 의존성은 명시적으로 선언하고 실행 중 설치하지 않습니다.
+## 5. 수정, 디버깅, 공유
 
-[입출력 계약 참고](../reference/method-contract.md)와 [테스트 가이드](testing.md)를 확인하세요.
+함수를 수정한 뒤 `session.register(group_metric, replace=True)`로 재등록합니다. 일반 breakpoint를 사용하고 `session.last_trial.attempts`에서 성공, 실패한 요청과 label을 확인합니다. 직접 실행은 호출자 프로세스에서 동작하며 저장된 Run이 아닙니다. `session.preview(recipe, step_index=..., scope=...)`는 같은 RunEngine으로 새 Recipe prefix를 실행합니다.
+
+배포하려면 검토된 모듈을 서버 환경에 설치하고 서버 bootstrap에서 등록하세요. import만으로 자동 등록하지 않으며 Web에서 Python을 업로드하지 않습니다. 기존 Method를 조직의 조사 절차로 조합할 때는 Recipe를 작성합니다.
+
+다음: [작성 패턴](method-patterns.md), [직접 테스트 시나리오](method-scenarios.md), [고급 분석](statistical-methods.md), [내부 계약](../reference/method-contract.md).

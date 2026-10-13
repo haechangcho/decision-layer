@@ -11,9 +11,9 @@ make setup
 make example
 ```
 
-Edit `examples/methods/first_method/method.py`, rerun its test and read
+Edit `examples/methods/patterns/methods.py`, rerun its test and read
 [the Method guide](docs/guides/methods.md). For three-query combination, run
-`.venv/bin/python -m pytest -q examples/methods/peer_comparison`.
+`.venv/bin/python -m examples.methods.patterns --case peer`.
 
 Use [local development](docs/guides/development.md) for Web/API changes and
 [the sample](examples/complete-journey/README.md) only when live data is needed.

@@ -83,3 +83,18 @@ test("list headings and values share column positions", async ({ page }, info) =
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
+
+test("authored time-series aliases render through the shared chart and table", async ({ page }) => {
+  const authoredResult = { ...result, primary: { type: "time_series", data: {
+    metric: "metric", metric_ref: metric, time_key: "time", granularity: "month",
+    rows: [{ time: "2026-01-01", metric: 20 }, { time: "2026-02-01", metric: 30 }],
+  } } };
+  await page.route("**/api/runs/readability", route => route.fulfill({ json: { ...run,
+    steps: [{ ...run.steps[0], step: { ...run.steps[0].step, method: "example.series" }, result: authoredResult }],
+  } }));
+  await page.goto("/runs/readability");
+  await expect(page.getByRole("img", { name: "기간별 지표 값 그래프, 2개 기간" })).toBeVisible();
+  const table = page.getByRole("region", { name: "결과 데이터 표" });
+  await expect(table.getByRole("cell", { name: "2026-01-01", exact: true })).toBeVisible();
+  await expect(table.getByRole("cell", { name: "30", exact: true })).toBeVisible();
+});

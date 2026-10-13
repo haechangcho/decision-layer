@@ -31,13 +31,13 @@ make setup
 make example
 ```
 
-Open `examples/methods/first_method/method.py`, change the implementation and run
+Open `examples/methods/patterns/methods.py`, change the implementation and run
 `make example` again. Its test uses independent fixture data and checks the exact
 semantic query. No source credentials, Web server, Node or Docker are required.
 See [the Method guide](docs/guides/methods.md) for ordinary Python commands without Make.
 
 ```bash
-.venv/bin/python -m pytest -q examples/methods/peer_comparison
+.venv/bin/python -m examples.methods.patterns --case peer
 make test
 ```
 

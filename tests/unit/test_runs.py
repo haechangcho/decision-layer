@@ -544,3 +544,45 @@ def test_api_previews_an_unsaved_recipe_without_publishing_it(provider):
     assert run["origin"] == "web"
     assert len(run["steps"]) == 2 and run["steps"][1]["result"]["provenance"]["queries"]
     assert "preview-only" not in {item["name"] for item in client.get("/recipes").json()}
+
+
+async def test_input_map_retries_remain_idempotent_after_limits_and_completion(provider, tmp_path):
+    e = engine(provider, recipes_dir=write_recipe(tmp_path, """
+name: tiny
+version: 1.0.0
+description: limits
+semantic_scope: {primary_metric: ecom_order.return_rate}
+mode: investigation
+allowed_methods: [query.trend]
+limits: {max_steps: 1, max_queries: 2}
+"""))
+    run = await e.start(CREDS, ME, recipe="tiny", question=None, scope=SCOPE)
+    step = PlanStep(id="same", method="query.trend")
+    maps = {"measures": {"metric": RR}}
+    _, first = await e.step(CREDS, ME, run.id, step, input_maps=maps)
+    assert first.status == "success"
+    _, retry = await e.step(CREDS, ME, run.id, step, input_maps=maps)
+    assert retry == first
+    await e.complete(ME, run.id, "Verified")
+    _, terminal_retry = await e.step(CREDS, ME, run.id, step, input_maps=maps)
+    assert terminal_retry == first
+    recorded = await e.store.get(run.id)
+    assert len(recorded.steps) == 1 and len(recorded.query_attempts) == 2
+
+
+async def test_input_maps_do_not_precede_owner_and_recipe_authorization(provider, tmp_path):
+    e = engine(provider, recipes_dir=write_recipe(tmp_path, """
+name: tiny
+version: 1.0.0
+description: authorized methods
+semantic_scope: {primary_metric: ecom_order.return_rate}
+mode: investigation
+allowed_methods: [query.trend]
+"""))
+    run = await e.start(CREDS, ME, recipe="tiny", question=None, scope=SCOPE)
+    step = PlanStep(method="stats.ols")
+    maps = {"measures": {"unknown_role": RR}}
+    with pytest.raises(UnknownRun):
+        await e.step(CREDS, CallerInfo(subject="another-user"), run.id, step, input_maps=maps)
+    with pytest.raises(MethodNotAllowed):
+        await e.step(CREDS, ME, run.id, step, input_maps=maps)

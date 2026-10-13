@@ -1343,3 +1343,149 @@ outlines. Detailed Method metadata is a reference page, not the first tutorial.
 Keep historical ADRs, licensed/public sample data definitions and analytical/access
 regressions. This changes contributor organization, not stored Runs, Recipe semantics
 or provider ownership. No data volume or local credential is deleted.
+
+## ADR-081 — Typed function authoring and canonical input maps
+
+**Status:** Accepted (2026-10-12). Extends ADR-079/080; class Methods remain supported.
+
+Reviewed async Python functions may declare typed semantic roles, ordinary typed
+parameters and a Table/TimeSeries/Estimate return type. `@method` generates the
+existing MethodManifest and a Method adapter; it never registers on import.
+Registration validates IDs/defaults. Unsupported annotations fail explicitly.
+Installed reviewed bootstrap code registers implementations; requests cannot upload
+Python or install packages. The class API remains the escape hatch for additional
+artifacts, selections and specialized contracts.
+
+Python, REST and MCP accept measures/dimensions/entity input maps, normalized into
+canonical bindings. Legacy bindings still work. Run step maps normalize after owner
+and Recipe authorization, preserving idempotent canonical requests. Web uses the same
+generated manifests. Statistical variable roles may explicitly accept measures and
+dimensions; the catalog determines which fields become provider measures versus
+grouping dimensions. A unit is a provider-declared primary dimension, never an
+inferred URI/name. Cube validates actual joins; extracted analysis keys must be unique.
+
+Common aggregate/entities helpers apply mandatory scope filters, explicit current or
+comparison periods, policy bounds, optional SQL evidence and query labels. Current
+periods cannot expand scope. Complete extraction requests a sentinel row and refuses
+overflow rather than accepting top-N samples. Panel needs use the existing entity
+DatasetSpec plus TimeScope granularity; uniqueness is unit × bucket. No panel product
+object, separate planner or semantic formula/join definition is introduced. Catalog
+search remains caller-visible; declared/unknown relationships are discovery evidence,
+not authorization or proof of join support.
+
+Bounded condition, filters, date_ranges and analysis-design parameters extend the
+shared schema. Registry checks, Recipe serialization, REST/MCP and generic Web inputs
+share these types. Typed results validate their JSON payloads; existing class Method
+artifacts retain compatibility. Historical Runs and pinned Recipes are not rewritten.
+Existing aggregate/trend/drilldown/peer/CEM calculations and versions remain intact.
+
+Optional OLS, DoWhy-adjusted differences, EconML DML and simple two-group/two-period
+contrasts use ordinary installed libraries. Missing/incompatible dependencies refuse
+before data queries and never trigger installation. Tested numerical constraints and
+a separate optional CI job cover the causal stack on Python 3.11. Actual dependency
+versions and Python version enter provenance. These new estimators report association,
+author-asserted assumptions and no established causal effect or uncertainty interval.
+Positivity diagnostics, fitted estimands and placebo checks do not prove identification.
+Complete unit changes/distributions are descriptive capabilities, not new Recipes.
+Panel partitioning is an option of one Method, not a Method per window.
+
+Direct local trials keep computation in the caller process for debugging and do not
+promise a hard CPU timeout. Server statistical helpers run after governed extraction
+in a terminable child process with bounded data and without provider credentials.
+Cancellation/deadline/crash preserves ordinary Run query evidence. Child termination
+does not imply warehouse cancellation; in-process jobs and their existing recovery
+contract remain unchanged. This is not a sandbox for arbitrary uploaded code.
+
+Complete Journey adds a native Cube panel over its existing eligible campaign-household
+materialization and explicitly exposes the observation unit. The panel's physical row
+key remains private. Its pre/post dates denote provider-defined 30-day window starts,
+not actual campaign receipt or daily purchase outcomes. No database rows or historical
+Runs are migrated. Default causal sample scenarios refuse unknown assumptions;
+explicit hypothetical design experiments still report association and can refuse poor
+observed support. Independent SQL verifies descriptive/window calculations; synthetic
+fixtures provide known effects. Neither dataset name nor library use supplies causal
+ground truth. No existing local service/data volume is removed.
+
+## 082. Evaluate CEM separately from PyWhy effect estimators
+
+Status: evaluated recommendation; production migration not adopted (2026-10-12).
+
+The review recommends retaining CEM 1.1.1 for compatibility and aggregate-based
+matched comparisons, separating its reusable selection/balance/evidence concerns,
+and avoiding a universal DoWhy backend. Current target-weighted common-stratum
+contrasts are not automatically full-population ATE/ATT; coarsened balance does not
+establish original-variable balance. Future interpretation changes require explicit
+new contracts rather than rewriting historical Runs or silently repinning Recipes.
+
+The executable lab in examples/methods/pywhy_review compares DoWhy native estimators,
+the DoWhy/EconML wrapper and direct EconML on known synthetic effects under DoWhy
+0.13/NumPy 1.26.4 and 0.14/NumPy 2.2.6. It exposes wrapper ATT population forwarding
+and modifier-selection pitfalls and keeps numerical warnings visible. Typed local
+adapters are evaluation-only; categorical/continuous/CATE support is not promoted to
+builtins. Existing builtin versions, dependencies and historical evidence are unchanged.
+DoWhy 0.14 conflicts with current NumPy constraints; successful point-estimate smoke
+tests do not approve the upgrade or inference support.
+
+The paired public guides document assumptions, executed vs proposed APIs, migration
+gates, version-resolution limitations, Complete Journey limits and precise product
+wording. Neither library use, identification under an assumed graph nor refutation
+establishes a real-world causal effect. See guides/pywhy-review.md and
+ko/guides/pywhy-review.md for evidence and the proposed staged implementation.
+
+## ADR-083 — Native statistical-library APIs in authored Methods
+
+**Status:** Accepted (2026-10-12). Refines the authoring guidance in ADR-081/082.
+
+Do not require Method contributors to learn a Decision Layer estimator facade over
+DoWhy/EconML. They write ordinary native-library calls with explicit estimator,
+graph, contrast, target population and optional diagnostics. Existing builtin
+`fit_dowhy`/`require_design` helpers are reusable implementation details, not a
+mandatory extension API. No new generalized estimator/validator configuration is
+introduced by this decision.
+
+Keep `ctx.entities` and `ctx.compute` as governed extraction and execution boundaries.
+A developer-owned pure calculation function can also run on a DataFrame outside
+Decision Layer. Local notebooks may define it directly; server deployments need a
+reviewed importable top-level Python function for the existing child-process contract.
+Shared execution retains source authorization, semantic grain/scope, dependency and
+resource checks, query evidence and version provenance. Analytical data conditions
+and identification assumptions must remain explicit and tested; native library use
+and author assertions do not establish causal identification.
+
+The paired hands-on notebooks now show native DoWhy binary regression, standalone
+Python calculation and semantic invocation, including refusal before data queries
+for undeclared assumptions. This changes contributor examples and guidance, not
+existing builtin versions, Recipe pins, historical Runs or estimator behavior.
+
+## ADR-084 — Small Method signatures and compatibility-only analysis designs
+
+**Status:** Accepted (2026-10-12). Refines ADR-081/083 authoring contracts.
+
+New contributors write typed Python functions and pass named arguments directly to
+MethodSession.run. Signature-generated roles/parameters remain internal validation
+metadata; introductory notebooks no longer require manifest inspection or split
+measure/dimension/parameter maps. Semantic references, common scope, authorization,
+query limits, package checks and provenance retain their canonical contracts.
+
+Remove AnalysisDesign, assumption checkboxes and configurable seeds from current
+statistical authoring examples. A boolean assertion is not identification evidence.
+Reviewed binary regression and constant binary LinearDML use four data inputs;
+exactly-two-period contrast accepts only meaningful extraction windows/granularity.
+Algorithm choices and reproducibility constants belong to reviewed implementation.
+Data checks still refuse unsupported inputs; results explicitly record assumptions
+as not_verified, remain associational and do not promise causal identification or
+uncertainty intervals. No universal estimator configuration or plugin runtime is added.
+
+Register stats.binary_regression, stats.linear_dml and stats.two_period_contrast as
+new contracts. Preserve stats.adjusted_difference, stats.dml and stats.did 1.0.0 in
+legacy_advanced.py with their original required designs and numerical procedures.
+The registry cannot resolve multiple implementations per ID, so new IDs are required
+for honest coexistence. No automatic Recipe repinning or historical Run rewriting.
+AnalysisDesign parsing stays in the internal compatibility schema; it is removed
+from ordinary public authoring exports. Old source imports must move to the explicit
+compatibility schema if required; serialized old contracts remain executable.
+
+Native DoWhy/EconML APIs remain available inside developer-owned ordinary Python
+calculation functions. require_design is legacy-only; fit_dowhy is not an authoring
+facade. Current notebooks, scenario tests and paired English/Korean guides use the
+new minimal path. Existing CEM contracts are unaffected by this refactor.

@@ -321,13 +321,17 @@ async def set_run_scope(run_id: str, base_revision: int, period: PeriodChoice,
 
 
 @mcp.tool(description=_(DOCS["run_step"]))
-async def run_step(run_id: str, method: str, bindings: dict[str, str | list[str]],
-                   purpose: str, params: dict[str, Any] | None = None, step_id: str | None = None,
+async def run_step(run_id: str, method: str,
+                   bindings: dict[str, str | list[str]] | None = None,
+                   params: dict[str, Any] | None = None, step_id: str | None = None,
                    author: ExecutionAuthor | None = None, ctx: Context = None,
-                   exploration: bool = False, *, goal_ids: list[str]) -> dict:
+                   exploration: bool = False, *, purpose: str, goal_ids: list[str],
+                   measures: dict[str, str | list[str]] | None = None,
+                   dimensions: dict[str, str | list[str]] | None = None, entity: str | None = None) -> dict:
     if not allowed(method):
         return _not_exposed(method)
-    body = {"id": step_id, "method": method, "purpose": purpose, "author": _author(author, ctx), "bindings": bindings, "params": params or {}, "goal_ids": goal_ids or [], "exploration": exploration}
+    body = {"id": step_id, "method": method, "purpose": purpose, "author": _author(author, ctx), "bindings": bindings or {}, "params": params or {}, "goal_ids": goal_ids or [], "exploration": exploration,
+            "measures": measures or {}, "dimensions": dimensions or {}, "entity": entity}
     return _running_or(await _call("POST", f"/runs/{run_id}/steps", json=body, params={"wait": WAIT_SECONDS}),
                        _compact_result)
 

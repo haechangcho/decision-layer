@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse, Response
 from ..i18n import _
 from ..core.models import PlanStep, Recipe, Result, Run
 from ..methods import registry
+from ..methods.invocation import invocation_inputs
 from ..recipes.from_run import RecipeCandidate, RunPromotionError, candidate_from_run, runtime_recipe_from_run
 from ..service import MethodProposalRequest, RunCompleteRequest, RunRecipeRequest, RunScopeRequest, RunShareRequest, RunStartRequest, RunStepRequest, RunUseRecipeRequest
 from ..service import BlockedAnalysisRequest, RemediationCreateRequest, RemediationReviewRequest, RemediationCheckRequest, RemediationRetryRequest
@@ -139,7 +140,9 @@ def create_router(settings, provider, recipes, engine):
 
     @router.post("/runs/{run_id}/steps", response_model=Result, responses={202: {"description": "still running"}})
     async def run_step(run_id: str, req: RunStepRequest, creds: Creds, caller: Caller, wait: float | None = None):
-        run, result = await engine.step(creds, caller, run_id, PlanStep(**req.model_dump(exclude={"author"})), wait=waited(settings, wait), author=req.author)
+        values = req.model_dump(exclude={"author", "measures", "dimensions", "entity"})
+        maps = {"measures": req.measures, "dimensions": req.dimensions, "entity": req.entity} if req.measures or req.dimensions or req.entity else None
+        run, result = await engine.step(creds, caller, run_id, PlanStep(**values), wait=waited(settings, wait), author=req.author, input_maps=maps)
         return result if result is not None else accepted(run)
 
     @router.post("/runs/{run_id}:complete", response_model=Run)

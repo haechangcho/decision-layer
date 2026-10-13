@@ -20,6 +20,10 @@ function sidebar(locale: '' | 'ko') {
     ] },
     { text: ko ? '개발과 기여' : 'Develop', items: [
       item('First Method', '첫 Method 개발', '/guides/methods'),
+      item('Authoring patterns', 'Method 작성 패턴', '/guides/method-patterns'),
+      item('Run test scenarios', '직접 테스트 시나리오', '/guides/method-scenarios'),
+      item('Advanced analysis', '고급 분석', '/guides/statistical-methods'),
+      item('CEM and PyWhy review', 'CEM·PyWhy 검토', '/guides/pywhy-review'),
       item('Local development', '개발 환경', '/guides/development'),
       item('Testing', '테스트', '/guides/testing')
     ] },

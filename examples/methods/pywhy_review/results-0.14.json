@@ -1,0 +1,62 @@
+{
+  "versions": {
+    "dowhy": "0.14",
+    "econml": "0.16.0",
+    "numpy": "2.2.6",
+    "pandas": "2.3.3",
+    "scipy": "1.15.3",
+    "scikit-learn": "1.6.1",
+    "statsmodels": "0.15.0"
+  },
+  "seed": 17,
+  "n": 4000,
+  "uncertainty": "not_reported",
+  "causal_claim": "not_established",
+  "binary": {
+    "truth": 2.0,
+    "matching_att": 2.005500735262251,
+    "regression_ate": 2.002926416041043,
+    "direct_dml": 1.9994167611983398,
+    "wrapped_dml": 1.9994167611983398,
+    "cem": {
+      "estimate": 2.243045751896589,
+      "coarsened_imbalance_after": 0.0,
+      "remaining_w_difference": 0.08182289771162445,
+      "retention": 1.0
+    },
+    "ols_treatment_coefficient": 2.002926416041043
+  },
+  "categorical": {
+    "control": "basic",
+    "treated": "plus",
+    "truth": 3.0,
+    "direct": 3.006887643143604,
+    "wrapped": 3.006887643143604
+  },
+  "continuous": {
+    "control": 0.5,
+    "treated": 1.5,
+    "truth": 2.0,
+    "direct": 1.9985440725389307,
+    "wrapped": 1.9985440725389307
+  },
+  "heterogeneous": {
+    "ate_truth": 1.974,
+    "att_truth": 2.563691073219659,
+    "direct_ate": 1.9730877110195018,
+    "direct_att": 2.559118918135623,
+    "wrapped_ate": 1.9730877110195018,
+    "wrapped_att_string": 1.9730877110195018,
+    "wrapped_att_explicit": 2.559118918135623
+  },
+  "placebo_difference": -0.009924346513692051,
+  "backend_warnings": [
+    "The set_bad function will be deprecated in a future version. Use cmap.with_extremes(bad=...) or Colormap(bad=...) instead.",
+    "The set_over function will be deprecated in a future version. Use cmap.with_extremes(over=...) or Colormap(over=...) instead.",
+    "The set_under function will be deprecated in a future version. Use cmap.with_extremes(under=...) or Colormap(under=...) instead.",
+    "Using a string to specify the value for econml_estimator is now deprecated, please provide an instance of a econml object",
+    "divide by zero encountered in matmul",
+    "invalid value encountered in matmul",
+    "overflow encountered in matmul"
+  ]
+}

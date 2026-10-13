@@ -7,7 +7,7 @@ setup:
 	$(VENV) -m pip install -e '.[dev]'
 
 example:
-	$(VENV) -m pytest -q examples/methods/first_method
+	$(VENV) -m examples.methods.patterns --case drilldown
 
 test:
 	$(VENV) -m pytest -q

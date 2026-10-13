@@ -275,3 +275,8 @@ docker compose -p decision-layer-cube restart cube api
 [로컬 개발](../../docs/ko/guides/development.md), [Method 기여](../../docs/ko/guides/methods.md),
 [테스트](../../docs/ko/guides/testing.md)를 참고하세요. 원본 데이터는 저장소에 포함하지 않으며
 사용 환경 안에 보관합니다. 재배포 전 배포자의 이용 조건을 확인하세요.
+
+
+## 새로운 Method 작성·테스트
+
+[직접 테스트 시나리오](../../docs/ko/guides/method-scenarios.md)는 drilldown·추이·다중 조회·OLS·DoWhy·EconML·단일/분할 panel을 같은 실행 모델로 검증합니다. 기존 데이터와 native Cube model을 사용하며 현재 checkout의 observation key/panel model을 적용하세요. 분석 환경 extras는 선택적으로 설치합니다. 기존 DB 행을 다시 적재할 필요는 없습니다. 관측 캠페인 데이터의 식별 가정은 확인되지 않았으며 기본 인과 라이브러리 사례는 이를 거절합니다.

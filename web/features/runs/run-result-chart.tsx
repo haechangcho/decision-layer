@@ -18,7 +18,7 @@ export function RunResultChart({ artifact }: { artifact?: Artifact | null }) {
   if (!rows.length) return null;
 
   if (artifact.type === "time_series" && typeof data.metric === "string") {
-    const points = rows.flatMap((row) => number(row[data.metric as string]) === null ? [] : [{ name: label(row.period).slice(0, 10), value: number(row[data.metric as string])! }]);
+    const points = rows.flatMap((row) => number(row[data.metric as string]) === null ? [] : [{ name: label(row[typeof data.time_key === "string" ? data.time_key : "period"]).slice(0, 10), value: number(row[data.metric as string])! }]);
     if (!points.length) return null;
     return <div className={s.chart} role="img" aria-label={`기간별 지표 값 그래프, ${points.length}개 기간`}>
       <ResponsiveContainer width="100%" height="100%">

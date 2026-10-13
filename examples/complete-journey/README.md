@@ -265,3 +265,8 @@ docker compose -p decision-layer-cube restart cube api
 
 See [local development](../../docs/guides/development.md), [Method contribution](../../docs/guides/methods.md)
 and [tests](../../docs/guides/testing.md). Keep the source data private to your environment; review publisher terms before redistribution.
+
+
+## Author and test new Methods
+
+[Manual scenarios](../../docs/guides/method-scenarios.md) cover drilldown, trends, multiple queries, OLS, DoWhy, EconML and single/partitioned panels through the same execution model. Use existing data and the current checkout’s native Cube observation-key/panel models. Analytical extras are optional; no DB-row re-import is needed. Identification assumptions are unverified in observational campaign data, and the default causal-library scenarios refuse them.

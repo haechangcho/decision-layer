@@ -4,6 +4,7 @@ from fastapi import Request
 from ..core.models import MethodManifest, PlanStep, Result
 from ..methods import registry
 from ..service import MethodRunRequest
+from ..methods.invocation import invocation_inputs
 from fastapi import APIRouter
 from .dependencies import Caller, Creds, accepted, localized, run_origin, waited
 
@@ -22,8 +23,12 @@ def create_router(settings, engine):
                          wait: float | None = None):
         """Ad-hoc Method run, stored as a single-step Run owned by the caller. Answers the Result when it
         finishes within `wait` seconds, else 202 {run_id, poll} — then poll GET /runs/{run_id}/result."""
-        run, result = await engine.adhoc(creds, caller, PlanStep(method=name, bindings=req.bindings, params=req.params),
-                                         req.scope.as_dict(), wait=waited(settings, wait), origin=run_origin(request), question=req.question, author=req.author)
+        bindings = invocation_inputs(registry.get(name).manifest, bindings=req.bindings,
+                                     measures=req.measures, dimensions=req.dimensions, entity=req.entity)
+        scope = req.scope.as_dict()
+        scope["filters"] = [*(scope.get("filters") or []), *[item.model_dump(mode="json") for item in req.filters]]
+        run, result = await engine.adhoc(creds, caller, PlanStep(method=name, bindings=bindings, params=req.params),
+                                         scope, wait=waited(settings, wait), origin=run_origin(request), question=req.question, author=req.author)
         return result if result is not None else accepted(run)
 
     return router

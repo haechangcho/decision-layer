@@ -62,7 +62,16 @@ class FixtureProvider:
             raise AssertionError(f"Unexpected query #{index + 1}: {spec.model_dump()}")
         fixture = self._queries[index]
         if spec != fixture.spec:
-            raise AssertionError(f"Query #{index + 1} differs.\nExpected: {fixture.spec.model_dump()}\nActual: {spec.model_dump()}")
+            def differences(expected, actual, path=""):
+                if isinstance(expected, dict) and isinstance(actual, dict):
+                    return [line for key in sorted(set(expected) | set(actual)) for line in
+                            differences(expected.get(key), actual.get(key), f"{path}.{key}".lstrip("."))]
+                if isinstance(expected, list) and isinstance(actual, list) and len(expected) == len(actual):
+                    return [line for item, (left, right) in enumerate(zip(expected, actual))
+                            for line in differences(left, right, f"{path}[{item}]")]
+                return [] if expected == actual else [f"{path}: expected {expected!r}, actual {actual!r}"]
+            diff = differences(fixture.spec.model_dump(mode="json"), spec.model_dump(mode="json"))
+            raise AssertionError(f"Query #{index + 1} differs.\n" + "\n".join(diff))
         if fixture.error:
             raise fixture.error
         refs = [*spec.measures, *spec.dimensions]

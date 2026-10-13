@@ -88,3 +88,8 @@ JOURNEY_RUN_ID=run_replace_with_printed_id PLAYWRIGHT_BASE_URL=http://127.0.0.1:
 [AI 클라이언트](mcp.md)에서 직접 질문하는 과정도 별도로 확인하세요. 클라이언트·모델, 질문, Run ID, 사용 Method, 경고, 기준값 비교를 기록합니다. 제품 간 비교나 성능 주장은 [분석 품질 평가](evaluation.md)를 따르세요.
 
 CI는 Python 계약과 Method 예제, 웹 타입 검사·빌드, 문서 빌드, Docker 온보딩, Complete Journey SQL·MCP 실행을 검사합니다. 위 브라우저 테스트는 직접 수행하는 검사이며 CI에서 자동 실행된다고 가정하면 안 됩니다. 샘플 검증 작업은 원본 데이터 제공처에 접근할 수 있어야 합니다.
+
+
+## Method 작성 패턴과 통계 환경
+
+[직접 테스트 시나리오](method-scenarios.md)의 별도 Python 3.11 환경에서 12개 정답 사례와 13개 실패·거절 사례를 실행합니다. DoWhy·EconML·선택적 notebook의 동일 구현을 검증하고, 실제 샘플은 독립 read-only SQL과 비교합니다. 핵심 환경에서 선택적 통계 테스트를 건너뛴 결과와 별도 통계 CI의 검증 결과를 구분하세요.

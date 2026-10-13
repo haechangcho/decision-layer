@@ -334,12 +334,18 @@ class RunEngine:
         return await self.store.get(run.id)
 
     async def step(self, creds: Credentials, caller: CallerInfo, run_id: str, step: PlanStep,
-                   wait: float | None = None, author: ExecutionAuthor | None = None) -> tuple[Run, Result | None]:
+                   wait: float | None = None, author: ExecutionAuthor | None = None,
+                   input_maps: dict | None = None) -> tuple[Run, Result | None]:
         async with self._scope_locks.setdefault(run_id, asyncio.Lock()):
-            return await self._step(creds, caller, run_id, step, wait, author)
+            return await self._step(creds, caller, run_id, step, wait, author, input_maps)
 
-    async def _step(self, creds, caller, run_id, step, wait, author):
+    async def _step(self, creds, caller, run_id, step, wait, author, input_maps=None):
         run = await self._owned(run_id, caller)
+        if input_maps:
+            self._enforce(run, step, check_budget=False, check_step_limit=False)
+            from ..methods.invocation import invocation_inputs
+            step = step.model_copy(update={"bindings": invocation_inputs(
+                self.registry.get(step.method).manifest, bindings=step.bindings, **input_maps)})
         if step.id:
             for record in run.steps:
                 if record.step.id == step.id:
@@ -565,10 +571,10 @@ class RunEngine:
         run.status, run.finished_at = "completed", _now()
         run.ensure_conclusion()
 
-    def _enforce(self, run: Run, step: PlanStep, *, check_budget: bool = True) -> None:
+    def _enforce(self, run: Run, step: PlanStep, *, check_budget: bool = True, check_step_limit: bool = True) -> None:
         rec = run.recipe_snapshot
         max_steps = rec.limits.max_steps if rec else DEFAULT_MAX_STEPS
-        if len(run.steps) >= max_steps:
+        if check_step_limit and len(run.steps) >= max_steps:
             raise RunLimitExceeded(_("This run reached its step limit ({limit}). Finish it with complete_run", limit=max_steps))
         if check_budget and remaining_queries(run, self.policy) <= 0:
             raise RunLimitExceeded(_("This run has used its query budget. Finish it with complete_run"))

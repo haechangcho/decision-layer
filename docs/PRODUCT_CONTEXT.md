@@ -37,12 +37,17 @@ create a new Method when existing capabilities and a Recipe are sufficient.
 
 Analysts reuse Recipes and inspect results. Senior analysts encode procedures.
 Method contributors use ordinary Python modules, pytest and optional Jupyter/VS Code.
+Typed Python functions generate Method contracts; input maps reference governed objects.
 The first development example needs no Web server or live provider. Web helps select
 semantic inputs, create procedures and inspect recorded execution.
 
 AI clients select registered Methods/Recipes and existing semantic objects. They may
 plan and narrate, but generated analytical Python or SQL is not the normal execution
 path. Developer code runs as reviewed installed implementations or trusted local trials.
+
+Statistical contributors use external libraries through their native Python APIs.
+Decision Layer supplies governed data and execution contracts; builtin calculation
+helpers are implementation details, not a required parallel estimator API.
 
 ## Example procedure
 
@@ -79,3 +84,5 @@ BI/dashboard building, generic scheduling/DAG engines and custom frontend plugin
 
 See [Architecture](ARCHITECTURE.md) for current code ownership and
 [Decisions](DECISIONS.md) for detailed accepted behavior.
+
+Method authoring exposes ordinary typed Python arguments and native statistical-library APIs. Current statistical experiments report association with unverified identification assumptions; assumption checkboxes are not evidence. Semantic validation, execution bounds and provenance remain mandatory (ADR-084).

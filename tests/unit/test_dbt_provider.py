@@ -145,10 +145,11 @@ async def test_invalid_query_status_is_redacted(state, caplog):
 async def test_unsupported_filter_values_never_submit_query(value):
     route = respx.post(URL).mock(return_value=response(catalog()))
     from decision_layer.core.errors import InvalidDatasetSpec
-    with pytest.raises((CapabilityMissing, InvalidDatasetSpec)):
+    from pydantic import ValidationError
+    with pytest.raises((CapabilityMissing, InvalidDatasetSpec, ValidationError)):
         await DbtSemanticLayerProvider(URL, "company", 123).execute(DatasetSpec(grain="aggregate", measures=[METRIC],
             filters=[Filter(member=REGION, operator="equals", values=[value])]), CREDS)
-    assert route.call_count == 1
+    assert route.call_count == (0 if value == float("inf") else 1)
 
 
 @respx.mock

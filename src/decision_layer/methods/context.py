@@ -5,6 +5,7 @@ entry point and the query budget. Methods never call a provider directly
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 from typing import Any, Awaitable, Callable
@@ -64,6 +65,7 @@ class ExecutionContext:
     persist_attempts: Callable[[], Awaitable[None]] | None = None
     allowed_measures: set[str] | None = None
     _attempt_count: int = 0
+    _started: float = field(default_factory=time.monotonic)
 
     def obj(self, ref: str) -> SemanticObject:
         o = self.catalog.get(ref)
@@ -71,7 +73,7 @@ class ExecutionContext:
             raise UnknownSemanticObject(_("'{ref}' was not found or you don't have access to it", ref=ref), ref=ref)
         return o
 
-    async def dataset(self, spec: DatasetSpec, *, with_sql: bool = False) -> Dataset:
+    async def dataset(self, spec: DatasetSpec, *, with_sql: bool = False, label: str | None = None) -> Dataset:
         if max(self._attempt_count, len(self.queries)) >= self.max_queries:
             raise QueryBudgetExceeded(_("The query budget ({limit}) is used up", limit=self.max_queries))
         if self.execution_policy:
@@ -95,7 +97,7 @@ class ExecutionContext:
             if required not in spec.filters:
                 raise Refused("The query did not apply a required Run filter.")
         await self.provider.validate_dataset(spec, self.credentials)
-        attempt = QueryAttempt(spec=spec.model_copy(deep=True), step_id=self.step_id)
+        attempt = QueryAttempt(spec=spec.model_copy(deep=True), step_id=self.step_id, label=label)
         self.attempts.append(attempt)
         self._attempt_count += 1
         if self.persist_attempts:
@@ -116,6 +118,18 @@ class ExecutionContext:
                 await self.persist_attempts()
 
     # ── scope helpers ──────────────────────────────────────────────────────
+    async def aggregate(self, **kwargs):
+        from .data import request_data
+        return await request_data(self, **kwargs)
+
+    async def entities(self, *, entity, **kwargs):
+        from .data import request_data
+        return await request_data(self, entity=entity, **kwargs)
+
+    async def compute(self, fn, *args):
+        from .computation import compute
+        return await compute(self, fn, args)
+
     def time_dimension_for(self, metric: str) -> str:
         """Explicit scope > the metric cube's only time dimension > optional provider hint > ask."""
         if self.scope.time_dimension:

@@ -41,7 +41,7 @@ MethodRegistry: 입력 기본값·연결 검사·출력 계약
         ↓
 Method.run(ExecutionContext, bindings, params)
         ↓
-ExecutionContext.dataset(DatasetSpec)
+ctx.aggregate/entities → ExecutionContext.dataset(DatasetSpec)
         ↓
 시맨틱 provider → 제한된 Dataset
         ↓
@@ -53,10 +53,18 @@ Breakpoint를 사용할 수 있고 실행마다 새 예산을 적용합니다. �
 `preview()`는 RunEngine과 메모리 저장소를 사용합니다. 둘 다 원격 서버에 코드나 근거를 업로드하지 않습니다.
 ADR-079/080과 [Method 개발 가이드](guides/methods.md)를 참고하세요.
 
+`@method`는 typed Python signature를 기존 manifest/Method adapter로 변환합니다. 입력 map은 canonical bindings로 정규화합니다. `ctx.aggregate/entities`가 관리되는 DatasetSpec을 만들고, `ctx.compute`는 로컬 직접 디버깅 또는 서버 자식 프로세스 계산을 사용합니다. 선택적 의존성은 조회 전에 검사합니다. 별도 provider planner·notebook 제품·동적 코드 설치기를 추가하지 않습니다. ADR-081과 [직접 테스트 시나리오](guides/method-scenarios.md)를 참고하세요.
+
+분석 작성자는 계산 함수에서 외부 라이브러리의 원래 Python API를 사용합니다.
+`ctx.compute`는 estimator 추상화가 아닌 실행 경계입니다. 분석별 가정과 적합
+조건은 명시적으로 작성하고, 공통 실행부는 semantic 권한·추출 제한·근거를
+관리합니다. 기존 builtin의 helper 재사용이 새 Method의 확장 API를 뜻하지 않습니다.
+
 ## Method와 Recipe의 경계
 
 Method는 하나의 분석 기능이며, 여러 쿼리와 결과 조합을 내부에서 수행할 수 있습니다.
-현재 기본 Method는 aggregate, trend, drilldown, peer comparison, CEM입니다.
+기본 Method에는 aggregate, trend, drilldown, peer comparison, CEM, 개체 변화·분포,
+OLS, DoWhy 조정 대비, EconML DML, panel 대비가 있습니다.
 구현은 `methods/` 바로 아래에 있습니다. `query.*`·`causal.*` ID는 호환성을 위해 유지하며,
 폴더나 이름만으로 인과 주장을 정당화하지 않습니다.
 
@@ -133,3 +141,5 @@ Run은 해결하지 못한 목표·부족한 시맨틱 정의·검토용 provide
 Method는 검토된 Python과 독립 테스트로, Recipe는 공통 명세로, provider는 기존 계약으로 확장합니다.
 무거운 라이브러리는 의존성과 실행 버전 근거를 명시합니다.
 노트북 호스팅·코드 업로드 실행·동적 플러그인 설치·별도 프런트엔드 런타임·범용 스케줄러는 보류합니다.
+
+Python 호출자는 함수 인자를 이름 그대로 사용하며 정규화와 role/parameter 분류는 내부에 둡니다. 새 통계 Method는 AnalysisDesign·가정 체크박스 없이 제한된 개별 계약을 사용하고 가정 미검증·연관성 결과를 기록합니다. 기존 ID·버전의 원래 계약은 호환 모듈에 유지합니다(ADR-084).

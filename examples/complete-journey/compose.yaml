@@ -28,7 +28,11 @@ services:
     restart: "no"
 
   api:
-    build: {context: ../.., dockerfile: Dockerfile}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        DL_PYTHON_EXTRAS: ${DL_PYTHON_EXTRAS:-}
     depends_on:
       import: {condition: service_completed_successfully}
     environment:

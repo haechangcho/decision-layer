@@ -32,6 +32,10 @@ class MethodRunRequest(BaseModel):
     author: ExecutionAuthor | None = None
     question: str | None = None
     bindings: dict[str, str | list[str]] = Field(default_factory=dict)
+    measures: dict[str, str | list[str]] = Field(default_factory=dict)
+    dimensions: dict[str, str | list[str]] = Field(default_factory=dict)
+    entity: str | None = None
+    filters: list[Filter] = Field(default_factory=list)
     params: dict[str, Any] = Field(default_factory=dict)
     scope: ScopeIn = Field(default_factory=ScopeIn)
 
@@ -94,6 +98,9 @@ class RunStepRequest(BaseModel):
     method: str
     purpose: str | None = Field(default=None, max_length=240)
     bindings: dict[str, Any] = Field(default_factory=dict)
+    measures: dict[str, str | list[str]] = Field(default_factory=dict)
+    dimensions: dict[str, str | list[str]] = Field(default_factory=dict)
+    entity: str | None = None
     params: dict[str, Any] = Field(default_factory=dict)
     goal_ids: list[str] = Field(default_factory=list)
     exploration: bool = False

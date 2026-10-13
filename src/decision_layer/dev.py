@@ -4,6 +4,7 @@ No remote installation, code upload or credential persistence. Direct execution
 stays in the caller's event loop for Python breakpoints; preview uses RunEngine.
 """
 from __future__ import annotations
+from .i18n import _
 
 import asyncio
 from copy import deepcopy
@@ -64,6 +65,11 @@ class MethodSession:
         from .semantic.providers.cube.provider import CubeProvider
         return await cls.connect(CubeProvider(CubeClient(url), instance=instance), credentials, policy=policy)
 
+    @classmethod
+    async def fixture(cls, provider, *, policy=None):
+        from .semantic.credentials import AnonymousServiceCredentials
+        return await cls.connect(provider, AnonymousServiceCredentials(), policy=policy)
+
     def metrics(self) -> list[SemanticObject]:
         return [obj.model_copy(deep=True) for obj in self.catalog.objects
                 if obj.public and obj.kind == "measure"]
@@ -88,33 +94,49 @@ class MethodSession:
 
     def register(self, method: Method, *, replace: bool = False) -> Method:
         if not replace and any(m.name == method.manifest.name for m in self.registry.manifests()):
-            raise InvalidBinding("Method already registered locally; use replace=True after editing.")
+            raise InvalidBinding(_("Method already registered locally; use replace=True after editing."))
         return self.registry.register(method)
 
-    async def run(self, method: str, *, bindings: dict[str, Any], scope: Scope,
-                  params: dict[str, Any] | None = None) -> MethodTrial:
+    async def run(self, method: str | Method, *, scope: Scope,
+                  bindings: dict[str, Any] | None = None, params: dict[str, Any] | None = None,
+                  measures=None, dimensions=None, entity=None, filters=None, **inputs) -> MethodTrial:
         """Run in this event loop. Every invocation has a fresh context and budget.
 
 Use last_trial.attempts after a provider exception. No auto-retry or query cache.
 Scope is explicit; all-period execution also needs policy.allow_all=True.
 """
+        name = method if isinstance(method, str) else method.manifest.name
+        registered = self.registry.get(name)
+        if not isinstance(method, str) and registered is not method:
+            raise InvalidBinding(_("Register this implementation before running it"))
+        from .methods.invocation import invocation_inputs
+        from .core.models import Filter
+        bindings, params = deepcopy(bindings or {}), deepcopy(params or {})
+        for key, value in inputs.items():
+            target = bindings if key in registered.manifest.roles else params
+            if key in target:
+                raise InvalidBinding(_("Duplicate Method input"), input=key)
+            target[key] = value
+        bindings = invocation_inputs(registered.manifest, bindings=bindings, measures=measures,
+                                     dimensions=dimensions, entity=entity)
+        scope = scope.with_filters([Filter.model_validate(item) for item in filters or []])
         ctx = ExecutionContext(self.provider, self._credentials, self.catalog.model_copy(deep=True),
                                scope=deepcopy(scope), max_queries=self.policy.max_queries,
                                execution_policy=self.policy)
-        trial = MethodTrial(method, deepcopy(bindings), deepcopy(params or {}), ctx)
+        trial = MethodTrial(name, deepcopy(bindings), deepcopy(params or {}), ctx)
         self.last_trial = trial
         choice = PeriodChoice(mode="range", date_range=scope.date_range) if scope.date_range else PeriodChoice(mode="all")
         if issue := self.policy.issue(choice):
             raise Refused(issue)
-        manifest = self.registry.get(method).manifest
-        resolved = self.registry.resolve_params(method, trial.params)
+        manifest = registered.manifest
+        resolved = self.registry.resolve_params(name, trial.params)
         needs_period = manifest.requires_period or any(
             spec.meaning == "period" and spec.type == "boolean" and resolved.get(name) is True
             for name, spec in manifest.parameters.items())
         if needs_period and scope.date_range is None:
-            raise Refused("This Method needs an explicit date range.")
+            raise Refused(_("This Method needs an explicit date range."))
         async with asyncio.timeout(self.policy.deadline_seconds):
-            trial.result = await self.registry.run(method, ctx, trial.bindings, trial.params)
+            trial.result = await self.registry.run(name, ctx, trial.bindings, trial.params)
         return trial
 
     async def preview(self, recipe: Recipe, *, step_index: int,

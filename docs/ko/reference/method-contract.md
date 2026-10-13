@@ -3,6 +3,26 @@
 입력·출력·편집 화면 동작을 선언할 때 참고하는 문서입니다.
 실행 가능한 예제부터 시작하려면 [첫 Method 개발](../guides/methods.md)을 보세요.
 
+
+## 함수 작성 API와 내부 계약
+
+권장 경로는 `@method(...)`와 typed keyword 인자입니다. `Measure`, `Dimension`, `TimeDimension`, `Entity`, `DateRange`, `Equality`, `list[Filter]`, `AnalysisDesign`을 사용합니다. 역할·일반 파라미터·결과 타입은 signature에서 기존 `MethodManifest`로 변환됩니다. `requires_packages`는 검증할 설치 버전이며 런타임 설치 지시가 아닙니다. 지원하지 않는 annotation은 등록 전에 오류가 납니다.
+
+- `ctx.aggregate(...)`: provider 집계. 명시적인 top-N 또는 bounded complete extraction.
+- `ctx.entities(...)`: 선언된 primary unit의 완전한 관측. 시간 bucket이 있으면 unit × time key.
+- `ctx.compute(fn, ...)`: credential 없이 순수 계산. 직접 trial은 현재 프로세스, server/preview는 종료 가능한 자식 프로세스.
+- `Table`, `TimeSeries`, `Estimate`: JSON-compatible artifact. 유한값·payload 형태 검사.
+
+Python과 REST/MCP의 measure/dimension/entity maps는 canonical bindings로 정규화합니다. REST는 `POST /methods/{name}:run` 또는 `POST /runs/{id}/steps`를 사용합니다. Recipe step에는 canonical bindings/params를 저장하고, 기존 바인딩도 계속 받습니다. Web은 같은 manifest의 역할 종류와 structured parameter를 표시하며 별도 분석 코드를 갖지 않습니다.
+
+고급 변수 역할은 명시적으로 measure/dimension 양쪽을 허용할 수 있습니다(`accepted_kinds`). `Entity`는 provider가 primary dimension으로 선언한 참조여야 합니다. 조건·필터에 나온 객체도 catalog/권한 검증을 받습니다. 공통 scope filter는 제거할 수 없으며 현재 조회는 Run 기간을 확장할 수 없습니다. 비교 기간은 명시적인 policy 경로를 사용합니다.
+
+기본 완전 추출은 50,000행, 선택 alias 최대 100열과 200만 cell이며 server policy의 더 작은 행 제한이 우선합니다. overflow sentinel을 조회해 잘린 표본을 성공 처리하지 않습니다. 통계 encoding도 최대 100열·200만 cell을 제한합니다. 최대 30개 filter/window, query budget/deadline과 시도 기록이 적용됩니다. 다중 조회의 warehouse snapshot 일치는 보장하지 않습니다.
+
+각 Result는 버전, canonical spec, query attempts/labels, 설치된 요구 라이브러리 버전, Python, 검증·경고를 기록합니다. 일반 class의 자유로운 artifact payload는 별도 독립 테스트가 필요합니다. [실행 가능한 작성 가이드](../guides/methods.md)와 [시나리오](../guides/method-scenarios.md)를 먼저 사용하세요.
+
+아래 class API는 추가 artifact·선택·복잡한 계약이 필요한 경우의 기존 확장 경로입니다. 단순 Method에서 manifest를 수동 중복 작성할 필요는 없습니다.
+
 ## 구현과 등록
 
 Method는 서버에 설치하는 검토된 Python 코드입니다. Manifest는 계약을 선언하고
@@ -109,3 +129,9 @@ CEM은 조건 구성만 다른 사례·독립 계산한 가중치·공통 구간
 - [Method 기본 계약](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/base.py)·[Registry](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/registry.py)·[실행 context](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/context.py)
 - [공통 모델](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/core/models.py)과 [계약 테스트](https://github.com/haechangcho/decision-layer/blob/main/tests/unit/test_method_contribution.py)
 - [테스트](../guides/testing.md)와 [기여 절차](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)
+
+## 기존 구현에서 전환
+
+기존 class Method·bindings·등록·Recipe version은 유지됩니다. 단순 Method만 typed 함수로 옮기고 독립 full-spec fixture로 동일 계산을 확인한 후 새 version을 배포하세요. 추가 artifact·selection이 필요한 class는 유지해도 됩니다. 기존 Recipe는 검토 후 pin을 바꾸며 과거 Run을 다시 쓰지 않습니다. 서버 설치에는 core만 또는 필요한 extras를 선택하고, Cube model의 observation key/panel 변경과 API 재배포는 별도로 적용합니다. DB migration은 없습니다.
+
+새 Python 작성자는 함수 인자를 이름 그대로 전달합니다. roles/parameters는 semantic 참조와 일반 값을 검증하기 위한 내부 구분입니다. `AnalysisDesign` 파싱은 기존 직렬화 Method 계약의 호환용으로만 유지하며 새 예제에서 사용하지 않습니다. ADR-084를 참고하세요.

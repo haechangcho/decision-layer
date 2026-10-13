@@ -17,6 +17,7 @@ from ..core.errors import DecisionLayerError
 from ..core.models import MethodManifest, ParamSpec, Provenance, Result
 from .context import ExecutionContext, NeedsInput, QueryBudgetExceeded, Refused
 from .base import Method
+from .inputs import AnalysisDesign, Equality, parameter_refs
 from ..i18n import _
 
 
@@ -30,6 +31,8 @@ class MethodRegistry:
         self._methods: dict[str, Method] = {}
 
     def register(self, method: Method) -> Method:
+        Provenance(method=method.ref, semantic_refs=[], queries=[], runtime={})
+        self._params(method, {}, partial=True)
         self._methods[method.manifest.name] = method
         return method
 
@@ -48,11 +51,13 @@ class MethodRegistry:
         refs = self._check_bindings(method, ctx, bindings)
         for key, spec in method.manifest.parameters.items():
             value = params.get(key)
-            parameter_refs = [item["member"] for item in value or []] if spec.type == "drill_path" else (value or []) if spec.type == "ref_list" else []
+            parameter_references = parameter_refs(spec.type, value) if spec.type in ("condition", "filters", "drill_path") else (value or []) if spec.type == "ref_list" else []
             if spec.semantic_kind and spec.type == "string" and value:
-                parameter_refs = [value]
-            for ref in parameter_refs:
+                parameter_references = [value]
+            for ref in parameter_references:
                 obj = ctx.obj(ref)
+                if spec.type in ("condition", "filters") and obj.kind not in ("dimension", "time_dimension"):
+                    raise InvalidBinding(_("Filter inputs require dimensions"))
                 if spec.semantic_kind and obj.kind != spec.semantic_kind and not (spec.semantic_kind == "dimension" and obj.kind == "time_dimension"):
                     raise InvalidBinding(f"Parameter '{key}' requires {spec.semantic_kind}; got {obj.kind}")
                 if ref not in refs:
@@ -68,10 +73,19 @@ class MethodRegistry:
                 candidates += [spec.entity] if spec.entity else []
                 used.extend(ref for ref in candidates if ref not in used)
             return used
-        provenance = lambda: Provenance(  # noqa: E731
-            method=method.ref, semantic_refs=used_refs(), queries=ctx.queries[first_query:],
-            runtime={"decision-layer": __version__})
+        def provenance():
+            import platform
+            from .dependencies import runtime_versions
+            return Provenance(method=method.ref, semantic_refs=used_refs(), queries=ctx.queries[first_query:],
+                runtime={"decision-layer": __version__, "python": platform.python_version(),
+                         **runtime_versions({"numpy": "", **method.manifest.requires_packages})})
         try:
+            from .dependencies import dependency_issue
+            if issue := dependency_issue(method.manifest.requires_packages):
+                raise Refused(issue)
+            for capability in method.manifest.requires_capabilities:
+                if not getattr(ctx.provider.capabilities(), capability, False):
+                    raise Refused(_("The provider lacks a required Method capability"), capability=capability)
             out = await method.run(ctx, bindings, params)
         except NeedsInput as e:
             return Result(status="needs_input", needs_input={"question": e.question, "field": e.field,
@@ -83,12 +97,12 @@ class MethodRegistry:
         artifacts = [*out.artifacts, *([out.primary] if out.primary is not None else [])]
         undeclared = {artifact.type for artifact in artifacts} - set(method.manifest.outputs)
         if undeclared:
-            raise InvalidBinding("The Method returned an undeclared artifact type.", outputs=sorted(undeclared))
+            raise InvalidBinding(_("The Method returned an undeclared artifact type."), outputs=sorted(undeclared))
         if set(out.selections) - set(method.manifest.selection_outputs):
-            raise InvalidBinding("The Method returned an undeclared selection output.")
+            raise InvalidBinding(_("The Method returned an undeclared selection output."))
         provided = out.provides if out.provides is not None else method.manifest.result_capabilities(params)
         if set(provided) - set(method.manifest.provides):
-            raise InvalidBinding("The Method returned an undeclared result capability.")
+            raise InvalidBinding(_("The Method returned an undeclared result capability."))
         evidence = provenance()
         evidence.runtime.update(out.runtime)
         evidence.runtime["decision-layer"] = __version__
@@ -106,7 +120,17 @@ class MethodRegistry:
 
     @staticmethod
     def _params(method: Method, params: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
-        return MethodRegistry.input_values(method.manifest.parameters, params, partial=partial)
+        values = MethodRegistry.input_values(method.manifest.parameters, params, partial=partial)
+        from pydantic import ValidationError
+        for name, adapter in getattr(method, "adapters", {}).items():
+            if values.get(name) is None:
+                continue
+            try:
+                validated = adapter.validate_python(values[name])
+                values[name] = adapter.dump_python(validated, mode="json")
+            except ValidationError as exc:
+                raise InvalidBinding(_("Invalid structured Method input"), parameter=name) from exc
+        return values
 
     @staticmethod
     def input_values(spec: dict[str, ParamSpec], params: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
@@ -144,6 +168,24 @@ class MethodRegistry:
                         raise ValueError
                 except ValueError as exc:
                     raise InvalidBinding(_("{name} has an invalid structure", name=k)) from exc
+            if p.type in ("condition", "filters", "design", "date_ranges"):
+                from ..core.models import Filter
+                from ..core.periods import checked_range
+                try:
+                    if p.type == "condition":
+                        out[k] = Equality.model_validate(value).model_dump(mode="json")
+                    elif p.type == "filters":
+                        if not isinstance(value, list) or len(value) > 30:
+                            raise ValueError("Expected at most 30 filters")
+                        out[k] = [Filter.model_validate(item).model_dump(mode="json") for item in value]
+                    elif p.type == "design":
+                        out[k] = AnalysisDesign.model_validate(value).model_dump(mode="json", exclude_none=True)
+                    else:
+                        if not isinstance(value, list) or len(value) > 30:
+                            raise ValueError("Expected at most 30 windows")
+                        out[k] = [checked_range(item) for item in value]
+                except (ValueError, TypeError, KeyError) as exc:
+                    raise InvalidBinding(_("Invalid structured Method input"), parameter=k) from exc
             if p.type == "drill_path" and (not isinstance(value, list) or any(
                     not isinstance(item, dict) or not isinstance(item.get("member"), str) or "value" not in item
                     for item in value)):
@@ -202,10 +244,16 @@ class MethodRegistry:
             for ref in values:
                 obj = ctx.obj(ref)
                 kind_ok = obj.kind == role.kind or (role.kind == "dimension" and obj.kind == "time_dimension")
+                if role.accepted_kinds:
+                    kind_ok = obj.kind in role.accepted_kinds
+                if role.kind == "entity":
+                    kind_ok = obj.kind == "dimension" and any(o.public and o.entity == ref for o in ctx.catalog.objects)
                 if not kind_ok:
                     raise InvalidBinding(_("'{ref}' is a {kind} but role '{role}' needs a {expected}", ref=ref, kind=obj.kind, role=name, expected=role.kind))
                 if role.metric_kinds and obj.metric_kind not in role.metric_kinds:
                     raise InvalidBinding(_("'{ref}' ({metric_kind}) can't be used for role '{role}' (allowed: {allowed})",
                                            ref=ref, metric_kind=obj.metric_kind, role=name, allowed=role.metric_kinds))
+                if role.data_type and obj.data_type != role.data_type:
+                    raise InvalidBinding(_("The semantic role has an incompatible data type"), role=name)
                 refs.append(ref)
         return refs

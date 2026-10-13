@@ -1,119 +1,122 @@
-# Develop your first Method
+# Write, run and test your first Method
 
-A Method is one analytical capability. Use a Recipe when existing Methods already
-cover the calculation. You need Python 3.11+ to start; a Web server and semantic
-source are optional for the first test.
+Write one ordinary Python function and register it explicitly. Definitions, joins and permissions stay in the semantic layer. These examples use implemented APIs, not proposed pseudocode. Existing class Methods remain supported.
 
-## Install and run
+To try **writing and editing your own Method**, open `examples/methods/patterns/write_your_method.en.ipynb` in VS Code/Jupyter. It contains function definition → registration → input selection → result inspection → code editing, rather than only running prepared scenarios. The Korean notebook has identical code. The final opt-in cell uses the same authored functions against your current Cube.
 
-Clone the repository, then run:
+## 1. Start without a live connection
 
-```bash
-git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer
-make setup
-make example
-```
-
-::: details Without Make
+Run from the repository root. This first test needs Python 3.11+ and core dependencies; cases requiring statistical libraries are skipped.
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
-.venv/bin/python -m pytest -q examples/methods/first_method
-```
-:::
-
-Open [the first Method example](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/first_method):
-
-| File | Edit it to |
-| --- | --- |
-| `method.py` | Change the input contract and analytical implementation |
-| `fixtures.py` | Supply independently expected semantic queries and data |
-| `test_method.py` | Check the expected answer |
-| `explore.ipynb` | Optionally explore a live Cube source in Jupyter/VS Code |
-
-Change the implementation, rerun the test, and inspect the failure. The test checks
-that group values are 30, 20 and 10 and that the exact period, dimension, ordering and
-limit were requested. It does not treat the Method's own output as a reference.
-
-## Understand the code
-
-```python
-from decision_layer.methods import (
-    Method, MethodOutput, MethodManifest, RoleSpec, ParamSpec, Artifact, DatasetSpec,
-)
+.venv/bin/python -m examples.methods.patterns --case by_group
+.venv/bin/python -m pytest -q examples/methods/patterns/test_patterns.py
 ```
 
-`manifest` declares roles, parameters, outputs and interpretation. `run(ctx, bindings,
-params)` requests data through `ctx.dataset()` and returns `MethodOutput`. Keep metric
-formulas, joins and permissions in the semantic source. Declare all emitted primary
-and supporting artifact types; the shared Registry rejects undeclared types.
+## 2. Write the function
 
-The example uses an isolated `MethodSession` to register and execute the Method.
-It applies ordinary registry/context validation and records each query attempt.
-It is trusted local Python development, not a code sandbox or server installer.
+`Measure` and `Dimension` receive references to existing semantic objects. `ctx` applies periods, filters, permissions and limits. The signature generates the manifest, avoiding duplicate role declarations and argument mapping. This is the tested source.
 
-## Several queries in one Method
+<<< @/../examples/methods/patterns/methods.py#group_metric
 
-```bash
-.venv/bin/python -m pytest -q examples/methods/peer_comparison
-```
+### How AI requests and Python calls supply inputs
 
-This imports the real `methods/peer_comparison.py` implementation and supplies three
-expected queries: subject inside peer conditions, peers excluding subject, and the
-accessible overall population excluding subject. Provider-computed fixture rates
-12%, 8% and 6% give differences 4 and 6 percentage points. No significance or causal
-effect is claimed. A Method can execute several queries and combine them internally.
+Example request: “Show the top 3 departments by receipt count for store 364 in February 2001.”
 
-For failures, budgets and output contracts:
+The AI finds the receipt-count measure and department dimension in the semantic layer and fills these inputs:
 
-```bash
-.venv/bin/python -m pytest -q tests/unit/test_method_dev.py
-```
+- `metric`: path to the model and its receipt-count measure
+- `group`: path to the model and its department dimension
+- `limit`: the requested 3; uses the function default when omitted
+- `scope`: February 2001, date basis and the store 364 filter
 
-## Connect real data when needed
+For example, `cube://journey/transaction/receipts` names:
+
+- `cube://`: the Cube semantic provider
+- `journey`: the configured Cube instance
+- `transaction`: the Cube model
+- `receipts`: a measure defined in that model
+
+Once connected to Cube, find this path in the catalog and pass it to `run(metric=...)`. It is not a database table or SQL column path. You can also pass `cube://journey/product/department` from another model as `group`; Cube decides whether the models can be joined and how. In the practice path `cube://practice/observations/value`, `practice` names the practice connection and `observations` and `value` are names in the practice catalog.
+
+In Python, pass `metric`, `group`, `limit` and `scope` directly to `run(...)`. At execution time:
+
+- The value passed to `run(metric=...)` reaches the Method function as `metric`. `group` and `limit` work the same way.
+- The period and filters in `scope` become part of `ctx`. `ctx.aggregate(...)` applies them to the query.
+- The session's data connection, permissions and execution limits are used by `ctx` when it queries.
+
+Missing or ambiguous inputs are handled as follows:
+
+- If the requested metric or period is unclear, the AI asks the user.
+- If the runtime returns `needs_input`, the AI relays its question.
+- Missing required Method arguments cause an input error.
+
+The Method uses `ctx.aggregate(...)` to query with the resolved period, filters, permissions and limits.
+
+Python calls execute directly and do not conduct a conversation. The AI uses the registered Method's declared inputs when preparing MCP calls. It sends the analysis scope when creating the Run and Method arguments in its execution step; both reach the same execution context and registry. A required annotation declares a required input, not an automatically generated chat question. A Method may raise `NeedsInput` for an analytical choice it cannot resolve; the caller must obtain the answer and retry with valid inputs. Defaults are used only when supported by the Method or Recipe. Connection credentials and permission rules come from the configured execution environment.
+
+
+## 3. Register, execute and verify
+
+Run this in a notebook cell or an async function. `FixtureProvider` compares the entire request with an independently written `DatasetSpec`; it does not copy the Method request as its oracle. Incorrect query conditions fail even when numbers look right.
 
 ```python
 from decision_layer.dev import MethodSession
 from decision_layer.methods import Scope
-from decision_layer.semantic.credentials import RequestCredentials
+from examples.methods.patterns.methods import group_metric
+from examples.methods.patterns.scenarios import scenarios, M, GROUP, DATE, FEB
 
-session = await MethodSession.cube(cube_url, RequestCredentials(token))
-session.metrics()
-session.dimensions(metric_ref)
-session.register(my_method)
+scenario = next(s for s in scenarios() if s.name == "by_group")
+provider = scenario.provider()
+session = await MethodSession.fixture(provider)
+session.register(group_metric)
 trial = await session.run(
-    my_method.manifest.name,
-    bindings=bindings, params=params,
-    scope=Scope(date_range=("2026-09-01", "2026-09-30"), time_dimension=time_ref),
+    group_metric,
+    metric=M, group=GROUP,
+    scope=Scope(FEB, DATE), limit=3,
 )
-trial.result
-trial.attempts
-trial.queries
+assert [r["metric"] for r in trial.result.primary.data] == [30, 20, 10]
+provider.assert_consumed()
+print(trial.queries)
+print([(a.label, a.status) for a in trial.attempts])
+session.close()
 ```
 
-Select real references from the visible catalog. Declared dimension relationships
-are discovery hints; provider execution validates combinations. Keep credentials
-outside cells and outputs. Direct execution stays in the current event loop for
-breakpoints and creates no stored Run. After a provider/code exception, inspect
-`session.last_trial.attempts`; the exception is re-raised.
+## 4. Connect a real semantic source
 
-`session.preview(recipe, step_index=..., scope=...)` runs a new Recipe prefix through
-the canonical RunEngine, in workers with local memory storage. It issues fresh queries
-and never uploads a Run or Method to the Web server. Call `session.close()` afterwards.
-Re-register edited implementations with `replace=True`; refresh provider metadata
-with `refresh_catalog()`. See the example notebook for an executable two-step preview.
+```python
+import os
+from decision_layer.dev import MethodSession
+from decision_layer.methods import Scope, Filter
+from decision_layer.semantic.credentials import RequestCredentials
 
-## Register and contribute
+session = await MethodSession.cube(
+    os.environ["CUBE_API_URL"], RequestCredentials(os.environ["CUBE_TOKEN"]),
+    instance="journey",
+)
+metrics = session.catalog.search(kind="measure", text="sales")
+metric = metrics[0].ref  # Inspect titles/definitions before choosing.
+print(session.object(metric))
+print(session.catalog.relations(metric))  # declared or unknown, not a join guarantee
+print(session.catalog.search(kind="dimension", text="department", compatible_with=metric))
+print(session.catalog.search(kind="time_dimension"))
+# Copy actual references from this caller-visible catalog into the invocation.
+# session.register(group_metric)
+# trial = await session.run(group_metric, metric=metric,
+#     group=selected_dimension,
+#     scope=Scope(selected_period, selected_time),
+#     filters=[Filter(member=selected_filter_dimension, operator="equals", values=[selected_value])])
+session.close()
+```
 
-Add the reviewed implementation under `src/decision_layer/methods/` and add it to
-`register_builtins()` in that package's `__init__.py`. Modules do not register themselves
-on import. Logical IDs such as `query.peer_comparison` remain independent of folders.
+Discovery returns caller-visible objects. `compatible_with` validates the reference as a discovery hint; it does not remove unknown joins or guarantee queryability. The provider validates actual combinations.
 
-Run relevant tests, then `make test`. Submit the source, manifest, independent answer,
-failure tests and a small invocation example together. Add dependencies explicitly;
-do not install libraries at runtime.
+## 5. Edit, debug and share
 
-Next: [detailed input/result contracts](../reference/method-contract.md),
-[testing](testing.md), [contribution workflow](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md).
+After editing, use `session.register(group_metric, replace=True)`. Ordinary breakpoints work; inspect `session.last_trial.attempts` for successful/failed requests and labels. Direct execution stays in the caller process and is not a stored Run. `session.preview(recipe, step_index=..., scope=...)` executes a fresh Recipe prefix through the same RunEngine.
+
+For deployment, install reviewed modules in the server environment and register them in server bootstrap. Import does not register automatically; Web cannot upload Python. Use a Recipe to compose existing Methods into an organizational investigation.
+
+Next: [authoring patterns](method-patterns.md), [manual scenarios](method-scenarios.md), [advanced analysis](statistical-methods.md), [internal contract](../reference/method-contract.md).

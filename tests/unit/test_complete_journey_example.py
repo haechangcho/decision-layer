@@ -24,7 +24,7 @@ def test_source_and_semantic_boundaries():
     assert len(loader.HEADERS) == 8
     assert "classification_1" in loader.HEADERS["hh_demographic"]
     cubes = [cube for path in (FOLDER / "cube/model/cubes").glob("*.yml") for cube in yaml.safe_load(path.read_text())["cubes"]]
-    assert len(cubes) == len({cube["name"] for cube in cubes}) == 7
+    assert len(cubes) == len({cube["name"] for cube in cubes}) == 8
     transactions = next(cube for cube in cubes if cube["name"] == "transaction")
     assert {join["name"] for join in transactions["joins"]} == {"product", "household"}
     time = next(item for item in transactions["dimensions"] if item["name"] == "analysis_date")

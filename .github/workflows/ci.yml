@@ -16,6 +16,17 @@ jobs:
       - run: pip install -e '.[dev]'
       - run: pytest            # unit tests, incl. domain-neutral and i18n guards
 
+  statistical-methods:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -c examples/methods/patterns/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
+      - run: python -m examples.methods.patterns --all
+      - run: python -m examples.methods.patterns.failures --all
+      - run: pytest -q tests/unit/test_method_authoring.py tests/unit/test_advanced_methods.py tests/unit/test_method_guides.py examples/methods/patterns
+
   web:
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: web}}

@@ -39,7 +39,9 @@ def test_defaults_expose_everything(monkeypatch):
     assert "query.trend" in s.INSTRUCTIONS and "simple arithmetic" in s.INSTRUCTIONS    # relaxed by default (ADR-032)
     assert "verbatim" in s.INSTRUCTIONS and "Do not shorten" in s.INSTRUCTIONS
     step = next(t for t in asyncio.run(s.mcp.list_tools()) if t.name == "run_step")
-    assert {"run_id", "method", "bindings", "purpose"} <= set(step.input_schema["required"])
+    assert {"run_id", "method", "purpose"} <= set(step.input_schema["required"])
+    assert "bindings" not in step.input_schema["required"]
+    assert {"bindings", "measures", "dimensions", "entity"} <= set(step.input_schema["properties"])
 
 
 def test_blocked_recording_is_required_in_every_profile(monkeypatch):
@@ -199,3 +201,19 @@ def test_restricted_profile(monkeypatch):
     monkeypatch.delenv("DL_MCP_RECIPES")
     monkeypatch.delenv("DL_MCP_RULES")
     importlib.reload(s)
+
+
+def test_semantic_input_maps_forward_to_canonical_run_step(monkeypatch):
+    s = load(monkeypatch)
+    seen = {}
+    async def fake_call(_method, _path, **kwargs):
+        assert _method == "POST" and _path == "/runs/run_test/steps"
+        seen.update(kwargs["json"])
+        return {"status": "success", "run_id": "run_test"}
+    monkeypatch.setattr(s, "_call", fake_call)
+    asyncio.run(s.run_step("run_test", "stats.ols", measures={"outcome": "cube://local/sales/value"},
+        dimensions={"features": ["cube://local/sales/category"]}, entity="cube://local/sales/id",
+        purpose="Inspect association", goal_ids=["answer"]))
+    assert seen["bindings"] == {} and seen["measures"] == {"outcome": "cube://local/sales/value"}
+    assert seen["dimensions"] == {"features": ["cube://local/sales/category"]}
+    assert seen["entity"] == "cube://local/sales/id"

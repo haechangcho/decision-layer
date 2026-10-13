@@ -83,3 +83,8 @@ Without those settings the test skips. Hosted authentication and warehouse behav
 Try a question through [your AI client](mcp.md) separately. Record client/model, question, Run ID, Methods, warnings and reference comparison. Use the [evaluation protocol](evaluation.md) for comparative claims.
 
 CI checks Python contracts and the Method examples, Web typechecking/build, Docker onboarding, and Complete Journey SQL/MCP execution. Browser checks above are explicit local checks, not implied CI coverage. The full sample job downloads the source archive and therefore requires upstream availability.
+
+
+## Method patterns and analytical environment
+
+Use the separate Python 3.11 environment in [manual scenarios](method-scenarios.md) for 12 known-answer cases and 13 failure/refusal cases. It exercises the same implementations with DoWhy, EconML and the optional notebook, and compares live sample results with independent read-only SQL. Distinguish core-environment optional-test skips from the separate statistical CI results.

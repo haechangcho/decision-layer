@@ -1,0 +1,41 @@
+cubes:
+  - name: campaign_household_panel
+    title: Campaign household observation windows
+    description: Two provider-defined 30-day windows for each eligible campaign-household observation. Target-list membership is not randomized or actual receipt. Select one campaign; coverage bounds do not prove individual follow-up.
+    sql: >
+      SELECT observation_id || ':pre' AS row_id, observation_id, campaign_id,
+             is_targeted, campaign_start_date - 30 AS period_date, pre_sales_30d AS window_sales
+      FROM journey.campaign_household_outcomes WHERE eligible
+      UNION ALL
+      SELECT observation_id || ':post' AS row_id, observation_id, campaign_id,
+             is_targeted, campaign_start_date AS period_date, post_sales_30d AS window_sales
+      FROM journey.campaign_household_outcomes WHERE eligible
+    joins:
+      - name: campaign_household_outcomes
+        sql: '{CUBE}.observation_id = {campaign_household_outcomes}.observation_id'
+        relationship: many_to_one
+    dimensions:
+      - name: row_id
+        sql: row_id
+        type: string
+        primary_key: true
+        public: false
+        title: Observation window key
+      - name: campaign_id
+        sql: campaign_id
+        type: string
+        title: Campaign
+      - name: is_targeted
+        sql: is_targeted
+        type: boolean
+        title: Target-list membership
+      - name: period_date
+        sql: period_date
+        type: time
+        title: Purchase window start
+        description: Start of the provider-defined pre or post 30-day purchase window, not an observed campaign receipt timestamp.
+    measures:
+      - name: sales
+        sql: window_sales
+        type: sum
+        title: Household window sales

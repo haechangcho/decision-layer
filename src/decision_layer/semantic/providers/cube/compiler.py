@@ -63,7 +63,10 @@ def compile_spec(spec: DatasetSpec, catalog: SemanticCatalog, views: ViewIndex) 
     if spec.filters:
         query["filters"] = [{"member": name(f.member), "operator": f.operator,
                              **({"values": [_value(v) for v in f.values]} if f.values else {})} for f in spec.filters]
-    order = spec.order or ([(spec.entity, "asc")] if spec.grain == "entity" and spec.entity else [])
+    stable_entity_order = ([(spec.entity, "asc")] if spec.grain == "entity" and spec.entity else [])
+    if stable_entity_order and spec.time and spec.time.granularity:
+        stable_entity_order.append((spec.time.dimension, "asc"))
+    order = spec.order or stable_entity_order
     if order:
         query["order"] = [[name(r), d] for r, d in order]
     return CompiledQuery(query, columns, keys, view)

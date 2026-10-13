@@ -86,9 +86,11 @@ function RefField({ label, value, objects, multiple, onChange, inherited, select
 }
 
 function roleObjects(role: RoleSpec, objects: SemanticObject[]) {
+  if (role.accepted_kinds) return objects.filter(object => role.accepted_kinds!.includes(object.kind));
   if (role.kind === "measure") return objects.filter((object) => object.kind === "measure" && (!role.metric_kinds || role.metric_kinds.includes(object.metric_kind ?? "")));
   if (role.kind === "dimension") return objects.filter((object) => object.kind === "dimension" || object.kind === "time_dimension");
   if (role.kind === "time_dimension") return objects.filter((object) => object.kind === "time_dimension");
+  if (role.kind === "entity") return objects.filter(object => object.kind === "dimension" && objects.some(member => member.entity === object.ref));
   return objects.filter((object) => !!object.entity);
 }
 

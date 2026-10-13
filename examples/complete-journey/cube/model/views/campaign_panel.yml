@@ -1,0 +1,7 @@
+views:
+  - name: campaign_panel
+    cubes:
+      - join_path: campaign_household_panel
+        includes: [row_id, campaign_id, is_targeted, period_date, sales]
+      - join_path: campaign_household_panel.campaign_household_outcomes
+        includes: [observation_id]

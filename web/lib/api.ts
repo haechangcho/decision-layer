@@ -31,6 +31,7 @@ export interface SemanticCatalog {
 }
 
 export interface RoleSpec {
+  accepted_kinds?: Kind[] | null;
   label?: string;
   default_binding?: "primary_metric" | "preferred_dimensions" | "unit_count" | null;
   editor_parameter?: string | null;

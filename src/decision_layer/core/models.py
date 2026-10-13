@@ -59,6 +59,26 @@ class SemanticCatalog(BaseModel):
     def get(self, ref: str) -> SemanticObject | None:
         return next((o for o in self.objects if o.ref == ref), None)
 
+    def require(self, ref: str, *, kind: str | None = None) -> SemanticObject:
+        from .errors import UnknownSemanticObject
+        obj = self.get(ref)
+        if obj is None or not obj.public or (kind is not None and obj.kind != kind):
+            raise UnknownSemanticObject("Semantic object is unavailable or has a different kind", ref=ref)
+        return obj.model_copy(deep=True)
+
+    def search(self, *, kind: str | None = None, text: str = "", compatible_with: str | None = None):
+        if compatible_with:
+            self.require(compatible_with)
+        query = text.casefold()
+        return [obj.model_copy(deep=True) for obj in self.objects if obj.public
+                and (kind is None or obj.kind == ("measure" if kind == "metric" else kind))
+                and query in f"{obj.title} {obj.ref} {obj.description or ''}".casefold()]
+
+    def relations(self, metric: str):
+        obj = self.require(metric, kind="measure")
+        return [{"object": candidate, "compatibility": "declared" if candidate.ref in obj.dimension_refs else "unknown"}
+                for candidate in self.search() if candidate.kind in ("dimension", "time_dimension")]
+
 
 # ── Dataset planning ────────────────────────────────────────────────────────
 
@@ -75,6 +95,9 @@ class Filter(BaseModel):
     def _values_required(self) -> "Filter":
         if self.operator not in ("set", "notSet") and not self.values:
             raise ValueError(f"filter {self.operator} needs values")
+        from math import isfinite
+        if any(isinstance(value, (int, float)) and not isfinite(value) for value in self.values):
+            raise ValueError("Filter values must be finite")
         return self
 
 
@@ -124,6 +147,7 @@ class QueryProvenance(BaseModel):
 
 class QueryAttempt(BaseModel):
     spec: DatasetSpec
+    label: str | None = None
     step_id: str | None = None
     status: Literal["running", "success", "failed", "interrupted"] = "running"
     error_code: str | None = None
@@ -141,6 +165,7 @@ class Dataset(BaseModel):
 
 class RoleSpec(BaseModel):
     kind: SemanticKind | Literal["entity"]
+    accepted_kinds: list[SemanticKind] | None = None
     data_type: DataType | None = None
     metric_kinds: list[MetricKind] | None = None   # allowed measure kinds
     required: bool = True
@@ -167,7 +192,7 @@ class InputVisibility(BaseModel):
 
 class ParamSpec(BaseModel):
     type: Literal["string", "integer", "number", "boolean", "enum", "date_range", "number_list",
-                  "drill_path", "ref_list", "group", "ranges"]
+                  "drill_path", "ref_list", "group", "ranges", "condition", "filters", "date_ranges", "design"]
     enum: list[str] | None = None
     default: Any = None
     required: bool = False
@@ -197,6 +222,7 @@ class MethodManifest(BaseModel):
     parameters: dict[str, ParamSpec] = Field(default_factory=dict)
     execution: Literal["semantic_pushdown", "dataframe"]
     requires_capabilities: list[str] = Field(default_factory=list)
+    requires_packages: dict[str, str] = Field(default_factory=dict)
     interpretation: Interpretation                 # ADR-019
     outputs: list[ArtifactType]
     provides: list[str] = Field(default_factory=list)
@@ -217,6 +243,8 @@ class MethodManifest(BaseModel):
         if any(len(roles) < 2 or any(role.multiple or role.required for role in roles) for roles in groups.values()):
             raise ValueError("exclusive_group requires at least two optional scalar roles")
         for name, role in self.roles.items():
+            if role.accepted_kinds is not None and (not role.accepted_kinds or role.kind not in role.accepted_kinds):
+                raise ValueError("Accepted semantic kinds must include the role's primary kind")
             if role.default_binding == "unit_count" and (role.kind != "measure" or role.multiple):
                 raise ValueError(f"{name}: unit_count requires a scalar measure role")
             if role.editor_parameter:

@@ -24,12 +24,16 @@ dependencies = [
     "pyyaml>=6.0",
     "psycopg[binary]>=3.2",
     "numpy>=1.26",
+    "packaging>=24",
     "cryptography>=44,<47",
 ]
 
 [project.optional-dependencies]
 mcp = ["mcp>=2.2,<3"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21", "mcp>=2.2,<3"]
+stats = ["pandas>=2.2,<3", "statsmodels>=0.14,<0.16"]
+dowhy = ["dowhy==0.13", "numpy>=1.26,<2", "pandas>=2.2,<3", "scikit-learn>=1.2,<1.7"]
+econml = ["econml==0.16.0", "numpy>=1.26,<2", "pandas>=2.2,<3"]
 
 [project.scripts]
 decision-layer-mcp = "decision_layer.mcp.server:main"

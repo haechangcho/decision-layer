@@ -3,6 +3,26 @@
 Use this page when declaring inputs, outputs or editor behavior.
 For an executable walkthrough, start with [First Method](../guides/methods.md).
 
+
+## Function authoring API and internal contract
+
+The preferred path is `@method(...)` with typed keyword arguments: `Measure`, `Dimension`, `TimeDimension`, `Entity`, `DateRange`, `Equality`, `list[Filter]`. Roles, ordinary parameters and output types generate the existing `MethodManifest`. `requires_packages` declares installed-version checks, not runtime installation. Unsupported annotations fail before registration.
+
+- `ctx.aggregate(...)`: provider aggregates, with explicit top-N or bounded complete extraction.
+- `ctx.entities(...)`: complete observations at a declared primary unit, keyed by unit × time when bucketed.
+- `ctx.compute(fn, ...)`: pure computation without credentials, in-process for direct trials and terminable children for server/preview.
+- `Table`, `TimeSeries`, `Estimate`: JSON-compatible artifacts with finite-value and payload-shape checks.
+
+Python and REST/MCP measure/dimension/entity maps normalize into canonical bindings. REST uses `POST /methods/{name}:run` or `POST /runs/{id}/steps`. Recipe steps store canonical bindings/params; legacy bindings remain accepted. Web displays the same manifest roles and structured parameters and contains no separate analytical implementation.
+
+Advanced variable roles can explicitly accept measures and dimensions (`accepted_kinds`). `Entity` must reference a provider-declared primary dimension. Objects inside conditions/filters also undergo catalog/access checks. Mandatory scope filters cannot be removed; current queries cannot expand Run dates. Comparisons use an explicit policy path.
+
+Default complete extraction limits are 50,000 rows, 100 selected aliases and two million cells; smaller server policy row limits take precedence. A sentinel row detects truncation instead of accepting partial samples. Statistical encoding also limits 100 columns / two million cells. Bounded filter/window lists (30), query budgets/deadlines and attempt recording apply. Cross-query warehouse snapshot consistency is not guaranteed.
+
+Results record versions, canonical specs, attempts/labels, installed required-library versions, Python, validation and warnings. Arbitrary class artifact payloads still need independent tests. Start with the [executable authoring guide](../guides/methods.md) and [scenarios](../guides/method-scenarios.md).
+
+The class API below remains the extension path for additional artifacts, selections and specialized contracts. Simple Methods need no duplicate manual manifest declaration.
+
 ## Implementation and registration
 
 A Method is reviewed Python code installed with the server. Its manifest describes
@@ -116,3 +136,9 @@ causal identification require separate review. See the [CEM tests](https://githu
 - [Method base](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/base.py), [Registry](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/registry.py) and [execution context](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/context.py)
 - [Typed models](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/core/models.py) and [contract tests](https://github.com/haechangcho/decision-layer/blob/main/tests/unit/test_method_contribution.py)
 - [Testing](../guides/testing.md) and [contribution workflow](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)
+
+## Transition existing implementations
+
+Existing class Methods, bindings, registration and Recipe versions remain valid. Move simple Methods to typed functions, verify equivalent calculation with independent full-spec fixtures, then deploy a new version. Classes needing extra artifacts/selections can stay. Update Recipe pins after review; never rewrite historical Runs. Choose core or required extras for the server, and apply Cube observation-key/panel changes separately from API deployment. No DB migration is needed.
+
+New Python authors pass named function arguments directly. Roles/parameters are internal semantic-reference and ordinary-value validation categories. `AnalysisDesign` parsing is retained only for legacy serialized Method contracts; current authoring examples do not use it. See ADR-084.
