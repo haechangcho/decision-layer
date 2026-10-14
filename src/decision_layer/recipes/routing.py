@@ -3,6 +3,7 @@ import re
 
 from ..core.ids import is_semantic_ref, recipe_ref
 from ..core.models import AnalysisGoal, Recipe
+from ..core.interpretation import supports_interpretation
 from ..methods import InvalidBinding, registry
 from ..runs.expressions import is_dynamic
 
@@ -58,7 +59,7 @@ def compatibility(recipe: Recipe, goals: list[AnalysisGoal], inputs: dict) -> di
         # Metric scope and explicit dimensions must match; text similarity cannot override them.
         if not set(goal.semantic_refs) <= available_refs or not set(goal.required_capabilities) <= provided:
             conflicts.append({"goal_id": goal.id, "code": "RECIPE_SCOPE_MISMATCH"})
-        elif goal.interpretation != "descriptive" and not any(m.interpretation == goal.interpretation for m in methods):
+        elif goal.interpretation != "descriptive" and not any(supports_interpretation(goal.interpretation, m.interpretation) for m in methods):
             conflicts.append({"goal_id": goal.id, "code": "INTERPRETATION_MISMATCH"})
         else:
             covered.append(goal.id)

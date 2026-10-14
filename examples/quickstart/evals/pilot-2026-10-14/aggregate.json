@@ -1,0 +1,40 @@
+{
+  "semantic": {
+    "trials": 9,
+    "completed": 9,
+    "numeric_screen_passes": 9,
+    "median": {
+      "total_tokens": 16726,
+      "inputTokens": 8,
+      "cacheCreationInputTokens": 6730,
+      "cacheReadInputTokens": 8836,
+      "outputTokens": 1152,
+      "cost_usd": 0.10055800000000001,
+      "wall_seconds": 17.23,
+      "tool_calls": 3
+    },
+    "total_cost_usd": 0.8287660000000001
+  },
+  "recipe": {
+    "trials": 9,
+    "completed": 9,
+    "numeric_screen_passes": 9,
+    "median": {
+      "total_tokens": 143704,
+      "inputTokens": 10,
+      "cacheCreationInputTokens": 19419,
+      "cacheReadInputTokens": 121230,
+      "outputTokens": 2333,
+      "cost_usd": 0.308048,
+      "wall_seconds": 33.41,
+      "tool_calls": 5
+    },
+    "total_cost_usd": 2.7273509999999996
+  },
+  "model": "claude-opus-4-8",
+  "paired_median_change_percent": {
+    "total_tokens": 764.6657897883534,
+    "cost_usd": 199.18901331572147,
+    "wall_seconds": 97.11365003006615
+  }
+}

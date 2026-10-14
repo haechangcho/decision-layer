@@ -4,7 +4,7 @@ import inspect
 from functools import update_wrapper
 from typing import Annotated, Literal, get_args, get_origin, get_type_hints
 from pydantic import TypeAdapter
-from ..core.models import Filter, MethodManifest, ParamSpec, RoleSpec
+from ..core.models import Filter, Interpretation, MethodManifest, ParamSpec, RoleSpec
 from .base import Method, MethodOutput
 from .inputs import AnalysisDesign, Equality, SemanticRole
 from .output import Estimate, Table, TimeSeries
@@ -35,7 +35,10 @@ def _parameter(annotation, default):
     import types
     from typing import Union
     if get_origin(annotation) in (types.UnionType, Union) and type(None) in get_args(annotation):
-        annotation = next(item for item in get_args(annotation) if item is not type(None))
+        variants = [item for item in get_args(annotation) if item is not type(None)]
+        if len(variants) != 1:
+            raise ValueError("Optional parameters must have one non-null type")
+        annotation = variants[0]
     origin, args = get_origin(annotation), get_args(annotation)
     metadata = args[1:] if origin is Annotated else []
     base = args[0] if origin is Annotated else annotation
@@ -70,6 +73,19 @@ class FunctionMethod(Method):
                  requires_packages, requires_period):
         if not inspect.iscoroutinefunction(fn):
             raise ValueError("Method functions must be async; pure computation can use ordinary helpers")
+        # These are explicit result assertions, not free-form discovery tags.
+        if provides is not None:
+            import re
+            if not isinstance(provides, (list, tuple)) or any(
+                not isinstance(item, str) or not re.fullmatch(r"[a-z][a-z0-9_.-]*", item)
+                for item in provides
+            ) or len(set(provides)) != len(provides):
+                raise ValueError("provides must contain unique lowercase capability names, not prose or a string")
+        from packaging.requirements import Requirement
+        for package, constraint in (requires_packages or {}).items():
+            requirement = Requirement(f"{package}{constraint}")
+            if requirement.url or requirement.marker or requirement.extras or requirement.name != package:
+                raise ValueError("requires_packages accepts package names and version specifiers only")
         signature = inspect.signature(fn)
         hints = get_type_hints(fn, include_extras=True)
         if not signature.parameters or next(iter(signature.parameters)) != "ctx":
@@ -109,9 +125,11 @@ class FunctionMethod(Method):
         return result
 
 
-def method(name: str, *, version: str, interpretation: str,
-           kind="query", execution="semantic_pushdown", provides=None,
-           requires_packages=None, requires_period=False):
+def method(name: str, *, version: str, interpretation: Interpretation = "association",
+           kind: Literal["query", "stats", "causal"] = "query",
+           execution: Literal["semantic_pushdown", "dataframe"] = "semantic_pushdown",
+           provides: list[str] | None = None, requires_packages: dict[str, str] | None = None,
+           requires_period: bool = False):
     """Compile a reviewed function; callers explicitly register it in their registry."""
     def decorate(fn):
         return FunctionMethod(fn, name, version, interpretation=interpretation, kind=kind,

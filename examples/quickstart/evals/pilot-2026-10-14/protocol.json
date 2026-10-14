@@ -1,0 +1,38 @@
+{
+  "procedure": "You are an analytics assistant. Use only the supplied MCP tools. Discover the governed revenue metric and date/department/region dimensions. For the requested month, query revenue by department across the entire month, check all eligible groups, select the unique highest-revenue department, then break that department's revenue down by region. Never reuse a previous winner without checking the new period. If leaders tie, ask which to inspect instead of selecting one or querying a regional branch. Report the leading department and its amount, each region and amount, and relevant limits. This is synthetic data and descriptive ranking, not causal evidence. If a saved executable procedure matches these instructions, use it. Record evidence using the tools available to you. Do not invent data or silently change periods.",
+  "cases": [
+    [
+      "january",
+      "January 2026",
+      "Home",
+      6200,
+      3720,
+      2480
+    ],
+    [
+      "february",
+      "February 2026",
+      "Grocery",
+      6720,
+      4032,
+      2688
+    ],
+    [
+      "march",
+      "March 2026",
+      null,
+      3720,
+      null,
+      null
+    ]
+  ],
+  "repeats": 3,
+  "seed": 42,
+  "effort": "medium",
+  "personal_settings_and_skills": "disabled",
+  "requested_model": "claude-opus-4-8",
+  "budget_usd_per_trial": 2,
+  "max_turns": 20,
+  "timeout_seconds": 300,
+  "note": "Steady-state reuse; excludes recipe authoring, installation and infrastructure costs. Public synthetic cases; numeric screening needs manual review."
+}

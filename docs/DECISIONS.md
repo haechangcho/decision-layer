@@ -1489,3 +1489,262 @@ Native DoWhy/EconML APIs remain available inside developer-owned ordinary Python
 calculation functions. require_design is legacy-only; fit_dowhy is not an authoring
 facade. Current notebooks, scenario tests and paired English/Korean guides use the
 new minimal path. Existing CEM contracts are unaffected by this refactor.
+
+## ADR-085 — Table output for grouped queries and time trends
+
+**Status:** Accepted (2026-10-14). Refines ADR-081's preferred authoring outputs.
+
+New Method functions use `Table` for row-shaped results, including monthly trends,
+and `Estimate` for a scalar estimate. `Table.from_dataset` automatically preserves
+the provider-returned semantic column references, aliases, roles and bucket
+granularity in the additive `Artifact.columns` contract. `Artifact.data` remains
+the existing row list, so Python callers do not need a new access path or duplicate
+time-axis configuration. Plain `Table(rows)` has no inferred semantic metadata.
+
+Web uses this metadata to render a trend for one bucketed time axis with measures
+and no extra grouping/entity columns. Grouped panels remain tables until explicit
+series selection is supported; date-looking strings and arbitrary time dimensions
+do not imply a trend. This is shared presentation, not an alternative execution
+model or a claim about analytical validity. No missing bucket is filled with zero.
+
+Keep the TimeSeries authoring class and existing stored time_series artifacts as
+compatibility contracts. Existing builtin Method versions, pinned Recipes, result
+capabilities (including time_series), and historical Runs are not rewritten.
+The contributor example.series changes its output contract in version 2.0.0;
+consumers of the example's 1.0.0 payload must explicitly migrate. New and historical
+outputs both render through shared Web helpers. Python, REST and MCP receive the
+same canonical rows and column metadata, with validation and provenance intact.
+
+## ADR-086 — Association for observational Method interpretation
+
+**Status:** Accepted (2026-10-14). Refines the preferred interpretation labels.
+
+New Methods use `interpretation="association"` for descriptive summaries and
+associational analyses, aligned with the observational first rung of the Causal
+Ladder. This label includes aggregates, grouped values, trends and regression
+associations; it neither requires a correlation nor establishes a causal effect.
+The distinction between summarizing and modeling relationships remains in Method
+behavior, documentation and capabilities rather than another developer choice.
+
+Add association to canonical manifests, Results and goals. Keep descriptive and
+associational for legacy parsing, execution and stored evidence. Do not rewrite
+historical Runs, repin Recipes or relabel installed builtin Method versions. New
+contributor examples use association. Web presents all three observational labels
+as Association; MCP instructions limit all three to noncausal claims.
+
+New association goals accept association, descriptive and associational results
+only when required capabilities and semantic references also match. Conditional
+causal results do not silently satisfy these goals. Existing descriptive wildcard
+goal behavior and associational exact-match behavior remain compatible; migrate
+legacy goals explicitly when adopting the new classification. No Intervention or
+Counterfactual class is added here, and causal_conditional is not upgraded by name.
+
+## ADR-087 — Inspect Method candidates without adding an intent taxonomy
+
+Status: accepted (2026-10-14).
+
+Method authoring defaults observational interpretation to `association`; explicit old
+labels remain unchanged. Function annotations generate executable inputs/outputs and
+a single docstring supplies purpose and limitations. Missing legacy docstrings remain
+executable but are flagged during discovery. We do not infer analysis purpose, causal
+identification or result capabilities from arbitrary Python or the Table return type.
+
+Keep optional `provides` as exact result assertions consumed by Recipe routing and
+completion. Removing it would weaken existing evidence contracts. New function
+assertions reject scalar strings, prose, empty/duplicate names; custom names remain
+an explicit tested extension, not mandatory discovery tags. The registry itself
+supplies the available vocabulary instead of another universal taxonomy. Invalid
+package specifiers and ambiguous optional union annotations fail at definition time.
+
+Add read-only MethodSearchRequest and shared discovery used by MethodSession,
+POST /methods:search, MCP find_methods and Web Method requirement inspection. Reuse
+AnalysisGoal, manifests and the Registry's semantic-role checks. Compare declared
+capabilities, interpretation, provider features, installed versions and visible input
+types. Return candidates and exclusions, type-compatible references from the goal,
+conditional capabilities and remaining required inputs. Do not execute queries, rank
+natural-language relevance, select automatically or claim preflight proves joins,
+period validity, data sufficiency, authority or analytical assumptions. No outcome
+capability is granted by discovery. Execution still revalidates everything.
+
+Remove MCP hardcoded CEM-for-relationships and universal change/drilldown sequences.
+These conflict with Method diversity and Recipe-owned procedure (superseding that
+part of earlier MCP instructions, not estimator implementations). MCP asks clients to
+inspect candidates and clarify ambiguity, preserving existing Recipe review and goal
+outcome contracts. Instruction-following is not a guarantee of language-model behavior.
+
+Keep existing kind/execution/editor metadata for compatibility and current consumers;
+none is required beyond the existing defaults for simple authored functions. Do not
+pretend execution metadata itself isolates computation: ctx.compute owns that boundary.
+Protect nonpublic semantic objects at the context boundary as well as discovery.
+
+No Method versions, Recipe pins or historical Run snapshots are rewritten. Discovery
+is additive; malformed new declarations need correction. Deterministic tests use
+already-resolved goals and measure structural narrowing, not LLM selection accuracy.
+Live client comparisons and learned selection remain unimplemented. See the paired
+Method discovery guides for the field audit, scenarios and executable examples.
+
+
+## ADR-088 — Retire duplicate statistical contracts from current choices
+
+Status: accepted (2026-10-14).
+
+Remove stats.adjusted_difference, stats.dml and stats.did from the default Method
+catalog and candidate discovery. Their current authoring paths are respectively
+stats.binary_regression, stats.linear_dml and stats.two_period_contrast. This is a
+catalog retirement, not a declaration that the old and new contracts are identical.
+Old required design objects, seeds, diagnostics and version evidence remain intact.
+
+Register those three as compatibility implementations. Registry.get and explicit
+execution resolve them for pinned Recipes and existing callers. manifests() returns
+only current choices; internal inspection can include compatibility implementations.
+REST, MCP, Web and local Python share this registry behavior. No frontend name filter,
+new authoring configuration or silent alias is introduced. Historical Run snapshots
+are unchanged. Tests continue to execute the old panel contract and verify version
+and design input retention, while checking its exclusion from candidate lists.
+
+Keep OLS, binary regression adjustment, LinearDML, panel contrasts and CEM because
+they answer different analytical questions with different assumptions and data needs.
+Keep unit-change and unit-distribution Methods for complete-unit extraction and cohort
+checks that ordinary aggregate queries do not replace. Current public catalog: 11
+Methods; the executable discovery lab adds one authored example, so it lists 12.
+
+
+## ADR-089 — CEM is compatibility-only in the default catalog
+
+Status: accepted (2026-10-14). Refines ADR-082/088.
+
+Exclude causal.cem from default manifests and Method candidate discovery. Keep its
+original 1.1.1 implementation for explicit existing Recipe references and execution.
+This is an interim support decision, not equivalence to regression adjustment or DML,
+and not deletion of historical evidence. The shared registry applies the exclusion
+across Python, REST, MCP and Web. Current public catalog contains 10 Methods.
+
+
+## ADR-090 — Three default MVP Methods; ordinary Python extensions
+
+Status: accepted (2026-10-14). Supersedes the default catalog scope of ADR-088/089.
+
+Default discovery offers only query.aggregate, query.trend and query.drilldown.
+They cover governed lookup, period comparison and iterative branch investigation,
+the initial organizational procedure in PRODUCT_CONTEXT. Aggregate does not replace
+trend/drilldown validation, decomposition, selection contracts or comparison tests.
+
+Peer comparison, unit change/distribution, OLS, binary regression, LinearDML and
+panel contrasts are optional implementations outside default suggestions. Existing
+explicit Recipes still resolve their original contracts through compatibility
+registration. CEM and the three prior design-object contracts remain legacy-only.
+Stored evidence and original versions are not rewritten.
+
+Use the existing reviewed Python registry to enable an optional implementation:
+registry.register(PeerComparison()) or registry.register(ols) makes it discoverable.
+Local sessions acknowledge an existing compatibility implementation with replace=True.
+Dependencies remain explicit installed extras and execution checks remain unchanged.
+No plugin manifest, dynamic installer, marketplace, downloaded execution or separate
+frontend runtime is introduced. This is an extension path, not an Obsidian-style
+interactive plugin product. Requests requiring an unlisted capability receive no
+Method candidate unless a reviewed extension or existing suitable Recipe provides it.
+
+The canonical registry controls Web, REST, MCP and Python lists. All implementations
+remain resolvable to preserve previously authored tests and fixed Recipes; default
+visibility is deliberately distinct from permission to run an explicit contract.
+A future hard support-removal policy would require a separate migration decision.
+
+
+## ADR-091 — Two small DoWhy analyses alongside the three core queries
+
+Status: accepted (2026-10-14). Refines ADR-090 at the user's request.
+
+Expose stats.binary_matching 1.0.0 and the existing stats.binary_regression 1.0.0
+alongside aggregate, trend and drilldown. Do not add a configurable universal causal
+estimator. Both take outcome, binary treatment, pre-treatment confounders and unit;
+semantic definitions, joins, extraction bounds and permissions remain provider-owned.
+
+Matching calls native DoWhy 0.13 backdoor.distance_matching: standardized one-hot
+covariates, one nearest control per treated unit, with replacement, target ATT (1 vs 0).
+Use the native matched indices to inspect the actual match. Require >=30 units per
+arm, fitted propensity within [0.05,0.95], >=30 unique matched controls, maximum
+standardized Euclidean distance <=1 and maximum absolute post-match SMD <=0.1.
+These are versioned diagnostic policies, not overlap or identification proofs.
+Refuse unsupported data rather than trim the treated target silently. Reject missing,
+nonfinite, duplicate units and constant/no-variation covariates. Matrix bounds and
+server computation deadlines apply. No default bootstrap CI for reused matching units.
+
+Regression uses the existing native DoWhy linear-regression contrast (ATE 0 vs 1),
+full-rank/data/support checks and placebo diagnostic. Its installed version and
+numerical contract are unchanged. Label it as DoWhy OLS regression adjustment;
+ordinary stats.ols coefficients remain an optional distinct analysis.
+
+The graph assumes measured covariates precede treatment and block common causes.
+Temporal ordering, no unmeasured confounding, independent units and no interference
+are unverified domain assumptions. Results stay association/associational and state
+causal_claim=not_established and uncertainty=not_reported. Refutation and balanced
+observed covariates are not proof of causality. No AnalysisDesign checkbox is added.
+
+Synthetic known effects and unsupported inputs are exercised in pytest and an ordinary
+Python example using the same entity-query MethodSession pipeline. No live-data
+causal ground truth is asserted. Complete Journey Docker includes the reviewed stats
+and dowhy extras so the displayed Methods can execute; no automatic runtime installs.
+Use documented DoWhy 0.13, NumPy <2 and scikit-learn <1.7, without silently adopting
+0.14. Keep existing optional/compatibility Methods and historical evidence intact.
+
+
+## ADR-092 — Numeric-treatment OLS defaults to the stored-unit slope
+
+Status: accepted (2026-10-14). Refines ADR-091.
+
+Replace binary_regression in the five-item default catalog with
+stats.regression_adjustment 1.0.0. Preserve stats.binary_regression 1.0.0 as an
+explicit compatibility implementation; no Recipe alias or historical rewrite.
+Matching stays binary. Regression accepts treatment as a numeric Dimension or
+Measure, plus outcome, pre-treatment confounders and unit. Both comparison values
+are optional; omit both to return the constant adjusted change per stored treatment
+unit. Specify both to return a signed contrast. Binary contrasts compare only 0/1.
+Categorical coding is not inferred, nor are numeric treatments coarsened.
+
+Call native DoWhy 0.13 backdoor.linear_regression under an assumed additive DAG.
+For the default slope, fit an in-range contrast using observed min/max and normalize
+by its width. Do not simulate a +1 intervention outside a narrow observed range.
+Record result_scale, slope, estimation_contrast, semantic treatment reference,
+observed range and original stored scale. Percentages are not automatically converted.
+
+Require unique complete finite units, varying encoded confounders, full-rank
+predictors and residual degrees of freedom. Binary input retains the observed
+propensity diagnostic and >=30 units per arm. Continuous input requires >=60 units
+and >=10 distinct values. Explicit contrasts must be finite, different and inside
+the observed range; omission of one contrast endpoint refuses before querying data.
+Range inclusion does not verify joint dose/covariate overlap, which remains unverified.
+Constant linear slope, temporal order and causal identification assumptions remain
+explicit limitations. Results stay association with no uncertainty interval or
+established causal claim. No new AnalysisDesign, estimator facade or treatment bins.
+
+Tests use known slopes, binary data, percentage rescaling, explicit contrasts and
+refusal scenarios. Paired workshop notebooks run the same implementation through a
+semantic fixture session. Server Docker includes the existing reviewed DoWhy stack.
+
+## ADR-093 — A small executable sample and client setup entry point
+
+Status: accepted (2026-10-14), following the request for a one-command first-use experience.
+
+Ship a separate synthetic Cube/PostgreSQL sample with isolated Compose resources.
+The walkthrough records an analysis through REST, promotes it with the existing
+Run-to-Recipe API and replays it on a new period. A tied leader requests input.
+It adds no Method, provider, semantic definition inside a Recipe or execution engine.
+
+A thin Node installer starts and checks this sample, then registers the existing
+stdio MCP adapter with Claude Code. The adapter runs inside the API container;
+users need no separate Python installation or handwritten MCP JSON. The bridge
+starts stopped API dependencies and sends startup output to stderr, preserving
+stdio protocol output. Setup does not overwrite an unrelated client registration.
+Web is an optional inspection surface after setup, not required for questions.
+The example requires running Docker; it is not a zero-dependency installation.
+
+The deterministic walkthrough is not a model benchmark or multi-user authorization
+proof. Explicit Run registration remains required; no chat interception, automatic
+Recipe publication or generated analytical code execution is introduced. Real
+organization sources still require their own connection and authorization.
+
+The installer retains runtime files in `~/.local/share/decision-layer/runtime`
+(overridable by `DL_INSTALL_DIR`) so a client registration does not depend on an
+npm cache entry. It refuses unmanaged installation directories and preserves sample
+state in Docker volumes. GitHub-package installation is a distribution path, not a
+new plugin runtime or automatic publication mechanism.

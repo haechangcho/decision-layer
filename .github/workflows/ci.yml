@@ -89,3 +89,15 @@ jobs:
         run: docker compose logs --tail 100
       - if: always()
         run: docker compose down
+
+  quickstart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Execute the synthetic Recipe replay through real Cube and REST
+        run: bash scripts/demo.sh
+      - if: failure()
+        run: docker compose -f examples/quickstart/compose.yaml logs --tail=100
+      - if: always()
+        run: docker compose -f examples/quickstart/compose.yaml down -v

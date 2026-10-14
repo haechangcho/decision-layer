@@ -11,6 +11,23 @@ from tests.support.notebooks import execute_notebook
 ROOT = Path(__file__).resolve().parents[2] / "examples/methods/patterns"
 
 
+def implementation_ast(source):
+    """Compare executable code while allowing translated function docstrings."""
+    from copy import deepcopy
+    tree = ast.parse(source) if isinstance(source, str) else deepcopy(source)
+
+    class WithoutDocstrings(ast.NodeTransformer):
+        def visit_FunctionDef(self, node):
+            self.generic_visit(node)
+            if ast.get_docstring(node) is not None:
+                node.body = node.body[1:]
+            return node
+
+        visit_AsyncFunctionDef = visit_FunctionDef
+
+    return ast.dump(WithoutDocstrings().visit(tree))
+
+
 @pytest.mark.skipif(
     not all(importlib.util.find_spec(package) for package in ("IPython", "pandas", "dowhy")),
     reason="This tutorial requires pandas, IPython and DoWhy",
@@ -28,11 +45,14 @@ async def test_workshop_authoring_and_translated_examples(monkeypatch):
 
     ko_cells, en_cells = code_cells(ko), code_cells(en)
     assert ko_cells.keys() == en_cells.keys()
-    assert [ast.dump(ast.parse(source)) for source in ko_cells.values()] == [
-        ast.dump(ast.parse(source)) for source in en_cells.values()
+    assert [implementation_ast(source) for source in ko_cells.values()] == [
+        implementation_ast(source) for source in en_cells.values()
     ]
 
     namespace = await execute_notebook(ko, monkeypatch)
+    assert namespace["trial"].result.interpretation == "association"
+    assert namespace["monthly_trial"].result.interpretation == "association"
+    assert namespace["dowhy_trial"].result.interpretation == "association"
     assert namespace["trial"].result.primary.data == [
         {"value_1": 30, "group_1": "A"},
         {"value_1": 20, "group_1": "B"},
@@ -43,9 +63,25 @@ async def test_workshop_authoring_and_translated_examples(monkeypatch):
         {"value_1": 20, "value_2": 15, "group_1": "B", "group_2": "Y"},
         {"value_1": 10, "value_2": 5, "group_1": "C", "group_2": "Z"},
     ]
+    assert list(namespace["trial"].result.primary.data[0]) == ["group_1", "value_1"]
+    assert list(namespace["multi_trial"].result.primary.data[0]) == [
+        "group_1", "group_2", "value_1", "value_2",
+    ]
     assert len(namespace["multi_trial"].attempts) == 1
+    monthly = namespace["monthly_trial"].result.primary
+    assert monthly.type == "table"
+    assert list(monthly.data[0]) == ["time", "value_1"]
+    assert monthly.data == [
+        {"time": "2026-01-01", "value_1": 20},
+        {"time": "2026-02-01", "value_1": 30},
+    ]
+    assert [(c.name, c.role, c.granularity) for c in monthly.columns] == [
+        ("time", "time", "month"), ("value_1", "measure", None),
+    ]
     assert [row["rank"] for row in namespace["edited_trial"].result.primary.data] == [1, 2, 3]
     assert [row["difference"] for row in namespace["peer_trial"].result.primary.data] == [4, 6]
+    assert namespace["continuous_trial"].result.primary.data["value"] == pytest.approx(50)
+    assert namespace["contrast_trial"].result.primary.data["value"] == pytest.approx(5)
     assert namespace["my_by_group"].manifest.version == "1.0.0"
     assert namespace["my_ranked_by_group"].manifest.version == "1.1.0"
     assert not namespace["RUN_LIVE"]
@@ -53,7 +89,7 @@ async def test_workshop_authoring_and_translated_examples(monkeypatch):
 
     # Re-run out of order: every use cell creates its own connection and registry.
     for _ in range(2):
-        for cell_id in ("run-peer", "run-ranked-group", "run-group", "run-multi-group"):
+        for cell_id in ("run-peer", "run-ranked-group", "run-group", "run-multi-group", "run-monthly", "run-continuous-regression", "run-continuous-contrast"):
             pending = eval(
                 compile(ko_cells[cell_id], cell_id, "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT),
                 namespace,
@@ -76,11 +112,13 @@ async def test_workshop_authoring_and_translated_examples(monkeypatch):
         # Notebook definitions remain directly reviewable alongside their Python file.
         module = ast.parse((ROOT / "binary_regression.py").read_text())
         functions = {
-            node.name: ast.dump(node)
+            node.name: implementation_ast(node)
             for node in module.body
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         }
-        for cell_id in ("define-regression-calculation", "define-regression-method"):
+        from examples.methods.patterns.binary_regression import estimate_binary_regression
+        assert namespace["estimate_binary_regression"] is estimate_binary_regression
+        for cell_id in ("define-regression-method",):
             for node in ast.parse(ko_cells[cell_id]).body:
-                assert ast.dump(node) == functions[node.name]
+                assert implementation_ast(node) == functions[node.name]
             assert "decision_layer.methods.statistics" not in ko_cells[cell_id]

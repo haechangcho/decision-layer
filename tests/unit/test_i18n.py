@@ -30,7 +30,7 @@ def msgids() -> set[str]:
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_"
                     and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str)):
                 ids.add(node.args[0].value)
-    for m in registry.manifests():
+    for m in registry.manifests(include_compatibility=True):
         ids |= {m.description, m.label} | {text for r in m.roles.values() for text in (r.description, r.label)} | {text for p in m.parameters.values() for text in (p.description, p.label)}
     ids |= set(mcp_server.DOCS.values()) | set(mcp_server.SECTIONS.values())
     return {i for i in ids if i}

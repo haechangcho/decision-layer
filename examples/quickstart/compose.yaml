@@ -1,0 +1,98 @@
+name: decision-layer-quickstart
+services:
+  postgres:
+    image: postgres:16.4
+    environment:
+      POSTGRES_DB: demo
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: local-demo-only
+    volumes:
+    - postgres:/var/lib/postgresql/data
+    - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U demo -d demo
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  cube:
+    image: cubejs/cube:v1.6.25
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CUBEJS_DB_TYPE: postgres
+      CUBEJS_DB_HOST: postgres
+      CUBEJS_DB_NAME: demo
+      CUBEJS_DB_USER: demo_reader
+      CUBEJS_DB_PASS: local-demo-read-only
+      CUBEJS_API_SECRET: local-quickstart-secret-change-me-0123456789
+      CUBEJS_DEV_MODE: 'true'
+    volumes:
+    - ./cube/model:/cube/conf/model:ro
+    - ../complete-journey/cube/healthcheck.cjs:/cube/conf/healthcheck.cjs:ro
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - /cube/conf/healthcheck.cjs
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
+  api:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        DL_PYTHON_EXTRAS: mcp
+    depends_on:
+      cube:
+        condition: service_healthy
+    environment:
+      DL_DEFAULT_CUBE_URL: http://cube:4000/cubejs-api/v1
+      CUBE_INSTANCE: quickstart
+      CUBE_API_SECRET: local-quickstart-secret-change-me-0123456789
+      DL_ALLOW_SERVICE_CREDENTIALS: 'true'
+      DL_RECIPES_DIR: /recipes
+      DL_DATABASE_URL: sqlite:////data/runs.db
+    volumes:
+    - recipes:/recipes
+    - runs:/data
+    - ./replay.py:/demo/replay.py:ro
+    ports:
+    - 127.0.0.1:${DL_DEMO_API_PORT:-8100}:8000
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8000/health',
+        timeout=3)
+      interval: 3s
+      timeout: 5s
+      retries: 30
+  web:
+    build:
+      context: ../../web
+      args:
+        DL_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+    - 127.0.0.1:${DL_DEMO_WEB_PORT:-3100}:3000
+    healthcheck:
+      test:
+      - CMD
+      - node
+      - -e
+      - fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 3s
+      timeout: 5s
+      retries: 30
+volumes:
+  postgres: null
+  recipes: null
+  runs: null

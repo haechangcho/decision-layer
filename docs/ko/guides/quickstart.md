@@ -1,51 +1,47 @@
 ---
 title: 빠른 시작
-description: 샘플을 실행하고 지표와 분석 기록을 확인합니다.
+description: 분석을 저장하고 다른 기간에 같은 절차를 실행합니다.
 ---
 
 # 빠른 시작
 
-로컬 Cube 예제의 소매점 데이터로 지표 확인부터 분석 기록까지 경험할 수 있으며 Recipe는 비어 있는 상태로 시작합니다.
-
-Method 기여자는 이 샘플 없이 [Python 전용 가이드](./methods.md)로 시작할 수 있습니다.
-
-## 1. 예제 실행
-
-Docker와 Compose가 필요합니다. 터미널에서 실행하세요.
+Git과 실행 중인 Docker Compose v2가 필요합니다. 회사 계정이나 모델 API 키 없이
+작은 합성 데이터로 실제 Cube와 실행 엔진을 체험합니다.
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer/examples/complete-journey
+cd decision-layer
+bash scripts/demo.sh
 ```
+
+[실행 기록](http://localhost:3100/runs)을 여세요. 스크립트가 분석·Recipe 저장·재실행을
+수행하고 각 Run 링크를 출력합니다. 첫 빌드는 이미지·패키지를 다운로드하므로 몇 분 이상 걸릴 수 있습니다.
+
+1. 1월: Home 매출 6,200 → 해당 부문의 지역 조사.
+2. 저장: 실행한 분석을 Recipe로 등록.
+3. 2월: 같은 Recipe가 Grocery 매출 6,720을 선택.
+4. 3월: 두 부문이 동률이므로 지역 조회 전에 추가 입력 요청.
+
+각 Run에서 사용한 규칙과 실제 선택, 쿼리, 경고를 확인하세요. 합성 데이터의 기술적 순위이며
+인과관계를 입증하지 않습니다. 스크립트 데모는 LLM 성능 평가가 아닙니다.
+
+## AI로 재사용
+
+[MCP 연결](./mcp.md)의 로컬 어댑터를 설치하고 API를 `http://localhost:8100`,
+Web 주소를 `http://localhost:3100`으로 설정하세요.
+
+> 저장된 부문 분석 절차를 2026년 2월에 재사용해줘. 매출 1위 부문을 찾고 그 부문의 지역별 매출과 근거를 보여줘.
+
+모델은 기존 AI 클라이언트가 제공합니다.
 
 ```bash
-docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
+bash scripts/demo.sh replay
+bash scripts/demo.sh stop
 ```
 
-웹은 localhost:3000, API는 localhost:8000, Cube는 localhost:4000입니다. 첫 실행은 데이터를 내려받아 적재하므로 몇 분 걸릴 수 있습니다. 처음에는 실행 기록과 Recipe가 비어 있고, 다시 실행하면 기록이 유지됩니다.
-
-회사의 dbt 환경은 [공식 Semantic Layer API](./dbt.md)로 연결합니다. dbt 공식 API는 로컬 Docker 예제로 제공하지 않습니다. 종료 방법은 [샘플 안내](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)를 확인하세요.
-
-## 2. 지표 확인
-
-[로컬 웹 앱](http://localhost:3000)을 열고 **Metrics**에서 **Retailer receipts**를 선택하세요. 지표 정의와 사용할 수 있는 차원을 확인할 수 있습니다. 지표의 의미는 선택한 시맨틱 레이어가 관리하고 Decision Layer는 카탈로그에서 읽습니다.
-
-## 3. MCP로 분석
-
-[Claude 또는 Codex](./mcp.md)에 로컬 MCP 어댑터를 연결한 뒤 질문하세요.
-
-> 전체 데이터에서 수취액이 가장 큰 상품 부문은 어디야? 분석 단계와 근거도 보여줘.
-
-웹의 **Runs**에서 질문, 각 단계에 사용한 Method, 결과와 쿼리를 확인하세요. 분석이 완료되면 **Recipe로 등록**을 눌러 같은 절차와 설정을 다시 쓸 수 있습니다.
+[포트 변경·초기화·샘플 설명](https://github.com/haechangcho/decision-layer/blob/main/examples/quickstart/README.ko.md)
+· [더 큰 Complete Journey 예제](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)
 
 ## 다음 단계
 
-- [기존 Cube 연결](./cube.md): 조직의 지표로 분석하기
-- [dbt Semantic Layer 연결](./dbt.md): 조직의 공식 API로 분석하기
-- [Recipe 만들기](./recipes.md): 반복하는 질문을 절차로 저장하기
-- [실행 기록 읽기](./runs.md): 결과와 근거 검토하기
-- [Method 기여하기](./methods.md): 새로운 분석 기능 추가하기
-
-::: info 예제 데이터
-원본의 상대적인 일자를 예제용 달력 날짜로 변환했습니다. 실제 구매 연도가 아니며 인과 효과가 확인된 데이터도 아닙니다. 결과를 해석하기 전에 [샘플 안내](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.ko.md)를 확인하세요.
-:::
+[Cube 연결](./cube.md) · [dbt 연결](./dbt.md) · [Recipe 만들기](./recipes.md) · [Method 기여](./methods.md)

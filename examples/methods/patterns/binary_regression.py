@@ -158,7 +158,6 @@ def estimate_binary_regression(frame, confounder_columns):
 @method(
     "workshop.binary_regression",
     version="1.0.0",
-    interpretation="associational",
     execution="dataframe",
     requires_packages={
         "dowhy": "==0.13",

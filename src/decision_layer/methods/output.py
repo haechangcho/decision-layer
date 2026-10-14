@@ -1,7 +1,7 @@
 """Renderer-neutral convenience results on the canonical MethodOutput contract."""
 import math
 from ..i18n import _
-from ..core.models import Artifact
+from ..core.models import Artifact, ArtifactColumn
 from .base import MethodOutput
 from .context import Refused
 
@@ -29,10 +29,12 @@ def _json_value(value):
 class Table(MethodOutput):
     artifact_type = "table"
 
-    def __init__(self, rows, *, title=None, warnings=None, validation=None, runtime=None):
+    def __init__(self, rows, *, title=None, warnings=None, validation=None, runtime=None,
+                 columns=None):
         if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
             raise ValueError("Table requires a list of row objects")
-        super().__init__(primary=Artifact(type=self.artifact_type, title=title, data=_json_value(rows)),
+        super().__init__(primary=Artifact(type=self.artifact_type, title=title, data=_json_value(rows),
+                                         columns=columns or []),
                          warnings=warnings, validation=validation, runtime=runtime)
 
     @classmethod
@@ -40,7 +42,13 @@ class Table(MethodOutput):
         rows = data.records()
         if require_non_empty and not rows:
             raise Refused(_("No observations in the selected scope"))
-        return cls(rows, **kwargs)
+        source_columns = {column.ref: column for column in data.dataset.columns}
+        columns = [ArtifactColumn(
+            name=name, ref=ref,
+            role="entity" if group == "unit" else source_columns[ref].role,
+            granularity=data.dataset.spec.time.granularity if group == "time" else source_columns[ref].granularity,
+        ) for group, pairs in data.roles.items() for name, ref in pairs]
+        return cls(rows, columns=columns, **kwargs)
 
 
 class Estimate(MethodOutput):
@@ -57,6 +65,7 @@ class Estimate(MethodOutput):
 
 
 class TimeSeries(MethodOutput):
+    """Compatibility output for existing Methods; new Methods return Table."""
     artifact_type = "time_series"
 
     @classmethod

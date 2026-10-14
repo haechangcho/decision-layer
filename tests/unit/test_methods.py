@@ -135,7 +135,7 @@ async def test_bindings_and_params_are_checked(provider):
 def test_api_routes(provider):
     s = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="s", cube_service_groups=("ecommerce",), database_url="memory", allow_service_credentials=True)
     c = TestClient(create_app(s, provider))
-    assert {m["name"] for m in c.get("/methods").json()} == {"query.aggregate", "query.drilldown", "query.trend", "query.peer_comparison", "causal.cem", "query.unit_change", "query.unit_distribution", "stats.ols", "stats.adjusted_difference", "stats.dml", "stats.did", "stats.binary_regression", "stats.linear_dml", "stats.two_period_contrast"}
+    assert {m["name"] for m in c.get("/methods").json()} == {"query.aggregate", "query.drilldown", "query.trend", "stats.regression_adjustment", "stats.binary_matching"}
     assert c.get("/methods/query.drilldown").json()["roles"]["dimensions"]["multiple"] is True
     r = c.post("/methods/query.drilldown:run", json={"bindings": {"metric": RR, "dimensions": [CAT, SELLER]},
                                                      "scope": {"date_range": list(Q3)}})

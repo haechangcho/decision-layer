@@ -36,7 +36,7 @@ def test_defaults_expose_everything(monkeypatch):
     names = {t.name for t in asyncio.run(s.mcp.list_tools())}
     assert {"start_run", "start_analysis", "run_step", "complete_run"} <= names
     assert "run_method" not in names
-    assert "query.trend" in s.INSTRUCTIONS and "simple arithmetic" in s.INSTRUCTIONS    # relaxed by default (ADR-032)
+    assert "find_methods" in s.INSTRUCTIONS and "simple arithmetic" in s.INSTRUCTIONS    # relaxed by default (ADR-032)
     assert "verbatim" in s.INSTRUCTIONS and "Do not shorten" in s.INSTRUCTIONS
     step = next(t for t in asyncio.run(s.mcp.list_tools()) if t.name == "run_step")
     assert {"run_id", "method", "purpose"} <= set(step.input_schema["required"])
@@ -217,3 +217,20 @@ def test_semantic_input_maps_forward_to_canonical_run_step(monkeypatch):
     assert seen["bindings"] == {} and seen["measures"] == {"outcome": "cube://local/sales/value"}
     assert seen["dimensions"] == {"features": ["cube://local/sales/category"]}
     assert seen["entity"] == "cube://local/sales/id"
+
+
+def test_method_discovery_uses_shared_api_and_profile(monkeypatch):
+    s = load(monkeypatch, DL_MCP_METHODS="query.aggregate", DL_LOCALE="en")
+    seen = {}
+    async def call(method, path, **kwargs):
+        assert (method, path) == ("POST", "/methods:search")
+        seen.update(kwargs["json"])
+        return {"candidates": [], "semantic_meaning_verified": False}
+    monkeypatch.setattr(s, "_call", call)
+    result = asyncio.run(s.find_methods(AnalysisGoal(id="answer", description="Sales")))
+    assert seen["names"] == ["query.aggregate"]
+    assert seen["goal"]["description"] == "Sales"
+    assert not result["semantic_meaning_verified"]
+    assert "are answered\n  with causal.cem" not in s.INSTRUCTIONS
+    monkeypatch.delenv("DL_MCP_METHODS")
+    importlib.reload(s)

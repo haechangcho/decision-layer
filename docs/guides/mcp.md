@@ -1,5 +1,7 @@
 # Connect an MCP client
 
+> For the new synthetic quickstart, use API port **8100** and `DL_WEB_URL=http://localhost:3100`. The Complete Journey examples below use 8000/3000.
+
 The adapter runs locally over **stdio** and calls the Decision Layer REST API. Do not enter the API URL as a remote MCP endpoint. The API and Cube must be running; your AI client handles its own model credentials.
 
 ## Install

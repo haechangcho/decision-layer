@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const run = { id: "coverage-run", origin: "mcp", plan: { question: "비공개 고객의 판매 변화와 예측", scope: {} },
   goals: [
-    { id: "sales", description: "판매 변화 확인", semantic_refs: [], required_capabilities: [], interpretation: "descriptive" },
+    { id: "sales", description: "판매 변화 확인", semantic_refs: [], required_capabilities: [], interpretation: "association" },
     { id: "forecast", description: "다음 기간 예측", semantic_refs: [], required_capabilities: ["forecast"], interpretation: "descriptive" },
   ], steps: [], caller: { subject: "alice", groups: [] }, shared_with: [], validation: [], status: "completed",
   conclusion: { answer: "판매만 확인했습니다. 예측 방법은 등록되지 않았습니다.", findings: [], limitations: [], goal_outcomes: [

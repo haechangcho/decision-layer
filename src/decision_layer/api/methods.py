@@ -3,6 +3,8 @@ from __future__ import annotations
 from fastapi import Request
 from ..core.models import MethodManifest, PlanStep, Result
 from ..methods import registry
+from ..methods.discovery import MethodSearchRequest, find_methods
+from ..methods.context import ExecutionContext
 from ..service import MethodRunRequest
 from ..methods.invocation import invocation_inputs
 from fastapi import APIRouter
@@ -13,6 +15,14 @@ def create_router(settings, engine):
     @router.get("/methods", response_model=list[MethodManifest])
     async def methods() -> list[MethodManifest]:
         return [localized(m) for m in registry.manifests()]
+
+    @router.post("/methods:search")
+    async def method_search(req: MethodSearchRequest, creds: Creds, caller: Caller):
+        catalog = await engine.provider.discover(creds)
+        report = find_methods(registry, ExecutionContext(engine.provider, creds, catalog), req)
+        for candidate in report["candidates"]:
+            candidate["manifest"] = localized(MethodManifest.model_validate(candidate["manifest"])).model_dump(mode="json")
+        return report
 
     @router.get("/methods/{name}", response_model=MethodManifest)
     async def method(name: str) -> MethodManifest:

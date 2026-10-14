@@ -4,6 +4,8 @@
 // grids for objects. A new Method's output shows up without a new component.
 
 import type { Artifact, Result, SemanticObject, Validation } from "@/lib/api";
+import { timeSeriesData } from "@/lib/artifact-data";
+import { isAssociation } from "@/lib/interpretation";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -139,8 +141,9 @@ export function ArtifactView({ artifact, titles, expanded = false }: { artifact:
       </section>;
     }
   }
-  if (artifact.type === "time_series" && artifact.data && typeof artifact.data === "object") {
-    const data = artifact.data as Record<string, unknown>;
+  const series = timeSeriesData(artifact);
+  if (series) {
+    const data = series;
     const rows = Array.isArray(data.rows) ? data.rows.filter((row): row is Record<string, unknown> => !!row && typeof row === "object" && !Array.isArray(row)) : [];
     const metric = typeof data.metric === "string" ? data.metric : "";
     const metricTitle = titles.get(typeof data.metric_ref === "string" ? data.metric_ref : metric)?.title ?? "지표";
@@ -222,7 +225,7 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
       </details>}
       {showEvidence && (result.provenance.method || result.provenance.semantic_refs.length || result.provenance.queries.length) ? <details>
         <summary>실행 근거{result.provenance.queries.length > 0 ? ` · 쿼리 ${result.provenance.queries.length}개` : ""}</summary>
-        {result.interpretation && <p className="muted">해석 범위: {result.interpretation === "descriptive" ? "기술 분석" : result.interpretation}</p>}
+        {result.interpretation && <p className="muted">해석 범위: {isAssociation(result.interpretation) ? t("Association — observational summaries and relationships") : result.interpretation}</p>}
         {result.validation.filter((item) => item.status === "pass").length > 0 && <p className="muted">통과한 검증: {result.validation.filter((item) => item.status === "pass").map((item) => item.validator).join(", ")}</p>}
         <RunSources result={result} titles={titles} />
         <RunQueries result={result} />

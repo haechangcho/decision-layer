@@ -21,13 +21,26 @@ python3 -m venv .venv
 
 <<< @/../examples/methods/patterns/methods.py#group_metric
 
+`@method`는 Method 이름과 버전을 지정합니다. `interpretation="association"`은
+관측 데이터의 요약과 관계 분석을 뜻합니다. 그룹별 조회, 월별 추이, 회귀의 연관성
+분석을 포함하며 인과효과를 주장하지 않습니다. 새 Method는 이 분류를 사용하고,
+기존 `descriptive`, `associational` 값도 계속 지원합니다.
+
+`Table.from_dataset(data)`는 행 데이터와 각 열의 semantic 정보를 함께 보존합니다.
+월별 조회도 같은 `Table`을 반환합니다. 웹은 시간 정보를 사용해 추이 그래프를
+표시하므로 별도의 반환 타입을 선택할 필요가 없습니다.
+
+<<< @/../examples/methods/patterns/methods.py#series
+
+주요 결과가 하나의 추정값과 분석 상세 정보라면 `Estimate`를 사용합니다.
+
 ### AI 요청과 Python 호출에서 입력이 채워지는 방식
 
-요청 예: “2001년 2월 store 364의 영수증 수를 department별 상위 3개 보여줘.”
+요청 예: “2001년 2월 store 364의 판매액를 department별 상위 3개 보여줘.”
 
-AI는 semantic layer에서 영수증 수 지표와 department 분류 기준을 찾아 다음 입력에 넣습니다.
+AI는 semantic layer에서 판매액 지표와 department 분류 기준을 찾아 다음 입력에 넣습니다.
 
-- `metric`: 영수증 수 지표가 정의된 모델과 지표의 경로
+- `metric`: 판매액 지표가 정의된 모델과 지표의 경로
 - `group`: department가 정의된 모델과 분류 기준의 경로
 - `limit`: 요청한 3. 생략하면 함수 기본값 사용
 - `scope`: 2001년 2월, 날짜 기준, store 364 필터
@@ -120,3 +133,47 @@ session.close()
 배포하려면 검토된 모듈을 서버 환경에 설치하고 서버 bootstrap에서 등록하세요. import만으로 자동 등록하지 않으며 Web에서 Python을 업로드하지 않습니다. 기존 Method를 조직의 조사 절차로 조합할 때는 Recipe를 작성합니다.
 
 다음: [작성 패턴](method-patterns.md), [직접 테스트 시나리오](method-scenarios.md), [고급 분석](statistical-methods.md), [내부 계약](../reference/method-contract.md).
+
+## 등록된 Method 확인
+
+목적은 docstring 한 곳에 적습니다. `interpretation`을 생략하면 `association`입니다. `session.find_methods()`는 데이터를 조회하지 않고 등록된 계약과 실행 조건을 확인합니다. Python, REST, 웹, MCP의 공통 흐름과 모호한 질문, 호환성은 [Method 작성과 AI 탐색](method-discovery.md)을 참고하세요.
+
+## MVP 기본 기능과 선택 확장
+
+처음 제품에서는 조회 Method 세 개와 DoWhy 분석 두 개를 제공합니다.
+
+| Method | 용도 |
+| --- | --- |
+| `query.aggregate` | 정의된 지표 값 조회 |
+| `query.trend` | 기간별 추이와 기간 비교 |
+| `query.drilldown` | 그룹별 값과 변화를 나누고 특정 항목을 이어서 조사 |
+| `stats.binary_matching` | DoWhy로 처치 집단을 매칭해 비교 (ATT) |
+| `stats.regression_adjustment` | DoWhy OLS로 처치 1단위 증가당 변화량 또는 특정 대비 추정 |
+
+Recipe는 이 Method들을 재사용할 조사 절차로 조합합니다. 집단 비교, 개체 분석,
+다른 통계 분석은 선택 기능입니다. DoWhy 결과의 인과 가정은 검증되지 않았습니다. 기존 Recipe의 명시적인 참조는 원래 실행 계약을 유지합니다.
+
+필요한 기능은 검토한 서버 시작 코드에서 기존 Registry로 등록합니다.
+
+```python
+from decision_layer.methods import registry
+from decision_layer.methods.peer_comparison import PeerComparison
+
+registry.register(PeerComparison())
+```
+
+OLS는 문서에 안내한 stats 의존성을 설치한 뒤 등록합니다.
+
+```python
+from decision_layer.methods import registry
+from decision_layer.methods.advanced import ols
+
+registry.register(ols)
+```
+
+등록하면 웹, REST, MCP가 같은 계약을 사용합니다. 호환 구현이 이미 있는 로컬
+session에서는 `session.register(ols, replace=True)`를 사용합니다. 재시작 후에도
+적용되도록 검토한 서버 시작 코드에 등록을 둡니다. 일반 Python 확장이며 화면에서
+설치하는 플러그인 기능은 아닙니다. 마켓과 웹 플러그인 관리는 후속 범위입니다.
+기본 목록은 접근 권한 제한을 뜻하지 않습니다. 기존 Recipe의 명시적인 참조는
+정상적인 권한과 검증을 적용해 계속 실행됩니다.

@@ -11,6 +11,15 @@ export const LOCALES: Locale[] = ["en", "ko"];
 const KEY = "decision-layer.locale";
 
 const ko: Record<string, string> = {
+  "Check Method requirements": "현재 연결에서 실행 조건 확인",
+  "Checking Method requirements…": "실행 조건 확인 중…",
+  "Required input types and dependencies are available. Select inputs before running.": "필요한 입력 유형과 라이브러리를 사용할 수 있습니다. 실행할 입력을 선택하세요.",
+  "This connection cannot currently supply all Method requirements.": "현재 연결에서 필요한 실행 조건을 모두 충족하지 못했습니다.",
+  "This check does not verify question relevance, joins, periods or analytical assumptions. Execution performs the remaining checks.": "질문 적합성, 조인, 기간, 분석 가정은 확인하지 않습니다. 나머지 검사는 실행할 때 수행합니다.",
+  "PROVIDER_CAPABILITY_UNAVAILABLE": "데이터 연결이 필요한 조회 기능을 지원하지 않음",
+  "DEPENDENCY_UNAVAILABLE": "필요한 라이브러리를 사용할 수 없음",
+  "SEMANTIC_INPUT_UNAVAILABLE": "사용 가능한 입력 유형을 찾지 못함",
+  "Association — observational summaries and relationships": "Association — 관측 데이터의 요약과 관계 분석",
   "Model improvements": "데이터 모델 보완",
   "What to change": "수정할 내용",
   "Suggested YAML": "추천 YAML",

@@ -9,5 +9,22 @@
   },
   "devDependencies": {
     "vitepress": "^1.6.4"
-  }
+  },
+  "bin": {
+    "decision-layer": "scripts/install.mjs"
+  },
+  "files": [
+    "scripts/",
+    "examples/quickstart/",
+    "examples/complete-journey/cube/healthcheck.cjs",
+    "src/",
+    "web/",
+    "Dockerfile",
+    ".dockerignore",
+    "pyproject.toml",
+    "README.md",
+    "README.ko.md",
+    "LICENSE"
+  ],
+  "version": "0.1.0"
 }

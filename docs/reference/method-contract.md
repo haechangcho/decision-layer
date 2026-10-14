@@ -11,7 +11,25 @@ The preferred path is `@method(...)` with typed keyword arguments: `Measure`, `D
 - `ctx.aggregate(...)`: provider aggregates, with explicit top-N or bounded complete extraction.
 - `ctx.entities(...)`: complete observations at a declared primary unit, keyed by unit × time when bucketed.
 - `ctx.compute(fn, ...)`: pure computation without credentials, in-process for direct trials and terminable children for server/preview.
-- `Table`, `TimeSeries`, `Estimate`: JSON-compatible artifacts with finite-value and payload-shape checks.
+- `Table`, `Estimate`: JSON-compatible artifacts with finite-value and payload-shape checks.
+
+`Table.from_dataset(data)` preserves the row list in `primary.data` and semantic
+column metadata in `primary.columns`: alias, reference, role and time granularity.
+Grouped queries and monthly trends use the same return type. Web renders a trend
+for one bucketed time column and measures without additional grouping/entity columns;
+other results remain tables. Date-looking strings in `Table(rows)` are not inferred
+as time axes. Existing `TimeSeries` Methods and stored `time_series` artifacts remain
+supported for compatibility. Analytical capabilities such as `time_series` are
+independent of the artifact's presentation type.
+
+New Methods declare `interpretation="association"` for observational summaries
+and relationships: grouped queries, trends and regression associations all belong
+to this level. It does not establish a causal effect. `causal_conditional` retains
+its assumption-dependent contract. Legacy `descriptive` and `associational` values
+remain readable and executable; stored labels and installed builtin versions are
+not rewritten. Association goals can reuse either legacy noncausal result when
+their required capabilities and semantic references match. Legacy goal rules stay
+unchanged; migrate them explicitly when changing an existing Recipe contract.
 
 Python and REST/MCP measure/dimension/entity maps normalize into canonical bindings. REST uses `POST /methods/{name}:run` or `POST /runs/{id}/steps`. Recipe steps store canonical bindings/params; legacy bindings remain accepted. Web displays the same manifest roles and structured parameters and contains no separate analytical implementation.
 
@@ -142,3 +160,7 @@ causal identification require separate review. See the [CEM tests](https://githu
 Existing class Methods, bindings, registration and Recipe versions remain valid. Move simple Methods to typed functions, verify equivalent calculation with independent full-spec fixtures, then deploy a new version. Classes needing extra artifacts/selections can stay. Update Recipe pins after review; never rewrite historical Runs. Choose core or required extras for the server, and apply Cube observation-key/panel changes separately from API deployment. No DB migration is needed.
 
 New Python authors pass named function arguments directly. Roles/parameters are internal semantic-reference and ordinary-value validation categories. `AnalysisDesign` parsing is retained only for legacy serialized Method contracts; current authoring examples do not use it. See ADR-084.
+
+## Discovery and authoring defaults
+
+`@method(name, version=...)` defaults to `association`. The signature supplies types and the docstring supplies the description; purpose is not inferred from code. `provides` is optional, but explicit result assertions still govern Recipe and goal evidence. See [the audit and executable discovery examples](../guides/method-discovery.md). `POST /methods:search` uses `MethodSearchRequest` (`goal`, optional `names`) and never executes analytical queries.

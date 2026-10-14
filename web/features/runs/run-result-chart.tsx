@@ -3,6 +3,7 @@
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import type { Artifact } from "@/lib/api";
+import { timeSeriesData } from "@/lib/artifact-data";
 import { populationLabel } from "@/lib/run-story";
 import s from "./run-result-chart.module.css";
 
@@ -13,11 +14,12 @@ const compactNumber = (value: number) => new Intl.NumberFormat("ko-KR", { notati
 
 export function RunResultChart({ artifact }: { artifact?: Artifact | null }) {
   if (!artifact || !artifact.data || typeof artifact.data !== "object") return null;
-  const data = artifact.data as Record<string, unknown>;
+  const series = timeSeriesData(artifact);
+  const data = series ?? artifact.data as Record<string, unknown>;
   const rows = Array.isArray(data.rows) ? data.rows.filter((row): row is Row => !!row && typeof row === "object" && !Array.isArray(row)) : [];
   if (!rows.length) return null;
 
-  if (artifact.type === "time_series" && typeof data.metric === "string") {
+  if (series && typeof data.metric === "string") {
     const points = rows.flatMap((row) => number(row[data.metric as string]) === null ? [] : [{ name: label(row[typeof data.time_key === "string" ? data.time_key : "period"]).slice(0, 10), value: number(row[data.metric as string])! }]);
     if (!points.length) return null;
     return <div className={s.chart} role="img" aria-label={`기간별 지표 값 그래프, ${points.length}개 기간`}>

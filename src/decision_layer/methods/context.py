@@ -69,7 +69,7 @@ class ExecutionContext:
 
     def obj(self, ref: str) -> SemanticObject:
         o = self.catalog.get(ref)
-        if o is None:
+        if o is None or not o.public:
             raise UnknownSemanticObject(_("'{ref}' was not found or you don't have access to it", ref=ref), ref=ref)
         return o
 

@@ -46,7 +46,7 @@ def recipe(name="lookup-procedure", metric=AMOUNT, method="query.aggregate", **e
 
 async def test_lookup_records_scope_and_can_be_promoted(setup):
     engine, provider = setup
-    run = await engine.start(CREDS, ME, recipe=None, question="Sales by department?", scope=SCOPE, goals=[goal()])
+    run = await engine.start(CREDS, ME, recipe=None, question="Sales by department?", scope=SCOPE, goals=[goal(interpretation="association")])
     run, result = await engine.step(CREDS, ME, run.id, lookup(goal_ids=["lookup"]))
     assert result.status == "success" and result.provides == ["metric_lookup"]
     assert result.interpretation == "descriptive" and not result.selections
@@ -216,6 +216,7 @@ async def test_partial_candidate_never_claims_causal_coverage(setup):
     rec = recipe()
     engine.recipes.save(rec, None)
     goals = [goal(), goal("effect", "new_causal_estimator", interpretation="causal_conditional")]
+    goals[0].interpretation = "association"
     result = await search_recipes(engine.recipes, provider, CREDS, "Sales and causal effect?", goals, {}, 5)
     candidate = result["candidates"][0]
     assert candidate["covered_goal_ids"] == ["lookup"] and candidate["conflicts"]

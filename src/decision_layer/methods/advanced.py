@@ -50,6 +50,7 @@ async def binary_regression(ctx, *, outcome: Measure, treatment: Dimension,
     return Estimate(payload["value"], details=payload, validation=_checks(payload),
         warnings=[_("Observed adjustment and placebo checks do not establish causality; no uncertainty interval is reported.")])
 #endregion binary_regression
+binary_regression.manifest.label = "DoWhy regression adjustment (OLS)"
 
 
 @method("stats.linear_dml", version="1.0.0", kind="stats", execution="dataframe",

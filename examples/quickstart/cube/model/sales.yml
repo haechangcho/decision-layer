@@ -1,0 +1,12 @@
+cubes:
+  - name: sales
+    sql_table: public.sales
+    title: Synthetic shop sales
+    dimensions:
+      - {name: id, sql: id, type: number, primary_key: true, public: false}
+      - {name: sold_at, sql: sold_at, type: time, title: Sale date}
+      - {name: department, sql: department, type: string, title: Department}
+      - {name: region, sql: region, type: string, title: Region}
+    measures:
+      - {name: revenue, sql: revenue, type: sum, title: Revenue, description: Synthetic sales amount in example currency units; not profit}
+      - {name: count, type: count, title: Sales rows}

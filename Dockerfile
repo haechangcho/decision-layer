@@ -9,7 +9,12 @@ RUN if [ -n "$DL_PYTHON_EXTRAS" ]; then apt-get update && apt-get install -y --n
 
 # dependencies first so code edits don't bust the layer cache
 COPY pyproject.toml README.md LICENSE ./
-RUN mkdir -p src/decision_layer && touch src/decision_layer/__init__.py && if [ -n "$DL_PYTHON_EXTRAS" ]; then pip install -e ".[$DL_PYTHON_EXTRAS]"; else pip install -e .; fi
+RUN mkdir -p src/decision_layer && touch src/decision_layer/__init__.py && \
+    if [ -n "$DL_PYTHON_EXTRAS" ]; then \
+      apt-get update && apt-get install -y --no-install-recommends build-essential && \
+      pip install -e ".[$DL_PYTHON_EXTRAS]" && \
+      apt-get purge -y --auto-remove build-essential && rm -rf /var/lib/apt/lists/*; \
+    else pip install -e .; fi
 COPY src/ src/
 
 EXPOSE 8000

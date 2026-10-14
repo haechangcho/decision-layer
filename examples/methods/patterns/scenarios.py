@@ -128,7 +128,7 @@ def verify(scenario, trial):
     if "column" in expected:
         assert [row[expected["column"]] for row in data] == expected["values"]
     if "series" in expected:
-        assert [row["metric"] for row in data["rows"]] == expected["series"]
+        assert [row["metric"] for row in data] == expected["series"]
     if "rows" in expected:
         assert data == expected["rows"]
     if "value" in expected:

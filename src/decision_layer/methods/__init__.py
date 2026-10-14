@@ -15,13 +15,24 @@ def register_builtins(target: MethodRegistry) -> MethodRegistry:
     from .drilldown import Drilldown
     from .peer_comparison import PeerComparison
     from .cem import CEM
-    for implementation in (Aggregate, Trend, Drilldown, PeerComparison, CEM):
+    for implementation in (Aggregate, Trend, Drilldown):
         target.register(implementation())
+    # Existing explicit Recipes still resolve optional implementations.
+    # Re-register a reviewed implementation normally to offer it to new callers.
+    target.register(PeerComparison(), compatibility=True)
+    target.register(CEM(), compatibility=True)
     from .advanced import ols, binary_regression, linear_dml, two_period_contrast, unit_change, unit_distribution
+    from .binary_matching import binary_matching
+    from .regression_adjustment import regression_adjustment
+    target.register(regression_adjustment)
+    target.register(binary_regression, compatibility=True)
+    target.register(binary_matching)
     from .legacy_advanced import adjusted_difference, dml, did
-    for implementation in (ols, binary_regression, linear_dml, two_period_contrast,
-                           unit_change, unit_distribution, adjusted_difference, dml, did):
-        target.register(implementation)
+    for implementation in (ols, linear_dml, two_period_contrast,
+                           unit_change, unit_distribution):
+        target.register(implementation, compatibility=True)
+    for implementation in (adjusted_difference, dml, did):
+        target.register(implementation, compatibility=True)
     return target
 
 

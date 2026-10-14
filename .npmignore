@@ -1,0 +1,9 @@
+**/node_modules/
+**/__pycache__/
+**/*.pyc
+web/.next*/
+web/test-results/
+web/playwright-report/
+web/tests/
+examples/quickstart/evals/results/
+*.tgz

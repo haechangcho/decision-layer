@@ -93,9 +93,16 @@ class MethodSession:
         return self.catalog.model_copy(deep=True)
 
     def register(self, method: Method, *, replace: bool = False) -> Method:
-        if not replace and any(m.name == method.manifest.name for m in self.registry.manifests()):
+        if not replace and any(m.name == method.manifest.name for m in self.registry.manifests(include_compatibility=True)):
             raise InvalidBinding(_("Method already registered locally; use replace=True after editing."))
         return self.registry.register(method)
+
+    def find_methods(self, *, goal=None, names=None) -> dict:
+        """Inspect registered candidates using this session's visible catalog."""
+        from .methods.discovery import MethodSearchRequest, find_methods
+        request = MethodSearchRequest(goal=goal, names=names)
+        return find_methods(self.registry, ExecutionContext(
+            self.provider, self._credentials, self.catalog), request)
 
     async def run(self, method: str | Method, *, scope: Scope,
                   bindings: dict[str, Any] | None = None, params: dict[str, Any] | None = None,

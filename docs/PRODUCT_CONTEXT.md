@@ -86,3 +86,12 @@ See [Architecture](ARCHITECTURE.md) for current code ownership and
 [Decisions](DECISIONS.md) for detailed accepted behavior.
 
 Method authoring exposes ordinary typed Python arguments and native statistical-library APIs. Current statistical experiments report association with unverified identification assumptions; assumption checkboxes are not evidence. Semantic validation, execution bounds and provenance remain mandatory (ADR-084).
+
+## Default MVP Methods
+
+Offer query.aggregate, query.trend and query.drilldown for the initial lookup,
+period comparison and branch investigation journey. Two small DoWhy analyses (binary matching and numeric-treatment OLS regression adjustment) are also
+exposed with unverified causal assumptions. Peer comparisons, unit analyses and other
+statistical estimators are optional reviewed implementations, enabled by normal
+Python registration when needed. Existing explicit Recipe contracts retain compatible
+execution. A plugin marketplace or Web code installer is outside this MVP (ADR-090).

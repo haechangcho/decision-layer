@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { ExternalLink, GitPullRequest, X } from "lucide-react";
 import { api, type GoalOutcome, type Run } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { supportsInterpretation } from "@/lib/interpretation";
 import s from "./run-goals.module.css";
 
 const labels: Record<string, string> = { supported: "Evidence recorded", needs_input: "Input needed", unsupported: "Not supported", blocked: "Execution blocked", inconclusive: "Unable to judge", pending: "Not yet answered" };
@@ -50,7 +51,7 @@ export function RunGoals({ run, mine, onSelect }: { run: Run; mine: boolean; onS
 export function suggestedOutcomes(run: Run): GoalOutcome[] {
   return (run.goals || []).map(goal => {
     const indices = run.steps.flatMap((record, index) => record.step.goal_ids?.includes(goal.id) && record.result.status === "success" && record.result.primary &&
-      (goal.interpretation === "descriptive" || record.result.interpretation === goal.interpretation) &&
+      supportsInterpretation(goal.interpretation, record.result.interpretation) &&
       goal.semantic_refs.every(ref => record.result.provenance.semantic_refs.includes(ref)) ? [index] : []);
     const provided = new Set(indices.flatMap(index => run.steps[index].result.provides || []));
     const refs = new Set(indices.flatMap(index => run.steps[index].result.provenance.semantic_refs));

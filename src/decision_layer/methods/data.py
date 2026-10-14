@@ -99,8 +99,8 @@ async def request_data(ctx, *, entity=None, measures=None, dimensions=None, filt
         if obj.kind != "dimension" or not any(o.public and o.entity == entity for o in ctx.catalog.objects):
             raise Refused(_("The analysis unit must be a provider-declared primary dimension"))
         roles["unit"] = [("unit", entity)]
-    selected_measures = _fields(measures, roles)
     selected_dimensions = _fields(dimensions, roles)
+    selected_measures = _fields(measures, roles)
     if entity:
         # Statistical variables can be native per-unit measures or dimensions.
         variable_measures = [ref for ref in selected_dimensions if ctx.obj(ref).kind == "measure"]
@@ -120,7 +120,7 @@ async def request_data(ctx, *, entity=None, measures=None, dimensions=None, filt
     if time_granularity:
         if "time" in roles:
             raise ValueError("time is reserved for the selected time bucket")
-        roles["time"] = [("time", time_ref)]
+        roles = {"time": [("time", time_ref)], **roles}
     extras = [f if isinstance(f, Filter) else Filter.model_validate(f) for f in filters or []]
     width = sum(len(pairs) for pairs in roles.values())
     if width > 100:

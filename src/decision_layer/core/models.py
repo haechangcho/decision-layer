@@ -210,7 +210,7 @@ class ParamSpec(BaseModel):
 
 ArtifactType = Literal["estimate", "interval", "table", "breakdown_table", "contribution_table",
                        "coefficient_table", "balance", "sample_summary", "time_series", "warning"]
-Interpretation = Literal["descriptive", "associational", "causal_conditional"]
+Interpretation = Literal["association", "causal_conditional", "descriptive", "associational"]
 
 
 class MethodManifest(BaseModel):
@@ -381,10 +381,18 @@ class ValidationResult(BaseModel):
     details: dict[str, Any] = Field(default_factory=dict)
 
 
+class ArtifactColumn(BaseModel):
+    name: str
+    ref: SemanticRefStr
+    role: Literal["measure", "dimension", "time", "entity"]
+    granularity: Granularity | None = None
+
+
 class Artifact(BaseModel):
     type: ArtifactType
     title: str | None = None
     data: Any
+    columns: list[ArtifactColumn] = Field(default_factory=list)
 
 
 class Provenance(BaseModel):

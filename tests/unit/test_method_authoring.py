@@ -15,7 +15,7 @@ from decision_layer.testing import FixtureProvider, QueryFixture
 from examples.methods.first_method.fixtures import METRIC, DIMENSION, DATE, DATES, fixture_provider
 
 
-@method("example.authored", version="1.0.0", interpretation="descriptive")
+@method("example.authored", version="1.0.0", interpretation="association")
 async def grouped(ctx, *, metric: Measure, group: Dimension,
                   limit: Annotated[int, Field(ge=1, le=100)] = 5) -> Table:
     """Retrieve a metric by a governed grouping dimension."""
@@ -38,6 +38,7 @@ async def test_signature_generates_contract_and_three_call_styles():
         session.register(grouped)
         trial = await session.run(grouped, scope=Scope(DATES, DATE), **arguments)
         assert trial.result.status == "success"
+        assert trial.result.interpretation == "association"
         assert trial.result.primary.data == [{"metric": 30, "group": "A"}, {"metric": 20, "group": "B"}, {"metric": 10, "group": "C"}]
         assert trial.attempts[0].spec.time.date_range == DATES
         provider.assert_consumed()
@@ -136,11 +137,45 @@ def test_typed_outputs_reject_malformed_payloads():
         Estimate(True)
 
 
-async def test_time_series_metadata_resolves_aliases_for_shared_renderers():
+async def test_table_preserves_monthly_query_metadata_and_rows():
     from examples.methods.patterns.__main__ import run_scenario
     from examples.methods.patterns.scenarios import scenarios, M
     trial = await run_scenario(next(s for s in scenarios() if s.name == "trend"))
-    data = trial.result.primary.data
-    assert data["metric_ref"] == M
-    assert [(row[data["time_key"]], row[data["metric"]]) for row in data["rows"]] == [
+    artifact = trial.result.primary
+    assert artifact.type == "table"
+    assert [(row["time"], row["metric"]) for row in artifact.data] == [
         ("2026-01-01", 20), ("2026-02-01", 30)]
+    columns = {column.name: column for column in artifact.columns}
+    assert columns["metric"].ref == M
+    assert columns["metric"].role == "measure"
+    assert columns["time"].role == "time"
+    assert columns["time"].granularity == "month"
+    from decision_layer.core.models import Artifact
+    restored = Artifact.model_validate_json(artifact.model_dump_json())
+    assert restored == artifact
+
+
+def test_plain_tables_and_historical_artifacts_need_no_column_metadata():
+    from decision_layer.core.models import Artifact
+    output = Table([{"date": "2026-01-01", "value": 20}])
+    assert output.primary.columns == []
+    old = Artifact.model_validate({"type": "time_series", "data": {
+        "metric": "value", "rows": [{"period": "2026-01-01", "value": 20}],
+    }})
+    assert old.columns == []
+    assert old.data["rows"][0]["value"] == 20
+
+
+async def test_legacy_time_series_method_contract_still_executes():
+    from examples.methods.patterns.scenarios import scenarios, M, DATE, JAN_FEB
+    @method("example.legacy_series", version="1.0.0", interpretation="descriptive")
+    async def legacy_series(ctx, *, metric: Measure) -> TimeSeries:
+        data = await ctx.aggregate(measures={"metric": metric}, time_granularity="month")
+        return TimeSeries.from_dataset(data, require_non_empty=True)
+    session = await MethodSession.fixture(next(s for s in scenarios() if s.name == "trend").provider())
+    session.register(legacy_series)
+    trial = await session.run(legacy_series, metric=M, scope=Scope(JAN_FEB, DATE))
+    assert trial.result.primary.type == "time_series"
+    assert trial.result.primary.data["time_key"] == "time"
+    assert trial.result.primary.data["granularity"] == "month"
+    session.close()

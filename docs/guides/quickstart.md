@@ -1,51 +1,50 @@
 ---
 title: Quickstart
-description: Run the sample, inspect governed metrics and record your first analysis.
+description: Save an analysis and apply the same procedure to a new period.
 ---
 
 # Quickstart
 
-Run the local Cube example with an empty Recipe library. Follow the full path from metric to recorded analysis.
-
-Method contributors can start with the [Python-only tutorial](./methods.md) without this sample.
-
-## 1. Start the sample
-
-You need Docker with Compose. From a terminal:
+With Git and running Docker Compose v2, try a small synthetic sample through a real
+Cube server and the normal execution engine. No company account or model API key is needed.
 
 ```bash
 git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer/examples/complete-journey
+cd decision-layer
+bash scripts/demo.sh
 ```
+
+Open [Runs](http://localhost:3100/runs). The script executes an analysis, saves its
+Recipe, replays it and prints direct links. First builds download dependencies and
+can take several minutes.
+
+1. January: Home leads revenue at 6,200; inspect its regions.
+2. Save: register the recorded analysis as a Recipe.
+3. February: the same Recipe selects Grocery at 6,720.
+4. March: equal leaders require input before querying a regional branch.
+
+Inspect the rule, resolved selection, queries and warnings in each Run. This is a
+descriptive ranking of synthetic data, not a causal explanation. The scripted
+walkthrough is not an LLM benchmark.
+
+## Reuse with your AI
+
+Install the local adapter using [MCP setup](./mcp.md). Set `DL_API_URL=http://localhost:8100`
+and `DL_WEB_URL=http://localhost:3100` for this sample.
+
+> Reuse the saved department investigation for February 2026. Find the leading
+> revenue department, then show its regional breakdown, evidence and limitations.
+
+Your AI client supplies its own model connection.
 
 ```bash
-docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
+bash scripts/demo.sh replay
+bash scripts/demo.sh stop
 ```
 
-Web runs on localhost:3000, API on localhost:8000 and Cube on localhost:4000. The first run downloads and imports the data; allow several minutes. New installations start without Runs or Recipes; restarting preserves records.
+[Ports, reset and sample details](https://github.com/haechangcho/decision-layer/blob/main/examples/quickstart/README.md)
+· [Larger Complete Journey sample](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md)
 
-Connect your organization's dbt environment through its [official Semantic Layer API](./dbt.md). That hosted API is not part of the Docker sample. See the [sample guide](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md) for teardown.
+## Next steps
 
-## 2. Inspect a metric
-
-Open [the local Web app](http://localhost:3000). Go to **Metrics**, select **Retailer receipts**, and inspect its definition and available dimensions. The selected semantic provider owns the definition; Decision Layer reads it from the catalog.
-
-## 3. Ask through MCP
-
-Install the local adapter and connect [Claude or Codex](./mcp.md). Ask:
-
-> Across all available data, which product department has the largest retailer receipts? Show the analysis steps and evidence.
-
-Open **Runs** in Web. The record shows the original question, which Method answered each step, the result, and the queries. From a completed Run, **Register as Recipe** saves the same procedure and settings for reuse.
-
-## Choose your next step
-
-- [Connect an existing Cube](./cube.md) to use your own governed metrics.
-- [Connect dbt Semantic Layer](./dbt.md) to use your organization's official API.
-- [Create a Recipe](./recipes.md) for a question your team asks repeatedly.
-- [Review Runs and evidence](./runs.md) before reusing a procedure.
-- [Add a Method](./methods.md) when the existing analytical capabilities are insufficient.
-
-::: info About the sample
-The source day indices are mapped to example calendar dates, not actual purchase years. The data is observational and does not establish causal effects. See the [sample notes](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md) before interpreting its business results.
-:::
+[Connect Cube](./cube.md) · [Connect dbt](./dbt.md) · [Create Recipes](./recipes.md) · [Contribute a Method](./methods.md)

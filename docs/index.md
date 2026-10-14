@@ -5,6 +5,10 @@ description: Reuse analytical procedures on governed semantic data.
 
 # Decision Layer
 
+**Teach your AI how your team analyzes data.**
+
+Turn a reviewed analysis into a reusable procedure with recorded steps, checks and evidence.
+
 Decision Layer connects your semantic layer to reusable analytical procedures.
 Run them through Web, Python, REST or MCP, and inspect the inputs, queries and results.
 

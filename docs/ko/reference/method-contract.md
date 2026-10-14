@@ -11,7 +11,23 @@
 - `ctx.aggregate(...)`: provider 집계. 명시적인 top-N 또는 bounded complete extraction.
 - `ctx.entities(...)`: 선언된 primary unit의 완전한 관측. 시간 bucket이 있으면 unit × time key.
 - `ctx.compute(fn, ...)`: credential 없이 순수 계산. 직접 trial은 현재 프로세스, server/preview는 종료 가능한 자식 프로세스.
-- `Table`, `TimeSeries`, `Estimate`: JSON-compatible artifact. 유한값·payload 형태 검사.
+- `Table`, `Estimate`: JSON-compatible artifact. 유한값과 payload 형태를 검사합니다.
+
+`Table.from_dataset(data)`는 행 목록을 `primary.data`에, 열의 이름과 semantic 경로,
+역할, 시간 단위를 `primary.columns`에 보존합니다. 그룹별 조회와 월별 추이는 같은
+반환 타입을 사용합니다. 웹은 시간 구간 열 하나와 지표가 있고 추가 그룹이나 entity
+열이 없는 결과에 추이 그래프를 표시합니다. 다른 결과는 표로 표시합니다.
+`Table(rows)`의 문자열이 날짜처럼 보인다는 이유로 시간축을 추측하지 않습니다.
+기존 `TimeSeries` Method와 저장된 `time_series` 결과는 호환 지원합니다.
+`time_series` 같은 분석 capability와 결과 표시 타입은 별개입니다.
+
+새 Method는 관측 데이터의 요약과 관계 분석에 `interpretation="association"`을
+사용합니다. 그룹별 조회, 추이, 회귀의 연관성 분석을 포함하며 인과효과를 보장하지
+않습니다. `causal_conditional`의 가정에 따른 해석 계약은 유지합니다.
+기존 `descriptive`, `associational` 값과 실행 기록, 설치된 builtin 버전은 보존합니다.
+Association 목표는 필요한 capability와 semantic 참조가 맞으면 기존 두 비인과
+분류의 결과도 사용할 수 있습니다. 기존 목표의 검증 규칙은 유지하므로 Recipe
+계약을 바꿀 때는 목표도 명시적으로 수정합니다.
 
 Python과 REST/MCP의 measure/dimension/entity maps는 canonical bindings로 정규화합니다. REST는 `POST /methods/{name}:run` 또는 `POST /runs/{id}/steps`를 사용합니다. Recipe step에는 canonical bindings/params를 저장하고, 기존 바인딩도 계속 받습니다. Web은 같은 manifest의 역할 종류와 structured parameter를 표시하며 별도 분석 코드를 갖지 않습니다.
 
@@ -135,3 +151,7 @@ CEM은 조건 구성만 다른 사례·독립 계산한 가중치·공통 구간
 기존 class Method·bindings·등록·Recipe version은 유지됩니다. 단순 Method만 typed 함수로 옮기고 독립 full-spec fixture로 동일 계산을 확인한 후 새 version을 배포하세요. 추가 artifact·selection이 필요한 class는 유지해도 됩니다. 기존 Recipe는 검토 후 pin을 바꾸며 과거 Run을 다시 쓰지 않습니다. 서버 설치에는 core만 또는 필요한 extras를 선택하고, Cube model의 observation key/panel 변경과 API 재배포는 별도로 적용합니다. DB migration은 없습니다.
 
 새 Python 작성자는 함수 인자를 이름 그대로 전달합니다. roles/parameters는 semantic 참조와 일반 값을 검증하기 위한 내부 구분입니다. `AnalysisDesign` 파싱은 기존 직렬화 Method 계약의 호환용으로만 유지하며 새 예제에서 사용하지 않습니다. ADR-084를 참고하세요.
+
+## 탐색과 작성 기본값
+
+`@method(name, version=...)`의 기본 해석은 `association`입니다. 타입은 signature, 설명은 docstring에서 가져오며 코드에서 목적을 추측하지 않습니다. `provides`는 선택 사항이지만 명시한 결과 계약은 Recipe와 목표 근거 검사에 계속 사용합니다. [검토 결과와 실행 가능한 탐색 예제](../guides/method-discovery.md)를 참고하세요. `POST /methods:search`는 `MethodSearchRequest`의 `goal`과 선택적인 `names`를 받으며 분석 쿼리를 실행하지 않습니다.

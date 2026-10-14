@@ -1,0 +1,14 @@
+{
+  "platform": "macOS-15.6.1-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "python": "3.14.3",
+  "claude_cli": "2.1.292 (Claude Code)",
+  "git_head": "e54a9f7011f3b9d9400e5a86787b52313fdefc6b",
+  "working_tree": "dirty; pre-existing changes preserved, not a released commit",
+  "preliminary_exclusions": [
+    "A measurement was interrupted because installation work shared its Compose project.",
+    "A subsequent preliminary batch had a baseline MCP import failure under SDK 2.x; no metrics from that batch are used.",
+    "Personal hooks/settings were disabled and both MCPs preflighted for this final batch."
+  ],
+  "review": "Numeric screening plus transcript review by the implementation assistant; not independent human adjudication."
+}

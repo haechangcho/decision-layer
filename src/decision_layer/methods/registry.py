@@ -29,11 +29,16 @@ class InvalidBinding(DecisionLayerError):
 class MethodRegistry:
     def __init__(self) -> None:
         self._methods: dict[str, Method] = {}
+        self._compatibility: set[str] = set()
 
-    def register(self, method: Method) -> Method:
+    def register(self, method: Method, *, compatibility: bool = False) -> Method:
         Provenance(method=method.ref, semantic_refs=[], queries=[], runtime={})
         self._params(method, {}, partial=True)
         self._methods[method.manifest.name] = method
+        if compatibility:
+            self._compatibility.add(method.manifest.name)
+        else:
+            self._compatibility.discard(method.manifest.name)
         return method
 
     def get(self, name: str) -> Method:
@@ -41,8 +46,10 @@ class MethodRegistry:
             raise InvalidBinding(_("Unknown method: {name}", name=name), available=sorted(self._methods))
         return self._methods[name]
 
-    def manifests(self) -> list[MethodManifest]:
-        return [m.manifest for m in self._methods.values()]
+    def manifests(self, *, include_compatibility: bool = False) -> list[MethodManifest]:
+        """Current choices by default; explicit legacy lookup remains executable."""
+        return [m.manifest for name, m in self._methods.items()
+                if include_compatibility or name not in self._compatibility]
 
     async def run(self, name: str, ctx: ExecutionContext, bindings: dict[str, Any],
                   params: dict[str, Any] | None = None) -> Result:
@@ -243,17 +250,23 @@ class MethodRegistry:
                 raise InvalidBinding(_("Role '{role}' takes a single ref", role=name))
             for ref in values:
                 obj = ctx.obj(ref)
-                kind_ok = obj.kind == role.kind or (role.kind == "dimension" and obj.kind == "time_dimension")
-                if role.accepted_kinds:
-                    kind_ok = obj.kind in role.accepted_kinds
-                if role.kind == "entity":
-                    kind_ok = obj.kind == "dimension" and any(o.public and o.entity == ref for o in ctx.catalog.objects)
-                if not kind_ok:
-                    raise InvalidBinding(_("'{ref}' is a {kind} but role '{role}' needs a {expected}", ref=ref, kind=obj.kind, role=name, expected=role.kind))
-                if role.metric_kinds and obj.metric_kind not in role.metric_kinds:
-                    raise InvalidBinding(_("'{ref}' ({metric_kind}) can't be used for role '{role}' (allowed: {allowed})",
-                                           ref=ref, metric_kind=obj.metric_kind, role=name, allowed=role.metric_kinds))
-                if role.data_type and obj.data_type != role.data_type:
-                    raise InvalidBinding(_("The semantic role has an incompatible data type"), role=name)
+                MethodRegistry.check_role(name, role, obj, ctx.catalog)
                 refs.append(ref)
         return refs
+
+    @staticmethod
+    def check_role(name, role, obj, catalog) -> None:
+        """Shared semantic input checks; does not validate a query or infer a role."""
+        ref = obj.ref
+        kind_ok = obj.kind == role.kind or (role.kind == "dimension" and obj.kind == "time_dimension")
+        if role.accepted_kinds:
+            kind_ok = obj.kind in role.accepted_kinds
+        if role.kind == "entity":
+            kind_ok = obj.kind == "dimension" and any(o.public and o.entity == ref for o in catalog.objects)
+        if not kind_ok:
+            raise InvalidBinding(_("'{ref}' is a {kind} but role '{role}' needs a {expected}", ref=ref, kind=obj.kind, role=name, expected=role.kind))
+        if role.metric_kinds and obj.metric_kind not in role.metric_kinds:
+            raise InvalidBinding(_("'{ref}' ({metric_kind}) can't be used for role '{role}' (allowed: {allowed})",
+                                   ref=ref, metric_kind=obj.metric_kind, role=name, allowed=role.metric_kinds))
+        if role.data_type and obj.data_type != role.data_type:
+            raise InvalidBinding(_("The semantic role has an incompatible data type"), role=name)

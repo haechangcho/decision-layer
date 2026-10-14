@@ -77,7 +77,13 @@ export interface MethodManifest {
   requires_period?: boolean;
 }
 
-export interface Artifact { type: string; title?: string | null; data: unknown }
+export interface ArtifactColumn {
+  name: string;
+  ref: string;
+  role: "measure" | "dimension" | "time" | "entity";
+  granularity?: string | null;
+}
+export interface Artifact { type: string; title?: string | null; data: unknown; columns?: ArtifactColumn[] }
 export interface Validation { validator: string; status: "pass" | "warning" | "fail"; code: string; message: string; details?: Record<string, unknown> }
 
 export interface Result {
@@ -287,4 +293,18 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
     throw new ApiError(resp.status, e?.code ?? String(resp.status), msg, e?.details ?? body?.detail);
   }
   return body as T;
+}
+
+
+export interface MethodSearchReport {
+  status: "candidates" | "no_available_candidate";
+  candidates: { manifest: MethodManifest; input_candidates: Record<string, string[]>;
+    required_inputs: string[]; conditional_capabilities: Record<string, string[]>;
+    description_available: boolean }[];
+  excluded: { name: string; reasons: { code: string; input?: string; value?: string;
+    values?: string[]; message?: string }[] }[];
+  capabilities: Record<string, string[]>;
+  unknown_capabilities: string[];
+  semantic_meaning_verified: false;
+  guidance: string;
 }

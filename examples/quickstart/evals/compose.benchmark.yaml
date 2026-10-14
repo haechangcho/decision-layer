@@ -1,0 +1,5 @@
+# Opt-in local endpoint for the read-only semantic MCP comparison.
+services:
+  cube:
+    ports:
+      - "127.0.0.1:${BENCH_CUBE_PORT:-4100}:4000"

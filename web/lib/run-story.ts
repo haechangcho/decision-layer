@@ -1,4 +1,5 @@
 import type { PlanStep, Run } from "@/lib/api";
+import { timeSeriesData } from "@/lib/artifact-data";
 
 const defaultPurposes: Record<string, string> = {
   "query.trend": "기간별 값과 변화 확인",
@@ -39,11 +40,12 @@ export function stepFinding(record: Run["steps"][number]): string {
   const primary = result.primary;
   if (!primary || !primary.data || typeof primary.data !== "object") return "결과 보기";
   const data = primary.data as Record<string, unknown>;
-  if (primary.type === "time_series" && Array.isArray(data.rows)) {
-    const metric = record.step.bindings.metric;
-    const last = data.rows.at(-1);
+  const series = timeSeriesData(primary);
+  if (series && Array.isArray(series.rows)) {
+    const metric = series.metric;
+    const last = series.rows.at(-1);
     const value = typeof metric === "string" && last && typeof last === "object" ? (last as Record<string, unknown>)[metric] : null;
-    if (typeof value === "number") return data.rows.length === 1 ? `선택 기간 ${number(value)}` : `최근 기간 ${number(value)}`;
+    if (typeof value === "number") return series.rows.length === 1 ? `선택 기간 ${number(value)}` : `최근 기간 ${number(value)}`;
   }
   if (primary.type === "breakdown_table" && Array.isArray(data.rows) && data.rows.length) {
     if (data.subject && data.rows.length === 3) {

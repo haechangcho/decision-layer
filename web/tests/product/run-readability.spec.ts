@@ -98,3 +98,41 @@ test("authored time-series aliases render through the shared chart and table", a
   await expect(table.getByRole("cell", { name: "2026-01-01", exact: true })).toBeVisible();
   await expect(table.getByRole("cell", { name: "30", exact: true })).toBeVisible();
 });
+
+test("monthly Table metadata renders a trend without a TimeSeries output", async ({ page }, info) => {
+  const tableResult = { ...result, interpretation: "association", primary: { type: "table",
+    data: [{ time: "2026-01-01", sales: 20 }, { time: "2026-02-01", sales: 30 }],
+    columns: [
+      { name: "time", ref: "cube://sample/orders/date", role: "time", granularity: "month" },
+      { name: "sales", ref: metric, role: "measure" },
+    ],
+  } };
+  await page.route("**/api/runs/readability", route => route.fulfill({ json: { ...run,
+    steps: [{ ...run.steps[0], result: tableResult }],
+  } }));
+  await page.goto("/runs/readability");
+  await expect(page.getByRole("img", { name: "기간별 지표 값 그래프, 2개 기간" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "매출 · 기간별 값" })).toBeVisible();
+  const table = page.getByRole("region", { name: "결과 데이터 표" });
+  await expect(table.getByRole("cell", { name: "2026-01-01", exact: true })).toBeVisible();
+  await expect(table.getByRole("cell", { name: "30", exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath("monthly-table.png"), fullPage: true });
+});
+
+test("plain dated rows and grouped time panels remain tables without an inferred chart", async ({ page }) => {
+  for (const columns of [[], [
+    { name: "date", ref: "cube://sample/orders/date", role: "time", granularity: "month" },
+    { name: "sales", ref: metric, role: "measure" },
+    { name: "group", ref: "cube://sample/orders/department", role: "dimension" },
+  ]]) {
+    await page.route("**/api/runs/readability", route => route.fulfill({ json: { ...run,
+      steps: [{ ...run.steps[0], result: { ...result, primary: { type: "table", columns,
+        data: [{ date: "2026-01-01", sales: 20, group: "A" }],
+      } } }],
+    } }));
+    await page.goto("/runs/readability");
+    await expect(page.getByRole("region", { name: "결과 데이터 표" }).getByRole("cell", { name: "20", exact: true })).toBeVisible();
+    await expect(page.getByRole("img", { name: /기간별 지표 값 그래프/ })).toHaveCount(0);
+    await page.unroute("**/api/runs/readability");
+  }
+});

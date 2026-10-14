@@ -6,7 +6,7 @@ import pytest
 from tests.support.notebooks import execute_notebook
 
 ROOT = Path(__file__).resolve().parents[2]
-PAGES = ("methods", "method-patterns", "method-scenarios", "statistical-methods")
+PAGES = ("methods", "method-patterns", "method-scenarios", "statistical-methods", "method-discovery")
 
 
 @pytest.mark.parametrize("page", PAGES)

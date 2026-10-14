@@ -28,3 +28,21 @@ The runner above covers Decision Layer execution, not a complete direct-SQL base
 Keep reviewer-held validation questions separate from public development questions. Grade numeric results against independent SQL, semantic references, period, grain, denominator, warnings, justified refusal and unsupported causal claims. Include campaign selection, missing demographics, relative source dates, unequal population sizes and retailer receipts versus profit. A confident wrong answer is a critical failure.
 
 Before publishing quantitative claims, use a sufficiently broad reviewed question set, retain complete transcripts and Run IDs, and report client/model versions, conditions, repeat count, scoring, uncertainty, time, cost, failures and limitations. Do not provide reference answers to the evaluated agent or imply one retail dataset establishes causal accuracy across domains.
+
+## Default and optional Complete Journey cases
+
+`scenarios.json` contains only default-catalog query cases. The separate
+`scenarios-optional.json` requires explicitly registered `query.peer_comparison`
+and compatibility `causal.cem`; do not advertise those cases as default discovery.
+
+## Reproducible token/cost pilot
+
+The [synthetic pilot](https://github.com/haechangcho/decision-layer/tree/main/examples/quickstart/evals)
+compares a read-only Cube MCP with detailed analysis instructions against the
+Decision Layer MCP with a saved Recipe. Both use the same procedural instructions,
+model client, synthetic data and task budget. It reports cache reads/writes,
+uncached input, output, cost, elapsed time and numeric screening separately.
+A tiny public sample is a functionality/cost pilot, not an accuracy benchmark.
+The bundle comparison cannot isolate the causal contribution of Recipes alone.
+
+[2026-10-14 measured pilot: results, limitations and next actions](benchmark-pilot.md)

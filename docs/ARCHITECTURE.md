@@ -63,8 +63,10 @@ bounds and evidence. Existing builtin helper reuse does not define the extension
 ## Method and Recipe boundaries
 
 A Method is one reusable analytical capability. Several queries and local combination
-can belong to one Method. Built-ins include aggregate, trend, drilldown, peer comparison, CEM,
-unit changes/distributions, OLS, DoWhy-adjusted differences, EconML DML and panel contrasts. Implementations are directly under `methods/`; logical IDs
+can belong to one Method. The default catalog contains aggregate, trend and drilldown, plus DoWhy binary
+matching and numeric-treatment OLS regression adjustment. Optional implementations
+include peer comparison, unit analyses, OLS, regression adjustment, DML and panel
+contrasts; CEM and prior statistical contracts remain compatibility-only. Implementations are directly under `methods/`; logical IDs
 retain `query.*` / `causal.*` for compatibility. Folder names do not establish causal claims.
 
 `methods/__init__.py` exports authoring types and explicitly registers built-ins.
@@ -72,6 +74,20 @@ Implementation modules have no self-registration statements. The Registry applie
 parameter/binding checks, records interpretation/provenance and rejects undeclared
 artifact types, selections and capabilities. Analytical payload correctness needs
 independent Method tests; `Artifact.data` is not a complete payload schema.
+
+New function Methods return `Table` for grouped and time-bucketed queries, or
+`Estimate` for a scalar estimate. `Table.from_dataset` keeps row data and governed
+column metadata (alias, reference, role, granularity) on the canonical Artifact.
+Shared Web presentation uses explicit column roles for ungrouped time trends;
+ordinary dated rows are not automatically interpreted as trends. Existing
+`TimeSeries` implementations, builtin trend versions and stored Runs remain readable.
+See ADR-085.
+
+New observational Methods use `association` for summaries and relationships.
+Legacy `descriptive`/`associational` manifests and stored results retain their labels
+and contracts. Routing and completion accept either legacy noncausal label for new
+association goals while still checking required capabilities and semantic scope.
+Existing goal rules and conditional causal interpretation remain unchanged (ADR-086).
 
 A Recipe encodes an organization's procedure using existing Methods and semantic
 references. It does not define metric SQL or override source access/validation.
@@ -148,3 +164,33 @@ dependencies and runtime version evidence. Notebook hosting, code-upload executi
 plugin installers, custom frontend runtimes and workflow schedulers remain deferred.
 
 Python callers use named function arguments; normalization and role/parameter categorization remain internal. New statistical Methods have bounded, specific contracts without AnalysisDesign or assumption checkboxes. They report unverified assumptions and associational estimates. Legacy IDs/versions retain their original contracts in a compatibility module (ADR-084).
+
+Read-only Method discovery (`methods/discovery.py`) serves local Python, REST, MCP and
+Web requirement checks. It reuses AnalysisGoal and Registry role validation, returns
+candidate contracts and exclusion reasons, and never infers analytical intent or runs
+queries. Function Methods default to association and use a docstring for purpose.
+Optional result assertions remain distinct from search tags. MCP no longer imposes a
+CEM or change-analysis procedure independently of Recipes. See ADR-087 and the paired
+[discovery guide](guides/method-discovery.md).
+
+The default Method catalog excludes the three retired design-object statistical
+contracts. Registry lookup keeps them executable for explicitly referenced legacy
+Recipes; discovery and Web/REST/MCP lists show current choices only. No historical
+evidence or analytical implementations are deleted (ADR-088).
+
+CEM is also compatibility-only: default discovery excludes causal.cem, while explicit
+legacy Recipe lookup retains its original implementation (ADR-089).
+
+The three default choices cover lookup, period comparisons and branch investigation.
+Optional reviewed implementations become discoverable through ordinary registry.register;
+there is no separate plugin runtime, UI installer or automatic dependency installation.
+Explicit existing Recipe references still resolve compatibility registrations (ADR-090).
+
+DoWhy matching uses a distinct native estimator and ATT contrast; regression adjustment
+retains the existing ATE contrast. Observed diagnostics and assumed backdoor graphs do
+not promote either to an established causal effect. See ADR-091 and the
+[statistical guide](guides/statistical-methods.md).
+
+Numeric regression defaults to a constant change per stored treatment unit; explicit
+contrasts are optional. The old binary regression contract remains compatible while
+new discovery uses stats.regression_adjustment. See ADR-092.

@@ -5,6 +5,8 @@ description: Claude 또는 Codex에서 등록된 분석 기능과 Recipe를 사�
 
 # AI 도구 연결
 
+> 새 합성 빠른 시작 예제는 API **8100**, `DL_WEB_URL=http://localhost:3100`을 사용합니다. 아래 Complete Journey 예제는 8000/3000입니다.
+
 MCP 어댑터는 내 컴퓨터에서 stdio로 실행되고 Decision Layer API에 요청합니다. AI 모델의 인증 정보는 Claude나 Codex가 관리합니다. 먼저 [예제](../index.md) 또는 API와 Cube를 실행해 두세요.
 
 사용자는 비즈니스 질문만 하면 됩니다. Run 생성이나 ID를 따로 요청할 필요는 없습니다.

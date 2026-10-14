@@ -21,13 +21,25 @@ python3 -m venv .venv
 
 <<< @/../examples/methods/patterns/methods.py#group_metric
 
+`@method` names the Method and records its version. Omitting `interpretation` defaults to `association`, which means observational summaries and relationships: grouped queries, monthly trends
+and regression associations. It does not claim a causal effect. New Methods use
+this one category; the old `descriptive` and `associational` values remain supported.
+
+`Table.from_dataset(data)` returns rows and preserves their semantic column information.
+Monthly queries use the same `Table` return type. The web uses the time information
+to display a trend; you do not need a separate return type.
+
+<<< @/../examples/methods/patterns/methods.py#series
+
+Use `Estimate` when the main result is one estimated value with analysis details.
+
 ### How AI requests and Python calls supply inputs
 
-Example request: “Show the top 3 departments by receipt count for store 364 in February 2001.”
+Example request: “Show the top 3 departments by sales amount for store 364 in February 2001.”
 
-The AI finds the receipt-count measure and department dimension in the semantic layer and fills these inputs:
+The AI finds the sales-amount measure and department dimension in the semantic layer and fills these inputs:
 
-- `metric`: path to the model and its receipt-count measure
+- `metric`: path to the model and its sales-amount measure
 - `group`: path to the model and its department dimension
 - `limit`: the requested 3; uses the function default when omitted
 - `scope`: February 2001, date basis and the store 364 filter
@@ -120,3 +132,48 @@ After editing, use `session.register(group_metric, replace=True)`. Ordinary brea
 For deployment, install reviewed modules in the server environment and register them in server bootstrap. Import does not register automatically; Web cannot upload Python. Use a Recipe to compose existing Methods into an organizational investigation.
 
 Next: [authoring patterns](method-patterns.md), [manual scenarios](method-scenarios.md), [advanced analysis](statistical-methods.md), [internal contract](../reference/method-contract.md).
+
+## Inspect the registered Method
+
+Use a docstring to explain its purpose once. `session.find_methods()` returns registered contracts and requirement checks without querying data. See [Method discovery](method-discovery.md) for the shared Python, REST, Web and MCP flow, ambiguous questions and compatibility.
+
+## Default MVP and optional extensions
+
+The initial product exposes three query Methods and two small DoWhy analyses:
+
+| Method | Purpose |
+| --- | --- |
+| `query.aggregate` | Look up governed metric values |
+| `query.trend` | Inspect time trends and compare periods |
+| `query.drilldown` | Break values and changes down by groups, then investigate a branch |
+| `stats.binary_matching` | DoWhy matching contrast for treated units (ATT) |
+| `stats.regression_adjustment` | DoWhy OLS change per stored treatment unit, or an explicit contrast |
+
+A Recipe composes them into a reusable investigation. Peer comparison, unit analyses
+and other statistical methods are optional. The DoWhy estimates retain unverified causal assumptions. Existing explicit Recipe references keep their
+original execution contracts.
+
+Enable a reviewed optional implementation in server startup code with the existing registry:
+
+```python
+from decision_layer.methods import registry
+from decision_layer.methods.peer_comparison import PeerComparison
+
+registry.register(PeerComparison())
+```
+
+For OLS, after installing the documented stats extra:
+
+```python
+from decision_layer.methods import registry
+from decision_layer.methods.advanced import ols
+
+registry.register(ols)
+```
+
+Registration exposes the same contract through Web, REST and MCP. In a local session
+that already has compatibility implementations, use `session.register(ols, replace=True)`.
+Keep registration in reviewed startup code so it runs after a server restart. This is
+ordinary Python extension, not an interactive plugin installer. A marketplace and
+Web plugin management are deferred. The default Method list is not an access control:
+explicit historical Recipe references still execute with normal authorization and validation.

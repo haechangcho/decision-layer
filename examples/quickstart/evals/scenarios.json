@@ -1,0 +1,13 @@
+{
+  "dataset": "Synthetic quickstart shop",
+  "scenarios": [{
+    "id": "february_reuse",
+    "question": "Use Decision Layer to reuse a saved department investigation for February 2026. Find the department with the highest revenue, then break that department down by region. Use the same procedure without freezing a prior winner. Explain the evidence and limitations. If several saved Recipes implement the same procedure, choose one.",
+    "must_call_tools": ["find_recipes", "start_run", "complete_run"],
+    "require_single_run": true,
+    "require_run_coverage": true,
+    "expect_status": ["success"],
+    "expect_numbers": [6720, 4032],
+    "must_mention": ["Grocery", "North"]
+  }]
+}

@@ -14,7 +14,7 @@ export default function MethodsPage() {
   const { data, error, loading, reload } = useApi<MethodManifest[]>("/methods");
   const [search, setSearch] = useState("");
   const shown = useMemo(() => (data ?? []).filter((method) =>
-    `${method.name} ${methodName(method.name)} ${method.description} ${method.kind}`.toLowerCase().includes(search.trim().toLowerCase())), [data, search]);
+    `${method.name} ${(method.label || methodName(method.name))} ${method.description} ${method.kind}`.toLowerCase().includes(search.trim().toLowerCase())), [data, search]);
 
   return <div className={styles.page}>
     <div className={styles.libraryHeader}><div><h1>분석 방법</h1><p>등록된 방법 {data?.length ?? 0}개</p></div></div>
@@ -28,7 +28,7 @@ export default function MethodsPage() {
       </div>
       <div className={styles.libraryColumns} aria-hidden="true"><span>분석 방법</span><span>설명</span><span>버전</span><span /></div>
       {loading && !data ? <LoadingState /> : shown.map((method) => <Link key={method.name} href={`/methods/${encodeURIComponent(method.name)}`} className={styles.libraryRow}>
-        <span className={styles.libraryName}><strong>{methodName(method.name)}</strong><small>{method.name}</small></span>
+        <span className={styles.libraryName}><strong>{(method.label || methodName(method.name))}</strong><small>{method.name}</small></span>
         <span className={styles.libraryMetric}>{method.description.split(". ")[0].replace(/\.$/, "") + "."}</span>
         <span className={styles.librarySteps}>v{method.version}</span>
         <ArrowRight size={17} className={styles.libraryArrow} />

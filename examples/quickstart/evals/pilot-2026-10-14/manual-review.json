@@ -1,0 +1,49 @@
+{
+  "reviewer": "Implementation assistant; not independent human adjudication",
+  "scope": "Numeric screen and transcript inspection; not a general accuracy score",
+  "numeric_screen": {
+    "semantic": "9/9",
+    "recipe": "9/9"
+  },
+  "march_trace_checks": [
+    {
+      "trial": "march-0-recipe",
+      "no_regional_query_before_user_choice": true
+    },
+    {
+      "trial": "march-0-semantic",
+      "no_regional_query_before_user_choice": true
+    },
+    {
+      "trial": "march-1-recipe",
+      "no_regional_query_before_user_choice": true
+    },
+    {
+      "trial": "march-1-semantic",
+      "no_regional_query_before_user_choice": true
+    },
+    {
+      "trial": "march-2-recipe",
+      "no_regional_query_before_user_choice": true
+    },
+    {
+      "trial": "march-2-semantic",
+      "no_regional_query_before_user_choice": true
+    }
+  ],
+  "observed_narration_defects": [
+    {
+      "trial": "march-0-recipe",
+      "defect": "Claims both groups meet the minimum count threshold although sample-count validation was not applied; later caveat contradicts that claim."
+    },
+    {
+      "trials": [
+        "march-0-recipe",
+        "january-1-recipe",
+        "january-2-recipe"
+      ],
+      "defect": "Uses dollar symbols although governed metric defines example currency units without a specific currency."
+    }
+  ],
+  "interpretation": "Correct fixture numbers do not establish fully correct answers. Engine guardrails do not prevent unsupported LLM narration."
+}
