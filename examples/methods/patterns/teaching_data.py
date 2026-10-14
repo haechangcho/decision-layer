@@ -3,9 +3,10 @@ from dataclasses import replace
 
 import pandas as pd
 
+from decision_layer.core.models import DatasetSpec, TimeScope
 from decision_layer.dev import MethodSession
-from decision_layer.testing import FixtureProvider
-from .scenarios import catalog, scenarios
+from decision_layer.testing import FixtureProvider, QueryFixture
+from .scenarios import BEFORE, DATE, FEB, GROUP, M, SUBJECT, catalog, scenarios
 
 
 def _example(name):
@@ -22,6 +23,11 @@ def _example(name):
 
 async def example_session(name):
     """Create a local session that returns fixed data for a named example."""
+    if name == "multi_group":
+        spec = DatasetSpec(grain="aggregate", measures=[M, BEFORE], dimensions=[GROUP, SUBJECT],
+            time=TimeScope(dimension=DATE, date_range=FEB), order=[(M, "desc")], limit_rows=3)
+        rows = [[30, 25, "A", "X"], [20, 15, "B", "Y"], [10, 5, "C", "Z"]]
+        return await MethodSession.fixture(FixtureProvider(catalog(), [QueryFixture(spec, rows)]))
     return await MethodSession.fixture(_example(name).provider())
 
 

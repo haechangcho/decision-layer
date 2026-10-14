@@ -34,10 +34,16 @@ async def test_workshop_authoring_and_translated_examples(monkeypatch):
 
     namespace = await execute_notebook(ko, monkeypatch)
     assert namespace["trial"].result.primary.data == [
-        {"value": 30, "group": "A"},
-        {"value": 20, "group": "B"},
-        {"value": 10, "group": "C"},
+        {"value_1": 30, "group_1": "A"},
+        {"value_1": 20, "group_1": "B"},
+        {"value_1": 10, "group_1": "C"},
     ]
+    assert namespace["multi_trial"].result.primary.data == [
+        {"value_1": 30, "value_2": 25, "group_1": "A", "group_2": "X"},
+        {"value_1": 20, "value_2": 15, "group_1": "B", "group_2": "Y"},
+        {"value_1": 10, "value_2": 5, "group_1": "C", "group_2": "Z"},
+    ]
+    assert len(namespace["multi_trial"].attempts) == 1
     assert [row["rank"] for row in namespace["edited_trial"].result.primary.data] == [1, 2, 3]
     assert [row["difference"] for row in namespace["peer_trial"].result.primary.data] == [4, 6]
     assert namespace["my_by_group"].manifest.version == "1.0.0"
@@ -47,13 +53,14 @@ async def test_workshop_authoring_and_translated_examples(monkeypatch):
 
     # Re-run out of order: every use cell creates its own connection and registry.
     for _ in range(2):
-        for cell_id in ("run-peer", "run-ranked-group", "run-group"):
+        for cell_id in ("run-peer", "run-ranked-group", "run-group", "run-multi-group"):
             pending = eval(
                 compile(ko_cells[cell_id], cell_id, "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT),
                 namespace,
             )
             await pending
     assert len(namespace["trial"].attempts) == 1
+    assert len(namespace["multi_trial"].attempts) == 1
     assert len(namespace["peer_trial"].attempts) == 3
     assert "rank" not in namespace["trial"].result.primary.data[0]
 
