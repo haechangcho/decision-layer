@@ -1,62 +1,65 @@
 import type { PlanStep, Recipe } from "./api";
+import type { Translate } from "./i18n";
 import { methodName } from "./method-name";
 import { sourceLabel } from "@/features/recipes/step-input-source";
 
 const equal = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
 const parameterLabels: Record<string, string> = {
-  granularity: "시간 단위", vs_previous: "직전 기간 비교", top_n: "표시할 그룹 수",
-  min_count: "최소 그룹 건수", rank_by: "정렬 기준",
+  granularity: "Time unit", vs_previous: "Compare with previous period", top_n: "Groups to show",
+  min_count: "Minimum group count", rank_by: "Ranked by",
 };
 
-function display(value: unknown, title: (ref: string) => string): string {
-  if (value == null || value === "") return "없음";
-  const source = sourceLabel(value);
+function display(value: unknown, title: (ref: string) => string, t: Translate): string {
+  if (value == null || value === "") return t("None");
+  const source = sourceLabel(value, t);
   if (source) return source;
-  if (typeof value === "boolean") return value ? "사용" : "사용 안 함";
-  if (typeof value === "string") return value.startsWith("$scope.") ? "Recipe 공통 설정"
+  if (typeof value === "boolean") return value ? t("On") : t("Off");
+  if (typeof value === "string") return value.startsWith("$scope.") ? t("Recipe shared setting")
     : /^[a-z][a-z0-9+.-]*:\/\//i.test(value) ? title(value) : value;
-  if (Array.isArray(value)) return value.length ? value.map(item => display(item, title)).join(" → ") : "없음";
+  if (Array.isArray(value)) return value.length ? value.map(item => display(item, title, t)).join(" → ") : t("None");
   return JSON.stringify(value);
 }
 
-function stepChanges(before: PlanStep | undefined, after: PlanStep | undefined, index: number, title: (ref: string) => string): string[] {
-  const prefix = `${index + 1}단계`;
-  if (!before && after) return [`${prefix} 추가 · ${methodName(after.method)}`];
-  if (before && !after) return [`${prefix} 삭제 · ${methodName(before.method)}`];
+function stepChanges(before: PlanStep | undefined, after: PlanStep | undefined, index: number, title: (ref: string) => string, t: Translate): string[] {
+  const prefix = t("Step {number}", { number: index + 1 });
+  const show = (value: unknown) => display(value, title, t);
+  if (!before && after) return [t("{step} added · {method}", { step: prefix, method: methodName(after.method, t) })];
+  if (before && !after) return [t("{step} removed · {method}", { step: prefix, method: methodName(before.method, t) })];
   if (!before || !after) return [];
   const changes: string[] = [];
-  if (before.method !== after.method) changes.push(`${prefix} 방법 · ${methodName(before.method)} → ${methodName(after.method)}`);
+  if (before.method !== after.method) changes.push(`${t("{step} Method", { step: prefix })} · ${methodName(before.method, t)} → ${methodName(after.method, t)}`);
   for (const field of new Set([...Object.keys(before.bindings), ...Object.keys(after.bindings)])) {
     if (!equal(before.bindings[field], after.bindings[field]))
-      changes.push(`${prefix} ${field === "metric" ? "분석 지표" : field === "dimensions" ? "나눠 볼 순서" : field} · ${display(before.bindings[field], title)} → ${display(after.bindings[field], title)}`);
+      changes.push(`${prefix} ${field === "metric" ? t("Analysis metric") : field === "dimensions" ? t("Breakdown order") : field} · ${show(before.bindings[field])} → ${show(after.bindings[field])}`);
   }
   for (const field of new Set([...Object.keys(before.params), ...Object.keys(after.params)])) {
     if (!equal(before.params[field], after.params[field]))
-      changes.push(`${prefix} ${parameterLabels[field] || field} · ${display(before.params[field], title)} → ${display(after.params[field], title)}`);
+      changes.push(`${prefix} ${parameterLabels[field] ? t(parameterLabels[field]) : field} · ${show(before.params[field])} → ${show(after.params[field])}`);
   }
   return changes;
 }
 
-export function recipeChanges(before: Recipe | undefined, after: Recipe, title: (ref: string) => string): string[] {
+export function recipeChanges(before: Recipe | undefined, after: Recipe, title: (ref: string) => string, t: Translate): string[] {
   const changes: string[] = [];
+  const show = (value: unknown) => display(value, title, t);
   if (!before) {
-    changes.push(`분석 지표 · ${display(after.semantic_scope.primary_metric, title)}`);
-    if (after.description) changes.push(`분석 목적 · ${after.description}`);
-    after.steps.forEach((step, index) => changes.push(...stepChanges(undefined, step, index, title)));
-    if (after.origin_runs?.length) changes.push(`원본 실행 기록 · ${after.origin_runs.join(", ")}`);
+    changes.push(`${t("Analysis metric")} · ${show(after.semantic_scope.primary_metric)}`);
+    if (after.description) changes.push(`${t("Analysis purpose")} · ${after.description}`);
+    after.steps.forEach((step, index) => changes.push(...stepChanges(undefined, step, index, title, t)));
+    if (after.origin_runs?.length) changes.push(`${t("Source runs")} · ${after.origin_runs.join(", ")}`);
     return changes;
   }
-  if (before.description !== after.description) changes.push(`분석 목적 · ${display(before.description, title)} → ${display(after.description, title)}`);
-  if (!equal(before.default_scope, after.default_scope)) changes.push(`기본 실행 범위 · ${display(after.default_scope, title)}`);
+  if (before.description !== after.description) changes.push(`${t("Analysis purpose")} · ${show(before.description)} → ${show(after.description)}`);
+  if (!equal(before.default_scope, after.default_scope)) changes.push(`${t("Default run scope")} · ${show(after.default_scope)}`);
   const scopeFields: [keyof Recipe["semantic_scope"], string][] = [
-    ["primary_metric", "분석 지표"], ["related_metrics", "함께 볼 지표"], ["preferred_dimensions", "분류 기준"], ["required_filters", "필수 필터"],
+    ["primary_metric", "Analysis metric"], ["related_metrics", "Related metrics"], ["preferred_dimensions", "Breakdown dimensions"], ["required_filters", "Required filters"],
   ];
   for (const [field, label] of scopeFields) {
     if (!equal(before.semantic_scope[field], after.semantic_scope[field]))
-      changes.push(`${label} · ${display(before.semantic_scope[field], title)} → ${display(after.semantic_scope[field], title)}`);
+      changes.push(`${t(label)} · ${show(before.semantic_scope[field])} → ${show(after.semantic_scope[field])}`);
   }
   const longest = Math.max(before.steps.length, after.steps.length);
-  for (let index = 0; index < longest; index++) changes.push(...stepChanges(before.steps[index], after.steps[index], index, title));
+  for (let index = 0; index < longest; index++) changes.push(...stepChanges(before.steps[index], after.steps[index], index, title, t));
   const policies = new Set([...Object.keys(before.method_parameters ?? {}), ...Object.keys(after.method_parameters ?? {})]);
   for (const method of policies) {
     const oldPolicy = before.method_parameters?.[method];
@@ -64,14 +67,14 @@ export function recipeChanges(before: Recipe | undefined, after: Recipe, title: 
     const fixedNames = new Set([...Object.keys(oldPolicy?.fixed ?? {}), ...Object.keys(nextPolicy?.fixed ?? {})]);
     for (const name of fixedNames) {
       if (!equal(oldPolicy?.fixed[name], nextPolicy?.fixed[name]))
-        changes.push(`${methodName(method)} · ${parameterLabels[name] || name} 고정 · ${display(oldPolicy?.fixed[name], title)} → ${display(nextPolicy?.fixed[name], title)}`);
+        changes.push(`${methodName(method, t)} · ${t("{parameter} fixed", { parameter: parameterLabels[name] ? t(parameterLabels[name]) : name })} · ${show(oldPolicy?.fixed[name])} → ${show(nextPolicy?.fixed[name])}`);
     }
     if (!equal(oldPolicy?.runtime_allowed ?? null, nextPolicy?.runtime_allowed ?? null))
-      changes.push(`${methodName(method)} · 실행 중 변경 허용 · ${oldPolicy?.runtime_allowed == null ? "전체" : display(oldPolicy.runtime_allowed, title)} → ${nextPolicy?.runtime_allowed == null ? "전체" : display(nextPolicy.runtime_allowed, title)}`);
+      changes.push(`${methodName(method, t)} · ${t("Changeable at run time")} · ${oldPolicy?.runtime_allowed == null ? t("All") : show(oldPolicy.runtime_allowed)} → ${nextPolicy?.runtime_allowed == null ? t("All") : show(nextPolicy.runtime_allowed)}`);
   }
-  for (const [field, label] of [["inputs", "실행 입력"], ["allowed_methods", "허용 방법"], ["routing", "선택 조건"], ["validators", "검증 규칙"], ["limits", "실행 한도"], ["instructions", "분석 지침"], ["origin_runs", "원본 실행 기록"]] as const) {
-    if (!equal(before[field], after[field])) changes.push(`${label} · ${display(before[field], title)} → ${display(after[field], title)}`);
+  for (const [field, label] of [["inputs", "Run inputs"], ["allowed_methods", "Allowed Methods"], ["routing", "Selection conditions"], ["validators", "Validation rules"], ["limits", "Run limits"], ["instructions", "Analysis instructions"], ["origin_runs", "Source runs"]] as const) {
+    if (!equal(before[field], after[field])) changes.push(`${t(label)} · ${show(before[field])} → ${show(after[field])}`);
   }
-  if (before.mode !== after.mode) changes.push(`분석 방식 · ${before.mode} → ${after.mode}`);
+  if (before.mode !== after.mode) changes.push(`${t("Analysis mode")} · ${before.mode} → ${after.mode}`);
   return changes;
 }

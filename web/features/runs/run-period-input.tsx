@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { api, type Run, type SemanticObject } from "@/lib/api";
 import { suggestedDateRange } from "@/lib/semantic-dates";
-import { useT } from "@/lib/i18n";
+import { type Translate, useT } from "@/lib/i18n";
 import styles from "@/app/library.module.css";
 
-export function periodLabel(run: Run) {
-  if (run.plan.scope.period?.mode === "unresolved" || run.needs_input) return "기간 확인 필요";
-  return run.plan.scope.date_range?.join(" ~ ") || (run.plan.scope.period?.mode === "all" ? "전체 기간 · 명시적 선택" : "기간 선택 기록 없음");
+export function periodLabel(run: Run, t: Translate) {
+  if (run.plan.scope.period?.mode === "unresolved" || run.needs_input) return t("Period needs confirming");
+  return run.plan.scope.date_range?.join(" ~ ") || t(run.plan.scope.period?.mode === "all" ? "All periods · chosen explicitly" : "No period choice recorded");
 }
 
 export function RunPeriodInput({ run, objects, onDone }: { run: Run; objects: SemanticObject[]; onDone: (run: Run) => void }) {

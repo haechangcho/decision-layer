@@ -6,6 +6,7 @@ import { Activity, ArrowRight, Database, Info, Search, X } from "lucide-react";
 
 import { api, getSourceCallerToken, type SemanticCatalog, type SemanticObject, type SourceReadiness } from "@/lib/api";
 import { LoadingIndicator } from "@/components/loading-indicator";
+import { useT } from "@/lib/i18n";
 import styles from "../catalog.module.css";
 
 type CatalogMetric = SemanticObject & { cube: string; checks?: SourceReadiness["metrics"][number]["checks"] };
@@ -15,6 +16,7 @@ function getCube(ref: string) {
 }
 
 export default function CatalogPage() {
+  const t = useT();
   const [metrics, setMetrics] = useState<CatalogMetric[]>([]);
   const [selected, setSelected] = useState<CatalogMetric | null>(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
@@ -40,7 +42,7 @@ export default function CatalogPage() {
       setMetrics(found);
       setSelected((current) => found.find((metric) => metric.ref === current?.ref) ?? found[0] ?? null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "지표 카탈로그를 불러오지 못했습니다.");
+      setError(cause instanceof Error ? cause.message : t("Could not load the metric catalog."));
     } finally {
       setLoading(false);
     }
@@ -70,49 +72,49 @@ export default function CatalogPage() {
 
   return <div className={styles.page}>
     <div className={styles.heading}>
-      <div><h1>지표 탐색</h1><p className={styles.intro}>연결된 시맨틱 레이어의 지표와 정의를 확인하세요.</p></div>
-      <Link className={styles.sourceLink} href="/sources"><Database size={16} />데이터 연결 설정</Link>
+      <div><h1>{t("Metric catalog")}</h1><p className={styles.intro}>{t("Review the metrics and definitions in the connected semantic layer.")}</p></div>
+      <Link className={styles.sourceLink} href="/sources"><Database size={16} />{t("Data connection settings")}</Link>
     </div>
 
     {error ? <section className={styles.empty} role="alert">
-      <Info size={22} /><h2>카탈로그에 연결할 수 없습니다</h2><p>{error}</p>
-      <p>연결 주소와 접근 권한을 확인한 다음 다시 시도해 주세요.</p>
-      <div className={styles.actions}><Link className={styles.primaryButton} href="/sources">연결 설정 열기 <ArrowRight size={16} /></Link><button className={styles.secondaryButton} onClick={() => void loadCatalog()}>다시 시도</button></div>
-    </section> : loading ? <div className={styles.loading} role="status"><LoadingIndicator />지표 카탈로그를 불러오는 중…</div> : metrics.length === 0 ? <section className={styles.empty}>
-      <Database size={24} /><h2>공개된 지표가 없습니다</h2><p>시맨틱 모델에 지표를 등록하고, 현재 사용자에게 공개되어 있는지 확인해 주세요.</p>
-      <Link className={styles.primaryButton} href="/sources">연결 확인 <ArrowRight size={16} /></Link>
+      <Info size={22} /><h2>{t("Cannot connect to the catalog")}</h2><p>{error}</p>
+      <p>{t("Check the connection address and access permissions, then try again.")}</p>
+      <div className={styles.actions}><Link className={styles.primaryButton} href="/sources">{t("Open connection settings")} <ArrowRight size={16} /></Link><button className={styles.secondaryButton} onClick={() => void loadCatalog()}>{t("Retry")}</button></div>
+    </section> : loading ? <div className={styles.loading} role="status"><LoadingIndicator />{t("Loading the metric catalog…")}</div> : metrics.length === 0 ? <section className={styles.empty}>
+      <Database size={24} /><h2>{t("No visible metrics")}</h2><p>{t("Register metrics in the semantic model and check they are visible to the current user.")}</p>
+      <Link className={styles.primaryButton} href="/sources">{t("Check connection")} <ArrowRight size={16} /></Link>
     </section> : <div className={styles.workspace}>
-      <section className={styles.catalog} aria-label="지표 카탈로그">
-        <div className={styles.toolbar}><label className={styles.search}><Search size={17} /><input aria-label="지표 검색" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="이름, 설명 또는 모델 검색" /></label><span className={styles.total}>{metrics.length}개 지표</span></div>
-        {Object.entries(groups).map(([cube, items]) => <section className={styles.group} key={cube} aria-label={`${cube} 지표`}>
+      <section className={styles.catalog} aria-label={t("Catalog metrics")}>
+        <div className={styles.toolbar}><label className={styles.search}><Search size={17} /><input aria-label={t("Search metrics")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search by name, description or model")} /></label><span className={styles.total}>{t("{count} metrics", { count: metrics.length })}</span></div>
+        {Object.entries(groups).map(([cube, items]) => <section className={styles.group} key={cube} aria-label={t("{model} metrics", { model: cube })}>
           <h2><Database size={15} />{cube}<span>{items.length}</span></h2>
           {items.map((metric) => {
             return <button key={metric.ref} className={`${styles.row} ${selected?.ref === metric.ref ? styles.selected : ""}`} onClick={() => { setSelected(metric); setMobileDetailOpen(true); }} aria-pressed={selected?.ref === metric.ref}>
               <span className={styles.metricIcon}><Activity size={17} /></span>
               <span className={styles.metricCopy}><strong>{metric.title}</strong>{metric.description && <small>{metric.description}</small>}</span>
-              <span className={styles.kind}>{metric.metric_kind ?? "측정값"}</span>
+              <span className={styles.kind}>{metric.metric_kind ?? t("Measure")}</span>
             </button>;
           })}
         </section>)}
-        {shown.length === 0 && <div className={styles.noResults}><Search size={22} /><strong>조건에 맞는 지표가 없습니다</strong><button onClick={() => setSearch("")}>검색 초기화</button></div>}
+        {shown.length === 0 && <div className={styles.noResults}><Search size={22} /><strong>{t("No metrics match")}</strong><button onClick={() => setSearch("")}>{t("Reset search")}</button></div>}
       </section>
 
-      {mobileDetailOpen && <button type="button" className={styles.mobileBackdrop} onClick={() => setMobileDetailOpen(false)} aria-label="지표 상세 닫기" />}
-      <aside className={`${styles.detail} ${mobileDetailOpen ? styles.detailMobileOpen : ""}`} aria-label="지표 상세">
+      {mobileDetailOpen && <button type="button" className={styles.mobileBackdrop} onClick={() => setMobileDetailOpen(false)} aria-label={t("Close metric details")} />}
+      <aside className={`${styles.detail} ${mobileDetailOpen ? styles.detailMobileOpen : ""}`} aria-label={t("Metric details")}>
         {selected ? <>
-          <div className={styles.detailHeader}><span className={styles.largeIcon}><Activity size={20} /></span><span className={styles.kindTag}>{selected.metric_kind ?? "측정값"}</span><button type="button" className={styles.mobileClose} onClick={() => setMobileDetailOpen(false)} aria-label="닫기"><X size={19} /></button></div>
-          <h2>{selected.title}</h2><p className={styles.description}>{selected.description || "시맨틱 모델에 설명이 등록되지 않았습니다."}</p>
-          <details className={styles.technicalDetails}><summary>기술 정보</summary><div className={styles.reference}><span>지표 참조</span><code>{selected.ref}</code></div>
-            {selected.ratio_parts?.length ? <div className={styles.reference}><span>분자 / 분모</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
-            {selected.entity && <div className={styles.reference}><span>개별 분석 단위 참조</span><code>{selected.entity}</code></div>}</details>
-          <div className={styles.readinessTitle}><Info size={16} /><strong>모델에서 확인한 정보</strong></div>
-          {!selected.checks ? <p className={styles.help}>추가 모델 정보를 불러오지 못했습니다. 분석 가능 여부는 실행할 때 확인합니다.</p> : <ul className={styles.checks}>
-            <li><span>시간 차원</span><strong>{selected.checks.time.status === "ready" ? "등록됨" : "확인되지 않음"}</strong></li>
-            {(selected.metric_kind === "ratio" || selected.checks.decomposition.status !== "not_applicable") && <li><span>분자 / 분모</span><strong>{selected.checks.decomposition.status === "ready" ? "등록됨" : "확인되지 않음"}</strong></li>}
+          <div className={styles.detailHeader}><span className={styles.largeIcon}><Activity size={20} /></span><span className={styles.kindTag}>{selected.metric_kind ?? t("Measure")}</span><button type="button" className={styles.mobileClose} onClick={() => setMobileDetailOpen(false)} aria-label={t("Close")}><X size={19} /></button></div>
+          <h2>{selected.title}</h2><p className={styles.description}>{selected.description || t("No description is registered in the semantic model.")}</p>
+          <details className={styles.technicalDetails}><summary>{t("Technical details")}</summary><div className={styles.reference}><span>{t("Metric reference")}</span><code>{selected.ref}</code></div>
+            {selected.ratio_parts?.length ? <div className={styles.reference}><span>{t("Numerator / denominator")}</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
+            {selected.entity && <div className={styles.reference}><span>{t("Analysis unit reference")}</span><code>{selected.entity}</code></div>}</details>
+          <div className={styles.readinessTitle}><Info size={16} /><strong>{t("Confirmed in the model")}</strong></div>
+          {!selected.checks ? <p className={styles.help}>{t("Could not load more model details. Whether the analysis can run is checked at run time.")}</p> : <ul className={styles.checks}>
+            <li><span>{t("Time dimension")}</span><strong>{t(selected.checks.time.status === "ready" ? "Registered" : "Not confirmed")}</strong></li>
+            {(selected.metric_kind === "ratio" || selected.checks.decomposition.status !== "not_applicable") && <li><span>{t("Numerator / denominator")}</span><strong>{t(selected.checks.decomposition.status === "ready" ? "Registered" : "Not confirmed")}</strong></li>}
           </ul>}
-          <Link className={styles.primaryButton} href={methodHref(selected)}>Recipe 만들기 <ArrowRight size={16} /></Link>
-          <p className={styles.footnote}>지표 정의와 데이터 접근 권한은 연결된 시맨틱 레이어에서 관리합니다.</p>
-        </> : <div className={styles.noSelection}>목록에서 지표를 선택하세요.</div>}
+          <Link className={styles.primaryButton} href={methodHref(selected)}>{t("Create Recipe")} <ArrowRight size={16} /></Link>
+          <p className={styles.footnote}>{t("Metric definitions and data access are managed in the connected semantic layer.")}</p>
+        </> : <div className={styles.noSelection}>{t("Choose a metric from the list.")}</div>}
       </aside>
     </div>}
   </div>;
