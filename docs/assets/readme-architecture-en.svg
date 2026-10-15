@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="580" viewBox="0 0 1000 580" role="img" aria-labelledby="title desc">
+<title id="title">HEARTCOUNT Decision Layer architecture</title>
+<desc id="desc">Apps and AI agents call a shared engine through REST, Python, or MCP. Decision Layer executes Methods and Recipes and records evidence in Runs. The semantic layer owns metric definitions and data queries over databases and marts.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#737373" stroke-width="1.5"/></marker></defs>
+<rect width="1000" height="580" rx="16" fill="#fafafa"/>
+<g font-family="-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">
+<rect x="40" y="25" width="920" height="68" rx="10" fill="white" stroke="#d4d4d4"/>
+<text x="500" y="54" font-size="19" font-weight="700" fill="#202020">Apps · AI agents · Analysts</text>
+<text x="500" y="78" font-size="15" fill="#555">Web · Python · REST · MCP</text>
+<path d="M500 99V126" stroke="#737373" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="139" width="920" height="184" rx="10" fill="#fff3ed" stroke="#ff4300" stroke-width="1.8"/>
+<text x="500" y="172" font-size="22" font-weight="700" fill="#c73500">HEARTCOUNT Decision Layer</text>
+<rect x="67" y="191" width="268" height="63" rx="8" fill="white" stroke="#f1c4b3"/>
+<text x="201" y="216" font-size="17" font-weight="600" fill="#262626">Method</text><text x="201" y="239" font-size="14" fill="#555">One analytical capability</text>
+<rect x="366" y="191" width="268" height="63" rx="8" fill="white" stroke="#f1c4b3"/>
+<text x="500" y="216" font-size="17" font-weight="600" fill="#262626">Recipe</text><text x="500" y="239" font-size="14" fill="#555">Reusable analysis procedure</text>
+<rect x="665" y="191" width="268" height="63" rx="8" fill="white" stroke="#f1c4b3"/>
+<text x="799" y="216" font-size="17" font-weight="600" fill="#262626">Run</text><text x="799" y="239" font-size="14" fill="#555">Execution results and evidence</text>
+<text x="500" y="288" font-size="16" font-weight="600" fill="#333">Shared execution engine</text><text x="500" y="309" font-size="14" fill="#555">Input validation · Step execution · Selection · Evidence</text>
+<path d="M500 329V356" stroke="#737373" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="369" width="920" height="81" rx="10" fill="white" stroke="#d4d4d4"/>
+<text x="500" y="400" font-size="19" font-weight="700" fill="#202020">Semantic Layer — Cube · dbt Semantic Layer</text>
+<text x="500" y="427" font-size="15" fill="#555">Metric definitions · Dimensions · Joins · Grain · Access permissions</text>
+<path d="M500 456V483" stroke="#737373" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="496" width="920" height="58" rx="10" fill="white" stroke="#d4d4d4"/>
+<text x="500" y="532" font-size="18" font-weight="600" fill="#202020">DB · Data Warehouse · Mart</text>
+</g></svg>

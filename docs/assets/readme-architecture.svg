@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="580" viewBox="0 0 1000 580" role="img" aria-labelledby="title desc">
+<title id="title">HEARTCOUNT Decision Layer 구성</title>
+<desc id="desc">App과 AI Agent가 REST, Python 또는 MCP로 공통 실행 엔진을 호출한다. Decision Layer는 Method와 Recipe를 실행하고 Run에 근거를 기록한다. Semantic Layer가 지표의 정의와 데이터 조회를 담당하며 DB와 Mart에 연결된다.</desc>
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="none" stroke="#737373" stroke-width="1.5"/></marker></defs>
+<rect width="1000" height="580" rx="16" fill="#fafafa"/>
+<g font-family="-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Noto Sans KR',sans-serif" text-anchor="middle">
+<rect x="40" y="25" width="920" height="68" rx="10" fill="white" stroke="#d4d4d4"/>
+<text x="500" y="54" font-size="19" font-weight="700" fill="#202020">App · AI Agent · 분석가</text>
+<text x="500" y="78" font-size="15" fill="#555">Web · Python · REST · MCP</text>
+<path d="M500 99V126" stroke="#737373" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="139" width="920" height="184" rx="10" fill="#fff3ed" stroke="#ff4300" stroke-width="1.8"/>
+<text x="500" y="172" font-size="22" font-weight="700" fill="#c73500">HEARTCOUNT Decision Layer</text>
+<rect x="67" y="191" width="268" height="63" rx="8" fill="white" stroke="#f1c4b3"/>
+<text x="201" y="216" font-size="17" font-weight="600" fill="#262626">Method</text><text x="201" y="239" font-size="14" fill="#555">하나의 분석 기능</text>
+<rect x="366" y="191" width="268" height="63" rx="8" fill="white" stroke="#f1c4b3"/>
+<text x="500" y="216" font-size="17" font-weight="600" fill="#262626">Recipe</text><text x="500" y="239" font-size="14" fill="#555">재사용 가능한 분석 절차</text>
+<rect x="665" y="191" width="268" height="63" rx="8" fill="white" stroke="#f1c4b3"/>
+<text x="799" y="216" font-size="17" font-weight="600" fill="#262626">Run</text><text x="799" y="239" font-size="14" fill="#555">실행 결과와 근거 기록</text>
+<text x="500" y="288" font-size="16" font-weight="600" fill="#333">공통 실행 엔진</text><text x="500" y="309" font-size="14" fill="#555">입력 검증 · 단계 실행 · 대상 선택 · 실행 근거</text>
+<path d="M500 329V356" stroke="#737373" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="369" width="920" height="81" rx="10" fill="white" stroke="#d4d4d4"/>
+<text x="500" y="400" font-size="19" font-weight="700" fill="#202020">Semantic Layer — Cube · dbt Semantic Layer</text>
+<text x="500" y="427" font-size="15" fill="#555">지표 정의 · 차원 · 조인 · 집계 단위 · 접근 권한</text>
+<path d="M500 456V483" stroke="#737373" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="40" y="496" width="920" height="58" rx="10" fill="white" stroke="#d4d4d4"/>
+<text x="500" y="532" font-size="18" font-weight="600" fill="#202020">DB · Data Warehouse · Mart</text>
+</g></svg>
