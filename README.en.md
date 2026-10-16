@@ -6,6 +6,8 @@ Decision Layer is an open-source framework that sits above a semantic layer and 
 
 [Documentation](https://decision-layer-docs.vercel.app/) · [Quickstart](#5-run-decision-layer) · [Usage examples](#6-use-it-with-your-data-and-agents) · [한국어](README.md) · [Contact](mailto:support@idk2.co.kr)
 
+Preview without installing: [revenue analysis screenshot](#example-one-procedure-different-investigation-paths) · [Claude + Semantic MCP video (Korean)](https://community.heartcount.io/ko/manufacturing-decision-intelligence-bga/)
+
 ## 1. What is it?
 
 When someone asks, “Why did revenue fall this month?”, an experienced analyst does more than look up a number. They choose a comparison period, narrow the investigation by product category, region, and customer segment, and examine units sold, selling prices, and discounts together.
@@ -14,7 +16,19 @@ Decision Layer captures this **procedural knowledge** in an executable Recipe. R
 
 > Reuse the procedure. Calculate the answer from the current data.
 
+### Example: one procedure, different investigation paths
+
+The screenshot below comes from a local PostgreSQL and Cube setup with synthetic retail data. April's investigation follows **Fashion → Yeongnam region → Premium customers** and examines revenue alongside units, selling price, and discounts. The same Recipe selects a different group in March and requests input when revenue declines tie in May. [See the procedure and monthly results](#step-2-capture-your-teams-procedure-in-a-recipe).
+
+![Actual April Run in the Korean Web UI: Fashion, Yeongnam, and Premium customers, with revenue, units, average selling price, and discount rate.](docs/assets/revenue-change-april.jpg)
+
 ## 2. Why is it needed? How is it different?
+
+### Reliable AI analysis needs an execution framework
+
+Using AI analysis at work requires clear inputs, investigation steps, analytical methods, and checks on the results. When required inputs are missing or the next group to investigate is ambiguous, the analysis should request clarification.
+
+Decision Layer applies these rules to analytical procedures and records actual inputs, selected paths, queries, results, and validation. Teams and AI agents can reuse analytical know-how and inspect how it was applied.
 
 ### A semantic layer defines metrics. An analysis also needs a procedure.
 
@@ -27,13 +41,18 @@ A semantic layer manages revenue definitions, aggregation rules, and relationshi
 
 If the agent makes these choices anew each time, the same question can lead to different comparison criteria and analysis paths. Decision Layer makes your team's procedure explicit and lets you inspect how it was executed.
 
-| | Semantic Layer | Decision Layer |
-| --- | --- | --- |
-| Core question | What does this metric mean, and how is it calculated? | How should this business question be investigated? |
-| Manages | Metric definitions, dimensions, joins, grain, access permissions | Related metrics, analysis dimensions, Methods, step dependencies, selection rules |
-| Revenue example | Sum the amount after discounts for completed orders | Compare months, then investigate the largest decline by category → region → customer segment |
-
 Together, the two layers let you manage **metric definitions and analysis procedures separately**. Formulas, joins, and access rules remain in the semantic layer. Decision Layer references those definitions.
+
+For example, ask the same question against the same data: **“Why did revenue fall in April compared with March? Where should we investigate first?”**
+
+| | Agent + Semantic Layer | Agent + Semantic Layer + Decision Layer |
+| --- | --- | --- |
+| Metric calculation | Query the company's definitions of revenue, units, and selling price | Use the same metric definitions |
+| Analysis sequence | Without a separately implemented procedure, the agent plans from the question and instructions | Follow the saved Recipe: category → region → customer segment |
+| Group selection | The agent interprets the question and instructions to choose a group | In this example, select the group with the largest month-over-month revenue decline at each step |
+| Execution evidence | Depends on the agent's tools and logging implementation | A Run records actual inputs, selected paths, queries, results, and validation |
+
+An agent connected only to a semantic layer can reach the same findings. Decision Layer makes the team's agreed procedure reusable and its execution inspectable.
 
 ### How is this different from SKILL.md?
 
@@ -50,34 +69,61 @@ They can work together. A skill can explain when to use an analysis, while Decis
 
 ## 3. Who is it for?
 
-**Developers and organizations building AI agents for structured data analysis.**
+The primary audience is **developers and data platform teams building AI agents for structured data analysis**. They connect procedures defined by analysts and domain experts so that business users and AI agents can execute them and inspect the evidence.
 
-- **Agent and app developers** who need reusable analysis procedures alongside metric queries.
-- **Analysts and domain experts** who want their team and AI agents to reuse established analytical know-how.
-- **Data platform teams** who want to build on an existing semantic layer and inspect how analyses were executed.
+| Role | Who | Responsibility |
+| --- | --- | --- |
+| Integration and operation | Developers and data platform teams | Connect semantic sources, apps, and agents; configure the runtime |
+| Procedure authoring and review | Analysts and domain experts, working with developers when needed | Define related metrics, investigation order, methods, and selection rules in Recipes |
+| Analysis use | Business users and analysts | Ask through the Web UI, an agent, or an app; review results and evidence |
 
 Use it for recurring questions about revenue, costs, customer churn, or operational quality. Each use case needs appropriate metric definitions and an analysis procedure.
 
 ## 4. Architecture and components
 
+**DB · Warehouse · Mart ↔ Semantic Layer ↔ Decision Layer ↔ Agent · App**
+
 ![Apps and AI agents call Decision Layer through MCP or an API. Its shared engine executes Methods and Recipes, records Runs, and queries databases and marts through the semantic layer.](docs/assets/readme-architecture-en.svg)
 
-| Component | Role |
+| Layer | Responsibility |
 | --- | --- |
-| **Semantic Source** | Connects to metrics and dimensions in Cube or dbt Semantic Layer |
+| **DB · Warehouse · Mart** | Store source data and cleaned, integrated analytical data |
+| **Semantic Layer** | Manage metric definitions, formulas, dimensions, relationships, grain, and data access rules |
+| **Decision Layer** | Manage analysis procedures, methods, and selection rules; execute, validate, and record evidence |
+| **Agent · App** | Request analyses for questions or monitoring conditions; explain and deliver results |
+
+Configure the semantic layer to enforce data access rules, backed by database permissions. The identity established by your organization's login or SSO must carry through to data queries. **Who can edit Recipes or view saved Runs** is a separate authorization responsibility for Decision Layer and the application. See the [current limitations below](#7-roadmap).
+
+Decision Layer has three core components:
+
+| Component | Meaning |
+| --- | --- |
 | **Method** | One analytical capability, such as aggregation, period comparison, or drilldown |
-| **Recipe** | Your team's reusable analysis procedure, composed of Methods and metric references |
-| **Run** | One execution, with its step results and supporting evidence |
-| **Shared execution engine** | Validates inputs and scope, executes steps, resolves selections, and records evidence |
-| **Web · Python · REST · MCP** | Interfaces for people, applications, and AI agents |
+| **Recipe** | A reusable procedure composed of Methods and semantic references |
+| **Run — analysis execution record** | One analysis with its actual inputs, period, selected paths, versions, queries, results, and validation |
+
+Running the same Recipe for March and April creates separate Runs. A Run can also be in progress or waiting for additional input.
 
 Current semantic providers are **Cube REST API** and the **official dbt Semantic Layer GraphQL API**. The core query Methods cover aggregation, trends and period comparisons, and drilldown. You can add Methods in Python.
 
-AI agents select registered Methods and Recipes and explain the results. Analysis runs through the shared engine; executing AI-generated analytical Python or SQL is outside this execution path.
+Web, Python, REST, and MCP share one execution engine. AI agents select registered Methods and Recipes and explain the results; execution passes through the engine's input validation and execution rules.
+
+Agents can use this architecture in two modes:
+
+- **Interactive analysis:** Interpret a question → identify metrics and periods → select a Recipe or explore with registered Methods → request analysis → explain results and evidence.
+- **Always-on analysis (planned):** Check changes on a schedule or event → investigate with an appropriate Recipe → deliver important findings as reports or alerts. The direction is to reuse the same definitions, permissions, and procedures.
 
 [Architecture](docs/ARCHITECTURE.md) · [Method development](docs/guides/methods.md) · [Recipe guide](docs/guides/recipes.md)
 
 ## 5. Run Decision Layer
+
+Start at the level you need:
+
+| Experience | What you need |
+| --- | --- |
+| Preview screenshots and video | Open the [revenue analysis screenshot](#example-one-procedure-different-investigation-paths) or [Claude demo (Korean)](https://community.heartcount.io/ko/manufacturing-decision-intelligence-bga/). No installation required. |
+| Run the Web sample | Git and running Docker with Compose v2 |
+| Connect an AI client | Add Node.js and Claude Code to the sample setup, or use the MCP configuration for your client |
 
 ### Start with sample data
 
@@ -135,7 +181,7 @@ If you already use Cube or dbt Semantic Layer, reuse those definitions. Need hel
 
 Compose existing Methods into a Recipe, or review a useful Run and save its procedure as a Recipe. Use the Web UI to build the procedure and YAML for detailed settings. AI coding tools can help draft Recipes and Python Methods; review them against your business rules before registering them.
 
-The following revenue investigation uses **six months of synthetic retail data**, executed locally against PostgreSQL and Cube. It uses a separate dataset and Recipe from the built-in quickstart above. The screenshots retain the original Korean UI labels; the results are summarized in English below.
+The following revenue investigation uses **six months of synthetic retail data**, executed locally against PostgreSQL and Cube. It uses a separate dataset and Recipe from the built-in quickstart above. The extended example's data, model, Recipe, and supporting code changes have not yet been released on GitHub main. The screenshots retain the original Korean UI labels; the results are summarized in English below.
 
 > Where did revenue fall compared with the previous month? Narrow the investigation by product category → region → customer segment, then compare units sold, average selling price, and discount rate.
 
@@ -156,8 +202,6 @@ All revenue amounts below are in Korean won (KRW).
 | May vs. April | Household goods and Food tie | Each declines by 1.62M KRW. Ask which category to investigate; regional queries wait. |
 
 **The Recipe stores the rule for selecting a group from the current data. Each execution resolves that rule again.**
-
-![Actual April Run in the Korean Web UI: Fashion, Yeongnam, and Premium customers, with revenue, units, average selling price, and discount rate.](docs/assets/revenue-change-april.jpg)
 
 <details>
 <summary>May: what happens when candidates tie?</summary>
@@ -192,10 +236,17 @@ This is a separate HEARTCOUNT use case. It is distinct from this repository's bu
 
 ## 7. Roadmap
 
-These are **planned directions**, beyond the current installation:
+| Stage | Direction | Intended outcome |
+| --- | --- | --- |
+| Available now | Semantic source connections, Method and Recipe execution, Runs and evidence | Reuse a procedure for a new period and inspect resolved inputs, queries, and validation |
+| Near-term priorities | Publish the extended revenue example; improve role-specific onboarding and evidence review | Reproduce the example in a fresh environment and inspect execution and requests for input |
+| Under consideration | A hosted demo requiring no local installation | Try the analysis and evidence-review workflow before setting up a runtime |
+| Expansion | More industry and business Recipes and Methods | Examples for recurring revenue, customer, cost, and operations questions |
+| Expansion | Always-on Analytical Agent | Detect meaningful changes → investigate with Recipes → deliver evidence-backed reports, while reducing repetitive alerts |
 
-- **Always-on Analytical Agent:** Detect meaningful changes in metrics and data, investigate with appropriate Recipes, and produce reports with supporting evidence. The aim is to focus human attention on useful changes and reduce repetitive alerts.
-- **More industry and business Recipes and Methods:** Expand reusable examples and analytical capabilities for recurring questions about revenue, customers, costs, and operations.
+Items beyond “Available now” are planned or under consideration, with no release dates set. **A public hosted demo and Always-on analysis are not currently provided.**
+
+Organizational deployment requires user authentication, data access integration, and analysis-asset authorization. The local sample uses a shared service account. Separate Recipe author/editor roles are not yet implemented, so the current Web UI and API should run locally or on a trusted private network. [Authorization scope](docs/DECISIONS.md#adr-038--defer-recipe-author-authorization-to-application-login).
 
 Suggest use cases and analytical capabilities through [GitHub Issues](https://github.com/haechangcho/decision-layer/issues).
 
@@ -212,7 +263,13 @@ Contribute analytical Methods, business Recipes, reproducible examples, or docum
 
 [Small contribution ideas](docs/guides/contribute-examples.md) · [Develop a Method](docs/guides/methods.md) · [Development setup](docs/guides/development.md) · [Contributing](CONTRIBUTING.md)
 
-Analytical validity depends on metric definitions, data quality, the procedure, and the method's assumptions. See the [evaluation guide](docs/guides/evaluation.md) and [pilot results](docs/guides/benchmark-pilot.md) for the current evaluation scope and measured performance.
+## Evaluation scope
+
+The screenshots in this README demonstrate procedure reuse and execution evidence on synthetic data. Analytical validity depends on metric definitions, data quality, the procedure, and the method's assumptions.
+
+In the existing 18-trial pilot, both Semantic MCP with detailed instructions and Decision Layer with a saved Recipe passed 9/9 numeric checks and 3/3 tied-group input checks. Decision Layer used more tokens and had higher estimated cost and latency. This small experiment does not establish superior accuracy or cost savings. [Results and limitations](docs/guides/benchmark-pilot.md).
+
+Future evaluation will examine procedure adherence, manual corrections, evidence-review time, and execution cost together. [Evaluation protocol](docs/guides/evaluation.md).
 
 ## Adoption support and license
 
