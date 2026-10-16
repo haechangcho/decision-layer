@@ -12,6 +12,7 @@ import { RecipeDelete } from "@/features/recipes/recipe-delete";
 import { RecipeRuntimeInputs } from "@/features/recipes/recipe-runtime-inputs";
 import { suggestedDateRange, suggestedTimeDimension } from "@/lib/semantic-dates";
 import { useApi, useCatalog } from "@/lib/hooks";
+import { type Translate, useT } from "@/lib/i18n";
 import styles from "../../library.module.css";
 import { methodName } from "@/lib/method-name";
 
@@ -31,11 +32,12 @@ function datePreset(preset: "month" | "quarter" | "year", referenceDate?: string
   return [formatDate(start), formatDate(end)];
 }
 
-function titleFor(ref: string, objects: SemanticObject[]) {
-  return objects.find((object) => object.ref === ref)?.title ?? "이름 확인 필요";
+function titleFor(ref: string, objects: SemanticObject[], t: Translate) {
+  return objects.find((object) => object.ref === ref)?.title ?? t("Name needs checking");
 }
 
 export default function RecipePage() {
+  const t = useT();
   const { name } = useParams<{ name: string }>();
   const router = useRouter();
   const { data: recipe, error, loading } = useApi<Recipe>(name === "new" ? null : `/recipes/${encodeURIComponent(name)}`);
@@ -81,7 +83,7 @@ export default function RecipePage() {
   const useAllDates = allDates && !needsTime;
   const usePeriodRule = !datesTouched.current && recipe?.default_scope?.period?.mode === "relative";
   const missingPeriod = !usePeriodRule && !useAllDates && ((needsTime && (!dates[0] || !dates[1] || !selectedTime)) || (timeDimensions.length > 0 && !!dates[0] && !!dates[1] && !selectedTime));
-  const metric = recipe ? titleFor(recipe.semantic_scope.primary_metric, objects) : "";
+  const metric = recipe ? titleFor(recipe.semantic_scope.primary_metric, objects, t) : "";
 
   async function run() {
     if (!recipe) return;
@@ -96,60 +98,60 @@ export default function RecipePage() {
       const runId = "id" in result ? result.id : result.run_id;
       router.push(`/runs/${runId}`);
     } catch (cause) {
-      setRunError(cause instanceof Error ? cause : new Error("분석을 시작하지 못했습니다."));
+      setRunError(cause instanceof Error ? cause : new Error(t("Could not start the analysis.")));
       setBusy(false);
     }
   }
 
-  if (error) return <div className={styles.page}><p className={styles.error} role="alert">Recipe를 불러오지 못했습니다. {error.message}</p><Link className={styles.back} href="/recipes"><ArrowLeft size={15} />Recipe 목록</Link></div>;
+  if (error) return <div className={styles.page}><p className={styles.error} role="alert">{t("Could not load the Recipe.")} {error.message}</p><Link className={styles.back} href="/recipes"><ArrowLeft size={15} />{t("Recipe list")}</Link></div>;
   if (name === "new") return <RecipeEditor />;
   if (loading || !recipe) return <div className={styles.page}><LoadingState /></div>;
 
   return <div className={styles.page}>
-    <Link className={styles.back} href="/recipes"><ArrowLeft size={15} />Recipe 목록</Link>
-    <div className={styles.heading}><div><p className={styles.eyebrow}>분석 절차 · v{recipe.version}</p><h1>{recipe.description || recipe.name}</h1></div><div className={styles.recipeActions}><Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}/edit`}>Recipe 편집 <ArrowRight size={15} /></Link><RecipeDelete recipe={recipe} onDeleted={() => router.push("/recipes")} /></div></div>
-    {recipe.mode === "investigation" && <p className={styles.runNotice}>이 Recipe는 결과를 보고 다음 단계를 정하는 탐색형 절차입니다. Claude·Codex에서는 Recipe 이름 <strong>{recipe.name}</strong>을 지정해 사용할 수 있습니다. 웹에서는 아래에서 직접 단계를 선택하며 진행합니다.</p>}
+    <Link className={styles.back} href="/recipes"><ArrowLeft size={15} />{t("Recipe list")}</Link>
+    <div className={styles.heading}><div><p className={styles.eyebrow}>{t("Analysis procedure")} · v{recipe.version}</p><h1>{recipe.description || recipe.name}</h1></div><div className={styles.recipeActions}><Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}/edit`}>{t("Edit Recipe")} <ArrowRight size={15} /></Link><RecipeDelete recipe={recipe} onDeleted={() => router.push("/recipes")} /></div></div>
+    {recipe.mode === "investigation" && <p className={styles.runNotice}>{t("This Recipe is an exploratory procedure that picks the next step from each result. In Claude or Codex, use it by naming the Recipe {name}. On the web, choose each step below.", { name: recipe.name })}</p>}
     <div className={styles.recipeRunGrid}>
       <section className={styles.recipeRunPanel}>
-        <h2>분석 조건</h2>
-        <dl className={styles.meta}><div className={styles.metaRow}><dt>중심 지표</dt><dd>{metric}</dd></div></dl>
+        <h2>{t("Analysis conditions")}</h2>
+        <dl className={styles.meta}><div className={styles.metaRow}><dt>{t("Primary metric")}</dt><dd>{metric}</dd></div></dl>
         <RecipeRuntimeInputs specs={recipe.inputs ?? {}} values={inputs} onChange={setInputs} objects={objects} />
-        {needsTime && timeDimensions.length === 0 && <p className={styles.error} role="alert">이 지표와 연결된 날짜 기준을 찾지 못했습니다. 시맨틱 모델의 시간 차원을 확인하거나 <Link href="/catalog">다른 지표를 선택하세요.</Link></p>}
-        {!needsTime && policy?.allow_all && <label className="check"><input type="checkbox" checked={allDates} onChange={event => { setAllDates(event.target.checked); if (!event.target.checked && !dates[0]) chooseDates(recommendedPeriod ?? datePreset("month")); }} />전체 기간</label>}
-        {!useAllDates && timeDimensions.length > 0 && <label className={styles.runField}>날짜 기준
-          <select aria-label="날짜 기준" value={selectedTime} onChange={(event) => setTimeDimension(event.target.value)}><option value="">날짜 기준 선택</option>{timeDimensions.map((object) => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
+        {needsTime && timeDimensions.length === 0 && <p className={styles.error} role="alert">{t("No date dimension linked to this metric was found. Check the time dimensions in the semantic model or")} <Link href="/catalog">{t("choose another metric.")}</Link></p>}
+        {!needsTime && policy?.allow_all && <label className="check"><input type="checkbox" checked={allDates} onChange={event => { setAllDates(event.target.checked); if (!event.target.checked && !dates[0]) chooseDates(recommendedPeriod ?? datePreset("month")); }} />{t("All periods")}</label>}
+        {!useAllDates && timeDimensions.length > 0 && <label className={styles.runField}>{t("Date dimension")}
+          <select aria-label={t("Date dimension")} value={selectedTime} onChange={(event) => setTimeDimension(event.target.value)}><option value="">{t("Choose a date dimension")}</option>{timeDimensions.map((object) => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
         </label>}
-        {needsTime && timeDimensions.length > 1 && recommendedTime === 0 && <p className="hint">연결된 메타데이터만으로 관련 날짜를 확인할 수 없어 직접 선택해야 합니다.</p>}
-        {!useAllDates && (timeDimensions.length > 0 || needsTime) && <><div className={styles.fieldHeading}><label htmlFor="run-start">분석 기간</label><CalendarDays size={15} /></div>
-        <div className={styles.datePresets} role="group" aria-label="기간 빠른 선택">
-          {recommendedPeriod && <button type="button" onClick={() => chooseDates(recommendedPeriod)}>추천 기간</button>}
-          <button type="button" onClick={() => chooseDates(datePreset("month", recommendedPeriod?.[1]))}>{recommendedPeriod ? "최근 월" : "이번 달"}</button>
-          <button type="button" onClick={() => chooseDates(datePreset("quarter", recommendedPeriod?.[1]))}>지난 분기</button>
-          <button type="button" onClick={() => chooseDates(datePreset("year", recommendedPeriod?.[1]))}>{recommendedPeriod ? `${recommendedPeriod[1].slice(0, 4)}년` : "올해"}</button>
+        {needsTime && timeDimensions.length > 1 && recommendedTime === 0 && <p className="hint">{t("The connected metadata cannot identify the relevant date, so choose one.")}</p>}
+        {!useAllDates && (timeDimensions.length > 0 || needsTime) && <><div className={styles.fieldHeading}><label htmlFor="run-start">{t("Analysis period")}</label><CalendarDays size={15} /></div>
+        <div className={styles.datePresets} role="group" aria-label={t("Quick period choices")}>
+          {recommendedPeriod && <button type="button" onClick={() => chooseDates(recommendedPeriod)}>{t("Suggested period")}</button>}
+          <button type="button" onClick={() => chooseDates(datePreset("month", recommendedPeriod?.[1]))}>{t(recommendedPeriod ? "Latest month" : "This month")}</button>
+          <button type="button" onClick={() => chooseDates(datePreset("quarter", recommendedPeriod?.[1]))}>{t("Last quarter")}</button>
+          <button type="button" onClick={() => chooseDates(datePreset("year", recommendedPeriod?.[1]))}>{recommendedPeriod ? t("Year {year}", { year: recommendedPeriod[1].slice(0, 4) }) : t("This year")}</button>
         </div>
-        <div className={styles.dateFields}><label className={styles.runField} htmlFor="run-start">시작일<input id="run-start" type="date" value={dates[0]} onChange={(event) => chooseDates([event.target.value, dates[1]])} /></label><label className={styles.runField} htmlFor="run-end">종료일<input id="run-end" type="date" value={dates[1]} onChange={(event) => chooseDates([dates[0], event.target.value])} /></label></div></>}
-        {!useAllDates && recommendedPeriod && <p className="hint">추천 분석 기간: {recommendedPeriod.join(" ~ ")}{timeDimensions.find(object => object.ref === selectedTime)?.metadata?.calendarType === "mapped" ? " · 변환된 달력" : ""}</p>}
-        {dates[0] > dates[1] && <p className={styles.error} role="alert">종료일은 시작일보다 늦어야 합니다. 날짜를 다시 선택하세요.</p>}
-        {needsTime && !selectedTime && timeDimensions.length > 0 && <p className="hint">분석을 시작하려면 날짜 기준을 선택하세요.</p>}
-        <label className={styles.runField} htmlFor="run-question">분석 메모 <span>선택</span><input id="run-question" value={question} onChange={(event) => setQuestion(event.target.value)} /></label>
-        {recipe.semantic_scope.preferred_dimensions.length > 0 && <div className={styles.runContext}><strong>살펴보는 분류</strong><p>{recipe.semantic_scope.preferred_dimensions.map((ref) => titleFor(ref, objects)).join(" · ")}</p></div>}
-        {runError && <div className={styles.error} role="alert"><strong>분석을 시작하지 못했습니다.</strong> {runError.message}<br />
+        <div className={styles.dateFields}><label className={styles.runField} htmlFor="run-start">{t("Start date")}<input id="run-start" type="date" value={dates[0]} onChange={(event) => chooseDates([event.target.value, dates[1]])} /></label><label className={styles.runField} htmlFor="run-end">{t("End date")}<input id="run-end" type="date" value={dates[1]} onChange={(event) => chooseDates([dates[0], event.target.value])} /></label></div></>}
+        {!useAllDates && recommendedPeriod && <p className="hint">{t("Suggested analysis period: {period}", { period: recommendedPeriod.join(" ~ ") })}{timeDimensions.find(object => object.ref === selectedTime)?.metadata?.calendarType === "mapped" ? ` · ${t("mapped calendar")}` : ""}</p>}
+        {dates[0] > dates[1] && <p className={styles.error} role="alert">{t("The end date must be after the start date. Choose the dates again.")}</p>}
+        {needsTime && !selectedTime && timeDimensions.length > 0 && <p className="hint">{t("Choose a date dimension to start the analysis.")}</p>}
+        <label className={styles.runField} htmlFor="run-question">{t("Analysis note")} <span>{t("optional")}</span><input id="run-question" value={question} onChange={(event) => setQuestion(event.target.value)} /></label>
+        {recipe.semantic_scope.preferred_dimensions.length > 0 && <div className={styles.runContext}><strong>{t("Categories examined")}</strong><p>{recipe.semantic_scope.preferred_dimensions.map((ref) => titleFor(ref, objects, t)).join(" · ")}</p></div>}
+        {runError && <div className={styles.error} role="alert"><strong>{t("Could not start the analysis.")}</strong> {runError.message}<br />
           {runError instanceof ApiError && (runError.status === 401 || runError.status === 403)
-            ? <><Link href="/sources">연결 확인</Link> · <Link href="/catalog">접근 가능한 지표 확인</Link></>
+            ? <><Link href="/sources">{t("Check connection")}</Link> · <Link href="/catalog">{t("Check accessible metrics")}</Link></>
             : runError instanceof ApiError && runError.status === 422
-              ? "분석 조건을 확인하고 다시 실행하세요."
-              : "잠시 후 다시 시도하세요."}
+              ? t("Check the analysis conditions and run again.")
+              : t("Try again in a moment.")}
         </div>}
-        <button className={styles.runPrimary} type="button" disabled={busy || (needsTime && timeDimensions.length === 0) || missingPeriod || dates[0] > dates[1]} onClick={run}><Play size={16} />{busy ? "분석을 시작하는 중…" : recipe.mode === "investigation" ? "웹에서 탐색 시작" : "이 Recipe로 분석"}</button>
+        <button className={styles.runPrimary} type="button" disabled={busy || (needsTime && timeDimensions.length === 0) || missingPeriod || dates[0] > dates[1]} onClick={run}><Play size={16} />{t(busy ? "Starting analysis…" : recipe.mode === "investigation" ? "Start exploring on the web" : "Analyze with this Recipe")}</button>
       </section>
       <aside className={styles.recipeRunAside}>
-        <h2>이 분석이 확인하는 내용</h2>
+        <h2>{t("What this analysis checks")}</h2>
         <p>{recipe.routing.objective || (recipe.routing.use_for.length ? recipe.routing.use_for.join(" · ") :
-          recipe.origin_runs?.length ? recipe.steps.map(step => methodName(step.method)).join(" → ") : recipe.description)}</p>
-        {!!recipe.origin_runs?.length && <div className={styles.runContext}><strong>처음 분석한 질문</strong><p>{recipe.source_question || recipe.description}</p></div>}
-        <div className={styles.runContext}><strong>이번 실행 조건</strong><p>위에서 선택한 기간으로 실행합니다. 단계에 고정된 비교 기간이나 조건이 있다면 그대로 적용됩니다.</p></div>
-        {recipe.routing.do_not_use_for.length > 0 && <div className={styles.runContext}><strong>다른 절차가 필요한 질문</strong><p>{recipe.routing.do_not_use_for.join(" · ")}</p></div>}
-        <Link href="/runs">최근 실행 기록 보기 <ArrowRight size={14} /></Link>
+          recipe.origin_runs?.length ? recipe.steps.map(step => methodName(step.method, t)).join(" → ") : recipe.description)}</p>
+        {!!recipe.origin_runs?.length && <div className={styles.runContext}><strong>{t("Original question")}</strong><p>{recipe.source_question || recipe.description}</p></div>}
+        <div className={styles.runContext}><strong>{t("Conditions for this run")}</strong><p>{t("Runs with the period chosen above. Comparison periods or conditions fixed in a step still apply.")}</p></div>
+        {recipe.routing.do_not_use_for.length > 0 && <div className={styles.runContext}><strong>{t("Questions that need another procedure")}</strong><p>{recipe.routing.do_not_use_for.join(" · ")}</p></div>}
+        <Link href="/runs">{t("View recent runs")} <ArrowRight size={14} /></Link>
       </aside>
     </div>
   </div>;

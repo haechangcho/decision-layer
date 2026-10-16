@@ -15,11 +15,11 @@ export default function RecipesPage() {
   const { data, error, loading, reload } = useApi<Recipe[]>("/recipes");
   const { data: drafts, reload: reloadDrafts } = useApi<Recipe[]>("/recipes:drafts");
   const [deleted, setDeleted] = useState("");
-  const onDeleted = (recipe: Recipe) => { setDeleted(`${recipe.description || recipe.name} 삭제됨`); reload(); reloadDrafts(); };
+  const onDeleted = (recipe: Recipe) => { setDeleted(t("{name} deleted", { name: recipe.description || recipe.name })); reload(); reloadDrafts(); };
   const { byRef } = useCatalog();
   const [search, setSearch] = useState("");
   const t = useT();
-  const title = (ref: string) => byRef.get(ref)?.title ?? "지표 이름 확인 필요";
+  const title = (ref: string) => byRef.get(ref)?.title ?? t("Metric name needs checking");
   const shown = useMemo(() => (data ?? []).filter((recipe) => {
     const text = `${recipe.name} ${recipe.description} ${recipe.semantic_scope.primary_metric} ${title(recipe.semantic_scope.primary_metric)} ${recipe.routing.use_for.join(" ")}`.toLowerCase();
     return text.includes(search.trim().toLowerCase());
@@ -54,8 +54,8 @@ export default function RecipesPage() {
       </Link><RecipeDelete recipe={recipe} onDeleted={() => onDeleted(recipe)} /></div>)}
       {!loading && !error && shown.length === 0 && <div className={styles.libraryNoResults}><strong>{t("No matching analyses")}</strong><button type="button" className="ghost" onClick={() => setSearch("")}>{t("Clear search")}</button></div>}
     </section>}
-    {!!drafts?.length && <section className={styles.libraryList} aria-label="작성 중인 초안"><div className={styles.libraryToolbar}><strong>작성 중인 초안</strong><span className={styles.libraryCount}>{drafts.length}개</span></div>
-      {drafts.map((recipe) => <div key={recipe.name} className={styles.libraryItem}><Link className={styles.libraryRow} href={`/recipes/${encodeURIComponent(recipe.name)}/edit`}><span className={styles.libraryName}><strong>{recipe.description || recipe.name}</strong><small>v{recipe.version} · 발행 전</small></span><span className={styles.libraryMetric}>{title(recipe.semantic_scope.primary_metric)}</span><span className={styles.librarySteps}>{recipe.steps.length}단계</span><ArrowRight size={17} className={styles.libraryArrow} /></Link><RecipeDelete recipe={recipe} onDeleted={() => onDeleted(recipe)} /></div>)}
+    {!!drafts?.length && <section className={styles.libraryList} aria-label={t("Drafts in progress")}><div className={styles.libraryToolbar}><strong>{t("Drafts in progress")}</strong><span className={styles.libraryCount}>{t("{count} items", { count: drafts.length })}</span></div>
+      {drafts.map((recipe) => <div key={recipe.name} className={styles.libraryItem}><Link className={styles.libraryRow} href={`/recipes/${encodeURIComponent(recipe.name)}/edit`}><span className={styles.libraryName}><strong>{recipe.description || recipe.name}</strong><small>v{recipe.version} · {t("Unpublished")}</small></span><span className={styles.libraryMetric}>{title(recipe.semantic_scope.primary_metric)}</span><span className={styles.librarySteps}>{t("{count} steps", { count: recipe.steps.length })}</span><ArrowRight size={17} className={styles.libraryArrow} /></Link><RecipeDelete recipe={recipe} onDeleted={() => onDeleted(recipe)} /></div>)}
     </section>}
   </div>;
 }

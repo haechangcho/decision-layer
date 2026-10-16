@@ -7,6 +7,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || "http://127.0.0.1:5210",
     browserName: "chromium",
+    locale: "ko-KR",   // specs assert the Korean UI; the browser language selects it
     launchOptions: process.env.PW_CHROMIUM_EXECUTABLE ? { executablePath: process.env.PW_CHROMIUM_EXECUTABLE } : {},
     screenshot: "only-on-failure",
     trace: "retain-on-failure",

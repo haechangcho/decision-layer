@@ -8,7 +8,7 @@ import { timeSeriesData } from "@/lib/artifact-data";
 import { isAssociation } from "@/lib/interpretation";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useT } from "@/lib/i18n";
+import { type Translate, useT } from "@/lib/i18n";
 import { populationLabel } from "@/lib/run-story";
 import { RunQueries, RunSources } from "@/features/runs/run-evidence";
 import styles from "./result-table.module.css";
@@ -16,44 +16,45 @@ import styles from "./result-table.module.css";
 type Titles = Map<string, SemanticObject>;
 
 const labels: Record<string, string> = {
-  value: "그룹", metric: "지표 값", count: "건수", share_of_count: "건수 비중 (%)",
-  vs_overall: "전체 대비", rank: "순위", current: "분석 기간", comparison: "비교 기간",
-  change: "변화", change_pct: "변화율 (%)", period: "기간", before: "이전", after: "이후",
-  selected_among: "비교 대상 그룹", excluded_small: "최소 건수 미만 그룹", drill_path: "드릴다운 경로",
-  direction: "정렬 방향", rank_by: "정렬 기준", granularity: "시간 단위",
-  difference_from_subject: "대상 값 − 비교 집단 값",
-  target: "대상 집단", difference: "차이", raw: "조건 맞춤 전", matched: "조건 맞춤 후",
-  treatment: "비교할 항목", conditions: "맞춘 조건", path: "분석 범위", units: "표본 수",
-  target_units: "대상 표본 수", comparison_units: "비교 표본 수", target_retention: "대상 표본 유지 비율",
-  strata_common: "두 집단에 공통인 조건 조합 수", excluded: "제외된 표본", target_without_comparison: "같은 조건의 비교 표본이 없는 대상",
-  comparison_without_target: "같은 조건의 대상 표본이 없는 비교 표본", condition: "조건 조합",
-  lower: "하한", upper: "상한", low: "하한", high: "상한", confidence: "신뢰 수준", p_value: "p값",
-  significant: "통계적으로 유의한 차이", same_value: "같은 값", same_range: "같은 구간",
-  member: "항목", title: "이름", match: "맞춤 방식", edges: "구간 경계", edges_source: "구간 설정 출처",
-  target_matched_units: "비교에 포함된 대상 표본", comparison_matched_units: "비교에 포함된 비교 표본",
-  strata_total: "전체 조건 조합 수", imbalance_before: "맞춤 전 조건 불균형", imbalance_after: "맞춤 후 조건 불균형",
-  target_missing_condition: "조건 값이 없는 대상 표본", comparison_missing_condition: "조건 값이 없는 비교 표본",
-  thresholds: "비교 허용 기준", min_target_retention: "최소 대상 표본 유지 비율", min_units_per_group: "집단별 최소 표본 수", min_strata: "최소 공통 조건 조합 수",
-  standard_error: "표준 오차", ci95: "95% 신뢰구간", z: "검정 통계량 (z)", selection: "다중 비교 보정",
-  significant_after_selection: "다중 비교 보정 후 유의함", adjusted_critical_z: "보정된 판정 기준 (z)",
+  value: "Group", metric: "Metric value", count: "Count", share_of_count: "Share of count (%)",
+  vs_overall: "Compared with overall", rank: "Rank", current: "Analysis period", comparison: "Comparison period",
+  change: "Change", change_pct: "Change (%)", period: "Period", before: "Before", after: "After",
+  selected_among: "Eligible groups", excluded_small: "Groups below minimum count", drill_path: "Drill path",
+  direction: "Sort direction", rank_by: "Ranked by", granularity: "Time unit",
+  difference_from_subject: "Subject value − comparison group value",
+  target: "Target group", difference: "Difference", raw: "Before matching", matched: "After matching",
+  treatment: "Item to compare", conditions: "Matched conditions", path: "Analysis scope", units: "Sample size",
+  target_units: "Target sample size", comparison_units: "Comparison sample size", target_retention: "Target sample retention",
+  strata_common: "Condition combinations shared by both groups", excluded: "Excluded samples", target_without_comparison: "Targets with no comparison sample under the same conditions",
+  comparison_without_target: "Comparison samples with no target under the same conditions", condition: "Condition combination",
+  lower: "Lower bound", upper: "Upper bound", low: "Lower bound", high: "Upper bound", confidence: "Confidence level", p_value: "p-value",
+  significant: "Statistically significant difference", same_value: "Same value", same_range: "Same range",
+  member: "Item", title: "Name", match: "Matching method", edges: "Range boundaries", edges_source: "Range boundary source",
+  target_matched_units: "Target samples included in the comparison", comparison_matched_units: "Comparison samples included in the comparison",
+  strata_total: "Total condition combinations", imbalance_before: "Condition imbalance before matching", imbalance_after: "Condition imbalance after matching",
+  target_missing_condition: "Target samples missing condition values", comparison_missing_condition: "Comparison samples missing condition values",
+  thresholds: "Comparison thresholds", min_target_retention: "Minimum target sample retention", min_units_per_group: "Minimum sample per group", min_strata: "Minimum shared condition combinations",
+  standard_error: "Standard error", ci95: "95% confidence interval", z: "Test statistic (z)", selection: "Multiple comparison correction",
+  significant_after_selection: "Significant after multiple comparison correction", adjusted_critical_z: "Adjusted critical value (z)",
 };
-const artifactNames: Record<string, string> = { estimate: "비교 결과", interval: "차이의 신뢰구간", balance: "비교 표본과 조건 일치", sample_summary: "표본 요약", table: "세부 데이터", time_series: "기간별 값", breakdown_table: "그룹별 값", warning: "해석 시 주의사항" };
-const labelFor = (key: string, titles: Titles) => {
+const artifactNames: Record<string, string> = { estimate: "Comparison result", interval: "Confidence interval of the difference", balance: "Comparison samples and condition balance", sample_summary: "Sample summary", table: "Detailed data", time_series: "Values by period", breakdown_table: "Values by group", warning: "Cautions for interpretation" };
+const label = (key: string, t: Translate) => labels[key] ? t(labels[key]) : key.replaceAll("_", " ");
+const labelFor = (key: string, titles: Titles, t: Translate) => {
   if (titles.has(key)) return titles.get(key)!.title;
-  if (key.endsWith("#units")) return `${titles.get(key.slice(0, -6))?.title ?? "지표"} 건수`;
-  if (/^[a-z][a-z0-9_-]*:\/\//.test(key)) return "지표 값";
-  if (key.includes(".")) return key.split(".").map(part => labels[part] ?? part.replaceAll("_", " ")).join(" · ");
-  return labels[key] ?? key.replaceAll("_", " ");
+  if (key.endsWith("#units")) return t("{metric} count", { metric: titles.get(key.slice(0, -6))?.title ?? t("metric") });
+  if (/^[a-z][a-z0-9_-]*:\/\//.test(key)) return t("Metric value");
+  if (key.includes(".")) return key.split(".").map(part => label(part, t)).join(" · ");
+  return label(key, t);
 };
 
-function fmt(v: unknown, titles: Titles): string {
+function fmt(v: unknown, titles: Titles, t: Translate): string {
   if (v === null || v === undefined) return "—";
   if (typeof v === "number") return Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { maximumFractionDigits: 4 });
-  if (typeof v === "string") return titles.get(v)?.title ?? (/^[a-z][a-z0-9_-]*:\/\/[^/]+\/[^/]+\/[^/]+$/.test(v) ? "이름 확인 필요" : v);
-  if (typeof v === "boolean") return v ? "예" : "아니요";
-  if (Array.isArray(v) && v.every((x) => typeof x !== "object" || x === null)) return v.length ? v.map((x) => fmt(x, titles)).join(" ~ ") : "없음";
-  if (Array.isArray(v)) return v.map(item => fmt(item, titles)).join(" · ");
-  if (typeof v === "object") return Object.entries(v).map(([key, value]) => `${labelFor(key, titles)}: ${fmt(value, titles)}`).join(" · ");
+  if (typeof v === "string") return titles.get(v)?.title ?? (/^[a-z][a-z0-9_-]*:\/\/[^/]+\/[^/]+\/[^/]+$/.test(v) ? t("Name needs checking") : v);
+  if (typeof v === "boolean") return t(v ? "Yes" : "No");
+  if (Array.isArray(v) && v.every((x) => typeof x !== "object" || x === null)) return v.length ? v.map((x) => fmt(x, titles, t)).join(" ~ ") : t("None");
+  if (Array.isArray(v)) return v.map(item => fmt(item, titles, t)).join(" · ");
+  if (typeof v === "object") return Object.entries(v).map(([key, value]) => `${labelFor(key, titles, t)}: ${fmt(value, titles, t)}`).join(" · ");
   return String(v);
 }
 
@@ -83,19 +84,19 @@ export function DataTable({ rows, titles, columns, columnLabels }: { rows: Recor
   const visible = flat.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
   return (
     <div className={styles.container}>
-      <div className={styles.scroll} tabIndex={0} role="region" aria-label="결과 데이터 표">
+      <div className={styles.scroll} tabIndex={0} role="region" aria-label={t("Result data table")}>
       <table className={styles.table}>
-        <thead><tr>{cols.map((c) => <th scope="col" key={c} className={numeric.has(c) ? styles.numeric : ""}>{columnLabels?.[c] ?? t(labelFor(c, titles))}</th>)}</tr></thead>
+        <thead><tr>{cols.map((c) => <th scope="col" key={c} className={numeric.has(c) ? styles.numeric : ""}>{columnLabels?.[c] ?? labelFor(c, titles, t)}</th>)}</tr></thead>
         <tbody>
           {visible.map((r, i) => (
-            <tr key={i}>{cols.map((c) => <td key={c} className={numeric.has(c) ? styles.numeric : ""}>{fmt(r[c], titles)}</td>)}</tr>
+            <tr key={i}>{cols.map((c) => <td key={c} className={numeric.has(c) ? styles.numeric : ""}>{fmt(r[c], titles, t)}</td>)}</tr>
           ))}
         </tbody>
       </table>
       </div>
-      {lastPage > 0 && <div className={styles.pagination}><span aria-live="polite">{currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, flat.length)} / {flat.length}행</span><div>
-        <button type="button" aria-label="이전 행" title="이전 행" disabled={!currentPage} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={16} /></button>
-        <button type="button" aria-label="다음 행" title="다음 행" disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}><ChevronRight size={16} /></button>
+      {lastPage > 0 && <div className={styles.pagination}><span aria-live="polite">{t("{from}–{to} / {total} rows", { from: currentPage * pageSize + 1, to: Math.min((currentPage + 1) * pageSize, flat.length), total: flat.length })}</span><div>
+        <button type="button" aria-label={t("Previous rows")} title={t("Previous rows")} disabled={!currentPage} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={16} /></button>
+        <button type="button" aria-label={t("Next rows")} title={t("Next rows")} disabled={currentPage === lastPage} onClick={() => setPage(currentPage + 1)}><ChevronRight size={16} /></button>
       </div></div>}
     </div>
   );
@@ -114,30 +115,31 @@ function Value({ value, titles, depth = 0 }: { value: unknown; titles: Titles; d
           <dl className={depth ? "kv nested" : "kv"}>
             {scalars.map(([k, v]) => (
               <div key={k} className="kvrow">
-                <dt>{t(labelFor(k, titles))}</dt>
-                <dd>{v && typeof v === "object" && !Array.isArray(v) ? <Value value={v} titles={titles} depth={depth + 1} /> : typeof v === "number" && ["target_retention", "min_target_retention"].includes(k) ? `${(v * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%` : fmt(v, titles)}</dd>
+                <dt>{labelFor(k, titles, t)}</dt>
+                <dd>{v && typeof v === "object" && !Array.isArray(v) ? <Value value={v} titles={titles} depth={depth + 1} /> : typeof v === "number" && ["target_retention", "min_target_retention"].includes(k) ? `${(v * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%` : fmt(v, titles, t)}</dd>
               </div>
             ))}
           </dl>
         )}
         {tables.map(([k, v]) => (
-          <div key={k}><div className="subhead">{labelFor(k, titles)}</div><Value value={v} titles={titles} depth={depth + 1} /></div>
+          <div key={k}><div className="subhead">{labelFor(k, titles, t)}</div><Value value={v} titles={titles} depth={depth + 1} /></div>
         ))}
       </div>
     );
   }
-  return <span>{fmt(value, titles)}</span>;
+  return <span>{fmt(value, titles, t)}</span>;
 }
 
 export function ArtifactView({ artifact, titles, expanded = false }: { artifact: Artifact; titles: Titles; expanded?: boolean }) {
+  const t = useT();
   if (artifact.type === "estimate" && artifact.data && typeof artifact.data === "object") {
     const data = artifact.data as Record<string, unknown>;
     if (data.raw && data.matched && typeof data.raw === "object" && typeof data.matched === "object") {
       const groupLabel = (value: unknown, fallback: string) => value && typeof value === "object" && typeof (value as Record<string, unknown>).label === "string" ? String((value as Record<string, unknown>).label) : fallback;
-      const rows = ["raw", "matched"].map(key => ({ stage: labels[key], ...(data[key] as Record<string, unknown>) }));
-      return <section className="artifact"><h4>{typeof data.metric === "string" ? titles.get(data.metric)?.title ?? "분석 지표" : "비교 결과"}</h4>
-        <DataTable rows={rows} titles={titles} columns={["stage", "target", "comparison", "difference"]} columnLabels={{ stage: "비교 방식", target: groupLabel(data.target, "대상 집단"), comparison: groupLabel(data.comparison, "비교 집단"), difference: "대상 − 비교 집단" }} />
-        {Array.isArray(data.conditions) && data.conditions.length > 0 && <p className="result-note">맞춘 조건: {data.conditions.map(item => item.title ?? titles.get(item.member)?.title ?? "항목 이름 확인 필요").join(" · ")}</p>}
+      const rows = ["raw", "matched"].map(key => ({ stage: label(key, t), ...(data[key] as Record<string, unknown>) }));
+      return <section className="artifact"><h4>{typeof data.metric === "string" ? titles.get(data.metric)?.title ?? t("Analysis metric") : t("Comparison result")}</h4>
+        <DataTable rows={rows} titles={titles} columns={["stage", "target", "comparison", "difference"]} columnLabels={{ stage: t("Comparison method"), target: groupLabel(data.target, t("Target group")), comparison: groupLabel(data.comparison, t("Comparison group")), difference: t("Target − comparison group") }} />
+        {Array.isArray(data.conditions) && data.conditions.length > 0 && <p className="result-note">{t("Matched conditions: {conditions}", { conditions: data.conditions.map(item => item.title ?? titles.get(item.member)?.title ?? t("Item name needs checking")).join(" · ") })}</p>}
       </section>;
     }
   }
@@ -146,17 +148,17 @@ export function ArtifactView({ artifact, titles, expanded = false }: { artifact:
     const data = series;
     const rows = Array.isArray(data.rows) ? data.rows.filter((row): row is Record<string, unknown> => !!row && typeof row === "object" && !Array.isArray(row)) : [];
     const metric = typeof data.metric === "string" ? data.metric : "";
-    const metricTitle = titles.get(typeof data.metric_ref === "string" ? data.metric_ref : metric)?.title ?? "지표";
+    const metricTitle = titles.get(typeof data.metric_ref === "string" ? data.metric_ref : metric)?.title ?? t("metric");
     const units = data.units && typeof data.units === "object" ? data.units as Record<string, unknown> : {};
     const columns = rows.length ? Object.keys(rows[0]) : [];
     const columnLabels = Object.fromEntries(columns.filter((column) => column.endsWith("#units")).map((column) => {
       const unitRef = units[column.slice(0, -6)];
-      return [column, typeof unitRef === "string" ? titles.get(unitRef)?.title ?? "건수" : "건수"];
+      return [column, typeof unitRef === "string" ? titles.get(unitRef)?.title ?? t("Count") : t("Count")];
     }));
-    return <section className="artifact"><h4>{metricTitle} · 기간별 값</h4>
-      {!expanded && rows.length === 1 && typeof rows[0][metric] === "number" && <p className="result-lead">해당 기간 값 <strong>{fmt(rows[0][metric], titles)}</strong></p>}
-      {rows.length === 1 && <p className="result-note">기간이 하나뿐이라 증가·감소 추이는 판단할 수 없습니다.</p>}
-      {rows.length ? <DataTable rows={rows} titles={titles} columns={columns} columnLabels={columnLabels} /> : <p className="result-note">표시할 기간 데이터가 없습니다.</p>}
+    return <section className="artifact"><h4>{metricTitle} · {t("Values by period")}</h4>
+      {!expanded && rows.length === 1 && typeof rows[0][metric] === "number" && <p className="result-lead">{t("Value for the period")} <strong>{fmt(rows[0][metric], titles, t)}</strong></p>}
+      {rows.length === 1 && <p className="result-note">{t("There is only one period, so no upward or downward trend can be judged.")}</p>}
+      {rows.length ? <DataTable rows={rows} titles={titles} columns={columns} columnLabels={columnLabels} /> : <p className="result-note">{t("No period data to show.")}</p>}
     </section>;
   }
   if (artifact.type === "breakdown_table" && artifact.data && typeof artifact.data === "object") {
@@ -164,30 +166,31 @@ export function ArtifactView({ artifact, titles, expanded = false }: { artifact:
     const rows = data.rows;
     const populationComparison = data.benchmark_aggregation === "semantic_provider";
     const displayedRows = populationComparison && isRowList(rows) ? rows.map((row, index) => ({ ...row,
-      value: populationLabel(index, row.value) })) : rows;
+      value: populationLabel(index, row.value, t) })) : rows;
     if (isRowList(displayedRows)) return <section className="artifact">
-      <h4>{artifact.title || artifactNames[artifact.type] || artifact.type}</h4>
-      {populationComparison && <div className="result-note"><p><strong>비교 기준</strong> 각 집단 전체에 지표 정의를 적용한 값입니다. 구성원별 값의 단순 평균이 아닙니다.</p><p>비교 집단에는 지정한 조건을 적용하고, 전체 집단에는 그 조건을 적용하지 않습니다. 두 집단 모두 선택한 대상은 제외하며, 공통 필터와 실행 기간은 유지합니다.</p>{data.statistical_judgement === "not_tested" && <p><strong>수치 비교만 수행</strong> 차이의 통계적 유의성이나 원인 관계는 판단하지 않습니다. 표본 건수가 있더라도 이 Method는 유의성을 검정하지 않습니다.</p>}</div>}
+      <h4>{artifact.title || (artifactNames[artifact.type] ? t(artifactNames[artifact.type]) : artifact.type)}</h4>
+      {populationComparison && <div className="result-note"><p><strong>{t("Comparison basis")}</strong> {t("Values apply the metric definition to each whole group. They are not simple averages of member values.")}</p><p>{t("The peer group applies the given conditions; the overall group does not. Both exclude the selected subject and keep the shared filters and run period.")}</p>{data.statistical_judgement === "not_tested" && <p><strong>{t("Numeric comparison only")}</strong> {t("Statistical significance and causality of the difference are not judged. This Method does not test significance even when sample counts are available.")}</p>}</div>}
       <DataTable rows={displayedRows} titles={titles} columns={["value", "metric", "count", "share_of_count", "difference_from_subject"].filter((key) => key in displayedRows[0])} />
-      {!expanded && <details className="artifact-details"><summary>전체 결과 보기</summary><Value value={data} titles={titles} /></details>}
+      {!expanded && <details className="artifact-details"><summary>{t("View full result")}</summary><Value value={data} titles={titles} /></details>}
     </section>;
   }
   return (
     <section className="artifact">
-      <h4>{artifact.title || artifactNames[artifact.type] || artifact.type}</h4>
+      <h4>{artifact.title || (artifactNames[artifact.type] ? t(artifactNames[artifact.type]) : artifact.type)}</h4>
       <Value value={artifact.data} titles={titles} />
     </section>
   );
 }
 
 export function ValidationList({ items }: { items: Validation[] }) {
+  const t = useT();
   const important = items.filter((item) => item.status !== "pass");
   if (!important.length) return null;
   return (
     <ul className="validation">
       {important.map((v, i) => (
-        <li key={i} className={v.status}><b>{({ freshness: "데이터 최신성", complete_period: "분석 기간", non_empty: "데이터 유무", min_count: "표본 수", overlap: "집단 비교 가능성" } as Record<string, string>)[v.validator] ?? v.validator.replaceAll("_", " ")}</b> {v.code === "DATA_STALE" && typeof v.details?.latest === "string" && typeof v.details?.end === "string"
-          ? `데이터가 ${v.details.latest}까지만 있어 선택한 종료일(${v.details.end})까지의 결과가 불완전할 수 있습니다.` : v.message}</li>
+        <li key={i} className={v.status}><b>{(name => name ? t(name) : v.validator.replaceAll("_", " "))(({ freshness: "Data freshness", complete_period: "Analysis period", non_empty: "Data present", min_count: "Sample size", overlap: "Group comparability" } as Record<string, string>)[v.validator])}</b> {v.code === "DATA_STALE" && typeof v.details?.latest === "string" && typeof v.details?.end === "string"
+          ? t("Data only goes up to {latest}, so results through the chosen end date ({end}) may be incomplete.", { latest: v.details.latest, end: v.details.end }) : v.message}</li>
       ))}
     </ul>
   );
@@ -195,7 +198,7 @@ export function ValidationList({ items }: { items: Validation[] }) {
 
 export function ResultView({ result, titles, showRunLink = true, showEvidence = true, expanded = false }: { result: Result; titles: Titles; showRunLink?: boolean; showEvidence?: boolean; expanded?: boolean }) {
   const t = useT();
-  const statusLabel = { success: "분석 완료", needs_input: "추가 입력 필요", refused: "비교 불가", failed: "실패" }[result.status];
+  const statusLabel = t({ success: "Analysis complete", needs_input: "More input needed", refused: "Not comparable", failed: "Failed" }[result.status]);
   const breakdown = result.primary?.type === "breakdown_table" && result.primary.data && typeof result.primary.data === "object"
     ? (result.primary.data as Record<string, unknown>) : null;
   const leading = breakdown && isRowList(breakdown.rows) ? breakdown.rows[0] : null;
@@ -206,7 +209,7 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
         {result.status !== "success" && <span className={`status ${result.status}`}>{statusLabel}</span>}
         {showRunLink && result.run_id && <a href={`/runs/${result.run_id}`}>{t("Open run")}</a>}
       </div>}
-      {!expanded && leading && <p className="result-lead">{breakdown?.subject ? "비교 대상" : "대표 그룹"} <strong>{fmt(leading.value, titles)}</strong>{leading.metric != null && <span> · 지표 값 {fmt(leading.metric, titles)}</span>}</p>}
+      {!expanded && leading && <p className="result-lead">{t(breakdown?.subject ? "Comparison subject" : "Top group")} <strong>{fmt(leading.value, titles, t)}</strong>{leading.metric != null && <span> · {t("Metric value")} {fmt(leading.metric, titles, t)}</span>}</p>}
       {result.needs_input && (
         <div className="notice">
           <b>{result.needs_input.question}</b> <span className="muted">({result.needs_input.field})</span>
@@ -220,13 +223,13 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
       {!expanded && <ValidationList items={result.validation} />}
       {result.primary && <ArtifactView artifact={result.primary} titles={titles} expanded={expanded} />}
       {!expanded && supportingArtifacts.length > 0 && <details className="artifact-details">
-        <summary>추가 분석 결과</summary>
+        <summary>{t("Additional analysis results")}</summary>
         {supportingArtifacts.map((a, i) => <ArtifactView key={i} artifact={a} titles={titles} />)}
       </details>}
       {showEvidence && (result.provenance.method || result.provenance.semantic_refs.length || result.provenance.queries.length) ? <details>
-        <summary>실행 근거{result.provenance.queries.length > 0 ? ` · 쿼리 ${result.provenance.queries.length}개` : ""}</summary>
-        {result.interpretation && <p className="muted">해석 범위: {isAssociation(result.interpretation) ? t("Association — observational summaries and relationships") : result.interpretation}</p>}
-        {result.validation.filter((item) => item.status === "pass").length > 0 && <p className="muted">통과한 검증: {result.validation.filter((item) => item.status === "pass").map((item) => item.validator).join(", ")}</p>}
+        <summary>{t("Execution evidence")}{result.provenance.queries.length > 0 ? ` · ${t("{n} queries", { n: result.provenance.queries.length })}` : ""}</summary>
+        {result.interpretation && <p className="muted">{t("Interpretation scope: {scope}", { scope: isAssociation(result.interpretation) ? t("Association — observational summaries and relationships") : result.interpretation })}</p>}
+        {result.validation.filter((item) => item.status === "pass").length > 0 && <p className="muted">{t("Passed validation:")} {result.validation.filter((item) => item.status === "pass").map((item) => item.validator).join(", ")}</p>}
         <RunSources result={result} titles={titles} />
         <RunQueries result={result} />
       </details> : null}

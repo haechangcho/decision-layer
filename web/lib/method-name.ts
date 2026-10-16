@@ -1,9 +1,11 @@
+import type { Translate } from "./i18n";
+
 const names: Record<string, string> = {
-  "query.aggregate": "지표 조회",
-  "query.trend": "시간에 따른 변화",
-  "query.drilldown": "항목별로 나눠 보기",
-  "query.peer_comparison": "집단 간 비교",
-  "causal.cem": "조건을 맞춰 비교",
+  "query.aggregate": "Metric lookup",
+  "query.trend": "Change over time",
+  "query.drilldown": "Break down by dimension",
+  "query.peer_comparison": "Compare with peers and overall",
+  "causal.cem": "Compare with conditions matched",
 };
 
-export const methodName = (name: string) => names[name] || name;
+export const methodName = (name: string, t: Translate) => names[name] ? t(names[name]) : name;

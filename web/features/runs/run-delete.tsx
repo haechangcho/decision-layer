@@ -3,14 +3,16 @@
 import { useId, useRef, useState } from "react";
 import { LoaderCircle, Trash2 } from "lucide-react";
 import { api, type Run } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 import s from "./run-delete.module.css";
 
 export function RunDelete({ run, onDeleted, compact = false }: { run: Run; onDeleted: () => void; compact?: boolean }) {
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const id = useId();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const label = run.plan.question || run.recipe_snapshot?.description || "이 실행 기록";
+  const label = run.plan.question || run.recipe_snapshot?.description || t("this run");
 
   function close() {
     if (!busy) dialog.current?.close();
@@ -24,23 +26,23 @@ export function RunDelete({ run, onDeleted, compact = false }: { run: Run; onDel
       dialog.current?.close();
       onDeleted();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "실행 기록을 삭제하지 못했습니다.");
+      setError(cause instanceof Error ? cause.message : t("Could not delete the run."));
     } finally {
       setBusy(false);
     }
   }
 
   return <>
-    <button type="button" className={compact ? s.compact : s.trigger} title={run.running ? "분석이 끝나면 삭제할 수 있습니다" : "실행 기록 삭제"} aria-label={`실행 기록 삭제: ${label}`}
-      disabled={!!run.running} onClick={() => dialog.current?.showModal()}><Trash2 size={16} />{!compact && "기록 삭제"}</button>
+    <button type="button" className={compact ? s.compact : s.trigger} title={t(run.running ? "You can delete it when the analysis finishes" : "Delete run")} aria-label={t("Delete run: {name}", { name: label })}
+      disabled={!!run.running} onClick={() => dialog.current?.showModal()}><Trash2 size={16} />{!compact && t("Delete record")}</button>
     <dialog ref={dialog} className={s.dialog} aria-labelledby={id} aria-describedby={`${id}-description`}
       onCancel={event => { if (busy) event.preventDefault(); }}>
-      <h2 id={id}>실행 기록을 삭제할까요?</h2>
+      <h2 id={id}>{t("Delete this run?")}</h2>
       <p className={s.name}>{label}</p>
-      <p id={`${id}-description`}>분석 결과와 쿼리, 검증 기록이 함께 삭제됩니다. 이미 등록한 Recipe는 유지됩니다.</p>
+      <p id={`${id}-description`}>{t("Its results, queries and validation records are deleted too. Registered Recipes are kept.")}</p>
       {error && <p className={s.error} role="alert">{error}</p>}
-      <div className={s.actions}><button type="button" disabled={busy} onClick={close} autoFocus>취소</button>
-        <button type="button" className={s.danger} disabled={busy} onClick={remove}>{busy ? <LoaderCircle size={16} /> : <Trash2 size={16} />}{busy ? "삭제 중…" : "기록 삭제"}</button></div>
+      <div className={s.actions}><button type="button" disabled={busy} onClick={close} autoFocus>{t("Cancel")}</button>
+        <button type="button" className={s.danger} disabled={busy} onClick={remove}>{busy ? <LoaderCircle size={16} /> : <Trash2 size={16} />}{t(busy ? "Deleting…" : "Delete record")}</button></div>
     </dialog>
   </>;
 }
