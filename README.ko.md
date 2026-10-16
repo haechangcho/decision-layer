@@ -4,7 +4,7 @@
 
 Decision Layer는 Semantic Layer 위에서 **어떤 지표를 함께 보고, 어떤 순서와 방법으로 분석할지** 관리하는 오픈소스 프레임워크입니다. 조직의 분석 절차를 저장하고, 사람과 AI Agent가 새로운 데이터에 다시 적용할 수 있게 합니다. 실행한 단계와 사용한 데이터, 쿼리, 검증 결과는 함께 기록됩니다.
 
-[문서](https://decision-layer-docs.vercel.app/ko/) · [빠른 시작](#5-decision-layer-실행하기) · [활용 예시](#6-어떻게-활용하나요) · [English](README.md) · [도입 문의](mailto:support@idk2.co.kr)
+[문서](https://decision-layer-docs.vercel.app/ko/) · [빠른 시작](#5-decision-layer-실행하기) · [활용 예시](#6-어떻게-활용하나요) · [English](README.en.md) · [도입 문의](mailto:support@idk2.co.kr)
 
 ## 1. 이게 뭔가요?
 
