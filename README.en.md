@@ -98,13 +98,26 @@ Decision Layer has three core components:
 
 | Component | Meaning |
 | --- | --- |
-| **Method** | One analytical capability, such as aggregation, period comparison, or drilldown |
+| **Method** | One reusable analytical capability that can wrap existing analytics, forecasting, or ML code |
 | **Recipe** | A reusable procedure composed of Methods and semantic references |
 | **Run — analysis execution record** | One analysis with its actual inputs, period, selected paths, versions, queries, results, and validation |
 
 Running the same Recipe for March and April creates separate Runs. A Run can also be in progress or waiting for additional input.
 
 Current semantic providers are **Cube REST API** and the **official dbt Semantic Layer GraphQL API**. The core query Methods cover aggregation, trends and period comparisons, and drilldown. You can add Methods in Python.
+
+**Reuse existing analytics, forecasting, and ML code as Methods.** Wrap existing Python analyses, forecasting routines, or inference code for trained ML models in the Method input and output contract. Install the required libraries and model artifacts in the execution environment.
+
+Methods can be written by developers or with **AI coding tools (vibe coding)**. Review and test the code and registration setup, then install and register the module on the server. At runtime, an agent selects a registered Method and supplies its inputs.
+
+Compared with generating analytical Python for each request, this offers two advantages:
+
+| Benefit | How it helps |
+| --- | --- |
+| **Save code-generation tokens** | Reusing an implementation can reduce tokens spent on repeated code generation and debugging. |
+| **Execute reviewed and tested code** | Reuse an implementation that has been reviewed and tested, and record its Method version, inputs, and results in a Run. |
+
+“Reviewed and tested” refers to checks performed before registration. Total token use and cost still need to be measured across tool calls and result narration as well.
 
 Web, Python, REST, and MCP share one execution engine. AI agents select registered Methods and Recipes and explain the results; execution passes through the engine's input validation and execution rules.
 
