@@ -35,7 +35,7 @@ Python과 REST/MCP의 measure/dimension/entity maps는 canonical bindings로 정
 
 기본 완전 추출은 50,000행, 선택 alias 최대 100열과 200만 cell이며 server policy의 더 작은 행 제한이 우선합니다. overflow sentinel을 조회해 잘린 표본을 성공 처리하지 않습니다. 통계 encoding도 최대 100열·200만 cell을 제한합니다. 최대 30개 filter/window, query budget/deadline과 시도 기록이 적용됩니다. 다중 조회의 warehouse snapshot 일치는 보장하지 않습니다.
 
-각 Result는 버전, canonical spec, query attempts/labels, 설치된 요구 라이브러리 버전, Python, 검증·경고를 기록합니다. 일반 class의 자유로운 artifact payload는 별도 독립 테스트가 필요합니다. [실행 가능한 작성 가이드](../guides/methods.md)와 [시나리오](../guides/method-scenarios.md)를 먼저 사용하세요.
+각 Result는 버전, canonical spec, query attempts/labels, 설치된 요구 라이브러리 버전, Python, 검증·경고를 기록합니다. 일반 class의 자유로운 artifact payload는 별도 독립 테스트가 필요합니다. [실행 가능한 작성 가이드](../guides/methods.md)와 [시나리오](../guides/methods.md)를 먼저 사용하세요.
 
 아래 class API는 추가 artifact·선택·복잡한 계약이 필요한 경우의 기존 확장 경로입니다. 단순 Method에서 manifest를 수동 중복 작성할 필요는 없습니다.
 
@@ -141,10 +141,10 @@ CEM은 조건 구성만 다른 사례·독립 계산한 가중치·공통 구간
 
 ## 코드 참고
 
-- [첫 Method](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/first_method)와 [여러 쿼리를 조합하는 Peer Comparison](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/peer_comparison)
+- [Python Method 프로젝트](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/project)와 [SDK 실행 테스트](https://github.com/haechangcho/decision-layer/blob/main/tests/support/methods/functions.py)
 - [Method 기본 계약](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/base.py)·[Registry](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/registry.py)·[실행 context](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/context.py)
 - [공통 모델](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/core/models.py)과 [계약 테스트](https://github.com/haechangcho/decision-layer/blob/main/tests/unit/test_method_contribution.py)
-- [테스트](../guides/testing.md)와 [기여 절차](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)
+- [테스트](../guides/development.md)와 [기여 절차](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)
 
 ## 기존 구현에서 전환
 
@@ -154,4 +154,4 @@ CEM은 조건 구성만 다른 사례·독립 계산한 가중치·공통 구간
 
 ## 탐색과 작성 기본값
 
-`@method(name, version=...)`의 기본 해석은 `association`입니다. 타입은 signature, 설명은 docstring에서 가져오며 코드에서 목적을 추측하지 않습니다. `provides`는 선택 사항이지만 명시한 결과 계약은 Recipe와 목표 근거 검사에 계속 사용합니다. [검토 결과와 실행 가능한 탐색 예제](../guides/method-discovery.md)를 참고하세요. `POST /methods:search`는 `MethodSearchRequest`의 `goal`과 선택적인 `names`를 받으며 분석 쿼리를 실행하지 않습니다.
+`@method(name, version=...)`의 기본 해석은 `association`입니다. 타입은 signature, 설명은 docstring에서 가져오며 코드에서 목적을 추측하지 않습니다. `provides`는 선택 사항이지만 명시한 결과 계약은 Recipe와 목표 근거 검사에 계속 사용합니다. [검토 결과와 실행 가능한 탐색 예제](../guides/methods.md)를 참고하세요. `POST /methods:search`는 `MethodSearchRequest`의 `goal`과 선택적인 `names`를 받으며 분석 쿼리를 실행하지 않습니다.

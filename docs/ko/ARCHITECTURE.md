@@ -54,7 +54,7 @@ Breakpoint를 사용할 수 있고 실행마다 새 예산을 적용합니다. �
 `preview()`는 RunEngine과 메모리 저장소를 사용합니다. 둘 다 원격 서버에 코드나 근거를 업로드하지 않습니다.
 ADR-079/080과 [Method 개발 가이드](guides/methods.md)를 참고하세요.
 
-`@method`는 typed Python signature를 기존 manifest/Method adapter로 변환합니다. 입력 map은 canonical bindings로 정규화합니다. `ctx.aggregate/entities`가 관리되는 DatasetSpec을 만들고, `ctx.compute`는 로컬 직접 디버깅 또는 서버 자식 프로세스 계산을 사용합니다. 선택적 의존성은 조회 전에 검사합니다. 별도 provider planner·notebook 제품·동적 코드 설치기를 추가하지 않습니다. ADR-081과 [직접 테스트 시나리오](guides/method-scenarios.md)를 참고하세요.
+`@method`는 typed Python signature를 기존 manifest/Method adapter로 변환합니다. 입력 map은 canonical bindings로 정규화합니다. `ctx.aggregate/entities`가 관리되는 DatasetSpec을 만들고, `ctx.compute`는 로컬 직접 디버깅 또는 서버 자식 프로세스 계산을 사용합니다. 선택적 의존성은 조회 전에 검사합니다. 별도 provider planner·notebook 제품·동적 코드 설치기를 추가하지 않습니다. ADR-081과 [개발 검증](guides/development.md#tests)를 참고하세요.
 
 분석 작성자는 계산 함수에서 외부 라이브러리의 원래 Python API를 사용합니다.
 `ctx.compute`는 estimator 추상화가 아닌 실행 경계입니다. 분석별 가정과 적합
@@ -179,4 +179,4 @@ Skill이며, `query.drilldown`, `query.peer_comparison` Python 구현은 기존 
 1.0.0을 고정한 Skill Recipe는 새 버전으로 검토·게시해야 하며 과거 Run은 보존한다.
 
 
-학습 노트북은 `docs/tutorials/`, 예제 코드는 `examples/`, 자동 검증은 `tests/examples/`에 있습니다. [저장소 구조](guides/repository.md)에서 전체 위치를 확인하세요.
+학습 노트북은 `docs/tutorials/`, 예제 코드는 `examples/`, 자동 검증은 `tests/examples/`에 있습니다. [저장소 구조](guides/development.md)에서 전체 위치를 확인하세요.

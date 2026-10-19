@@ -14,8 +14,8 @@ from decision_layer.methods.peer_comparison import PeerComparison
 from decision_layer.semantic.credentials import AnonymousServiceCredentials
 from decision_layer.testing import FixtureProvider, QueryFixture
 
-from examples.methods.peer_comparison import fixtures
-from examples.methods.peer_comparison.fixtures import METRIC, DATE, DATES, BINDINGS, PARAMS
+from tests.support.methods import peer_data as fixtures
+from tests.support.methods.peer_data import METRIC, DATE, DATES, BINDINGS, PARAMS
 
 
 async def session_for(provider=None, policy=None):

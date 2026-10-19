@@ -8,8 +8,8 @@ pd = pytest.importorskip("pandas")
 
 from decision_layer.core.models import DataInput, RoleSpec
 from decision_layer.methods import InvalidBinding, Scope, python_method
-from examples.methods.first_method.fixtures import METRIC, DIMENSION, DATE, DATES
-from examples.methods.authoring.column_arguments import METHODS, rank_values, ols
+from examples.methods.authoring.sample_data import METRIC, DIMENSION, DATE, DATES
+from tests.support.methods.column_arguments import METHODS, rank_values, ols
 from examples.methods.authoring.plain_python import practice_session
 
 
@@ -39,8 +39,8 @@ async def test_direct_and_governed_function_calls_agree_and_record_column_argume
 
 async def test_ols_list_columns_match_native_statsmodels_and_known_slope():
     pytest.importorskip("statsmodels")
-    from examples.methods.statistics.continuous_regression import sample, example_session
-    from examples.methods.scenarios.scenarios import (
+    from tests.support.methods.continuous import sample, example_session
+    from tests.support.methods.cases import (
         M,
         RATE,
         BASELINE,
@@ -142,7 +142,7 @@ async def test_optional_column_arguments_have_explicit_absent_values(
     from decision_layer.dev import MethodSession
     from decision_layer.core.models import DatasetSpec, TimeScope
     from decision_layer.testing import FixtureProvider, QueryFixture
-    from examples.methods.scenarios.scenarios import catalog, M, UNIT, FEB, DATE as TIME
+    from tests.support.methods.cases import catalog, M, UNIT, FEB, DATE as TIME
 
     def ordinary(data, extra):
         assert extra == expected
@@ -194,7 +194,7 @@ async def test_rest_worker_and_mcp_share_the_column_contract(tmp_path, monkeypat
         allow_service_credentials=True,
         cube_api_secret="test-secret-at-least-32-characters",
         cube_service_groups=("ecommerce",),
-        method_modules=("examples.methods.authoring.column_arguments",),
+        method_modules=("tests.support.methods.column_arguments",),
         recipes_dir=str(tmp_path),
     )
     with TestClient(create_app(settings, data_provider())) as client:
@@ -239,7 +239,7 @@ async def test_rest_worker_and_mcp_share_the_column_contract(tmp_path, monkeypat
 )
 def test_ordinary_ols_rejects_invalid_data_without_framework(invalid):
     pytest.importorskip("statsmodels")
-    from examples.methods.statistics.continuous_regression import sample
+    from tests.support.methods.continuous import sample
 
     frame = sample()
     if invalid == "constant_outcome":

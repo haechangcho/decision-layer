@@ -16,7 +16,7 @@ from decision_layer.methods import (
 from decision_layer.methods.loading import configured_registry
 from decision_layer.project import PROJECT_FILE, Project, ProjectError
 from decision_layer.settings import Settings
-from examples.methods.first_method.fixtures import DATE, DATES, DIMENSION, METRIC
+from examples.methods.authoring.sample_data import DATE, DATES, DIMENSION, METRIC
 from examples.methods.authoring.plain_python import practice_session
 
 

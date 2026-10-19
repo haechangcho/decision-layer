@@ -1,98 +1,93 @@
-# Local development
+# Contribute to the product
 
-For Method work, start with [First Method](methods.md). To change Web or API,
-use Python 3.11+ and Node.js 22. Run these commands from the repository root.
+To add your team's calculation, start with [Write a Method](methods.md). This guide
+covers changes to Decision Layer itself. Use Python 3.11+ and Node.js 22.
 
-## Install
+## Install and run
 
 ```bash
+git clone https://github.com/haechangcho/decision-layer.git
+cd decision-layer
 make setup
 make setup-web
 ```
 
-## Start API and Web
-
-In one terminal:
+Run the API and Web in separate terminals:
 
 ```bash
 make api
 ```
 
-In another:
-
 ```bash
 make web
 ```
 
-Open Web at **http://localhost:5210** and the REST API reference at
-**http://localhost:8000/docs**. The Docker sample uses Web port 3000 instead.
+Open Web at `http://localhost:5210` and API docs at `http://localhost:8000/docs`.
+Live queries require [Cube](cube.md). To try the installed sample, use
+`decision-layer demo` from [Install and start](quickstart.md).
 
-The API starts without a semantic source. Connect [Cube](cube.md) for live analysis; the initial product supports Cube only. Runs use local SQLite by default;
-set `DL_RECIPES_DIR=./recipes make api` to save Recipe files in that folder.
+## Code map
 
-If port 8000 is occupied, start the API with an available port:
-
-```bash
-.venv/bin/python -m uvicorn decision_layer.api.app:app --reload --port 8001
-DL_API_URL=http://localhost:8001 npm --prefix web run dev
+```text
+src/decision_layer/
+├── methods/       # Method registration, input contracts and calculations
+├── recipes/       # Reusable analysis procedures
+├── runs/          # Execution, authorization and recorded evidence
+├── semantic/      # Cube connection and canonical queries
+├── api/           # REST API
+├── mcp/           # AI tools using that API
+└── demo/          # Installed sample resources and launcher
+web/
+├── app/           # Routes
+├── features/      # Method, Recipe and Run screens
+└── components/    # Shared UI
+docs/              # Guides and the bilingual Method notebook
+examples/          # Authoring tutorial, complete project and product demos
+tests/             # Unit, API, provider and tutorial checks
+└── support/       # Shared fixtures and known-answer cases
 ```
 
-Use separate terminals. Update the [MCP connection](mcp.md) to the same API port.
+Change execution rules in the shared Python code. Web, REST and MCP use the same
+execution model. See [Architecture](../ARCHITECTURE.md) for detailed ownership.
+Frontend builds generate `src/decision_layer/static/`; edit source files rather than generated assets.
 
-::: details Connect the sample (optional)
-From `examples/complete-journey/`, start only the data services:
+Read `AGENTS.md`, `docs/PRODUCT_CONTEXT.md`, `docs/ARCHITECTURE.md` and
+`docs/DECISIONS.md` before changing product behavior. Record architecture changes in the decisions log.
 
-```bash
-docker compose -p decision-layer-cube up -d --build --wait postgres import cube
-```
+## Tests {#tests}
 
-If the full sample is already running, first stop its API and Web with `docker compose -p decision-layer-cube stop api web` from that directory to free their ports. Do not stop unrelated stacks.
-
-Return to the repository root and start the native API with the sample connection:
+Run focused tests, then the full checks:
 
 ```bash
-mkdir -p data examples/complete-journey/recipes
-CUBE_API_URL=http://localhost:4000/cubejs-api/v1 \
-CUBE_INSTANCE=journey \
-CUBE_API_SECRET=local-example-secret-change-me-0123456789 \
-DL_ALLOW_SERVICE_CREDENTIALS=true \
-DL_RECIPES_DIR=examples/complete-journey/recipes \
-DL_DATABASE_URL=sqlite:///./data/journey-development.db \
-  .venv/bin/uvicorn decision_layer.api.app:app --reload --port 8000
-```
-
-Use your actual host Cube port if customized. Start Web as above. Cube models under `examples/complete-journey/cube/model/` are mounted directly into Cube. Keep Compose commands in the example directory so its `.env` settings load consistently.
-
-The sample's PostgreSQL stores source data, not Runs. The native API uses its own SQLite database and does not automatically share the container API's Run history. Recipes live in the specified folder. Do not commit local datasets or credentials.
-
-The legacy dbt module and mocked contract tests remain as reference only (ADR-096); dbt is not a supported connection in the initial release.
-:::
-
-## Verify your change
-
-```bash
+.venv/bin/python -m pytest -q tests/unit/test_method_project.py
 make test
 npm --prefix web run typecheck
-npm --prefix web run build
+npm --prefix web run build:console
+npm ci
+npm run docs:build
 ```
 
-For documentation, run `npm ci` and `npm run docs:build` in the repository root.
-See [Testing](testing.md) for browser and live integration checks,
-[Architecture](../ARCHITECTURE.md) for the code map, and
-[Contributing](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md) for PRs.
+`tests/examples/` checks the retained notebook and complete project.
+`tests/support/` owns shared inputs and known-answer cases. Optional statistical
+tests skip when their dependencies are missing; statistical CI installs the
+stack in `tests/requirements-statistics.txt`.
 
-## UI contributions
+For screen changes, start the development server, then:
 
-For Web changes, see [Interface design](design-system.md).
-The repository keeps [Product context](https://github.com/haechangcho/decision-layer/blob/main/docs/PRODUCT_CONTEXT.md)
-and [Decisions](https://github.com/haechangcho/decision-layer/blob/main/docs/DECISIONS.md)
-for product direction and design history.
+```bash
+cd web
+npx playwright install chromium
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:5210 npm run test:e2e
+```
 
-## Python Method formatting
+Default browser checks mock API responses. Follow the
+[Complete Journey example](https://github.com/haechangcho/decision-layer/tree/main/examples/complete-journey)
+for live Cube integration. `scripts/smoke_distribution.py` checks an installed
+package, and `scripts/smoke_demo.py` checks the installed Docker sample. CI runs both.
 
-Use `make format-methods` before review and `make check-method-format` for the CI check.
-Both use the pinned Ruff formatter and bundled configuration: 88 columns, four spaces,
-double quotes. Current Methods and authoring examples are covered; frozen historical
-implementations are not rewritten. For your own module, run `ruff format path/to/method.py`
-with the repository configuration. Web uses the same formatter through **코드 정리**;
-**변경 비교** highlights added/deleted lines with line numbers before explicit saving.
+## Submit your change
+
+Run `make format-methods` and include relevant test results in your PR. Include
+screenshots for screen changes and inputs with expected results for analysis changes.
+See [CONTRIBUTING.md](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)
+for issue reports and review expectations.

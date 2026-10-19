@@ -37,7 +37,7 @@ Advanced variable roles can explicitly accept measures and dimensions (`accepted
 
 Default complete extraction limits are 50,000 rows, 100 selected aliases and two million cells; smaller server policy row limits take precedence. A sentinel row detects truncation instead of accepting partial samples. Statistical encoding also limits 100 columns / two million cells. Bounded filter/window lists (30), query budgets/deadlines and attempt recording apply. Cross-query warehouse snapshot consistency is not guaranteed.
 
-Results record versions, canonical specs, attempts/labels, installed required-library versions, Python, validation and warnings. Arbitrary class artifact payloads still need independent tests. Start with the [executable authoring guide](../guides/methods.md) and [scenarios](../guides/method-scenarios.md).
+Results record versions, canonical specs, attempts/labels, installed required-library versions, Python, validation and warnings. Arbitrary class artifact payloads still need independent tests. Start with the [executable authoring guide](../guides/methods.md) and [scenarios](../guides/methods.md).
 
 The class API below remains the extension path for additional artifacts, selections and specialized contracts. Simple Methods need no duplicate manual manifest declaration.
 
@@ -150,10 +150,10 @@ causal identification require separate review. See the [CEM tests](https://githu
 
 ## Code references
 
-- [First Method](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/first_method) and [multi-query peer comparison](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/peer_comparison)
+- [Python Method project](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/project) and [SDK contract fixtures](https://github.com/haechangcho/decision-layer/blob/main/tests/support/methods/functions.py)
 - [Method base](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/base.py), [Registry](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/registry.py) and [execution context](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/methods/context.py)
 - [Typed models](https://github.com/haechangcho/decision-layer/blob/main/src/decision_layer/core/models.py) and [contract tests](https://github.com/haechangcho/decision-layer/blob/main/tests/unit/test_method_contribution.py)
-- [Testing](../guides/testing.md) and [contribution workflow](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)
+- [Testing](../guides/development.md) and [contribution workflow](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)
 
 ## Transition existing implementations
 
@@ -163,4 +163,4 @@ New Python authors pass named function arguments directly. Roles/parameters are 
 
 ## Discovery and authoring defaults
 
-`@method(name, version=...)` defaults to `association`. The signature supplies types and the docstring supplies the description; purpose is not inferred from code. `provides` is optional, but explicit result assertions still govern Recipe and goal evidence. See [the audit and executable discovery examples](../guides/method-discovery.md). `POST /methods:search` uses `MethodSearchRequest` (`goal`, optional `names`) and never executes analytical queries.
+`@method(name, version=...)` defaults to `association`. The signature supplies types and the docstring supplies the description; purpose is not inferred from code. `provides` is optional, but explicit result assertions still govern Recipe and goal evidence. See [the audit and executable discovery examples](../guides/methods.md). `POST /methods:search` uses `MethodSearchRequest` (`goal`, optional `names`) and never executes analytical queries.

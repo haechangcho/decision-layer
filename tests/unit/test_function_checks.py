@@ -5,7 +5,7 @@ import pytest
 from decision_layer.dev import MethodSession
 from decision_layer.methods import DataInput, Scope, python_method
 from decision_layer.testing import FixtureProvider
-from examples.methods.first_method.fixtures import DATE, DATES, METRIC, fixture_provider
+from examples.methods.authoring.sample_data import DATE, DATES, METRIC, fixture_provider
 
 
 @pytest.mark.parametrize("failure", ["false", "value_error", "assertion"])

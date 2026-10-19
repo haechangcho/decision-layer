@@ -4,10 +4,10 @@ VENV := .venv/bin/python
 .PHONY: setup example test setup-web api web check format-methods check-method-format
 setup:
 	$(PYTHON) -m venv .venv
-	$(VENV) -m pip install -e '.[dev]'
+	$(VENV) -m pip install -e '.[dev,stats]'
 
 example:
-	$(VENV) -m pytest -q tests/examples/test_first_method.py
+	$(VENV) -m pytest -q tests/examples/test_method_tutorial.py
 
 test:
 	$(VENV) -m pytest -q

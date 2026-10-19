@@ -7,7 +7,7 @@ from decision_layer.runs.store import MemoryRunStore, UnknownRun
 from decision_layer.runs.skills import SkillQueryRequest, SkillFinishRequest, SkillSelection
 from decision_layer.semantic.credentials import AnonymousServiceCredentials
 from decision_layer.testing import FixtureProvider, QueryFixture
-from examples.methods.first_method.fixtures import METRIC,DIMENSION,DATE,DATES,fixture_provider
+from examples.methods.authoring.sample_data import METRIC,DIMENSION,DATE,DATES,fixture_provider
 
 CREDS=AnonymousServiceCredentials()
 ME=CallerInfo(subject='alice')

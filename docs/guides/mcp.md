@@ -143,7 +143,7 @@ The local Cube samples enable a development service identity, so they need no `D
 | Server waits silently in a terminal | Normal for stdio: the client supplies protocol messages. |
 | Run missing in Web | Match API URL and caller identity; check the Run finished. |
 
-[Live smoke tests](testing.md) verify protocol and execution, not natural-language planning by your AI client.
+[Live smoke tests](development.md) verify protocol and execution, not natural-language planning by your AI client.
 
 ## Preserve Selection Rules
 

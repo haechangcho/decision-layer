@@ -1,21 +1,13 @@
 # Examples
 
-Start with the [Method tutorial](../docs/tutorials/methods/write_your_method.en.ipynb)
-([한국어](../docs/tutorials/methods/write_your_method.ko.ipynb)), then save your code
-in the [complete Method project](methods/project/README.md).
-
 | Directory | Purpose |
 | --- | --- |
-| `methods/authoring/` | Ordinary functions, input contracts and offline tutorial data |
-| `methods/project/` | A complete project loaded by the CLI, server and Python |
-| `methods/statistics/` | Native statistical-library examples and synthetic data |
-| `methods/scenarios/` | Query contracts, failure cases and live Cube comparisons |
-| `methods/first_method/`, `methods/peer_comparison/` | Advanced SDK examples |
-| `methods/pywhy_review/` | Optional estimator comparison experiments |
-| `recipes/` | Procedures combining Methods and recorded Skill queries |
-| `quickstart/` | Small runnable Cube demo |
-| `complete-journey/` | End-to-end deployment and integration example |
+| [methods/authoring/](methods/authoring/README.md) | Functions and prepared data for the Method notebook |
+| [methods/project/](methods/project/README.md) | A complete project loaded by CLI, server and local Python |
+| [recipes/](recipes/README.md) | Procedures combining Methods and recorded Skill queries |
+| [quickstart/](quickstart/README.md) | Repository version of the small Cube sample |
+| [complete-journey/](complete-journey/README.md) | Live data and MCP integration |
 
-Notebooks live in `docs/tutorials/`; their reusable Python code lives here.
-Automated example tests live in `tests/examples/`. Live evaluation scripts stay
-beside the example they exercise and require explicit connection settings.
+Learn with the [Method notebook](../docs/tutorials/methods/write_your_method.en.ipynb)
+([한국어](../docs/tutorials/methods/write_your_method.ko.ipynb)).
+Its verification is in `tests/examples/`. Shared SDK and numerical test fixtures live in `tests/support/`.

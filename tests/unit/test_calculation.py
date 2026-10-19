@@ -4,8 +4,8 @@ from decision_layer.core.models import DatasetSpec, TimeScope, ValidationResult
 from decision_layer.dev import MethodSession
 from decision_layer.methods import InputTable, InvalidBinding, Scope, calculation
 from decision_layer.testing import FixtureProvider, QueryFixture
-from examples.methods.first_method.fixtures import METRIC, DIMENSION, DATE, DATES, fixture_provider
-from examples.methods.authoring.native_calculation import rank_values, registered_method, fixture_session
+from examples.methods.authoring.sample_data import METRIC, DIMENSION, DATE, DATES, fixture_provider
+from tests.support.methods.calculation import rank_values, registered_method, fixture_session
 
 
 async def test_native_pandas_function_matches_direct_call_and_retains_ties():

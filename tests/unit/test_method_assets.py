@@ -9,7 +9,7 @@ from decision_layer.methods.loading import configured_registry
 from decision_layer.settings import Settings
 from decision_layer.core.models import DatasetSpec, TimeScope
 from decision_layer.testing import FixtureProvider, QueryFixture
-from examples.methods.first_method.fixtures import METRIC, DIMENSION, DATE, DATES, fixture_provider
+from examples.methods.authoring.sample_data import METRIC, DIMENSION, DATE, DATES, fixture_provider
 from examples.methods.authoring.plain_python import METHODS, rank_groups
 from tests.support.runs import SCOPE
 
@@ -120,12 +120,22 @@ async def test_mcp_loads_guide_and_forwards_snapshot_selection(monkeypatch):
 
 async def test_existing_dowhy_function_uses_new_adapter_unchanged():
     pytest.importorskip('dowhy')
-    from examples.methods.authoring.plain_python import DOWHY_METHOD, adjusted_difference
-    from examples.methods.statistics.teaching_data import example_session, binary_regression_frame
-    from examples.methods.scenarios.scenarios import M, UNIT, TREAT, BASELINE as COVARIATE, FEB, DATE as TIME
+    from decision_layer.methods import DataInput, python_method
+    from decision_layer.methods.statistics import estimate_binary_regression
+
+    def adjusted_difference(observations):
+        return estimate_binary_regression(observations, ["baseline"])
+
+    method = python_method(
+        adjusted_difference, name="test.adjusted", version="1.0.0",
+        inputs={"observations": DataInput(measures=["outcome"], dimensions=["treatment", "baseline"], entity="unit_id", minimum_rows=60)},
+        output="estimate",
+    )
+    from tests.support.methods.data import example_session, binary_regression_frame
+    from tests.support.methods.cases import M, UNIT, TREAT, BASELINE as COVARIATE, FEB, DATE as TIME
     session = await example_session('dowhy')
-    session.register(DOWHY_METHOD)
-    result = (await session.run(DOWHY_METHOD, outcome=M, treatment=TREAT, baseline=COVARIATE,
+    session.register(method)
+    result = (await session.run(method, outcome=M, treatment=TREAT, baseline=COVARIATE,
         unit_id=UNIT, scope=Scope(FEB,TIME))).result
     assert result.status == 'success'
     assert result.primary.data['value'] == pytest.approx(adjusted_difference(binary_regression_frame())['value'])

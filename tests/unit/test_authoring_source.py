@@ -5,7 +5,7 @@ import pandas as pd
 from decision_layer.methods import registry, Scope
 from decision_layer.methods.source import capture_source
 from examples.methods.authoring.plain_python import METHODS, practice_session
-from examples.methods.first_method.fixtures import METRIC, DIMENSION, DATE, DATES
+from examples.methods.authoring.sample_data import METRIC, DIMENSION, DATE, DATES
 from tests.support.semantic import RR, ctx
 
 

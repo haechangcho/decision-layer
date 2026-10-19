@@ -8,7 +8,7 @@ from decision_layer.dev import MethodSession
 from decision_layer.methods import Measure, Table, method, register_builtins, MethodRegistry
 from decision_layer.methods.context import ExecutionContext
 from decision_layer.methods.discovery import MethodSearchRequest, find_methods
-from examples.methods.first_method.fixtures import fixture_provider, METRIC, DIMENSION
+from examples.methods.authoring.sample_data import fixture_provider, METRIC, DIMENSION
 
 
 def goal(capabilities=(), interpretation="association", refs=()):
@@ -126,20 +126,20 @@ def test_invalid_dependency_and_ambiguous_optional_type_fail_early():
 
 
 async def test_executable_developer_flow_preserves_query_and_provenance():
-    from examples.methods.scenarios.discovery import demonstrate
+    from tests.support.methods.discovery import demonstrate
     report = await demonstrate()
     assert report["lookup_candidates"] == ["analysis.metric_lookup"]
     assert [row["metric"] for row in report["rows"]] == [30, 20, 10]
     assert report["query_attempts"] == 1
     assert report["method_version"] == "method://example/group_metric@1.0.0"
-    from examples.methods.scenarios.scenarios import M, GROUP, DATE
+    from tests.support.methods.cases import M, GROUP, DATE
     assert set(report["semantic_refs"]) == {M, GROUP, DATE}
-    from examples.methods.scenarios.methods import group_metric
+    from tests.support.methods.functions import group_metric
     assert group_metric.manifest.interpretation == "association"
 
 
 async def test_private_input_is_also_refused_at_execution_without_queries():
-    from examples.methods.first_method.fixtures import DATE, DATES
+    from examples.methods.authoring.sample_data import DATE, DATES
     from decision_layer.methods import Scope
     from tests.unit.test_method_authoring import grouped
     session = await MethodSession.fixture(fixture_provider())

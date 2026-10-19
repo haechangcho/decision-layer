@@ -20,7 +20,7 @@ def estimate_regression_adjustment(request):
 
 
 def test_known_slope_specific_contrast_and_source_scale(estimate_regression_adjustment):
-    from examples.methods.statistics.continuous_regression import sample
+    from tests.support.methods.continuous import sample
     frame = sample()
     slope = estimate_regression_adjustment(frame, ["baseline"])
     contrast = estimate_regression_adjustment(frame, ["baseline"], .10, .20)
@@ -50,7 +50,7 @@ def test_binary_still_returns_zero_to_one_change(estimate_regression_adjustment)
 def test_invalid_data_and_contrasts_refuse(problem, estimate_regression_adjustment):
     import numpy as np
     from decision_layer.methods import Refused
-    from examples.methods.statistics.continuous_regression import sample
+    from tests.support.methods.continuous import sample
     frame = sample()
     params = {}
     if problem == "half_pair": params = {"control_value": .1}
@@ -68,14 +68,14 @@ def test_invalid_data_and_contrasts_refuse(problem, estimate_regression_adjustme
 
 
 async def test_shared_session_query_result_and_provenance():
-    from examples.methods.statistics.continuous_regression import demonstrate
+    from tests.support.methods.continuous import demonstrate
     results = await demonstrate()
     assert results[0]["value"] == pytest.approx(50)
     assert results[1]["value"] == pytest.approx(5)
 
 
 async def test_incomplete_contrast_refuses_without_query():
-    from examples.methods.statistics.continuous_regression import example_session, M, RATE, BASELINE, UNIT, FEB, DATE
+    from tests.support.methods.continuous import example_session, M, RATE, BASELINE, UNIT, FEB, DATE
     from decision_layer.methods import Scope
     session = await example_session()
     result = (await session.run("stats.regression_adjustment", outcome=M, treatment=RATE,
@@ -95,7 +95,7 @@ def test_refactored_and_editable_source_preserve_complete_payload(binary, contra
     from decision_layer.methods.source import capture_source
     from tests.unit.test_authoring_source import import_source
     from tests.unit.test_dowhy_matching import sample as binary_sample
-    from examples.methods.statistics.continuous_regression import sample as continuous_sample
+    from tests.support.methods.continuous import sample as continuous_sample
 
     data = (binary_sample() if binary else continuous_sample()).rename(
         columns={"baseline": "confounders_0"}

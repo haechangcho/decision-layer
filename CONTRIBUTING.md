@@ -11,14 +11,14 @@ make setup
 make example
 ```
 
-Start with the [hands-on tutorial](docs/tutorials/index.md), then save your Method in
+Start with the [hands-on tutorial](docs/guides/methods.md), then save your Method in
 [the example project](examples/methods/project/README.md). Reusable example functions
 live under `examples/`; their automated checks live under `tests/examples/`.
-Use the [repository map](docs/guides/repository.md) to find the owner of a change.
+Use the [repository map](docs/guides/development.md) to find the owner of a change.
 
 Use [local development](docs/guides/development.md) for Web/API changes and
 [the sample](examples/complete-journey/README.md) only when live data is needed.
-Run focused tests first, then `make test`. [Testing](docs/guides/testing.md) lists
+Run focused tests first, then `make test`. [Product development](docs/guides/development.md) lists
 Web, documentation and live checks.
 
 ## Choose the right contribution

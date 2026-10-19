@@ -59,7 +59,7 @@ Python event loop for breakpoints. It is a development trial with fresh budgets,
 not a stored Run. `preview()` uses the RunEngine and memory storage. Neither uploads
 code or evidence to a remote server. See ADR-079/080 and the [Method guide](guides/methods.md).
 
-`@method` turns a typed Python signature into the existing manifest/Method adapter. Input maps normalize into canonical bindings. `ctx.aggregate/entities` build governed DatasetSpecs; `ctx.compute` uses in-process local debugging or bounded server child computation. Optional dependencies are checked before queries. No new provider planner or notebook product is introduced. ADR-100 adds an opt-in trusted local code publication path. See ADR-081 and the [manual scenarios](guides/method-scenarios.md).
+`@method` turns a typed Python signature into the existing manifest/Method adapter. Input maps normalize into canonical bindings. `ctx.aggregate/entities` build governed DatasetSpecs; `ctx.compute` uses in-process local debugging or bounded server child computation. Optional dependencies are checked before queries. No new provider planner or notebook product is introduced. ADR-100 adds an opt-in trusted local code publication path. See ADR-081 and the [contributor tests](guides/development.md#tests).
 
 External-library APIs remain visible in authored calculation functions. `ctx.compute`
 is an execution boundary, not an estimator facade. Analysis-specific assumptions
@@ -196,7 +196,7 @@ candidate contracts and exclusion reasons, and never infers analytical intent or
 queries. Function Methods default to association and use a docstring for purpose.
 Optional result assertions remain distinct from search tags. MCP no longer imposes a
 CEM or change-analysis procedure independently of Recipes. See ADR-087 and the paired
-[discovery guide](guides/method-discovery.md).
+[Method authoring guide](guides/methods.md).
 
 The default Method catalog excludes the three retired design-object statistical
 contracts. Registry lookup keeps them executable for explicitly referenced legacy
@@ -214,7 +214,7 @@ Explicit existing Recipe references still resolve compatibility registrations (A
 DoWhy matching uses a distinct native estimator and ATT contrast; regression adjustment
 retains the existing ATE contrast. Observed diagnostics and assumed backdoor graphs do
 not promote either to an established causal effect. See ADR-091 and the
-[statistical guide](guides/statistical-methods.md).
+[Method contract](reference/method-contract.md).
 
 Numeric regression defaults to a constant change per stored treatment unit; explicit
 contrasts are optional. The old binary regression contract remains compatible while

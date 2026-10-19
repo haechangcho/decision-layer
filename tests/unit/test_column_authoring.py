@@ -14,7 +14,7 @@ from decision_layer.methods import (
     python_method,
 )
 from decision_layer.testing import FixtureProvider, QueryFixture
-from examples.methods.first_method.fixtures import (
+from examples.methods.authoring.sample_data import (
     METRIC,
     DIMENSION,
     DATE,
@@ -22,8 +22,8 @@ from examples.methods.first_method.fixtures import (
     fixture_provider,
 )
 from examples.methods.authoring.plain_python import practice_session
-from examples.methods.statistics.continuous_regression import example_session
-from examples.methods.scenarios.scenarios import (
+from tests.support.methods.continuous import example_session
+from tests.support.methods.cases import (
     M,
     RATE,
     BASELINE,
@@ -228,8 +228,8 @@ async def test_entity_ols_through_mcp_rest_and_worker(tmp_path, monkeypatch):
     from decision_layer.api.app import create_app
     from decision_layer.settings import Settings
     from decision_layer.mcp import server
-    from examples.methods.statistics.continuous_regression import sample
-    from examples.methods.scenarios.scenarios import catalog
+    from tests.support.methods.continuous import sample
+    from tests.support.methods.cases import catalog
 
     spec = DatasetSpec(
         grain="entity",
@@ -295,7 +295,7 @@ async def test_entity_ols_through_mcp_rest_and_worker(tmp_path, monkeypatch):
 
 
 async def test_numeric_dimension_is_checked_before_function():
-    from examples.methods.scenarios.scenarios import catalog
+    from tests.support.methods.cases import catalog
 
     def never(data):
         raise AssertionError("Invalid data reached calculation")
@@ -395,7 +395,7 @@ def test_entity_key_rejects_multiple_keys():
 
 @pytest.mark.parametrize("key_name", ["entity_id", "customer_id", "order_id"])
 async def test_entity_key_preserves_name_and_injects_column_argument(key_name):
-    from examples.methods.scenarios.scenarios import catalog
+    from tests.support.methods.cases import catalog
 
     # Give the ordinary function the author-selected argument name.
     namespace = {}
@@ -456,7 +456,7 @@ async def test_entity_key_preserves_name_and_injects_column_argument(key_name):
 
 @pytest.mark.parametrize("ids", [[None, "B"], ["A", "A"]])
 async def test_entity_key_rejects_null_and_duplicate_values(ids):
-    from examples.methods.scenarios.scenarios import catalog
+    from tests.support.methods.cases import catalog
 
     def never(data):
         raise AssertionError("Invalid entity observations reached function")

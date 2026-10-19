@@ -23,10 +23,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
-      - run: pip install -c examples/methods/statistics/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
-      - run: python -m examples.methods.scenarios --all
-      - run: python -m examples.methods.scenarios.failures --all
-      - run: pytest -q tests/unit/test_method_authoring.py tests/unit/test_advanced_methods.py tests/unit/test_method_guides.py tests/examples
+      - run: pip install -c tests/requirements-statistics.txt -e '.[dev,stats,dowhy,econml]'
+      - run: pytest -q tests/unit/test_method_authoring.py tests/unit/test_advanced_methods.py tests/unit/test_method_cases.py tests/unit/test_method_failures.py tests/unit/test_regression_adjustment.py tests/unit/test_dowhy_matching.py tests/examples
 
   web:
     runs-on: ubuntu-latest

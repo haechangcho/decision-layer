@@ -10,7 +10,7 @@ from decision_layer.methods.source import capture_source
 from decision_layer.dev import MethodSession
 from decision_layer.testing import FixtureProvider, QueryFixture
 from tests.unit.test_authoring_source import import_source
-from examples.methods.scenarios.scenarios import catalog, M, TREAT, BASELINE, UNIT, DATE, FEB
+from tests.support.methods.cases import catalog, M, TREAT, BASELINE, UNIT, DATE, FEB
 
 
 @pytest.mark.parametrize('name', ['stats.binary_matching', 'stats.regression_adjustment'])
@@ -71,7 +71,7 @@ async def test_single_ref_for_list_role_still_produces_stable_columns():
 
 async def test_missing_binding_does_not_query_or_guess():
     from examples.methods.authoring.plain_python import practice_session, METHODS
-    from examples.methods.first_method.fixtures import METRIC, DATES, DATE as TIME
+    from examples.methods.authoring.sample_data import METRIC, DATES, DATE as TIME
     session = await practice_session()
     session.register(METHODS[0])
     with pytest.raises(InvalidBinding, match='group'):
@@ -81,7 +81,7 @@ async def test_missing_binding_does_not_query_or_guess():
 
 async def test_mixed_measure_is_checked_before_calculation():
     from decision_layer.core.models import RoleSpec
-    from examples.methods.scenarios.scenarios import RATE
+    from tests.support.methods.cases import RATE
     def never(data):
         raise AssertionError('Invalid input reached calculation')
     method = python_method(never, name='test.mixed', version='1.0.0', inputs={

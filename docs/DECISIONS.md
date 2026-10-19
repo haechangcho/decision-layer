@@ -2473,3 +2473,22 @@ Documentation starts with installation, then offers sample data or an existing
 Cube connection. Sample PostgreSQL contains source observations; SQLite records
 Decision Layer execution. This adds onboarding commands, not a semantic provider,
 analysis engine or service scheduler.
+
+## ADR-113 — Keep one Method authoring path and remove obsolete public labs (2026-10-19)
+
+**Accepted.** The developer navigation contains three tasks: write a Python
+Method, use a Method project, and contribute to the product. SDK patterns,
+discovery, deployment, repository maps and test instructions are consolidated
+into those guides and the existing contract/architecture references.
+
+Remove the CEM/PyWhy review report and its estimator-comparison lab, result dumps,
+constraints and notebook. Remove superseded advanced, query-scenario and SDK
+notebooks; retain the bilingual ordinary-function tutorial and complete project.
+These are deletions, not hidden public pages or another documentation archive.
+
+Executable SDK and numerical fixtures still needed to verify product behavior
+belong to tests/support/methods. Refusal cases run as pytest cases instead of a
+separate example CLI. Remove unused experiment servers, live research runners and
+old notebook-compatibility helpers. Shared introductory data lives beside the
+retained authoring example. Production Methods, historical Method contracts and
+recorded Runs are unaffected.

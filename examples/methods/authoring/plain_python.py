@@ -48,42 +48,12 @@ METHODS = [
 ]
 
 
-def adjusted_difference(observations):
-    """Use the existing DoWhy function without rewriting its implementation."""
-    from examples.methods.statistics.binary_regression import estimate_binary_regression
-
-    return estimate_binary_regression(observations, ["baseline"])
-
-
-DOWHY_METHOD = python_method(
-    adjusted_difference,
-    name="workshop.adjusted_difference",
-    version="1.0.0",
-    inputs={
-        "observations": DataInput(
-            measures=["outcome"],
-            dimensions=["treatment", "baseline"],
-            entity="unit_id",
-            minimum_rows=60,
-        )
-    },
-    output="estimate",
-    requires_packages={
-        "dowhy": "==0.13",
-        "numpy": ">=1.26,<2",
-        "scikit-learn": ">=1.2,<1.7",
-    },
-)
-# Registration is safe without DoWhy installed; execution reports missing dependencies.
-METHODS.append(DOWHY_METHOD)
-
-
 async def practice_session(prior=None):
     """Prepare repeatable fixture data with no Methods registered."""
     from decision_layer.core.models import DatasetSpec, TimeScope
     from decision_layer.dev import MethodSession
     from decision_layer.testing import FixtureProvider, QueryFixture
-    from examples.methods.first_method.fixtures import (
+    from examples.methods.authoring.sample_data import (
         METRIC,
         DIMENSION,
         DATE,

@@ -2,7 +2,7 @@
 import pytest
 
 from decision_layer.methods import Scope
-from examples.methods.first_method.fixtures import DATE, DATES, DIMENSION, METRIC
+from examples.methods.authoring.sample_data import DATE, DATES, DIMENSION, METRIC
 from examples.methods.authoring.plain_python import METHODS, practice_session
 
 

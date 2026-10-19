@@ -18,18 +18,9 @@ function sidebar(locale: '' | 'ko') {
       item('Runs and evidence', '실행 기록과 근거', '/guides/runs')
     ] },
     { text: ko ? '개발과 기여' : 'Develop', items: [
-      item('Hands-on tutorials', '직접 해보기', '/tutorials/'),
-      item('Method projects', 'Method 프로젝트', '/guides/method-projects'),
-      ...(ko ? [{ text: '만든 Method 사용하기', link: '/ko/guides/method-deployment' }] : []),
-      item('First Method', '첫 Method 개발', '/guides/methods'),
-      item('Method discovery', 'Method 작성과 AI 탐색', '/guides/method-discovery'),
-      item('Authoring patterns', 'Method 작성 패턴', '/guides/method-patterns'),
-      item('Run test scenarios', '직접 테스트 시나리오', '/guides/method-scenarios'),
-      item('Optional advanced analysis', '선택 고급 분석', '/guides/statistical-methods'),
-      item('CEM and PyWhy review', 'CEM·PyWhy 검토', '/guides/pywhy-review'),
-      item('Repository structure', '저장소 구조', '/guides/repository'),
-      item('Local development', '개발 환경', '/guides/development'),
-      item('Testing', '테스트', '/guides/testing')
+      item('Write a Method', 'Method 만들기', '/guides/methods'),
+      item('Use a Method project', '프로젝트에서 사용하기', '/guides/method-projects'),
+      item('Contribute to the product', '제품 개발하기', '/guides/development')
     ] },
     { text: ko ? '참고 문서' : 'Reference', collapsed: true, items: [
       item('Method contract', 'Method 계약', '/reference/method-contract'),
