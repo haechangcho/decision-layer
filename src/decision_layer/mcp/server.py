@@ -11,15 +11,15 @@ Decision Layer server, so the client model chooses *what* to run, never *how* to
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 import logging
 import time
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from mcp.server.mcpserver import Context, MCPServer
 
 from ..core.models import AnalysisGoal, ExecutionAuthor, Recipe, RecipeReview, RecipeSelection, RunConclusion
-from ..recipes.routing import reuse_contract
 from ..core.periods import PeriodChoice
 from ..service import BlockedAnalysisRequest, RemediationCreateRequest, RemediationRetryRequest
 
@@ -33,7 +33,7 @@ set_locale(LOCALE)
 SECTIONS = {
     "method_selection": 'Before selecting a Method, call find_methods with the typed goal. Without a clear goal, inspect candidates and ask what comparison or outcome is wanted. Copy required_capabilities from discovered contracts only when their meaning fits; never invent tags or treat empty capabilities as proof of purpose. Compare descriptions, input roles, conditional capabilities and interpretation. A candidate is not proof of relevance, valid joins or causal identification. Do not choose an estimator solely from a factor type or use CEM for every relationship question. Ask for missing contrasts and confounders. No suitable Method is a valid outcome; record the unsupported goal. Existing Recipes own investigation order. When reusing ranked selections, use returned selection_sources instead of copying display rows. Ask when the selection is unclear or tied. Report significance only from explicit supported result tests. Conditional causal labels require stated assumptions; matching or estimator execution alone is not causal proof.',
     "reuse": "Recipe reuse: compare the executable reuse.procedure, required_filters and fixed_method_periods with the question. source_question and source_purpose are historical evidence, not execution constraints. If the period binding is runtime, a different requested period does not make the Recipe unsuitable. An empty objective means no separate description was authored, not that the procedure is invalid. Prefer a suitable existing Recipe over rebuilding the same steps. If starting without a Recipe when candidates exist, provide recipe_review entries with decision='skipped' and concrete reasons. The server records these decisions but does not verify narrative truth.",
-    "routing": "Before choosing a Recipe, call find_recipes with the original question and goals using discovered semantic refs and manifest provides capabilities. Candidate rank and reference availability are not proof of relevance. No matching Recipe is valid: use query.aggregate for metric lookup and registered Methods for analytical calculations. Never replace trend validation, matching or significance checks with plain lookup. Record every requested part as a goal, including unsupported parts. Complete with one goal_outcome per goal and evidence links for supported outcomes. If semantic definitions are insufficient, record_semantic_gap with evidence and typed requirements; undiscovered is not proof of absent data. Leave ref unset when unknown. Never modify semantic models or assert user approval. Review takes place in the Web or owner API. A successful catalog check is not proof of joins, data quality or causality; normal Method validation still applies. A missing Method may be proposed on GitHub only if the user wants to contribute; prepare_method_proposal creates a draft from explicitly provided public text, never submits it. Do not copy private questions, metrics, queries or results into public text.",
+    "routing": "Before choosing a Recipe, call find_recipes with the original question and goals using discovered semantic refs and manifest provides capabilities. Candidate rank and reference availability are not proof of relevance. No matching Recipe is valid: use analysis.metric_lookup for metric lookup and registered Methods for analytical calculations. Never replace trend validation, matching or significance checks with plain lookup. Record every requested part as a goal, including unsupported parts. Complete with one goal_outcome per goal and evidence links for supported outcomes. If semantic definitions are insufficient, record_semantic_gap with evidence and typed requirements; undiscovered is not proof of absent data. Leave ref unset when unknown. Never modify semantic models or assert user approval. Review takes place in the Web or owner API. A successful catalog check is not proof of joins, data quality or causality; normal Method validation still applies. A missing Method may be proposed on GitHub only if the user wants to contribute; prepare_method_proposal creates a draft from explicitly provided public text, never submits it. Do not copy private questions, metrics, queries or results into public text.",
     "periods": "Periods: omission is unresolved, not all data. Use an explicit date range from the request or conversation, a relative period rule, or period={mode: 'all'} when appropriate and permitted. If Run.needs_input is present, resolve it with set_run_scope before calling another Method. You may propose a period; ask the user when their intent is unclear. Never invent a date range silently or treat source labels as user approval. Server policy cannot be overridden.",
     "conclude": "Complete each analysis with complete_run and a structured conclusion. A Run remains open until an answer and findings linked to recorded steps are saved. Do not leave the final answer only in the chat.",
     "attribution": "If your host explicitly supplies the model provider, model ID or revision, pass the known values in author on start, step and completion calls. Omit unknown values; never infer a model from the client product or claim a version from memory. Client/model attribution is informational, not an authenticated identity.",
@@ -80,6 +80,7 @@ def instructions() -> str:
         parts.append(_("Recipe execution is disabled in this client profile. Use find_recipes to review candidates and record skipped recipe_review reasons before starting with registered Methods."))
     parts.append(_("Recording is automatic, not a user task. Before replying that an analysis cannot proceed, call report_analysis_blocked with the original question, all goals, classified outcomes and the inspected evidence. For semantic_missing include proposed requirements with unknown refs unset. If a Run already exists, finish that Run rather than starting another. Do not ask whether to record, mention internal tool names as instructions for the user, substitute a different business question, or request approval for private execution records. Return the recorded Run link with the plain-language reason. Model changes and proposal approval still require owner review. Do not claim a record was saved if the tool failed. Discovery-only catalog browsing is not an analysis question."))
     parts.append("For semantic improvements, combine goals blocked by the same missing definition in one proposal using related_goal_ids. Keep distinct definitions separate. Provide concise actions and optional model_drafts derived only from inspected APIs, with placeholders and unresolved details for unknown physical schema. Never use local project files as evidence of API-visible definitions or claim that a proposed YAML is verified or applied.")
+    parts.append("Skill Method query stages are agent-executed. Start them with run_step, or start a Recipe that pauses at its first Skill. When needs_input.reason_code is AGENT_EXECUTION_REQUIRED, read its guide and use run_skill_query then finish_skill_step; do not ask the user to execute tools. get_run includes the active Skill, bound inputs and per-query logs. Finish resumes the next Recipe step automatically, including Python calculations. Never start another step while a Skill is active. Export observed selections by query_id/row/dimension; preserve selected_group.evidence.filters for subsequent populations. Reading prose is not validation; only actual query checks are verified. get_method_guide provides authoring and cube-query references. Legacy query.drilldown/query.peer_comparison are compatibility implementations; prefer analysis.drilldown/analysis.peer_comparison for new guided investigations.")
     return "\n\n".join(parts)
 
 
@@ -143,7 +144,7 @@ async def list_methods() -> dict:
     if isinstance(ms, dict):
         return ms
     return {"methods": [{"name": m["name"], "description": m["description"], "interpretation": m["interpretation"],
-                         "provides": m.get("provides", []),
+                         "provides": m.get("provides", []), "implementation": m.get("implementation", "python"),
                          "roles": {k: r["kind"] + ("[]" if r["multiple"] else "") for k, r in m["roles"].items()}}
                         for m in ms if allowed(m["name"])]}
 
@@ -160,7 +161,15 @@ async def find_methods(goal: AnalysisGoal | None = None) -> dict:
 async def describe_method(name: str) -> dict:
     if not allowed(name):
         return _not_exposed(name)
-    return await _call("GET", f"/methods/{name}")
+    manifest = await _call("GET", f"/methods/{name}")
+    if manifest.get("implementation") == "skill":
+        manifest["guide"] = await _call("GET", f"/methods/{name}/guide")
+    return manifest
+
+
+@mcp.tool(description="Read a version-matched advisory guide: authoring or cube-query. It never grants permissions or counts as executed validation.")
+async def get_method_guide(name: str) -> dict:
+    return await _call("GET", f"/method-guides/{name}")
 
 
 def _not_exposed(name: str) -> dict:
@@ -180,6 +189,7 @@ def _running_or(body: Any, compact) -> Any:
 
 
 def _compact_result(result: Any) -> Any:
+    result = deepcopy(result)
     if isinstance(result, dict):
         result["selections"] = {name: {**output, "candidate_count": len(output.get("candidates", [])),
                                      "candidates": output.get("candidates", [])[:3]}
@@ -195,6 +205,53 @@ def _compact_result(result: Any) -> Any:
                                 "queries": len(prov.get("queries") or []),
                                 "rows_read": sum(q.get("rows", 0) for q in prov.get("queries") or [])}
     return result
+
+
+def _compact_skill(skill: dict | None) -> dict | None:
+    if not skill:
+        return None
+    out = {key: deepcopy(skill.get(key)) for key in ("status", "completion_reason", "completed_by")}
+    active = skill.get("status") == "awaiting_agent"
+    out["guide"] = {key: value for key, value in skill["guide"].items() if key != "markdown" or active}
+    if active:
+        out["manifest"] = deepcopy(skill["manifest"])
+    out["queries"] = [{key: deepcopy(query.get(key)) for key in
+        ("id", "purpose", "status", "error", "author", "started_at", "finished_at")}
+        | {"rows": len((query.get("result") or {}).get("primary", {}).get("data") or [])}
+        for query in skill.get("queries", [])]
+    out["query_detail_tool"] = "get_skill_query"
+    return out
+
+
+def _skill_result_summary(result: dict) -> dict:
+    out = _compact_result(result)
+    # Each query already has its own result. Avoid resending every table in each Run response.
+    out["artifacts"] = []
+    if isinstance((out.get("primary") or {}).get("data"), list):
+        rows = out["primary"]["data"]
+        out["primary"]["data"] = []
+        out["primary_preview"] = {"returned": 0, "total": len(rows),
+            "detail_tool": "get_skill_query", "note": "Read original query rows before selecting; selection row indices are per query, not this combined preview."}
+    if isinstance(out.get("needs_input"), dict):
+        out["needs_input"].pop("guide", None)  # Active frozen guide is included once under step.skill.
+    return out
+
+
+def _skill_query_page(query: dict, offset: int = 0, limit: int = 25) -> dict:
+    out = deepcopy(query)
+    if out.get("result"):
+        out["result"] = _compact_result(out["result"])
+        out["result"]["artifacts"] = []
+        primary = out["result"].get("primary") or {}
+        rows = primary.get("data")
+        if isinstance(rows, list):
+            total = len(rows)
+            primary["data"] = rows[offset:offset + limit]
+            out["page"] = {"offset": offset, "limit": limit, "total_rows": total,
+                "next_offset": offset + limit if offset + limit < total else None,
+                "selection_row_indices": "absolute query row index = page.offset + row index within this page"}
+    out["detail_tool"] = "get_skill_query"
+    return out
 
 
 def _compact_run(run: dict) -> dict:
@@ -217,14 +274,24 @@ def _compact_run(run: dict) -> dict:
            "remediations": run.get("remediations", []), "retry_of": run.get("retry_of"),
            "recipe_review": run.get("recipe_review", []),
            "recipe_invocation": run.get("recipe_invocation"),
+           "method_guides": run.get("method_guides", []),
            "steps": [{"id": s["step"].get("id"), "purpose": s["step"].get("purpose"),
                       "purpose_context": s["step"].get("purpose_context") or ("source_run" if recipe.get("origin_runs") else "procedure"),
+                      "skill": _compact_skill(s.get("skill")),
                       "method": s["step"]["method"], "bindings": s["step"]["bindings"],
                       "params": s["step"]["params"], "requested_step": s.get("requested_step"),
                       "input_resolutions": s.get("input_resolutions", []),
                       "invocation_id": s.get("invocation_id"), "goal_ids": s["step"].get("goal_ids", []),
-                      "author": s.get("author"), "result": _compact_result(s["result"])} for s in run["steps"]]}
-    if run.get("needs_input"):
+                      "author": s.get("author"), "result": _skill_result_summary(s["result"]) if s.get("skill") else _compact_result(s["result"])} for s in run["steps"]]}
+    for step in out["steps"]:
+        if step.get("skill"):
+            step.pop("requested_step", None)
+            step.pop("input_resolutions", None)
+    out["active_skill_step"] = run.get("active_skill_step")
+    if run.get("active_skill_step") and not run.get("running"):
+        out["next"] = {"tools":["run_skill_query", "finish_skill_step"], "run_id":run["id"], "step_id":run["active_skill_step"],
+                       "note":"The agent must read the step Skill and execute queries; this is not a request for the user to operate tools."}
+    elif run.get("needs_input"):
         out["next"] = {"tool": "set_run_scope", "run_id": run["id"], "base_revision": run.get("scope_revision", 0)}
     elif run.get("running"):
         out["next"] = {"tool": "wait_for_run", "run_id": run["id"]}
@@ -262,7 +329,7 @@ async def list_recipes() -> dict:
                          "description_role": "source_question" if r.get("origin_runs") else "procedure",
                          "objective": r["routing"].get("objective") or ("" if r.get("origin_runs") else r["description"]),
                          "source_question": r.get("source_question") or (r["description"] if r.get("origin_runs") else None),
-                         **({"reuse": reuse_contract(Recipe.model_validate(r))} if availability["available"] else {}),
+                         **({"reuse": await _call("GET", f"/recipes/{r['name']}/reuse")} if availability["available"] else {}),
                          "use_for": r["routing"]["use_for"], "do_not_use_for": r["routing"]["do_not_use_for"],
                          "primary_metric": r["semantic_scope"]["primary_metric"], "inputs": r.get("inputs", {}), **availability}
                         for r, availability in zip(rs, available)],
@@ -304,8 +371,8 @@ async def use_recipe(run_id: str, recipe: str, selection: RecipeSelection, input
 async def start_analysis(question: str, date_range: list[str] | None = None,
                          time_dimension: str | None = None, filters: list[dict[str, Any]] | None = None,
                          author: ExecutionAuthor | None = None, ctx: Context = None, period: PeriodChoice | None = None,
-                         *, goals: list[AnalysisGoal], recipe_review: list[RecipeReview] | None = None) -> dict:
-    body = {"recipe": None, "question": question, "author": _author(author, ctx),
+                         *, goals: list[AnalysisGoal], recipe_review: list[RecipeReview] | None = None, guide: str | None = None) -> dict:
+    body = {"recipe": None, "guide": guide, "question": question, "author": _author(author, ctx),
             "goals": [goal.model_dump(mode="json") for goal in goals or []],
             "recipe_review": [item.model_dump(mode="json") for item in recipe_review or []],
             "scope": {"date_range": date_range, "time_dimension": time_dimension, "filters": filters or [],
@@ -337,6 +404,40 @@ async def run_step(run_id: str, method: str,
             "measures": measures or {}, "dimensions": dimensions or {}, "entity": entity}
     return _running_or(await _call("POST", f"/runs/{run_id}/steps", json=body, params={"wait": WAIT_SECONDS}),
                        _compact_result)
+
+
+@mcp.tool(description="Execute one governed Cube query inside the active Skill step. This records the request, purpose, result, errors and provenance. Use the exact bound metric, Run period and inherited filters; inspect get_run for the active step. Returns at most 25 rows; use get_skill_query to read further pages before selecting an absolute query row. No SQL or Python is accepted.")
+async def run_skill_query(run_id: str, step_id: str, query_id: str, purpose: str, spec: dict[str, Any],
+                          period_role: Literal["current", "comparison"] = "current",
+                          author: ExecutionAuthor | None = None, ctx: Context = None) -> dict:
+    return _running_or(await _call("POST", f"/runs/{run_id}/steps/{step_id}/queries",
+        json={"id":query_id, "purpose":purpose,"spec":spec,"period_role":period_role,"author":_author(author, ctx)},
+        params={"wait":WAIT_SECONDS}), _skill_query_page)
+
+
+@mcp.tool(description="Read one persisted Skill query, including request, status, checks, provenance summary and a page of actual rows. This never re-executes data access. Use absolute row indices (offset plus row index) in finish_skill_step. Full native query/SQL evidence remains in the Web Run. Limit is 1 to 100 rows; default 25.")
+async def get_skill_query(run_id: str, step_id: str, query_id: str, offset: int = 0, limit: int = 25) -> dict:
+    if offset < 0 or not 1 <= limit <= 100:
+        return {"error": {"code": "INVALID_PAGE", "message": "Use offset >= 0 and limit between 1 and 100."}}
+    run = await _call("GET", f"/runs/{run_id}")
+    if "id" not in run:
+        return run
+    for step in run.get("steps", []):
+        if step["step"].get("id") == step_id:
+            for query in (step.get("skill") or {}).get("queries", []):
+                if query["id"] == query_id:
+                    return _skill_query_page(query, offset, limit)
+    return {"error": {"code": "SKILL_QUERY_NOT_FOUND", "message": "No recorded query matches this step and query ID."}}
+
+
+@mcp.tool(description="Complete or refuse the active Skill stage after inspecting its query evidence. An optional selection must reference a returned query row/dimension, never an invented value. Completion resumes the next Recipe stage. If another Skill is waiting, follow its instructions; only finish the Run after all stages.")
+async def finish_skill_step(run_id: str, step_id: str, reason: str,
+                            status: Literal["completed", "refused"] = "completed",
+                            selection: dict[str, Any] | None = None,
+                            author: ExecutionAuthor | None = None, ctx: Context = None) -> dict:
+    return _running_or(await _call("POST", f"/runs/{run_id}/steps/{step_id}:finish",
+        json={"status":status,"reason":reason,"selection":selection,"author":_author(author, ctx)},
+        params={"wait":WAIT_SECONDS}), _compact_run)
 
 
 @mcp.tool(description=_(DOCS["complete_run"]))
@@ -407,8 +508,19 @@ async def get_run(run_id: str) -> dict:
     return _compact_run(await _call("GET", f"/runs/{run_id}"))
 
 
+@mcp.tool(description="When the user asks to save their completed analysis, save its procedure as a draft. Only the Run owner with editor permission can do this. Return the draft and review its fixed values, filters, period rules and origin links with the user; questions and Run-specific prose are omitted. Saving does not publish or validate the analysis.")
+async def save_procedure(run_id: str) -> dict:
+    return await _call("POST", f"/runs/{run_id}/recipe", json={})
+
+
+@mcp.tool(description="Publish a reviewed draft only when the user asks to publish it. First inspect the entire draft returned by save_procedure, including fixed values, filters and origin links. Publication requires publisher permission and the current draft version; it creates a new immutable version. A shared Run viewer cannot promote its procedure.")
+async def publish_procedure(name: str, base_version: str) -> dict:
+    from urllib.parse import quote
+    return await _call("POST", f"/recipes/{quote(name, safe='')}/publish", json={"base_version": base_version})
+
+
 if not RECIPES:
-    for tool in ("list_recipes", "start_run", "use_recipe"):
+    for tool in ("list_recipes", "start_run", "use_recipe", "save_procedure", "publish_procedure"):
         mcp.remove_tool(tool)
 
 

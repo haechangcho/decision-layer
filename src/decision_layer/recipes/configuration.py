@@ -3,12 +3,12 @@ from ..core.models import ParamSpec, Recipe, SemanticCatalog
 from ..methods import registry
 
 
-def configure_step(recipe: Recipe, index: int, reset: list[str] | None = None, *, catalog: SemanticCatalog | None = None) -> Recipe:
+def configure_step(recipe: Recipe, index: int, reset: list[str] | None = None, *, catalog: SemanticCatalog | None = None, registry=registry) -> Recipe:
     if index < 0 or index >= len(recipe.steps):
         raise ValueError("Step index is outside the Recipe")
     result = recipe.model_copy(deep=True)
     step = result.steps[index]
-    manifest = registry.get(step.method).manifest
+    manifest = registry.get(step.method, step.method_version).manifest
     for name in reset or []:
         if name not in manifest.parameters:
             raise ValueError(f"Unknown parameter: {name}")
@@ -34,7 +34,7 @@ def configure_step(recipe: Recipe, index: int, reset: list[str] | None = None, *
             if value:
                 step.bindings[name] = f"$scope.{role.default_binding}"
     prior = next((item for item in reversed(result.steps[:index])
-                  if item.id and "ranked_groups" in registry.get(item.method).manifest.selection_outputs), None)
+                  if item.id and registry.get(item.method, item.method_version).manifest.selection_outputs), None)
     # Parent-population defaults depend on another parameter, not manifest order.
     parameters = sorted(manifest.parameters.items(), key=lambda item: bool(item[1].source_policy and item[1].source_policy.default == "parameter_parents"))
     fixed = result.method_parameters.get(step.method)
@@ -44,7 +44,7 @@ def configure_step(recipe: Recipe, index: int, reset: list[str] | None = None, *
         policy = spec.source_policy
         source = None
         if policy.default == "previous_result" and prior:
-            source = {"source": "step", "step_id": prior.id, "output": "ranked_groups", "select": "first", "project": policy.project}
+            source = {"source": "step", "step_id": prior.id, "output": registry.get(prior.method, prior.method_version).manifest.selection_outputs[0], "select": "first", "project": policy.project}
         elif policy.default == "parameter_parents":
             parent = step.params.get(policy.parameter)
             if isinstance(parent, dict) and parent.get("source") == "step":

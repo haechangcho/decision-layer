@@ -98,7 +98,7 @@ class RunEngine:
         allow_all = self.policy.allow_all
         steps = run.recipe_snapshot.steps[:pending.get("step_index", len(run.recipe_snapshot.steps) - 1) + 1] if run.recipe_snapshot and pending["kind"] in ("pipeline", "preview") else [PlanStep.model_validate(pending["step"])] if pending.get("step") else []
         for step in steps:
-            manifest = self.registry.get(step.method).manifest
+            manifest = self.registry.get(step.method, step.method_version).manifest
             fixed = run.recipe_snapshot.method_parameters.get(step.method) if run.recipe_snapshot else None
             params = {**step.params, **(fixed.fixed if fixed else {})}
             if manifest.requires_period or any(spec.meaning == "period" and spec.type == "boolean" and params.get(name, spec.default) is True for name, spec in manifest.parameters.items()):
@@ -183,9 +183,17 @@ class RunEngine:
                     origin: Literal["python", "api", "web", "mcp"] = "python",
                     author: ExecutionAuthor | None = None, goals: list[AnalysisGoal] | None = None,
                     recipe_selection: RecipeSelection | None = None, interactive: bool = False,
-                    recipe_review: list[RecipeReview] | None = None, retry_of: RunRetryLink | None = None) -> Run:
+                    recipe_review: list[RecipeReview] | None = None, retry_of: RunRetryLink | None = None,
+                    guide: str | None = None) -> Run:
         if origin == "mcp" and not (question and question.strip()):
             raise AnalysisContractError(_("Start the analysis with the original user question."), next_tool="start_analysis")
+        guidance = []
+        if guide:
+            from ..methods.skills import SkillMethod
+            selected = self.registry.get(guide)
+            if not isinstance(selected, SkillMethod):
+                raise InvalidBinding("guide must name a registered Skill Method")
+            guidance = [selected.guide.model_copy(deep=True)]
         rec = self.recipes.get(recipe) if recipe else None
         goals = goals or []
         if origin == "mcp" and not goals:
@@ -206,7 +214,7 @@ class RunEngine:
                 raise InvalidBinding("Select at least one goal for this Recipe.")
             if set(selected_ids) - {goal.id for goal in goals}:
                 raise InvalidBinding("Recipe selection references an unknown goal.")
-            check = compatibility(rec, [goal for goal in goals if goal.id in selected_ids], scope.get("inputs") or {})
+            check = compatibility(rec, [goal for goal in goals if goal.id in selected_ids], scope.get("inputs") or {}, registry=self.registry)
             if check["conflicts"]:
                 raise InvalidBinding("This Recipe cannot cover the selected goals.", conflicts=check["conflicts"])
         if rec:
@@ -232,7 +240,7 @@ class RunEngine:
                 reviews.append(RecipeReview(recipe=selected_ref, decision="selected", reason=recipe_selection.reason))
                 if selected_ref not in {item["recipe"] for item in candidates}:
                     candidates = candidates + [{"recipe": selected_ref, "name": rec.name,
-                        "objective": rec.routing.objective, "reuse": reuse_contract(rec)}]
+                        "objective": rec.routing.objective, "reuse": reuse_contract(rec, registry=self.registry)}]
             if not rec:
                 missing = [item for item in candidates if item["recipe"] not in by_ref]
                 if missing:
@@ -244,7 +252,7 @@ class RunEngine:
                   plan=AnalysisPlan(question=question, recipe=recipe_ref(rec.name, rec.version) if rec else None,
                                     scope={**scope, "filters": [f.model_dump(mode="json") for f in filters]},
                                     resolved=_resolved(rec)),
-                  recipe_snapshot=rec, goals=goals, recipe_selection=recipe_selection, interactive=interactive,
+                  recipe_snapshot=rec, method_guides=guidance, goals=goals, recipe_selection=recipe_selection, interactive=interactive,
                   recipe_review=reviews, recipe_candidates=candidates,
                   recipe_invocation=RecipeInvocation(recipe=recipe_ref(rec.name, rec.version),
                       goal_ids=selected_ids) if rec else None)
@@ -279,7 +287,7 @@ class RunEngine:
             await self.provider.resolve(sorted(semantic_refs(rec.model_dump(mode="json"))), creds)
             if not selection.goal_ids or set(selection.goal_ids) - {goal.id for goal in run.goals}:
                 raise InvalidBinding("Select recorded goals for the Recipe.")
-            check = compatibility(rec, [goal for goal in run.goals if goal.id in selection.goal_ids], inputs)
+            check = compatibility(rec, [goal for goal in run.goals if goal.id in selection.goal_ids], inputs, registry=self.registry)
             if check["conflicts"]:
                 raise InvalidBinding("This Recipe cannot cover the selected goals.", conflicts=check["conflicts"])
             values = self.registry.input_values(rec.inputs, inputs)
@@ -293,7 +301,7 @@ class RunEngine:
             if run.plan.recipe not in {item.get("recipe") for item in run.recipe_candidates}:
                 from ..recipes.routing import reuse_contract
                 run.recipe_candidates.append({"recipe": run.plan.recipe, "name": rec.name,
-                    "objective": rec.routing.objective, "reuse": reuse_contract(rec)})
+                    "objective": rec.routing.objective, "reuse": reuse_contract(rec, registry=self.registry)})
             run.plan.resolved.update(_resolved(rec))
             run.plan.scope["inputs"] = values
             run.plan.scope["filters"] = [item.model_dump(mode="json") for item in
@@ -341,11 +349,13 @@ class RunEngine:
 
     async def _step(self, creds, caller, run_id, step, wait, author, input_maps=None):
         run = await self._owned(run_id, caller)
+        if run.active_skill_step:
+            raise RunBusy("Finish the active Skill step before starting another step.", step_id=run.active_skill_step)
         if input_maps:
             self._enforce(run, step, check_budget=False, check_step_limit=False)
             from ..methods.invocation import invocation_inputs
             step = step.model_copy(update={"bindings": invocation_inputs(
-                self.registry.get(step.method).manifest, bindings=step.bindings, **input_maps)})
+                self.registry.get(step.method, step.method_version).manifest, bindings=step.bindings, **input_maps)})
         if step.id:
             for record in run.steps:
                 if record.step.id == step.id:
@@ -375,6 +385,7 @@ class RunEngine:
             raise InvalidBinding("This step ID is already recorded. Inspect the existing result before continuing.",
                                  run_id=run_id, step_id=step.id)
         self._enforce(run, step)
+        self.registry.plannable(step.method, step.method_version)
         if "period" not in run.plan.scope:
             self._prepare_scope(run, run.plan.scope)
         if await self._pause(creds, run, {"kind": "step", "step": step.model_dump(mode="json"), "author": author.model_dump(mode="json") if author else None}):
@@ -386,6 +397,32 @@ class RunEngine:
         _done, result = await self._run_job(run_id, lambda r: self._execute(creds, r, step, author=author), wait)
         return await self.store.get(run_id), result
 
+    async def skill_query(self, creds, caller, run_id, step_id, req, author=None, wait=None):
+        from .skills import active, query
+        async with self._scope_locks.setdefault(run_id, asyncio.Lock()):
+            run = await self._owned(run_id, caller)
+            active(run, step_id)
+            if run.running:
+                raise RunBusy("A query is already running.")
+            run.running, run.error = RunningJob(kind="step", method=run.steps[-1].step.method), None
+            await self.store.save(run)
+            _done, value = await self._run_job(run.id, lambda current: query(self, creds, current, step_id, req, author), wait)
+            return await self.store.get(run.id), value
+
+    async def finish_skill(self, creds, caller, run_id, step_id, req, author=None, wait=None):
+        from .skills import finish
+        async with self._scope_locks.setdefault(run_id, asyncio.Lock()):
+            run = await self._owned(run_id, caller)
+            if run.running:
+                raise RunBusy("Wait for the active query to finish.")
+            finish(self, run, step_id, req, author)
+            await self.store.save(run)
+            if req.status == "completed" and run.recipe_snapshot and run.recipe_snapshot.mode == "pipeline":
+                run.running = RunningJob(kind="pipeline")
+                await self.store.save(run)
+                await self._run_job(run.id, lambda current: self._pipeline(creds, current), wait)
+            return await self.store.get(run.id)
+
     async def complete(self, caller: CallerInfo, run_id: str, summary: str | None = None,
                        conclusion: RunConclusion | None = None, author: ExecutionAuthor | None = None) -> Run:
         async with self._scope_locks.setdefault(run_id, asyncio.Lock()):
@@ -393,6 +430,8 @@ class RunEngine:
 
     async def _complete(self, caller, run_id, summary, conclusion, author):
         run = await self._owned(run_id, caller)
+        if run.active_skill_step:
+            raise RunBusy("Finish or refuse the active Skill step before completing the Run.")
         attaching = (run.status == "completed" and not run.summary and run.conclusion is not None
                      and run.conclusion.source == "execution" and conclusion is not None)
         if run.status != "open" and not attaching:
@@ -436,7 +475,7 @@ class RunEngine:
         if origin == "mcp":
             raise AnalysisContractError(_("MCP analysis methods must execute inside an existing Run. Start with start_analysis, then use run_step."),
                                         next_tool="start_analysis")
-        self.registry.get(step.method)  # unknown names fail before anything is stored
+        self.registry.plannable(step.method, step.method_version)  # unknown names fail before anything is stored
         run = Run(id=new_id("run"), caller=caller, origin=origin, author=author, preview=preview, plan=AnalysisPlan(question=question, scope=scope),
                   running=RunningJob(kind="adhoc", method=step.method))
         self._prepare_scope(run, scope)
@@ -447,8 +486,9 @@ class RunEngine:
 
         async def body(r: Run) -> Result:
             result = await self._execute(creds, r, step, author=author)
-            r.status, r.finished_at = "completed", _now()
-            r.ensure_conclusion()
+            if not r.active_skill_step:
+                r.status, r.finished_at = "completed", _now()
+                r.ensure_conclusion()
             return result
 
         _done, result = await self._run_job(run.id, body, wait)
@@ -463,6 +503,13 @@ class RunEngine:
                 run.status, run.finished_at = "failed", _now()
             run.running = None
             run.active_step = None
+            for record in run.steps:
+                if record.skill:
+                    for query in record.skill.queries:
+                        if query.status == "running":
+                            query.status = "interrupted"
+                            query.error = {"code":"INTERRUPTED", "message":"Server restarted during this Skill query; use a new query ID to retry."}
+                            query.finished_at = _now()
             for attempt in run.query_attempts:
                 if attempt.status == "running":
                     attempt.status, attempt.error_code = "interrupted", "INTERRUPTED"
@@ -482,6 +529,7 @@ class RunEngine:
         used = {r for s in run.steps for r in s.result.provenance.semantic_refs}
         used.update(semantic_refs([attempt.spec.model_dump(mode="json") for attempt in run.query_attempts]))
         used.update(ref for goal in run.goals for ref in goal.semantic_refs)
+        used.update(semantic_refs([q.spec.model_dump(mode="json") for record in run.steps if record.skill for q in record.skill.queries]))
         used.update(semantic_refs(run.recipe_candidates))
         used.update(semantic_refs([item.model_dump(mode="json") for item in run.remediations]))
         if run.retry_of:
@@ -547,6 +595,15 @@ class RunEngine:
             if aliases:
                 step = saved_step.model_copy(update={"id": aliases[saved_step.id or f"step_{index + 1}"],
                     "bindings": _recipe_aliases(saved_step.bindings, aliases), "params": _recipe_aliases(saved_step.params, aliases)})
+            if run.skill_preview_limit is not None and index > run.skill_preview_limit:
+                run.status, run.finished_at = "completed", _now()
+                run.ensure_conclusion()
+                return
+            recorded = next((r for r in run.steps if r.step.id == (step.id or f"step_{index + 1}")), None)
+            if recorded:
+                if recorded.result.status == "success":
+                    continue
+                return
             try:
                 result = await self._execute(creds, run, step, origin="recipe")
             except DecisionLayerError as e:  # a Recipe that can't run as written is a failed run, recorded
@@ -564,6 +621,10 @@ class RunEngine:
 
     async def _preview_steps(self, creds: Credentials, run: Run, step_index: int) -> None:
         run.validation = await self._recipe_validators(creds, run)
+        if any(self.registry.get(step.method, step.method_version).manifest.agent_executable for step in run.recipe_snapshot.steps[:step_index + 1]):
+            run.skill_preview_limit = step_index
+            await self._pipeline(creds, run)
+            return
         for step in run.recipe_snapshot.steps[:step_index + 1]:
             result = await self._execute(creds, run, step, origin="recipe")
             if result.status != "success":
@@ -584,7 +645,7 @@ class RunEngine:
         if step.method not in allowed and not step.exploration:
             raise MethodNotAllowed(_("Recipe '{recipe}' does not allow method {method}", recipe=rec.name, method=step.method), allowed=allowed)
         in_scope = {rec.semantic_scope.primary_metric, *rec.semantic_scope.related_metrics}
-        method = self.registry.get(step.method)
+        method = self.registry.get(step.method, step.method_version)
         for role, spec in method.manifest.roles.items():
             if spec.kind != "measure":
                 continue
@@ -599,10 +660,9 @@ class RunEngine:
                        origin: Literal["recipe", "request"] = "request", author: ExecutionAuthor | None = None) -> Result:
         step = step.model_copy(update={"id": step.id or f"step_{len(run.steps) + 1}",
             "goal_ids": run.recipe_invocation.goal_ids if origin == "recipe" and run.recipe_invocation else step.goal_ids})
-        installed = self.registry.get(step.method).manifest.version
-        if step.method_version and step.method_version != installed:
-            raise InvalidBinding("The recorded Method version is not installed. Review the Recipe before changing its version.",
-                                 recorded=step.method_version, installed=installed)
+        requested_step = step.model_copy(deep=True)
+        selected_method = self.registry.get(step.method, step.method_version)
+        step = step.model_copy(update={"method_version": selected_method.manifest.version})
         results = {s.step.id: s.result for s in run.steps if s.step.id}
         resolutions: list[dict] = []
         inputs = run.plan.scope.get("inputs", {})
@@ -614,28 +674,48 @@ class RunEngine:
             result = Result(status="needs_input", needs_input={"question": e.message, "field": e.details["field"],
                             "candidates": [{"value": candidate["path"], "label": str(candidate["path"][-1]["value"])}
                                            for candidate in e.details["candidates"]]},
-                            provenance=Provenance(method=self.registry.get(step.method).ref))
+                            provenance=Provenance(method=self.registry.get(step.method, step.method_version).ref))
             result.run_id = run.id
             result.step_id = step.id
             record = _record(step, result, _now())
-            record.requested_step, record.author = step.model_copy(deep=True), author
+            record.requested_step, record.author = requested_step, author
             run.steps.append(record)
             run.plan.steps.append(step.model_copy(deep=True))
             return result
         provided, fixed = parameter_values(run, resolved.method, resolved.params, origin)
         sources = {name: "recipe_fixed" if name in fixed else origin if name in provided else "method_default"
-                   for name in self.registry.get(resolved.method).manifest.parameters}
-        resolved = resolved.model_copy(update={"params": self.registry.resolve_params(resolved.method, provided)})
+                   for name in self.registry.get(resolved.method, resolved.method_version).manifest.parameters}
+        resolved = resolved.model_copy(update={"params": self.registry.resolve_params(resolved.method, provided, version=resolved.method_version)})
         self._enforce(run, resolved, check_budget=False)
         started = _now()
         ctx = await self._context(creds, run)
         ctx.step_id = step.id
-        result = await self.registry.run(resolved.method, ctx, resolved.bindings,
-                                         resolved.params)
+        method = self.registry.get(resolved.method, resolved.method_version)
+        skill = None
+        if method.manifest.implementation == "skill":
+            from ..core.models import SkillExecution
+            self.registry.plannable(resolved.method, resolved.method_version)
+            refs = self.registry._check_bindings(method, ctx, resolved.bindings)
+            # Validate bound semantic conditions before asking the agent to query.
+            from ..methods.common import path_filters
+            for key, spec in method.manifest.parameters.items():
+                if spec.type == "drill_path":
+                    path_filters(ctx, resolved.params.get(key) or [])
+            skill = SkillExecution(guide=method.guide.model_copy(deep=True), manifest=method.manifest.model_copy(deep=True))
+            run.active_skill_step = step.id
+            result = Result(status="needs_input", interpretation="association",
+                needs_input={"reason_code":"AGENT_EXECUTION_REQUIRED", "next_tool":"run_skill_query",
+                             "step_id":step.id, "guide":skill.guide.model_dump(mode="json"),
+                             "bindings":resolved.bindings, "params":resolved.params},
+                provenance=Provenance(method=method.ref,semantic_refs=refs))
+        else:
+            result = await self.registry.run(resolved.method, ctx, resolved.bindings, resolved.params, version=resolved.method_version)
         result.run_id = run.id
         result.step_id = step.id
         record = _record(resolved, result, started, sources)
-        record.requested_step = step.model_copy(deep=True)
+        record.skill = skill
+        record.code = method.source_snapshot.model_copy(deep=True, update={"editor_content": None}) if getattr(method, "source_snapshot", None) else None
+        record.requested_step = requested_step
         record.input_resolutions = resolutions
         record.author = author
         if run.recipe_invocation and not step.exploration:

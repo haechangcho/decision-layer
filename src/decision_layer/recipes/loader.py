@@ -11,6 +11,9 @@ import re
 import os
 import fcntl
 import tempfile
+import json
+from datetime import datetime, timezone
+from uuid import uuid4
 from threading import Lock
 from pathlib import Path
 from typing import Any
@@ -72,7 +75,9 @@ def parse_recipe(doc: dict[str, Any], provider: str, instance: str) -> Recipe:
 
 
 class RecipeStore:
-    def __init__(self, directory: str | Path | None, provider: str, instance: str) -> None:
+    def __init__(self, directory: str | Path | None, provider: str, instance: str, *, registry=None) -> None:
+        from ..methods import registry as default_registry
+        self.registry = registry or default_registry
         self._writable = bool(directory)
         self._lock = Lock()
         self.directory = Path(directory) if directory else Path("/nonexistent")
@@ -88,7 +93,7 @@ class RecipeStore:
                 recipe = parse_recipe(yaml.safe_load(path.read_text()), self.provider, self.instance)
                 from .authoring import validate_recipe
 
-                validate_recipe(recipe)
+                validate_recipe(recipe, registry=self.registry, allow_uninstalled_versions=True)
             except DecisionLayerError as e:
                 raise InvalidRecipe(
                     _("Can't read recipe file {file}: {error}", file=path.name, error=e.message),
@@ -96,7 +101,8 @@ class RecipeStore:
                 ) from e
             except Exception as e:  # a broken recipe must not be silently skipped
                 raise InvalidRecipe(_("Can't read recipe file {file}: {error}", file=path.name, error=e), path=str(path)) from e
-            found.setdefault(recipe.name, {})[recipe.version] = recipe
+            if not (self.directory / ".retired" / f"{recipe.name}.json").exists():
+                found.setdefault(recipe.name, {})[recipe.version] = recipe
         return found
 
     def reload(self) -> None:
@@ -115,14 +121,13 @@ class RecipeStore:
         return [recipe for name in sorted(self._recipes)
                 if (recipe := self._latest(name)).status == "draft"]
 
-    @staticmethod
-    def validate(recipe: Recipe) -> None:
+    def validate(self, recipe: Recipe) -> None:
         """Apply the same static contract to file, API, and Web-authored Recipes."""
         from .authoring import validate_recipe
 
-        validate_recipe(recipe)
+        validate_recipe(recipe, registry=self.registry)
 
-    def save(self, recipe: Recipe, base_version: str | None) -> Recipe:
+    def save(self, recipe: Recipe, base_version: str | None, *, actor: str = "filesystem") -> Recipe:
         from .authoring import RecipeConflict, RecipeEditError
 
         self.validate(recipe)
@@ -132,16 +137,19 @@ class RecipeStore:
         with self._lock, (self.directory / ".decision-layer.lock").open("w") as lock_file:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
             self._recipes = self._read_all()
+            if (self.directory / ".retired" / f"{recipe.name}.json").exists():
+                raise RecipeConflict("This Recipe is archived. Restore it before saving another version.")
             latest = self._latest(recipe.name) if recipe.name in self._recipes else None
             if (latest.version if latest else None) != base_version:
                 raise RecipeConflict("Recipe changed. Reload the latest version before saving.")
             if latest and tuple(map(int, recipe.version.split('.'))) <= tuple(map(int, latest.version.split('.'))):
                 raise RecipeConflict("Save a new version; existing Recipe versions are immutable.")
             self._write_version(recipe)
+            self._audit("save", recipe.name, recipe.version, actor)
             self._recipes.setdefault(recipe.name, {})[recipe.version] = recipe.model_copy(deep=True)
             return recipe
 
-    def publish(self, name: str, base_version: str) -> Recipe:
+    def publish(self, name: str, base_version: str, *, actor: str = "filesystem") -> Recipe:
         from .authoring import RecipeConflict, RecipeEditError
 
         if not self._writable:
@@ -156,10 +164,11 @@ class RecipeStore:
             published = latest.model_copy(update={"version": f"{major}.{minor}.{patch + 1}", "status": "published"})
             self.validate(published)
             self._write_version(published)
+            self._audit("publish", name, published.version, actor)
             self._recipes[name][published.version] = published.model_copy(deep=True)
             return published
 
-    def delete(self, name: str, base_version: str) -> None:
+    def delete(self, name: str, base_version: str, *, actor: str = "filesystem") -> None:
         from .authoring import RecipeConflict, RecipeEditError
 
         if not self._writable:
@@ -173,11 +182,42 @@ class RecipeStore:
                 raise UnknownRecipe(_("Unknown recipe: {name}", name=name))
             if self._latest(name).version != base_version:
                 raise RecipeConflict("Recipe changed. Reload the latest version before deleting.")
-            paths = [path for path in self.directory.rglob("*.y*ml")
-                     if parse_recipe(yaml.safe_load(path.read_text()), self.provider, self.instance).name == name]
-            for path in paths:
-                path.unlink()
+            # A tombstone removes the asset from discovery/execution without
+            # deleting a single version. Git can review both content and retirement.
+            retired = self.directory / ".retired"
+            retired.mkdir(exist_ok=True)
+            event = self._audit("archive", name, base_version, actor)
+            os.link(event, retired / f"{name}.json")
             del self._recipes[name]
+
+    def restore(self, name: str, base_version: str, *, actor: str = "filesystem") -> Recipe:
+        from .authoring import RecipeConflict
+        if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}", name):
+            raise UnknownRecipe("Unknown archived Recipe")
+        marker = self.directory / ".retired" / f"{name}.json"
+        if not self._writable or not marker.exists():
+            raise UnknownRecipe("Unknown archived Recipe")
+        with self._lock, (self.directory / ".decision-layer.lock").open("w") as lock_file:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            if not marker.exists():
+                raise RecipeConflict("The Recipe was already restored.")
+            if json.loads(marker.read_text())["version"] != base_version:
+                raise RecipeConflict("The archived version differs. Reload before restoring.")
+            self._audit("restore", name, base_version, actor)
+            marker.unlink()  # only the tombstone; all YAML versions remain intact
+            self._recipes = self._read_all()
+            return self._latest(name)
+
+    def _audit(self, action: str, name: str, version: str, actor: str) -> Path:
+        directory = self.directory / ".history"
+        directory.mkdir(exist_ok=True)
+        target = directory / f"{uuid4().hex}.json"
+        with target.open("x") as stream:
+            json.dump({"action": action, "name": name, "version": version, "actor": actor,
+                       "at": datetime.now(timezone.utc).isoformat()}, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        return target
 
     def _write_version(self, recipe: Recipe) -> None:
         from .authoring import RecipeConflict

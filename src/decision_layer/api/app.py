@@ -21,11 +21,17 @@ from .dependencies import Caller
 def create_app(settings: Settings | None = None, provider: SemanticProvider | None = None,
                store: RunStore | None = None, recipes: RecipeStore | None = None) -> FastAPI:
     settings = settings or Settings()
+    settings.validate_deployment()
     source_manager = SourceConfigManager(open_source_store(settings.database_url), settings)
     provider = provider or ConfiguredSemanticProvider(source_manager)
-    recipes = recipes or RecipeStore(settings.recipes_dir, provider.name, provider.instance)
+    from ..methods.loading import configured_registry
+    registry = configured_registry(settings)
+    from ..methods.assets import MethodAssets
+    assets = MethodAssets(settings.method_assets_dir, registry)
+    recipes = recipes or RecipeStore(settings.recipes_dir, provider.name, provider.instance, registry=registry)
+    recipes.registry = registry
     engine = RunEngine(provider, recipes, store or open_store(settings.database_url),
-                       jobs=JobRunner(settings.job_workers), policy=settings.execution_policy)
+                       jobs=JobRunner(settings.job_workers), policy=settings.execution_policy, registry=registry)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -38,10 +44,22 @@ def create_app(settings: Settings | None = None, provider: SemanticProvider | No
 
     @app.middleware("http")
     async def locale(request: Request, call_next):
+        from urllib.parse import urlsplit
+        try:
+            host = urlsplit("//" + request.headers.get("host", "")).hostname
+            origin = request.headers.get("origin")
+            parsed_origin = urlsplit(origin) if origin else None
+        except ValueError:
+            return JSONResponse(status_code=403, content={"error": {"code": "LOCAL_HTTP_ORIGIN_DENIED"}})
+        if host not in settings.http_allowed_hosts or (parsed_origin and (
+                parsed_origin.scheme not in ("http", "https") or parsed_origin.hostname not in settings.http_allowed_hosts)):
+            return JSONResponse(status_code=403, content={"error": {
+                "code": "LOCAL_HTTP_ORIGIN_DENIED", "message": "Host or Origin is not allowed for this local deployment."}})
         set_locale(negotiate(request.headers.get("accept-language"), settings.locale))
         response = await call_next(request)
         response.headers["Content-Language"] = negotiate(request.headers.get("accept-language"), settings.locale)
         return response
+    app.state.method_assets = assets
     app.state.settings = settings
     app.state.provider = provider
     app.state.source_manager = source_manager

@@ -5,16 +5,13 @@ from contextvars import ContextVar
 from ..semantic.providers.cube.client import CubeClient
 from ..semantic.provider import SemanticProvider
 from ..semantic.providers.cube.provider import CubeProvider
-from ..semantic.providers.dbt.provider import DbtSemanticLayerProvider
 from .config import SourceConfigManager
 
 
 def make_provider(name: str, url: str, instance: str, environment_id: int | None = None):
     if name == "cube":
         return CubeProvider(CubeClient(url), instance)
-    if name == "dbt":
-        return DbtSemanticLayerProvider(url, instance, environment_id)
-    raise ValueError(f"Unsupported semantic provider: {name}")
+    raise ValueError(f"Unsupported semantic provider: {name}. This release supports Cube only.")
 
 
 class ConfiguredSemanticProvider:

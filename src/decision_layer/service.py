@@ -29,6 +29,7 @@ class ScopeIn(BaseModel):
 
 
 class MethodRunRequest(BaseModel):
+    method_version: str | None = None
     author: ExecutionAuthor | None = None
     question: str | None = None
     bindings: dict[str, str | list[str]] = Field(default_factory=dict)
@@ -41,6 +42,7 @@ class MethodRunRequest(BaseModel):
 
 
 class RunStartRequest(BaseModel):
+    guide: str | None = None
     author: ExecutionAuthor | None = None
     recipe: str | None = None                      # name, name@version or recipe://name@version
     question: str | None = None
@@ -93,6 +95,7 @@ class RecipeConfigureRequest(BaseModel):
 
 
 class RunStepRequest(BaseModel):
+    method_version: str | None = None
     author: ExecutionAuthor | None = None
     id: str | None = None
     method: str

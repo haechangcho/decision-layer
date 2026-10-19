@@ -29,11 +29,37 @@ class InvalidBinding(DecisionLayerError):
 class MethodRegistry:
     def __init__(self) -> None:
         self._methods: dict[str, Method] = {}
+        self._versions: dict[tuple[str, str], Method] = {}
         self._compatibility: set[str] = set()
 
-    def register(self, method: Method, *, compatibility: bool = False) -> Method:
+    def copy(self):
+        target = MethodRegistry()
+        target._methods = dict(self._methods)
+        target._versions = dict(self._versions)
+        target._compatibility = set(self._compatibility)
+        return target
+
+    def plannable(self, name, version=None):
+        method = self.get(name, version)
+        if method.manifest.implementation == "skill" and not method.manifest.agent_executable:
+            raise InvalidBinding("This Skill is advisory only; choose a query-executing Skill for a Recipe step.")
+        return method
+
+    def executable(self, name):
+        method = self.get(name)
+        if method.manifest.implementation == "skill":
+            raise InvalidBinding("Skill is advisory guidance, not an executable step. Start a Run with guide=name and execute registered Python tools.")
+        return method
+
+    def register(self, method: Method, *, compatibility: bool = False, activate: bool = True) -> Method:
         Provenance(method=method.ref, semantic_refs=[], queries=[], runtime={})
         self._params(method, {}, partial=True)
+        from .source import capture_source
+        if method.manifest.implementation == "python":
+            method.source_snapshot = capture_source(method)
+        self._versions[(method.manifest.name, method.manifest.version)] = method
+        if not activate:
+            return method
         self._methods[method.manifest.name] = method
         if compatibility:
             self._compatibility.add(method.manifest.name)
@@ -41,7 +67,13 @@ class MethodRegistry:
             self._compatibility.discard(method.manifest.name)
         return method
 
-    def get(self, name: str) -> Method:
+    def get(self, name: str, version: str | None = None) -> Method:
+        if version is not None:
+            if (name, version) in self._versions:
+                return self._versions[(name, version)]
+            if name in self._methods and self._methods[name].manifest.version == version:
+                return self._methods[name]
+            raise InvalidBinding("The recorded Method version is not installed. Review the Recipe before changing its version.", recorded=version)
         if name not in self._methods:
             raise InvalidBinding(_("Unknown method: {name}", name=name), available=sorted(self._methods))
         return self._methods[name]
@@ -52,9 +84,11 @@ class MethodRegistry:
                 if include_compatibility or name not in self._compatibility]
 
     async def run(self, name: str, ctx: ExecutionContext, bindings: dict[str, Any],
-                  params: dict[str, Any] | None = None) -> Result:
-        method = self.get(name)
-        params = self.resolve_params(name, params or {})
+                  params: dict[str, Any] | None = None, *, version: str | None = None) -> Result:
+        method = self.get(name, version)
+        if method.manifest.implementation == "skill":
+            raise InvalidBinding("Skill Methods are guidance, not executable steps. Start a Run with guide=name, then execute its registered Python tools.")
+        params = self.resolve_params(name, params or {}, version=version)
         refs = self._check_bindings(method, ctx, bindings)
         for key, spec in method.manifest.parameters.items():
             value = params.get(key)
@@ -122,8 +156,8 @@ class MethodRegistry:
         )
 
     # ── checks ────────────────────────────────────────────────────────────
-    def resolve_params(self, name: str, params: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:
-        return self._params(self.get(name), params, partial=partial)
+    def resolve_params(self, name: str, params: dict[str, Any], *, partial: bool = False, version: str | None = None) -> dict[str, Any]:
+        return self._params(self.get(name, version), params, partial=partial)
 
     @staticmethod
     def _params(method: Method, params: dict[str, Any], *, partial: bool = False) -> dict[str, Any]:

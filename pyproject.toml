@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "decision-layer"
-version = "0.1.0"
+version = "0.1.0a1"
 description = "Governed analysis methods, recipes and runs on top of a semantic layer (Cube first)"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 classifiers = [
-    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Information Analysis",
 ]
@@ -26,6 +26,7 @@ dependencies = [
     "numpy>=1.26",
     "packaging>=24",
     "cryptography>=44,<47",
+    "ruff==0.12.3",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +37,15 @@ dowhy = ["dowhy==0.13", "numpy>=1.26,<2", "pandas>=2.2,<3", "scikit-learn>=1.2,<
 econml = ["econml==0.16.0", "numpy>=1.26,<2", "pandas>=2.2,<3"]
 
 [project.scripts]
+decision-layer = "decision_layer.cli:main"
 decision-layer-mcp = "decision_layer.mcp.server:main"
+
+[project.urls]
+Repository = "https://github.com/haechangcho/decision-layer"
+Issues = "https://github.com/haechangcho/decision-layer/issues"
+
+[tool.hatch.build.targets.sdist]
+include = ["/src/decision_layer", "/README.md", "/LICENSE", "/pyproject.toml"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/decision_layer"]

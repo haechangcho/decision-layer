@@ -26,6 +26,14 @@ def _worker(connection, fn, args, locale):
             result = fn(*args)
         if isinstance(result, dict):
             result["backend_warnings"] = list(dict.fromkeys(str(warning.message) for warning in observed))[:10]
+        else:
+            from .base import MethodOutput
+            if isinstance(result, MethodOutput):
+                # Ordinary functions return through the output adapter in this
+                # worker. Preserve library warnings on the canonical Result too.
+                result.warnings.extend(message for message in
+                    list(dict.fromkeys(str(warning.message) for warning in observed))[:10]
+                    if message not in result.warnings)
         connection.send({"ok": True, "result": result})
     except Refused as exc:
         connection.send({"ok": False, "refused": True, "message": exc.message})

@@ -1,1 +1,1 @@
-"""dbt Semantic Layer's official GraphQL API."""
+"""Legacy dbt adapter; not registered as a product connector (ADR-096)."""

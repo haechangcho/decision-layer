@@ -67,6 +67,7 @@ def find_methods(registry: MethodRegistry, ctx: ExecutionContext, request: Metho
         candidates.append({
             "manifest": manifest.model_dump(mode="json"),
             "input_candidates": input_candidates,
+            "execution_mode": ("agent_executable" if manifest.agent_executable else "advisory") if manifest.implementation == "skill" else "executable",
             "required_inputs": [name for name, role in manifest.roles.items() if role.required]
                 + [name for name, param in manifest.parameters.items() if param.required and param.default is None],
             "conditional_capabilities": manifest.provides_when,
@@ -78,7 +79,8 @@ def find_methods(registry: MethodRegistry, ctx: ExecutionContext, request: Metho
         "capabilities": capabilities,
         "unknown_capabilities": sorted(set(goal.required_capabilities) - set(capabilities)) if goal else [],
         "semantic_meaning_verified": False,
-        "guidance": "Compare descriptions with the question; candidates are not a recommendation. "
+        "guidance": "Query Skills require agent execution through recorded queries; advisory-only Skills remain guidance. Read describe_method for the exact contract. "
+            "Compare descriptions with the question; candidates are not a recommendation. "
             "Copy capability names only when their documented meaning matches the question; an empty "
             "capability list makes no assertion about analytical purpose. Input candidates check types, "
             "not variable roles or joins. Ask about ambiguous outcomes, groups, periods or contrasts. "

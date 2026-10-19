@@ -11,7 +11,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any
 
-from .core.models import QueryAttempt, QueryProvenance, Recipe, Result, Run, SemanticCatalog, SemanticObject
+from .core.models import MethodManifest, QueryAttempt, QueryProvenance, Recipe, Result, Run, SemanticCatalog, SemanticObject
 from .core.periods import ExecutionPolicy, PeriodChoice
 from .methods import InvalidBinding, Method, MethodRegistry
 from .methods.context import ExecutionContext, Refused, Scope
@@ -97,6 +97,17 @@ class MethodSession:
             raise InvalidBinding(_("Method already registered locally; use replace=True after editing."))
         return self.registry.register(method)
 
+    def list_methods(self) -> list[MethodManifest]:
+        """List the current Methods registered in this local session."""
+        return [manifest.model_copy(deep=True) for manifest in self.registry.manifests()]
+
+    def load_project(self, path: str | None = None) -> list[MethodManifest]:
+        """Load the same project definitions as CLI inspection and API startup."""
+        from .project import Project
+        project = Project.find(path)
+        names = project.load(self.registry)
+        return [self.registry.get(name).manifest.model_copy(deep=True) for name in names]
+
     def find_methods(self, *, goal=None, names=None) -> dict:
         """Inspect registered candidates using this session's visible catalog."""
         from .methods.discovery import MethodSearchRequest, find_methods
@@ -160,7 +171,7 @@ use run() for kernel breakpoints. Runs stay local, not on the API server.
         caller = await identify(self.provider, self._credentials)
         if self._engine is None:
             self._engine = RunEngine(self.provider,
-                                     RecipeStore(None, self.provider.name, self.provider.instance),
+                                     RecipeStore(None, self.provider.name, self.provider.instance, registry=self.registry),
                                      MemoryRunStore(), registry=self.registry, policy=self.policy)
         return await self._engine.preview(self._credentials, caller, recipe, step_index, deepcopy(scope))
 

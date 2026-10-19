@@ -46,7 +46,7 @@ def credentials(authorization: str | None, *, allow_service: bool, secret: str |
 async def identify(provider: SemanticProvider, creds: Credentials) -> CallerInfo:
     """The caller behind creds, after the provider has accepted them."""
     if isinstance(creds, (ServiceCredentials, AnonymousServiceCredentials)):
-        return CallerInfo(subject=f"service:{creds.subject}", groups=list(creds.groups))
+        return CallerInfo(subject=f"service:{creds.subject}", groups=list(creds.groups), authentication="local_service")
     await provider.discover(creds)  # raises ProviderAccessDenied for tokens the provider rejects
     if getattr(provider, "identity_mode", "jwt_claims") == "credential":
         # The self-hosted gateway token represents one deployment identity, not JWT claims.

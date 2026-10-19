@@ -20,8 +20,8 @@ class SourceConfigError(DecisionLayerError):
 
 class SourceConfigInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    provider: Literal["cube", "dbt"] = "cube"
-    environment_id: int | None = Field(default=None, gt=0)
+    provider: Literal["cube"] = "cube"
+    environment_id: None = None  # Legacy response shape; no environment-based provider in this release.
     instance: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_.-]+$")
     api_url: str
     auth_method: Literal["token", "api_secret", "none"] = "token"
@@ -68,6 +68,21 @@ class SourceConfigManager:
         self.current_provider = os.environ.get("DL_SOURCE_PROVIDER") or os.environ.get("DL_DEFAULT_SOURCE_PROVIDER", "cube")
         self.current_instance = settings.cube_instance
 
+    def require_approved_endpoint(self, provider: str, url: str) -> None:
+        """HTTP callers cannot choose a new credential destination, even with an admin key.
+
+        These are operator-trusted endpoints, not an SSRF sandbox: shared deployment
+        remains disabled until DNS/egress and independent identity gates are complete.
+        """
+        if provider != "cube":
+            raise SourceConfigError("SOURCE_PROVIDER_INVALID", "This release supports Cube only. No request was sent.")
+        configured = (os.environ.get("CUBE_API_URL") or os.environ.get("DL_DEFAULT_CUBE_URL")
+                      or self.settings.cube_api_url)
+        allowed = {configured.rstrip("/"), *self.settings.source_allowed_urls}
+        if url.rstrip("/") not in allowed:
+            raise SourceConfigError("SOURCE_ENDPOINT_NOT_APPROVED",
+                                    "Approve this exact API URL in the server environment before using it. No request was sent.", 403)
+
     def _fernet(self) -> Fernet:
         key = self.settings.source_config_key
         if not key:
@@ -82,27 +97,27 @@ class SourceConfigManager:
     async def effective(self, *, resolve_secret: bool = True, provider: str | None = None) -> EffectiveSource:
         document = await self.store.get() or {}
         name = provider or os.environ.get("DL_SOURCE_PROVIDER") or document.get("provider") or os.environ.get("DL_DEFAULT_SOURCE_PROVIDER", "cube")
-        if name not in ("cube", "dbt"):
-            raise SourceConfigError("SOURCE_PROVIDER_INVALID", "Choose Cube or the official dbt Semantic Layer API. The local MetricFlow gateway is no longer supported; configure a supported connection without changing historical Runs.")
+        if name != "cube":
+            raise SourceConfigError("SOURCE_PROVIDER_INVALID", "This release supports Cube only. Configure a Cube connection explicitly; historical source settings and Runs are not converted.")
         saved = document.get("connections", {}).get(name, document if document.get("provider", "cube") == name else {})
-        prefix = {"cube": "CUBE", "dbt": "DBT"}[name]
-        env_environment = os.environ.get("DBT_ENVIRONMENT_ID") if name == "dbt" else None
-        environment_id = env_environment or saved.get("environment_id") if name == "dbt" else None
-        if environment_id is not None:
-            try:
-                environment_id = int(environment_id)
-                if environment_id <= 0:
-                    raise ValueError()
-            except (TypeError, ValueError) as exc:
-                raise SourceConfigError("SOURCE_ENVIRONMENT_INVALID", "DBT_ENVIRONMENT_ID must be a positive integer.") from exc
-        env_url = os.environ.get(prefix + "_API_URL")
-        env_instance = os.environ.get(prefix + "_INSTANCE")
-        env_secret = os.environ.get("CUBE_API_SECRET") if name == "cube" else None
-        env_method = os.environ.get(prefix + "_AUTH_METHOD")
-        env_groups = os.environ.get("CUBE_SERVICE_GROUPS") if name == "cube" else None
+        env_environment = None
+        environment_id = None
+        env_url = os.environ.get("CUBE_API_URL")
+        env_instance = os.environ.get("CUBE_INSTANCE")
+        env_secret = os.environ.get("CUBE_API_SECRET")
+        env_method = os.environ.get("CUBE_AUTH_METHOD")
+        env_groups = os.environ.get("CUBE_SERVICE_GROUPS")
+        default_url = os.environ.get("DL_DEFAULT_CUBE_URL") or self.settings.cube_api_url
+        api_url = env_url or saved.get("api_url") or default_url
+        self.require_approved_endpoint(name, api_url)
         encrypted = saved.get("api_secret_ciphertext")
+        # A saved secret is bound to its original endpoint, including when an
+        # operator later changes the URL through environment configuration.
+        if saved.get("api_url", "").rstrip("/") != api_url.rstrip("/"):
+            encrypted = None
         saved_secret = bool(encrypted)
-        secret = env_secret or (self.settings.cube_api_secret if name == "cube" else None)
+        secret = ((env_secret or self.settings.cube_api_secret) if name == "cube"
+                  and api_url.rstrip("/") == (env_url or default_url).rstrip("/") else None)
         if resolve_secret and secret is None and encrypted:
             try:
                 secret = self._fernet().decrypt(encrypted.encode("ascii")).decode("utf-8")
@@ -113,22 +128,15 @@ class SourceConfigManager:
             raise SourceConfigError("SOURCE_AUTH_METHOD_INVALID", "CUBE_AUTH_METHOD must be token, api_secret or none.", 503)
         method = env_method or ("api_secret" if env_secret else saved.get("auth_method") or
                                 ("api_secret" if secret else "token"))
-        if name == "dbt" and method != "token":
-            raise SourceConfigError("SOURCE_AUTH_METHOD_INVALID", "dbt Semantic Layer requires an access token.")
         groups = env_groups.split(",") if env_groups is not None else saved.get(
             "service_groups", list(self.settings.cube_service_groups) if name == "cube" else [])
         instance = env_instance or saved.get("instance") or self.settings.cube_instance
-        if name == "dbt":
-            instance = env_instance or saved.get("instance") or (f"env-{environment_id}" if environment_id else "production")
         if provider is None:
             self.current_provider, self.current_instance = name, instance
-        default_url = os.environ.get("DL_DEFAULT_CUBE_URL") or self.settings.cube_api_url
-        if name == "dbt":
-            default_url = "https://semantic-layer.cloud.getdbt.com/api/graphql"
         return EffectiveSource(
             provider=name,
             environment_id=environment_id,
-            api_url=env_url or saved.get("api_url") or default_url,
+            api_url=api_url,
             instance=instance,
             auth_method=method,
             api_secret=secret,
@@ -136,7 +144,7 @@ class SourceConfigManager:
             environment_overrides={"provider": bool(os.environ.get("DL_SOURCE_PROVIDER")), "api_url": bool(env_url), "instance": bool(env_instance), "environment_id": bool(env_environment),
                                    "auth_method": bool(env_method or env_secret),
                                    "api_secret": bool(env_secret), "service_groups": env_groups is not None},
-            saved_secret=saved_secret or bool(env_secret),
+            saved_secret=saved_secret or bool(secret),
         )
 
     async def view(self) -> dict:
@@ -147,10 +155,10 @@ class SourceConfigManager:
                 "environment_overrides": current.environment_overrides,
                 "service_credentials_allowed": self.settings.allow_service_credentials,
                 "admin_configured": bool(self.settings.source_admin_token),
-                # editing the shared connection needs the admin key only on a shared deployment
-                "admin_required": bool(self.settings.source_admin_token),
+                # No configured key means HTTP administration is disabled.
+                "admin_required": True,
                 # a field is editable in the UI only when no environment variable fixes it
-                "editable": not all(current.environment_overrides.get(k) for k in
+                "editable": bool(self.settings.source_admin_token) and not all(current.environment_overrides.get(k) for k in
                                     ("provider", "api_url", "auth_method", "service_groups")),
                 "encryption_configured": bool(self.settings.source_config_key)}
 
@@ -158,18 +166,10 @@ class SourceConfigManager:
         fixed = os.environ.get("DL_SOURCE_PROVIDER")
         if fixed and fixed != value.provider:
             raise SourceConfigError("SOURCE_ENV_OVERRIDDEN", "The provider is fixed by DL_SOURCE_PROVIDER.", 409)
-        if value.provider == "dbt" and value.auth_method != "token":
-            raise SourceConfigError("SOURCE_AUTH_METHOD_INVALID", "dbt Semantic Layer requires an access token.")
-        if value.provider != "cube" and (value.auth_method == "api_secret" or value.api_secret):
-            raise SourceConfigError("SOURCE_AUTH_METHOD_INVALID", "API secrets apply only to Cube development connections.")
         if value.auth_method != "token" and not self.settings.allow_service_credentials:
             raise SourceConfigError("SOURCE_DEV_AUTH_DISABLED", "Development authentication is disabled on this deployment.", 403)
         effective = await self.effective(resolve_secret=False, provider=value.provider)
-        environment_id = effective.environment_id if effective.environment_overrides["environment_id"] else value.environment_id
-        if value.provider == "dbt" and not environment_id:
-            raise SourceConfigError("SOURCE_ENVIRONMENT_REQUIRED", "Enter the dbt deployment environment ID.")
-        if effective.environment_overrides["environment_id"] and value.environment_id not in (None, effective.environment_id):
-            raise SourceConfigError("SOURCE_ENV_OVERRIDDEN", "The environment ID is fixed by DBT_ENVIRONMENT_ID.", 409)
+        environment_id = None
         field_map = {"api_url": "api_url", "auth_method": "auth_method",
                      "api_secret": "api_secret", "service_groups": "service_groups"}
         blocked = [key for key, env_key in field_map.items() if effective.environment_overrides[env_key]
@@ -180,11 +180,20 @@ class SourceConfigManager:
         if blocked:
             raise SourceConfigError("SOURCE_ENV_OVERRIDDEN",
                                     "These settings are fixed by environment variables: " + ", ".join(blocked), 409)
+        self.require_approved_endpoint(value.provider, value.api_url)
         prior = await self.store.get() or {}
         connections = dict(prior.get("connections", {}))
         if "api_url" in prior:
             connections.setdefault(prior.get("provider", "cube"), {k: v for k, v in prior.items() if k != "connections"})
-        ciphertext = connections.get(value.provider, {}).get("api_secret_ciphertext")
+        saved_connection = connections.get(value.provider, {})
+        ciphertext = saved_connection.get("api_secret_ciphertext")
+        different_secret_target = ciphertext and saved_connection.get("api_url", "").rstrip("/") != value.api_url.rstrip("/")
+        if value.api_url.rstrip("/") != effective.api_url.rstrip("/") or different_secret_target:
+            ciphertext = None
+            has_bound_environment_secret = (effective.environment_overrides["api_secret"]
+                                             and value.api_url.rstrip("/") == effective.api_url.rstrip("/"))
+            if value.auth_method == "api_secret" and not value.api_secret and not has_bound_environment_secret:
+                raise SourceConfigError("SOURCE_SECRET_REQUIRED", "A different endpoint requires its own explicitly supplied secret.")
         if value.clear_secret:
             ciphertext = None
         elif value.api_secret and value.api_secret.get_secret_value():

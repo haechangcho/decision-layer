@@ -41,6 +41,36 @@ class SourceAdminRequired(DecisionLayerError):
     http_status = 403
 
 
+class RecipePermissionRequired(DecisionLayerError):
+    code = "RECIPE_PERMISSION_REQUIRED"
+    http_status = 403
+
+
+def require_recipe_permission(settings: Settings, caller: CallerInfo, *, publish: bool = False) -> None:
+    # Explicit local service access belongs to the person operating this runtime.
+    # It is never a multi-user identity; shared mode is rejected at startup.
+    local_owner = settings.allow_service_credentials and caller.authentication == "local_service" and caller.subject in (
+        "service:decision-layer", "service:local-development")
+    subjects = settings.recipe_publishers if publish else (*settings.recipe_editors, *settings.recipe_publishers)
+    if not local_owner and caller.subject not in subjects:
+        raise RecipePermissionRequired("Recipe publication requires publisher permission." if publish
+                                       else "Recipe changes require editor permission.")
+
+
+class MethodPermissionRequired(DecisionLayerError):
+    code = "METHOD_PERMISSION_REQUIRED"
+    http_status = 403
+
+
+def require_method_permission(settings: Settings, caller: CallerInfo, *, publish: bool = False):
+    local_owner = settings.allow_service_credentials and caller.authentication == "local_service" and caller.subject in (
+        "service:decision-layer", "service:local-development")
+    subjects = settings.method_publishers if publish else (*settings.method_editors, *settings.method_publishers)
+    if not local_owner and caller.subject not in subjects:
+        raise MethodPermissionRequired("Method publication and Python import checks require a Method publisher." if publish
+                                       else "Method drafts require a Method editor.")
+
+
 async def get_credentials(request: Request, authorization: Annotated[str | None, Header()] = None):
     """The caller's bearer token is passed through to the provider (ADR-024); service credentials
     are a local/dev fallback that must be switched on explicitly (ADR-029)."""

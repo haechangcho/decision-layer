@@ -8,10 +8,10 @@ from ..methods import InvalidBinding, registry
 from ..runs.expressions import is_dynamic
 
 
-def reuse_contract(recipe: Recipe) -> dict:
+def reuse_contract(recipe: Recipe, registry=registry) -> dict:
     procedure, fixed_periods = [], []
     for step in recipe.steps:
-        manifest = registry.get(step.method).manifest
+        manifest = registry.get(step.method, step.method_version).manifest
         policy = recipe.method_parameters.get(step.method)
         params = {**step.params, **(policy.fixed if policy else {})}
         for name, spec in manifest.parameters.items():
@@ -39,13 +39,12 @@ def semantic_refs(value):
     return set()
 
 
-def compatibility(recipe: Recipe, goals: list[AnalysisGoal], inputs: dict) -> dict:
-    methods = [registry.get(name).manifest for name in
-               (recipe.allowed_methods if recipe.mode == "investigation" else {step.method for step in recipe.steps})]
+def compatibility(recipe: Recipe, goals: list[AnalysisGoal], inputs: dict, registry=registry) -> dict:
+    methods = [registry.get(name).manifest for name in recipe.allowed_methods] if recipe.mode == "investigation" else [registry.get(step.method, step.method_version).manifest for step in recipe.steps]
     if recipe.mode == "pipeline":
         provided = set()
         for step in recipe.steps:
-            method = registry.get(step.method).manifest
+            method = registry.get(step.method, step.method_version).manifest
             policy = recipe.method_parameters.get(step.method)
             params = {**{name: spec.default for name, spec in method.parameters.items()}, **step.params,
                       **(policy.fixed if policy else {})}
@@ -88,7 +87,7 @@ async def search_recipes(store, provider, credentials, question, goals, inputs, 
     for recipe in store.list():
         if not semantic_refs(recipe.model_dump(mode="json")) <= visible:
             continue
-        check = compatibility(recipe, goals, inputs)
+        check = compatibility(recipe, goals, inputs, registry=store.registry)
         if goals and not check["covered_goal_ids"]:
             continue
         text = " ".join([recipe.name, recipe.description, recipe.routing.objective, *recipe.routing.use_for])
@@ -99,7 +98,7 @@ async def search_recipes(store, provider, credentials, question, goals, inputs, 
             "name": recipe.name, "version": recipe.version,
             "objective": recipe.routing.objective or ("" if recipe.origin_runs else recipe.description),
             "source_question": recipe.source_question or (recipe.description if recipe.origin_runs else None),
-            "reuse": reuse_contract(recipe),
+            "reuse": reuse_contract(recipe, registry=store.registry),
             "use_for": recipe.routing.use_for, "do_not_use_for": recipe.routing.do_not_use_for,
             "objective_source": "authored" if recipe.routing.objective or not recipe.origin_runs else "unspecified",
             "input_schema": {key: spec.model_dump(mode="json") for key, spec in recipe.inputs.items()}}))
