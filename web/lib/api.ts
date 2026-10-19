@@ -61,7 +61,16 @@ export interface ParamSpec {
   visible_when?: { parameter: string; equals: string | boolean | number } | null;
 }
 
+export interface MethodGuide { name: string; version: string; sha256: string; markdown: string; enforcement: "advisory"; suggested_methods: string[] }
+
 export interface MethodManifest {
+  data_inputs?: Record<string, { measures: string[]; dimensions: string[];
+    columns?: Record<string, RoleSpec>; column_args?: string[]; entity?: string | null;
+    format: "dataframe" | "records"; minimum_rows: number;
+    period_parameter?: string | null; period_role: "current" | "comparison";
+    time_granularity?: string | null; filters_parameter?: string | null }>;
+  implementation?: "python" | "skill";
+  agent_executable?: boolean;
   provides?: string[];
   label?: string;
   name: string;
@@ -141,7 +150,24 @@ export async function resultWhenDone(runId: string, onTick?: (seconds: number) =
   }
 }
 
+export interface MethodSource {
+  name: string; version: string; origin: "installed" | "managed"; available: boolean;
+  files: { name: string; content: string; sha256: string }[];
+  editor_content?: string | null;
+  authoring_content?: string | null;
+}
+
+export interface SkillExecution {
+  guide: MethodGuide;
+  status: "awaiting_agent" | "completed" | "refused";
+  completion_reason?: string | null;
+  queries: { id: string; purpose: string; spec: unknown; status: "running" | "success" | "failed" | "interrupted";
+    result?: Result | null; error?: { code: string; message: string } | null; started_at: string; finished_at?: string | null }[];
+}
+
 export interface Run {
+  active_skill_step?: string | null;
+  method_guides?: MethodGuide[];
   remediations?: RunRemediation[];
   retry_of?: { run_id: string; remediation_id: string; checked_at: string } | null;
   goals?: AnalysisGoal[];
@@ -154,7 +180,7 @@ export interface Run {
   preview?: boolean;
   plan: { question?: string | null; scope: Scope; recipe?: string | null; resolved?: Record<string, string> };
   recipe_snapshot?: Recipe | null;
-  steps: { step: PlanStep; method: string; result: Result; started_at: string; finished_at: string;
+  steps: { step: PlanStep; method: string; result: Result; skill?: SkillExecution | null; code?: MethodSource | null; started_at: string; finished_at: string;
     requested_step?: PlanStep | null; input_resolutions?: { field: string; source: Record<string, unknown>; resolved: unknown }[];
     parameter_sources?: Record<string, "method_default" | "recipe" | "recipe_fixed" | "request">; author?: ExecutionAuthor | null; invocation_id?: string | null }[];
   caller: { subject?: string | null; groups: string[] };
@@ -198,7 +224,7 @@ export interface PeriodChoice { mode: "range" | "all" | "relative" | "unresolved
 export interface Scope { period?: PeriodChoice | null; date_range?: [string, string] | null; time_dimension?: string | null; filters?: unknown[]; inputs?: Record<string, unknown> }
 
 export interface SourceConfig {
-  provider: "cube" | "dbt";
+  provider: "cube";
   environment_id?: number | null;
   instance: string;
   api_url: string;

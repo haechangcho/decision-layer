@@ -24,6 +24,15 @@ def init_project(path: str | Path, name: str | None = None):
     methods = root / name / "methods"
     methods.mkdir(parents=True)
     (root / PROJECT_FILE).write_text(f"config_version: 1\nname: {config.name}\n")
+    from . import __version__
+
+    (root / "pyproject.toml").write_text(
+        '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n\n'
+        f'[project]\nname = "{name}-methods"\nversion = "0.1.0"\n'
+        'requires-python = ">=3.11"\n'
+        f'dependencies = ["decision-layer[stats]=={__version__}"]\n\n'
+        f'[tool.hatch.build.targets.wheel]\npackages = ["{name}"]\n'
+    )
     (root / name / "__init__.py").touch()
     (methods / "__init__.py").touch()
     (root / "README.md").write_text(
@@ -31,6 +40,9 @@ def init_project(path: str | Path, name: str | None = None):
         "```sh\ndecision-layer new python rank\ndecision-layer new skill investigation\n"
         "decision-layer check\ndecision-layer list\ndecision-layer serve --reload\n```\n\n"
         "Use the same Python environment as Decision Layer. Project code is imported at check/startup.\n"
+        "Open the Admin URL printed by serve to inspect Methods and test semantic inputs.\n"
+        "Run history is stored in .decision-layer/decision_layer.db; recipes live in recipes/.\n"
+        "Edit project Methods in their source files. Web publication creates separate versions.\n"
         "Commit the project to Git; deploy the same files and dependencies and restart the API.\n"
     )
     (root / ".gitignore").write_text("__pycache__/\n*.pyc\n.venv/\n.decision-layer/\n")
@@ -103,7 +115,7 @@ def main(argv=None):
     listing = commands.add_parser(
         "list", help="List Methods and their definition paths"
     )
-    serve = commands.add_parser("serve", help="Start the API with this project")
+    serve = commands.add_parser("serve", help="Start the admin UI and API with this project")
     for cmd in (new, check, listing, serve):
         cmd.add_argument(
             "--project",
@@ -113,6 +125,7 @@ def main(argv=None):
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--reload", action="store_true")
+    serve.add_argument("--api-only", action="store_true", help="Start only the API")
     args = parser.parse_args(argv)
     try:
         if args.command == "init":
@@ -132,11 +145,21 @@ def main(argv=None):
                 "DL_DATABASE_URL",
                 f"sqlite:///{project.root / '.decision-layer' / 'decision_layer.db'}",
             )
+            os.environ.setdefault("DL_RECIPES_DIR", str(project.root / "recipes"))
+            os.environ.setdefault("DL_METHOD_ASSETS_DIR", str(project.root / ".decision-layer" / "method-assets"))
+            if not args.api_only:
+                from .console import STATIC_DIR
+                if not (STATIC_DIR / "index.html").is_file():
+                    raise ValueError("Admin UI is missing. Install the released package or run npm run build:console in web/. Use --api-only for API development.")
             print(f"Project: {project.root / PROJECT_FILE}", flush=True)
+            if not args.api_only:
+                print(f"Admin: http://{args.host}:{args.port}/ui/", flush=True)
+            print(f"API docs: http://{args.host}:{args.port}/docs", flush=True)
             import uvicorn
 
             uvicorn.run(
-                "decision_layer.api.app:app",
+                "decision_layer.api.app:app" if args.api_only else "decision_layer.console:create_console",
+                factory=not args.api_only,
                 host=args.host,
                 port=args.port,
                 reload=args.reload,

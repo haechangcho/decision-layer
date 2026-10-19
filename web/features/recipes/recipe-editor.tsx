@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type Ref } from "react";
+import { useMemo, useEffect, useRef, useState, type Ref } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Background, Controls, Handle, Position, ReactFlow, applyNodeChanges, useNodesInitialized, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
@@ -274,7 +274,8 @@ function StepSettings({ step, manifest, onChange, objects, recipe, stepIndex, fi
 export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const router = useRouter();
   const { objects, byRef, error: catalogError } = useCatalog();
-  const { data: methods, error: methodsError } = useApi<MethodManifest[]>("/methods");
+  const { data: allMethods, error: methodsError } = useApi<MethodManifest[]>("/methods");
+  const methods = useMemo(() => allMethods?.filter(method => method.implementation !== "skill" || method.agent_executable), [allMethods]);
   const { data: readiness } = useApi<SourceReadiness>("/sources/current/readiness");
   const [recipe, setRecipe] = useState<Recipe>(() => initial || blank());
   const [saved, setSaved] = useState<Recipe | undefined>(initial);
@@ -309,6 +310,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const metricSelect = useRef<HTMLSelectElement>(null);
   const previewOutput = useRef<HTMLElement>(null);
   const inspector = useRef<HTMLElement>(null);
+  const initializedFromLink = useRef(false);
   const latestRecipe = useRef(recipe);
   latestRecipe.current = recipe;
   const dirty = !saved || JSON.stringify(recipe) !== JSON.stringify(saved);
@@ -337,7 +339,10 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const previewPeriodRule = !previewDatesTouched.current && recipe.default_scope?.period?.mode === "relative";
   const previewWithPeriod = !previewPeriodRule && (previewLimited || previewRequiresPeriod);
   const previewDatesInvalid = previewWithPeriod && (!previewRange[0] || !previewRange[1] || previewRange[0] > previewRange[1]);
-  const activeManifest = methods?.find(method => method.name === active?.method);
+  const latestManifest = methods?.find(method => method.name === active?.method);
+  const needsPinnedManifest = !!active && (!latestManifest || !!active.method_version && latestManifest.version !== active.method_version);
+  const { data: pinnedManifest, error: pinnedError } = useApi<MethodManifest>(needsPinnedManifest ? `/methods/${encodeURIComponent(active.method)}${active.method_version ? `?version=${encodeURIComponent(active.method_version)}` : ""}` : null);
+  const activeManifest = needsPinnedManifest ? pinnedManifest : latestManifest;
   useEffect(() => { setPreviewFormOpen(false); }, [selected]);
   const displayMethod = (name: string) => methods?.find(method => method.name === name)?.label || methodName(name);
   const missingRoles = activeManifest ? Object.entries(activeManifest.roles).filter(([name, role]) => {
@@ -352,10 +357,11 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       : previewRun.error && previewRun.steps.length ? previewRun.steps.length : null
     : null;
   useEffect(() => {
-    if (initial) return;
+    if (initial || initializedFromLink.current) return;
     const params = new URLSearchParams(window.location.search);
     const sourceRun = params.get("from_run");
     if (sourceRun) {
+      initializedFromLink.current = true;
       const indices = params.getAll("step");
       const query = new URLSearchParams();
       for (const index of indices) query.append("indices", index);
@@ -368,9 +374,13 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       return;
     }
     const method = params.get("method");
+    if (method && !methods) return;
+    initializedFromLink.current = true;
+    const manifest = methods?.find(item => item.name === method);
+    if (method && !manifest) { setError("선택한 분석 방법을 사용할 수 없습니다. 분석 방법 목록에서 다시 선택하세요."); return; }
     const metric = params.get("metric") || "";
-    setRecipe(r => ({ ...r, name: metric ? newName(metric) : "", semantic_scope: { ...r.semantic_scope, primary_metric: metric }, steps: method ? [{ id: "step_1", method, bindings: { metric: "$scope.primary_metric" }, params: {} }] : [] }));
-  }, [initial]);
+    setRecipe(r => ({ ...r, name: metric ? newName(metric) : "", semantic_scope: { ...r.semantic_scope, primary_metric: metric }, steps: method && manifest ? [{ id: "step_1", method, method_version: manifest.version, bindings: manifest.roles.metric ? { metric: "$scope.primary_metric" } : {}, params: {} }] : [] }));
+  }, [initial, methods]);
   useEffect(() => { if (!dirty) return; const warn = (e: BeforeUnloadEvent) => e.preventDefault(); window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn); }, [dirty]);
   useEffect(() => {
     if (!previewRun?.running) return;
@@ -553,7 +563,10 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
             <button className={s.icon} title="단계 삭제" aria-label="단계 삭제" onClick={() => pipeline ? updateSteps(recipe.steps.filter((_, i) => i !== selected)) : change({ ...recipe, allowed_methods: recipe.allowed_methods.filter((_, i) => i !== selected) })}><Trash2 size={16} /></button>
           </div></div>
           <h2>{displayMethod(active.method)}</h2>
-          {pipeline && activeManifest ? <StepSettings key={`${selected}-${active.method}`} step={active} manifest={activeManifest} methods={methods ?? []} objects={objects} recipe={recipe} stepIndex={selected} fieldError={fieldError} onChange={step => change({ ...recipe, steps: recipe.steps.map((s, i) => i === selected ? step : s) })} /> : !pipeline ? <p className={s.dependency}>MCP에서 이 Recipe를 선택하면 실행 결과에 따라 다음 분석과 입력을 정합니다.</p> : <p role="status">분석 설정을 불러오는 중…</p>}
+          {active.method_version && <p className={s.dependency}>이 단계의 고정 버전 · v{active.method_version}</p>}
+          {pinnedError && <p className={s.error} role="alert">{pinnedError.message}</p>}
+          {pipeline && active.method_version && latestManifest && active.method_version !== latestManifest.version && <button type="button" className={s.secondary} disabled={busy} onClick={() => configure({ ...recipe, steps:recipe.steps.map((step,index) => index===selected ? { ...step, method_version:latestManifest.version, bindings:{}, params:{} } : step) },selected)}>v{latestManifest.version} 적용 · 입력 설정 다시 선택</button>}
+          {pipeline && activeManifest ? <StepSettings key={`${selected}-${active.method}-${active.method_version || "latest"}`} step={active} manifest={activeManifest} methods={methods ?? []} objects={objects} recipe={recipe} stepIndex={selected} fieldError={fieldError} onChange={step => change({ ...recipe, steps: recipe.steps.map((s, i) => i === selected ? step : s) })} /> : !pipeline ? <p className={s.dependency}>MCP에서 이 Recipe를 선택하면 실행 결과에 따라 다음 분석과 입력을 정합니다.</p> : <p role="status">분석 설정을 불러오는 중…</p>}
           {pipeline && <section className={s.previewSection} aria-label="결과 확인">
             {previewFormOpen && <>
               <RecipeRuntimeInputs specs={recipe.inputs ?? {}} values={previewInputs} onChange={setPreviewInputs} objects={objects} />

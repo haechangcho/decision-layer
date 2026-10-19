@@ -1748,3 +1748,25 @@ The installer retains runtime files in `~/.local/share/decision-layer/runtime`
 npm cache entry. It refuses unmanaged installation directories and preserves sample
 state in Docker volumes. GitHub-package installation is a distribution path, not a
 new plugin runtime or automatic publication mechanism.
+
+
+## ADR-107 — Package the existing admin UI with the Python application (2026-10-19)
+
+**Accepted.** A Method project is the local application entry point. `serve` starts
+the admin console at `/ui/` and canonical API on one origin. `--api-only` preserves
+the lightweight API development path. Existing root REST endpoints stay compatible;
+`/api/` mounts the same API instance, caller checks and engine used by REST/MCP.
+
+The existing client React pages are compiled with Vite for distribution, with a
+small React Router adapter for their Next navigation imports. Next remains available
+for existing Web development/deployment. No parallel Method UI or execution logic
+is introduced. Release CI builds the console before wheel/sdist construction, and
+installation requires neither Node nor Docker. Missing UI assets fail with a build
+remedy, rather than silently presenting an API-only product.
+
+Local persistent state defaults to `.decision-layer/`, Recipes to `recipes/`, with
+explicit environment settings taking precedence. Project identity/path are visible
+in the console. File-authored Methods are edited in their files; opt-in Web drafts
+and immutable publication remain governed by ADR-100 and do not overwrite project
+files. Source credentials and editor permissions are not silently enabled. This is
+a local application, not a new shared deployment or sandbox.

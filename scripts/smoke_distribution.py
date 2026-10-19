@@ -32,14 +32,16 @@ with tempfile.TemporaryDirectory(prefix='decision-layer-install-') as folder:
         [sys.executable, '-c', '''
 import pandas as pd
 from qa_team.methods.rank.method import analyze
-from decision_layer.api.app import create_app
+from decision_layer.console import create_console
 from decision_layer.settings import Settings
 from fastapi.testclient import TestClient
 from pathlib import Path
 result = analyze(pd.DataFrame({'group': ['A', 'B', 'C'], 'value': [30, 20, 20]}))
 assert result['rank'].tolist() == [1.0, 2.0, 2.0]
-with TestClient(create_app(Settings(project_dir=str(Path.cwd()), database_url='memory')), base_url='http://localhost') as client:
-    response = client.get('/methods/qa_team.rank')
+with TestClient(create_console(Settings(project_dir=str(Path.cwd()), database_url='memory')), base_url='http://localhost') as client:
+    assert client.get('/ui/methods/qa_team.rank').status_code == 200
+    assert 'text/html' in client.get('/ui/').headers['content-type']
+    response = client.get('/api/methods/qa_team.rank')
     assert response.status_code == 200, response.text
 print('Installed CLI, calculation and API discovery passed')
 '''],

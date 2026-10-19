@@ -41,3 +41,5 @@ node_modules/
 examples/*/dbt/target/
 examples/*/dbt/logs/
 examples/*/dbt/.user.yml
+
+/src/decision_layer/static/

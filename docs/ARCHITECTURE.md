@@ -194,3 +194,13 @@ not promote either to an established causal effect. See ADR-091 and the
 Numeric regression defaults to a constant change per stored treatment unit; explicit
 contrasts are optional. The old binary regression contract remains compatible while
 new discovery uses stats.regression_adjustment. See ADR-092.
+
+
+## Packaged local admin console (ADR-107)
+
+`decision_layer/console.py` mounts the same FastAPI instance at `/api` and the
+existing root paths, and serves built React pages under `/ui`. CLI `serve` uses
+this factory; `--api-only` uses the original FastAPI entry. `web/console` provides
+only routing and project context; Method/Recipe/Run pages remain shared with Next.
+`npm run build:console` creates package assets; release CI builds these before
+wheel/sdist packaging. Users need only Python to start the installed local app.

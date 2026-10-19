@@ -1,7 +1,8 @@
 # Publishing the Python package
 
-The Python distribution contains Method authoring tools and the API. It does not
-bundle the Web UI or a Cube server.
+The Python distribution contains Method authoring tools, the admin Web UI and the
+API. Release CI builds the shared React pages before packaging. A Cube server is
+not bundled.
 
 ## First PyPI release
 
@@ -23,9 +24,9 @@ account owner before submitting it.
 ## Release
 
 1. Update `project.version` in `pyproject.toml` and `decision_layer.__version__`
-   together. The first preview is `0.1.0a1`.
+   together. The first preview is `0.1.0a2`.
 2. Run the tests and commit the intended release source and workflow to GitHub.
-3. Publish a GitHub Release tagged `v0.1.0a1` against that tested commit and mark it
+3. Publish a GitHub Release tagged `v0.1.0a2` against that tested commit and mark it
    as a prerelease. The tag must match the package version.
 4. `publish.yml` builds wheel and sdist, checks their metadata, installs the wheel
    into a separate environment and runs `scripts/smoke_distribution.py`.
@@ -35,7 +36,7 @@ account owner before submitting it.
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install 'decision-layer[stats]==0.1.0a1'
+python -m pip install 'decision-layer[stats]==0.1.0a2'
 decision-layer init my_team
 cd my_team
 decision-layer new python rank

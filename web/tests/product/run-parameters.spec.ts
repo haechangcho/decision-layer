@@ -62,7 +62,7 @@ test("one-click registration supports inline retry without a popup", async ({ pa
     requests++;
     return route.fulfill(requests === 1
       ? { status: 503, json: { error: { code: "STORE_UNAVAILABLE", message: "저장소에 연결하지 못했습니다. 다시 시도하세요." } } }
-      : { json: { name: "saved-analysis", status: "published" } });
+      : { json: { name: "saved-analysis", status: "draft" } });
   });
   await page.goto("/runs/provenance-test");
   const register = page.getByRole("button", { name: "Recipe로 등록", exact: true });
@@ -72,8 +72,8 @@ test("one-click registration supports inline retry without a popup", async ({ pa
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("alert").filter({ hasText: "저장소" })).toBeVisible();
   await register.click();
-  await expect(page.getByRole("heading", { name: "Recipe로 등록했습니다" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Recipe 보기", exact: true })).toHaveAttribute("href", "/recipes/saved-analysis");
+  await expect(page.getByRole("heading", { name: "Recipe 초안을 저장했습니다" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Recipe 초안 검토", exact: true })).toHaveAttribute("href", "/recipes/saved-analysis/edit");
   expect(requests).toBe(2);
 });
 
@@ -88,7 +88,7 @@ test("a calculated validation refusal does not block procedure registration", as
     shared_with: [], created_at: step.started_at,
   } }));
   await page.route("**/api/runs/validation-refusal/recipe", route => route.fulfill({ json: {
-    name: "saved-validation-procedure", status: "published",
+    name: "saved-validation-procedure", status: "draft",
   } }));
   await page.goto("/runs/validation-refusal");
   const register = page.getByRole("button", { name: "Recipe로 등록", exact: true });
@@ -96,7 +96,7 @@ test("a calculated validation refusal does not block procedure registration", as
   await expect(page.getByText(/보조 비교로 자동 전환하지 않습니다/)).toBeVisible();
   await expect(page.getByRole("link", { name: "편집해서 저장" })).toHaveAttribute("href", /step=0&step=1/);
   await register.click();
-  await expect(page.getByRole("heading", { name: "Recipe로 등록했습니다" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recipe 초안을 저장했습니다" })).toBeVisible();
 });
 
 test("a refusal before calculation still requires editing", async ({ page }) => {

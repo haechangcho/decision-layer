@@ -30,20 +30,20 @@ export function RecipeDelete({ recipe, onDeleted }: { recipe: Recipe; onDeleted:
     try {
       await api(`/recipes/${encodeURIComponent(recipe.name)}?base_version=${encodeURIComponent(latest.version)}`, { method: "DELETE" });
       dialog.current?.close(); setOpen(false); onDeleted();
-    } catch (cause) { setError(`${cause instanceof Error ? cause.message : "삭제하지 못했습니다."} 목록을 다시 확인한 후 시도하세요.`); }
+    } catch (cause) { setError(`${cause instanceof Error ? cause.message : "보관하지 못했습니다."} 목록을 다시 확인한 후 시도하세요.`); }
     finally { setBusy(false); }
   }
   return <>
-    <button type="button" className={s.trigger} title="Recipe 삭제" aria-label={`Recipe 삭제: ${recipe.description || recipe.name}`} onClick={() => setOpen(true)}><Trash2 size={17} /></button>
+    <button type="button" className={s.trigger} title="Recipe 보관" aria-label={`Recipe 보관: ${recipe.description || recipe.name}`} onClick={() => setOpen(true)}><Trash2 size={17} /></button>
     <dialog ref={dialog} className={s.dialog} aria-labelledby={id} aria-describedby={`${id}-description`} onCancel={event => { event.preventDefault(); close(); }} onClose={() => setOpen(false)}>
-      <h2 id={id}>Recipe를 삭제할까요?</h2>
+      <h2 id={id}>Recipe를 보관할까요?</h2>
       <p className={s.name}>{recipe.description || recipe.name}</p>
-      <p id={`${id}-description`}>초안을 포함한 모든 버전이 삭제되며, 이후 Web과 MCP에서 사용할 수 없습니다. 기존 실행 기록과 분석 결과는 유지됩니다.</p>
+      <p id={`${id}-description`}>목록과 새 실행에서 제외합니다. 초안을 포함한 원본 버전과 기존 실행 기록은 남아 있으며, 게시 권한이 있는 사용자가 복구할 수 있습니다.</p>
       {!latest && !error && <p role="status">최신 버전 확인 중…</p>}
       {error && <p role="alert" className={s.error}>{error}</p>}
       <div className={s.actions}><button type="button" disabled={busy} onClick={close} autoFocus>취소</button>
         {error && <button type="button" disabled={busy} onClick={() => setRetry(value => value + 1)}>다시 불러오기</button>}
-        <button type="button" className={s.danger} disabled={!latest || busy} onClick={remove}>{busy ? <LoaderCircle size={16} /> : <Trash2 size={16} />}{busy ? "삭제 중…" : "Recipe 삭제"}</button></div>
+        <button type="button" className={s.danger} disabled={!latest || busy} onClick={remove}>{busy ? <LoaderCircle size={16} /> : <Trash2 size={16} />}{busy ? "보관 중…" : "Recipe 보관"}</button></div>
     </dialog>
   </>;
 }

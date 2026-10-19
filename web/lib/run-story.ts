@@ -34,6 +34,7 @@ export function populationLabel(index: number, fallback: unknown): unknown {
 
 export function stepFinding(record: Run["steps"][number]): string {
   const result = record.result;
+  if (record.skill?.status === "awaiting_agent") return "AI가 지침에 따라 쿼리를 실행하는 중입니다";
   if (result.status === "needs_input") return "추가 입력이 필요합니다";
   if (result.status === "refused") return "분석 조건을 확인해야 합니다";
   if (result.status === "failed") return "분석에 실패했습니다";

@@ -24,7 +24,8 @@ export function declaredPath(step: PlanStep, steps: PlanStep[], seen = new Set<s
 
 export function selectionLabel(step: PlanStep, project: string, methods: MethodManifest[], context: SourceContext = {}): string {
   const observed = context.observedSteps?.find(item => item.id === step.id) ?? step;
-  const output = context.results?.[context.observedSteps?.findIndex(item => item.id === step.id) ?? -1]?.selections?.ranked_groups;
+  const selections = context.results?.[context.observedSteps?.findIndex(item => item.id === step.id) ?? -1]?.selections;
+  const output = selections?.selected_group ?? selections?.ranked_groups;
   const path = output?.candidates[0]?.path.map(item => item.member) ?? declaredPath(observed, context.steps ?? context.observedSteps ?? []);
   const title = (ref: unknown, fallback: string) => typeof ref === "string" ? context.titles?.get(ref)?.title ?? fallback : fallback;
   const dimension = title(path.at(-1), "항목");
@@ -32,7 +33,7 @@ export function selectionLabel(step: PlanStep, project: string, methods: MethodM
   const manifest = methods.find(method => method.name === step.method);
   const rank = output?.rank_by ?? step.params.rank_by ?? manifest?.parameters.rank_by?.default;
   const direction = output?.direction ?? step.params.direction ?? manifest?.parameters.direction?.default;
-  const selected = ["value", "metric"].includes(String(rank)) && ["asc", "desc"].includes(String(direction))
+  const selected = manifest?.agent_executable ? `이 단계의 조회 결과에서 선택한 ${dimension}` : ["value", "metric"].includes(String(rank)) && ["asc", "desc"].includes(String(direction))
     ? `${metric}이 가장 ${direction === "asc" ? "작은" : "큰"} ${dimension}`
     : rank === "count" && ["asc", "desc"].includes(String(direction))
       ? `건수가 가장 ${direction === "asc" ? "적은" : "많은"} ${dimension}`
@@ -59,12 +60,12 @@ export function StepInputSource({ value, onChange, steps, methods, inputs, type,
   inputs?: Record<string, ParamSpec>; type: string; label: string; disabled?: boolean; literal?: unknown;
   parameter?: string; spec?: ParamSpec; titles?: Map<string, SemanticObject>; observedSteps?: PlanStep[]; results?: Result[];
 }) {
-  const choices = steps.filter(step => methods.find(method => method.name === step.method)?.selection_outputs?.includes("ranked_groups"));
+  const choices = steps.filter(step => methods.find(method => method.name === step.method)?.selection_outputs?.length);
   const ref = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
   const selected = ref?.source === "step" ? `step:${ref.step_id}:${ref.project || "path"}` : ref?.source === "input" ? `input:${ref.name}` : "fixed";
   const change = (value: string) => {
     const [kind, id, project] = value.split(":");
-    onChange(kind === "step" ? { source: "step", step_id: id, output: "ranked_groups", select: "first", project }
+    onChange(kind === "step" ? { source: "step", step_id: id, output: methods.find(method => method.name === steps.find(step => step.id === id)?.method)?.selection_outputs?.[0] || "ranked_groups", select: "first", project }
       : kind === "input" ? { source: "input", name: id } : literal ?? []);
   };
   const allowed = spec?.source_policy?.allowed ?? ["literal", "input", "step"];
