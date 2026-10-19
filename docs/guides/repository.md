@@ -45,3 +45,7 @@ Product internals are split by responsibility: function compilation and calculat
 `methods/function/`, Run access/context/steps in `runs/`, HTTP permissions in `api/`,
 MCP evidence projection in `mcp/presentation.py`, and Recipe controls in
 `web/features/recipes/`. See [the execution boundaries](../ARCHITECTURE.md#internal-execution-boundaries-adr-111).
+
+`src/decision_layer/demo/` contains the installed sample: SQL and Cube resources,
+the Docker data-service configuration and the REST walkthrough. User onboarding
+starts from [PyPI installation](quickstart.md); cloning is for product development.

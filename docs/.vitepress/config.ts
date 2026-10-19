@@ -9,7 +9,7 @@ function sidebar(locale: '' | 'ko') {
   return [
     { text: ko ? '시작하기' : 'Get started', items: [
       item('Start here', '시작하기', '/'),
-      item('Run the sample', '샘플 실행', '/guides/quickstart'),
+      item('Install and start', '설치하고 시작하기', '/guides/quickstart'),
       item('Connect Cube', 'Cube 연결', '/guides/cube'),
       item('Connect an AI client', 'AI 도구 연결', '/guides/mcp')
     ] },

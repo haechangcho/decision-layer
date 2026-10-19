@@ -8,6 +8,7 @@ import sys
 import tempfile
 
 import decision_layer
+from decision_layer.demo.runtime import ASSETS, prepare
 
 
 assert Path(decision_layer.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
@@ -21,6 +22,11 @@ def run(*args, cwd):
 
 with tempfile.TemporaryDirectory(prefix='decision-layer-install-') as folder:
     root = Path(folder)
+    assert 'demo' in run('--help', cwd=root)
+    assert '--cube-port' in run('demo', '--help', cwd=root)
+    sample = prepare(root / 'sample')
+    assert all((sample.root / name).is_file() for name in ASSETS)
+    assert 'cubejs/cube:' in (sample.root / 'compose.yaml').read_text()
     run('init', 'qa_team', cwd=root)
     project = root / 'qa_team'
     run('new', 'python', 'rank', cwd=project)

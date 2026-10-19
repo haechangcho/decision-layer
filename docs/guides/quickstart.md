@@ -1,50 +1,88 @@
 ---
-title: Quickstart
-description: Save an analysis and apply the same procedure to a new period.
+title: Install and start
+description: Install from PyPI, then use the sample or connect your Cube server.
 ---
 
-# Quickstart
+# Install and start
 
-With Git and running Docker Compose v2, try a small synthetic sample through a real
-Cube server and the normal execution engine. No company account or model API key is needed.
+Install with Python 3.11 or later. The package includes the admin Web UI.
 
 ```bash
-git clone https://github.com/haechangcho/decision-layer.git
-cd decision-layer
-bash scripts/demo.sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --pre 'decision-layer[stats]'
 ```
 
-Open [Runs](http://localhost:3100/runs). The script executes an analysis, saves its
-Recipe, replays it and prints direct links. First builds download dependencies and
-can take several minutes.
+Use `--pre` while Decision Layer is a prerelease. Then choose a starting point.
 
-1. January: Home leads revenue at 6,200; inspect its regions.
-2. Save: register the recorded analysis as a Recipe.
-3. February: the same Recipe selects Grocery at 6,720.
-4. March: equal leaders require input before querying a regional branch.
+## Try the sample
 
-Inspect the rule, resolved selection, queries and warnings in each Run. This is a
-descriptive ranking of synthetic data, not a causal explanation. The scripted
-walkthrough is not an LLM benchmark.
+Start Docker with Compose v2, then run:
+
+```bash
+decision-layer demo
+```
+
+The command prepares PostgreSQL and Cube in Docker, then runs the admin UI and API
+from your installed Python package. No company data or AI connection is needed.
+The first start downloads Docker images and can take several minutes.
+
+Open [the admin UI](http://127.0.0.1:8000/ui/recipes). The prepared analysis shows:
+
+1. January: select Home as the highest-revenue department and inspect its regions.
+2. Save the procedure as a Recipe.
+3. February: reuse the Recipe and select the new leader, Grocery.
+4. March: ask for a selection when two departments tie for first place.
+
+Inspect inputs, queries and results in [Runs](http://127.0.0.1:8000/ui/runs).
+This runs registered procedures on synthetic data; it does not generate answers with an AI model.
+
+### Stop and keep your data
+
+Press `Ctrl+C` in the running terminal to stop the server and sample containers.
+Data, Recipes and Runs are kept. Run `decision-layer demo` again to restart.
+
+The sample project lives in `~/.decision-layer/demo/`. Source data lives in the
+sample's Docker PostgreSQL volume; Run history lives in `.decision-layer/runs.db`
+inside the sample project.
+
+If startup was interrupted and containers remain running, stop them with:
+
+```bash
+decision-layer demo stop
+```
+
+Choose another directory or available ports if needed. The selected ports are
+reused on later starts. Pass the same `--directory` when stopping a custom sample.
+
+```bash
+decision-layer demo --directory ./sample_shop --port 8010 --cube-port 4110
+```
+
+## Connect your Cube server
+
+If you already have Cube, create your team's project:
+
+```bash
+decision-layer init my_team
+cd my_team
+decision-layer serve
+```
+
+Follow [Connect Cube](./cube.md) to configure the server endpoint and credentials.
+Use [Method projects](./method-projects.md) to add your team's Methods and Skills.
 
 ## Reuse with your AI
 
-Install the local adapter using [MCP setup](./mcp.md). Set `DL_API_URL=http://localhost:8100`
-and `DL_WEB_URL=http://localhost:3100` for this sample.
+Follow [MCP setup](./mcp.md) to connect your AI client.
+For the default demo, use API URL `http://127.0.0.1:8000` and Web URL
+`http://127.0.0.1:8000/ui`.
 
-> Reuse the saved department investigation for February 2026. Find the leading
-> revenue department, then show its regional breakdown, evidence and limitations.
+> Reuse the saved department investigation for February 2026. Show the leading
+> department, its regional revenue and the evidence.
 
-Your AI client supplies its own model connection.
+## Develop Decision Layer
 
-```bash
-bash scripts/demo.sh replay
-bash scripts/demo.sh stop
-```
-
-[Ports, reset and sample details](https://github.com/haechangcho/decision-layer/blob/main/examples/quickstart/README.md)
-· [Larger Complete Journey sample](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md)
-
-## Next steps
-
-[Connect Cube](./cube.md) · [Create Recipes](./recipes.md) · [Contribute a Method](./methods.md)
+To change product code or the admin UI, follow [Local development](./development.md).
+The original all-Docker sample is available in the
+[repository examples](https://github.com/haechangcho/decision-layer/tree/main/examples/quickstart).

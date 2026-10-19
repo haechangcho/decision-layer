@@ -24,9 +24,9 @@ account owner before submitting it.
 ## Release
 
 1. Update `project.version` in `pyproject.toml` and `decision_layer.__version__`
-   together. The current preview is `0.1.0a3`.
+   together. The current preview is `0.1.0a4`.
 2. Run the tests and commit the intended release source and workflow to GitHub.
-3. Publish a GitHub Release tagged `v0.1.0a3` against that tested commit and mark it
+3. Publish a GitHub Release tagged `v0.1.0a4` against that tested commit and mark it
    as a prerelease. The tag must match the package version.
 4. `publish.yml` builds wheel and sdist, checks their metadata, installs the wheel
    into a separate environment and runs `scripts/smoke_distribution.py`.
@@ -36,7 +36,7 @@ account owner before submitting it.
 ```sh
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install 'decision-layer[stats]==0.1.0a3'
+python -m pip install 'decision-layer[stats]==0.1.0a4'
 decision-layer init my_team
 cd my_team
 decision-layer new python rank

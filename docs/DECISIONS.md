@@ -2453,3 +2453,23 @@ No new runtime, public abstraction or interface-specific execution path is added
 Existing integration tests cover worker execution, private/shared Run access, Skill
 continuations, API errors and MCP payloads. Regression tests pin check ordering and
 programming-error behavior; browser checks cover Recipe edits and saved selections.
+
+## ADR-112 — Start the installed product with optional packaged sample data (2026-10-19)
+
+**Accepted.** PyPI installation is the primary user path. `decision-layer demo`
+uses bundled SQL, Cube models and Compose configuration to start only PostgreSQL
+and Cube in Docker. Web/API run from the installed Python package on loopback,
+using the same console, REST endpoints, execution engine and SQLite Run store.
+The existing scripted walkthrough is packaged and reused by the repository demo.
+
+The sample has its own marked project directory, Docker project and local state.
+It does not inherit configured organization sources, credentials, Methods or
+Recipes. An unmanaged directory is never overwritten. Ctrl+C stops its server
+and containers; volumes, Recipes and Runs remain. `demo stop` stops leftover data
+services after an interrupted start. No clone, Node.js or product image build is
+required. The all-Docker repository example remains a contributor/reference path.
+
+Documentation starts with installation, then offers sample data or an existing
+Cube connection. Sample PostgreSQL contains source observations; SQLite records
+Decision Layer execution. This adds onboarding commands, not a semantic provider,
+analysis engine or service scheduler.

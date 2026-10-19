@@ -47,3 +47,7 @@ import 경로는 저장된 정의와 실행 프로세스가 계속 사용할 수
 `access.py`, `context.py`, `steps.py`는 권한 확인과 조회 준비, 단계 실행을 맡습니다.
 MCP 응답 정리는 `mcp/presentation.py`, Recipe 입력 폼은 `web/features/recipes/`에서
 관리합니다. 자세한 내용은 [실행 구조](../../ARCHITECTURE.md#internal-execution-boundaries-adr-111)를 참고하세요.
+
+`src/decision_layer/demo/`에는 패키지에 포함되는 샘플 SQL, Cube 모델, Docker 구성과
+실행 예제가 있습니다. 사용자는 [PyPI 설치](quickstart.md)로 시작하며, 제품 개발에
+참여할 때 저장소를 clone합니다.

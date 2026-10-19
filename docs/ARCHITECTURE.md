@@ -394,3 +394,13 @@ The Recipe editor composes `recipe-nodes.tsx`, `recipe-fields.tsx` and
 `step-settings.tsx`. Pure defaults, selectors and error mapping live in
 `editor-model.ts`. Saving, YAML reconciliation and preview state remain owned by
 the editor, with no duplicate API or execution rules.
+
+### Installed sample (ADR-112)
+
+`demo/runtime.py` prepares bundled resources under a marked local project and
+starts the sample PostgreSQL/Cube services with a directory-scoped Docker Compose
+project. It launches the installed console in a separate process with sample-only
+settings and runs `demo/replay.py` through the canonical REST API. It owns only
+those child processes and containers. Existing organization environment settings
+are not inherited. Source data uses a Docker volume; Run history uses the demo's
+SQLite database. Ctrl+C stops processes and containers while retaining data.

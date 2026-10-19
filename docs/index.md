@@ -18,7 +18,8 @@ The semantic layer defines metrics, dimensions and access. Decision Layer define
 
 | Task | Guide | Requirements |
 | --- | --- | --- |
-| Try the product with sample data | [Run the sample](guides/quickstart.md) | Docker and Compose |
+| Install and connect your Cube | [Install and start](guides/quickstart.md) | Python 3.11+, an existing Cube server |
+| Try the sample | [Run the sample](guides/quickstart.md#try-the-sample) | Python 3.11+, Docker and Compose |
 | Write and test a Method | [First Method](guides/methods.md) | Python 3.11+ |
 | Work on Web or API | [Local development](guides/development.md) | Python 3.11+, Node.js 22 |
 

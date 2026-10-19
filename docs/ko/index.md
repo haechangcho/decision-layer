@@ -18,7 +18,8 @@ Decision Layer는 시맨틱 레이어에 재사용할 수 있는 분석 절차�
 
 | 목적 | 따라갈 문서 | 필요한 환경 |
 | --- | --- | --- |
-| 샘플 데이터로 제품 체험 | [샘플 실행](guides/quickstart.md) | Docker와 Compose |
+| 설치하고 내 Cube에 연결 | [설치하고 시작하기](guides/quickstart.md) | Python 3.11 이상, 기존 Cube |
+| 샘플 데이터로 제품 체험 | [샘플 실행](guides/quickstart.md#샘플로-먼저-체험하기) | Python 3.11 이상, Docker와 Compose |
 | Method 작성·테스트 | [첫 Method 개발](guides/methods.md) | Python 3.11 이상 |
 | 웹·API 개발 | [로컬 개발 환경](guides/development.md) | Python 3.11 이상, Node.js 22 |
 

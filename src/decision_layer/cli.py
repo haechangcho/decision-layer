@@ -54,8 +54,28 @@ def main(argv=None):
     serve.add_argument("--port", type=int, default=8000)
     serve.add_argument("--reload", action="store_true")
     serve.add_argument("--api-only", action="store_true", help="Start only the API")
+    demo = commands.add_parser(
+        "demo", help="Run the packaged sample with Docker data services"
+    )
+    demo.add_argument("action", nargs="?", choices=["start", "stop"], default="start")
+    demo.add_argument(
+        "--directory", help="Sample project directory (default: ~/.decision-layer/demo)"
+    )
+    demo.add_argument("--port", type=int, help="Local Web/API port (default: 8000)")
+    demo.add_argument(
+        "--cube-port", type=int, help="Local sample Cube port (default: 4100)"
+    )
     args = parser.parse_args(argv)
     try:
+        if args.command == "demo":
+            from .demo.runtime import run_demo
+
+            return run_demo(
+                args.action,
+                directory=args.directory,
+                port=args.port,
+                cube_port=args.cube_port,
+            )
         if args.command == "init":
             project = init_project(args.directory, args.name)
             print(f"Created {project.root / PROJECT_FILE}")
