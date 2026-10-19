@@ -75,10 +75,10 @@ python3.11 -m venv .venv-pywhy-review
 .venv-pywhy-review/bin/python -m pip install -e '.[dev,stats,dowhy,econml]' -c examples/methods/pywhy_review/constraints-013-py311.txt
 .venv-pywhy-review/bin/python -m examples.methods.pywhy_review.experiment
 .venv-pywhy-review/bin/python -m examples.methods.pywhy_review.session
-.venv-pywhy-review/bin/python -m pytest -q examples/methods/pywhy_review/test_review.py
+.venv-pywhy-review/bin/python -m pytest -q tests/examples/test_pywhy_review.py
 ```
 
-실행 소스는 `examples/methods/pywhy_review/`에 있다. `experiment.py`는 일반 Python 함수, `methods.py`는 typed adapter, `session.py`는 독립적인 query fixture를 통한 등록·실행, `test_review.py`는 같은 구현을 검사한다. `explore.ipynb`도 이 함수를 import한다. notebook 셀은 pytest에서 실행했다. 별도 Jupyter 설치·kernel 선택은 선택 사항이며 notebook UI 자체를 테스트한 것은 아니다.
+실행 소스는 `examples/methods/pywhy_review/`에 있다. `experiment.py`는 일반 Python 함수, `methods.py`는 typed adapter, `session.py`는 독립적인 query fixture를 통한 등록·실행, `tests/examples/test_pywhy_review.py`는 같은 구현을 검사한다. `docs/tutorials/methods/pywhy_review.ipynb`도 이 함수를 import한다. notebook 셀은 pytest에서 실행했다. 별도 Jupyter 설치·kernel 선택은 선택 사항이며 notebook UI 자체를 테스트한 것은 아니다.
 
 ```python
 from examples.methods.pywhy_review.experiment import data, native, dml
@@ -180,7 +180,7 @@ DoWhy 0.14의 배포 metadata는 NumPy >2.0을 요구한다. 프로젝트의 현
 python3.11 -m venv .venv-pywhy-014
 .venv-pywhy-014/bin/python -m pip install -e '.[dev,stats]' 'dowhy==0.14' 'econml==0.16.0' -c examples/methods/pywhy_review/constraints-014-py311.txt
 .venv-pywhy-014/bin/python -m examples.methods.pywhy_review.experiment
-.venv-pywhy-014/bin/python -m pytest -q examples/methods/pywhy_review/test_review.py
+.venv-pywhy-014/bin/python -m pytest -q tests/examples/test_pywhy_review.py
 ```
 
 0.14는 별도 환경에서 수치 실험이 통과했지만 NumPy 행렬 연산의 overflow/invalid/divide-by-zero 경고도 기록됐다. 반환값이 유한하고 기대값에 가까운 것만으로 이 경고를 무시해 production 지원을 선언하지 않는다. 원인·플랫폼 재현을 조사하고 경고 처리 정책을 정하는 upgrade gate로 남긴다. 0.13의 pandas 위치 indexing 경고와 두 버전의 문자열 wrapper deprecation도 기록했다.

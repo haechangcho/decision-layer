@@ -1,13 +1,13 @@
 PYTHON ?= python3
 VENV := .venv/bin/python
 
-.PHONY: setup example test setup-web api web check
+.PHONY: setup example test setup-web api web check format-methods check-method-format
 setup:
 	$(PYTHON) -m venv .venv
 	$(VENV) -m pip install -e '.[dev]'
 
 example:
-	$(VENV) -m examples.methods.patterns --case drilldown
+	$(VENV) -m pytest -q tests/examples/test_first_method.py
 
 test:
 	$(VENV) -m pytest -q
@@ -21,7 +21,13 @@ api:
 web:
 	DL_API_URL=http://localhost:8000 npm --prefix web run dev
 
-check: test
+format-methods:
+	$(VENV) scripts/format_methods.py
+
+check-method-format:
+	$(VENV) scripts/format_methods.py --check
+
+check: check-method-format test
 	npm --prefix web run typecheck
 	npm --prefix web run build
 	npm run docs:build

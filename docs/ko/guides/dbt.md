@@ -1,5 +1,7 @@
 # dbt Semantic Layer 연결
 
+> **이전 구현 참고 — 초기 제품에서는 미지원(ADR-096).** 아래 설정은 과거 연결 방식이며 현재 온보딩 경로가 아닙니다. [Cube](cube.md)를 사용하세요. 기존 설정·Run은 보존하며 자동 이전하지 않습니다.
+
 회사에서 운영하는 dbt Semantic Layer의 공식 GraphQL API에 연결합니다. Decision Layer가 지표와 차원을 조회하고 분석 요청을 보내면, dbt가 SQL 생성과 데이터 조회를 처리합니다. 결과와 실행 근거는 Run에 남습니다.
 
 별도 게이트웨이 설치, dbt 프로젝트 업로드, 데이터베이스 계정 제공, Decision Layer 전용 메타데이터 추가는 필요하지 않습니다.

@@ -15,7 +15,7 @@ export default function RecipesPage() {
   const { data, error, loading, reload } = useApi<Recipe[]>("/recipes");
   const { data: drafts, reload: reloadDrafts } = useApi<Recipe[]>("/recipes:drafts");
   const [deleted, setDeleted] = useState("");
-  const onDeleted = (recipe: Recipe) => { setDeleted(`${recipe.description || recipe.name} 삭제됨`); reload(); reloadDrafts(); };
+  const onDeleted = (recipe: Recipe) => { setDeleted(`${recipe.description || recipe.name} 보관됨`); reload(); reloadDrafts(); };
   const { byRef } = useCatalog();
   const [search, setSearch] = useState("");
   const t = useT();

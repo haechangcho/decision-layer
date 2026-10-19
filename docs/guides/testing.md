@@ -8,7 +8,7 @@ From the repository root:
 
 ```bash
 make test
-.venv/bin/python -m pytest -q examples/methods
+.venv/bin/python -m pytest -q tests/examples
 ```
 
 No running Cube is needed. Live tests skip unless their opt-in environment variables are set. Skipped tests do not verify integration. The synthetic metadata in `tests/fixtures/` is a self-contained contract fixture, not another deployable sample.

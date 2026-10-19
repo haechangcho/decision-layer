@@ -5,16 +5,16 @@ from fastapi import Query, Request
 from fastapi.responses import JSONResponse, Response
 from ..i18n import _
 from ..core.models import Recipe, Run
-from ..methods import registry
 from ..recipes.loader import parse_recipe
 from ..service import RecipeSearchRequest, RecipeConfigureRequest, RecipePreviewRequest, RecipePublishRequest, RecipeSaveRequest, RecipeYamlRequest
 from ..i18n import _
 from fastapi import APIRouter
-from .dependencies import Caller, Creds, run_origin, waited
+from .dependencies import Caller, Creds, run_origin, waited, require_recipe_permission
 
 from ..recipes.authoring import check_recipe_semantics
 
 def create_router(settings, provider, recipes, engine):
+    registry = engine.registry
     router = APIRouter()
     @router.get("/recipes", response_model=list[Recipe])
     async def recipes_list(_caller: Caller) -> list[Recipe]:
@@ -27,6 +27,7 @@ def create_router(settings, provider, recipes, engine):
 
     @router.get("/recipes:drafts", response_model=list[Recipe])
     async def recipe_drafts(_caller: Caller) -> list[Recipe]:
+        require_recipe_permission(settings, _caller)
         return recipes.list_drafts()
 
     @router.post("/recipes:configure-step", response_model=Recipe)
@@ -39,7 +40,7 @@ def create_router(settings, provider, recipes, engine):
                 manifest = registry.get(req.recipe.steps[req.step_index].method).manifest
                 if any(role.default_binding == "unit_count" for role in manifest.roles.values()):
                     catalog = await provider.discover(creds)
-            recipe = configure_step(req.recipe, req.step_index, req.reset_parameters, catalog=catalog)
+            recipe = configure_step(req.recipe, req.step_index, req.reset_parameters, catalog=catalog, registry=registry)
             for spec in recipe.inputs.values():
                 spec.label = _(spec.label)
             return recipe
@@ -84,14 +85,21 @@ def create_router(settings, provider, recipes, engine):
 
     @router.get("/recipes/{name}/edit", response_model=Recipe)
     async def recipe_edit(name: str, _caller: Caller) -> Recipe:
+        require_recipe_permission(settings, _caller)
         return recipes.get(name, include_drafts=True)
 
     @router.post("/recipes/{name}/publish", response_model=Recipe)
     async def recipe_publish(name: str, req: RecipePublishRequest, _caller: Caller, creds: Creds) -> Recipe:
+        require_recipe_permission(settings, _caller, publish=True)
         draft = recipes.get(name, req.base_version, include_drafts=True)
         recipes.validate(draft)
         await check_recipe_semantics(draft, provider, creds)
-        return recipes.publish(name, req.base_version)
+        return recipes.publish(name, req.base_version, actor=_caller.subject)
+
+    @router.get("/recipes/{name}/reuse")
+    async def recipe_reuse(name: str, _caller: Caller):
+        from ..recipes.routing import reuse_contract
+        return reuse_contract(recipes.get(name), registry=registry)
 
     @router.get("/recipes/{name}", response_model=Recipe)
     async def recipe_get(name: str, _caller: Caller) -> Recipe:
@@ -99,15 +107,22 @@ def create_router(settings, provider, recipes, engine):
 
     @router.put("/recipes/{name}", response_model=Recipe)
     async def recipe_save(name: str, req: RecipeSaveRequest, _caller: Caller) -> Recipe:
+        require_recipe_permission(settings, _caller, publish=req.recipe.status == "published")
         from ..recipes.authoring import RecipeEditError
 
         if req.recipe.name != name:
             raise RecipeEditError("Recipe name must match the URL.")
-        return recipes.save(req.recipe, req.base_version)
+        return recipes.save(req.recipe, req.base_version, actor=_caller.subject)
 
     @router.delete("/recipes/{name}", status_code=204)
     async def recipe_delete(name: str, _caller: Caller, base_version: str = Query(...)) -> Response:
-        recipes.delete(name, base_version)
+        require_recipe_permission(settings, _caller, publish=True)
+        recipes.delete(name, base_version, actor=_caller.subject)
         return Response(status_code=204)
+
+    @router.post("/recipes/{name}/restore", response_model=Recipe)
+    async def recipe_restore(name: str, req: RecipePublishRequest, caller: Caller) -> Recipe:
+        require_recipe_permission(settings, caller, publish=True)
+        return recipes.restore(name, req.base_version, actor=caller.subject)
 
     return router

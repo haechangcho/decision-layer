@@ -31,12 +31,12 @@ def test_removed_gateway_is_rejected_and_saved_state_can_be_reconfigured(monkeyp
     async def check():
         store = MemorySourceStore()
         await store.save({"provider": "metricflow", "api_url": "http://legacy:4100", "instance": "legacy"})
-        manager = SourceConfigManager(store, Settings(database_url="memory"))
+        manager = SourceConfigManager(store, Settings(database_url="memory", source_allowed_urls=("https://cube.example/cubejs-api/v1",)))
         with pytest.raises(SourceConfigError) as error:
             await manager.view()
         assert error.value.code == "SOURCE_PROVIDER_INVALID"
-        await manager.save(SourceConfigInput(provider="dbt", api_url="https://dbt.example/api/graphql", environment_id=123))
-        assert (await manager.view())["provider"] == "dbt"
+        await manager.save(SourceConfigInput(provider="cube", api_url="https://cube.example/cubejs-api/v1"))
+        assert (await manager.view())["provider"] == "cube"
         assert (await store.get())["connections"]["metricflow"]["instance"] == "legacy"
 
     asyncio.run(check())
@@ -46,7 +46,7 @@ def test_saved_secret_is_encrypted_and_never_returned(tmp_path, monkeypatch):
     for key in ("CUBE_API_URL", "CUBE_API_SECRET", "CUBE_AUTH_METHOD", "CUBE_SERVICE_GROUPS", "CUBE_INSTANCE"):
         monkeypatch.delenv(key, raising=False)
     path = tmp_path / "settings.db"
-    settings = Settings(database_url="memory", source_config_key=Fernet.generate_key().decode(), allow_service_credentials=True)
+    settings = Settings(database_url="memory", source_allowed_urls=("http://cube.test/cubejs-api/v1",), source_config_key=Fernet.generate_key().decode(), allow_service_credentials=True)
     manager = SourceConfigManager(SqliteSourceStore(str(path)), settings)
 
     async def save_and_read():
@@ -102,16 +102,16 @@ def test_source_admin_and_connection_test(cube_meta):
     assert readiness.json()["metrics"]
 
 
-def test_local_install_edits_without_admin_key(cube_meta):
-    # no admin token = single-user/local install: editing is open, no key required (ADR-033)
+def test_local_install_disables_admin_api_without_key(cube_meta):
+    # No token disables both mutation and test, including in local mode.
     settings = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret="test-secret",
                         cube_service_groups=("ecommerce",), database_url="memory", allow_service_credentials=True)
     provider = CubeProvider(FakeClient(cube_meta, rows_total=1), "local")
     client = TestClient(create_app(settings, provider))
     view = client.get("/sources/current")
-    assert view.status_code == 200 and view.json()["admin_required"] is False
+    assert view.status_code == 200 and view.json()["admin_required"] is True and view.json()["editable"] is False
     result = client.post("/sources/current:test", json={"api_url": "http://x", "auth_method": "api_secret"})
-    assert result.status_code == 200 and result.json()["measures"] > 0
+    assert result.status_code == 403 and result.json()["error"]["code"] == "SOURCE_ADMIN_REQUIRED"
 
 
 @pytest.mark.parametrize("error,code,status", [
@@ -124,7 +124,7 @@ def test_connection_failure_diagnostics(cube_meta, error, code, status):
         async def meta(self, token):
             raise error
 
-    settings = Settings(database_url="memory", source_admin_token="admin-key")
+    settings = Settings(database_url="memory", source_admin_token="admin-key", source_allowed_urls=("http://cube.test/cubejs-api/v1",))
     provider = CubeProvider(FailingClient(cube_meta), "local")
     with TestClient(create_app(settings, provider)) as client:
         result = client.post("/sources/current:test",
@@ -206,6 +206,7 @@ def test_explicit_auth_matches_test_and_execution(cube_meta, monkeypatch, mode, 
             return await super().meta(bearer)
 
     settings = Settings(database_url="memory", source_admin_token="admin",
+                        cube_api_url="http://chosen.example/cubejs-api/v1",
                         allow_service_credentials=allowed, cube_api_secret="s" * 32)
     app = create_app(settings, CubeProvider(RecordingClient(cube_meta), "local"))
     body = {"api_url": "http://chosen.example/cubejs-api/v1", "auth_method": mode}

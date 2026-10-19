@@ -29,9 +29,10 @@ def test_local_example_uses_cube_and_preserves_state():
     cube = compose_config()
     assert cube["name"] == "decision-layer-cube"
     assert set(cube["services"]) == {"postgres", "import", "cube", "api", "web"}
-    assert cube["services"]["api"]["environment"]["DL_DEFAULT_SOURCE_PROVIDER"] == "cube"
+    assert cube["services"]["api"]["environment"]["DL_SOURCE_PROVIDER"] == "cube"
     mounts = {m["target"]: m for m in cube["services"]["api"]["volumes"]}
-    assert set(mounts) == {"/recipes", "/data"}
+    assert set(mounts) == {"/recipes", "/data", "/opt/decision-layer/examples"}
+    assert mounts["/opt/decision-layer/examples"]["read_only"] is True
     assert mounts["/data"]["type"] == "volume"
     assert Path(mounts["/recipes"]["source"]).name == "recipes"
 

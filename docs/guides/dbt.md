@@ -1,5 +1,7 @@
 # Connect dbt Semantic Layer
 
+> **Historical reference — unsupported in the initial release (ADR-096).** The setup below describes the former integration and is not a current onboarding path. Use [Cube](cube.md). Old settings and Runs are preserved, not automatically migrated.
+
 Connect your existing dbt Semantic Layer through its official GraphQL API. Decision Layer discovers metrics and dimensions, submits queries and records the results in Runs. Your dbt environment handles SQL generation and warehouse access.
 
 You do not need to install a gateway, upload a dbt project, share warehouse credentials or add Decision Layer metadata to your models.

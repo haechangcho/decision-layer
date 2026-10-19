@@ -6,9 +6,9 @@
 
 ```bash
 python3.11 -m venv .venv-method
-.venv-method/bin/python -m pip install -c examples/methods/patterns/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
-.venv-method/bin/python -m examples.methods.patterns --all
-.venv-method/bin/python -m examples.methods.patterns.failures --all
+.venv-method/bin/python -m pip install -c examples/methods/statistics/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
+.venv-method/bin/python -m examples.methods.scenarios --all
+.venv-method/bin/python -m examples.methods.scenarios.failures --all
 ```
 
 | case | 패턴 | 조회 수 | 독립 기대값 |
@@ -29,8 +29,8 @@ python3.11 -m venv .venv-method
 `--all` 대신 `--case peer`처럼 하나씩 실행하세요. fixture의 전체 요청은 `scenarios.py`, 함수는 `methods.py`, 검증은 `verify()`에 있습니다. 비교 단위와 alias를 출력에서 확인할 수 있습니다. OLS는 treatment·baseline 계수, mixed는 집계·최솟값·최댓값·개체 수입니다. DoWhy/EconML의 2는 생성식에 알려진 효과이며 실제 데이터의 정답을 의미하지 않습니다.
 
 ```bash
-.venv-method/bin/python -m examples.methods.patterns --case peer
-.venv-method/bin/python -m pytest -q examples/methods/patterns tests/unit/test_method_authoring.py tests/unit/test_advanced_methods.py
+.venv-method/bin/python -m examples.methods.scenarios --case peer
+.venv-method/bin/python -m pytest -q tests/examples/test_scenarios.py tests/unit/test_method_authoring.py tests/unit/test_advanced_methods.py
 ```
 
 ## 2. 실패·거절도 확인
@@ -70,11 +70,11 @@ cd ../..
 ```bash
 export DL_JOURNEY_CUBE_URL=http://127.0.0.1:4000/cubejs-api/v1
 export DL_JOURNEY_DATABASE_URL='postgresql://journey_reader:local-read-only@127.0.0.1:5433/journey'
-.venv-method/bin/python -m examples.methods.patterns.journey --all --verify-sql
-.venv-method/bin/python -m examples.methods.patterns.journey --case did --verify-sql
-.venv-method/bin/python -m examples.methods.patterns.journey --case did-split --verify-sql
-.venv-method/bin/python -m examples.methods.patterns.journey --case dowhy
-.venv-method/bin/python -m examples.methods.patterns.journey --case econml
+.venv-method/bin/python -m examples.methods.scenarios.journey --all --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --case did --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --case did-split --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --case dowhy
+.venv-method/bin/python -m examples.methods.scenarios.journey --case econml
 ```
 
 로컬 demo reader만 위 URL을 사용합니다. 다른 환경은 해당 서버·사용자·토큰으로 바꾸세요. SQL 검증은 read-only 연결에서 실행되고 Method가 raw SQL을 실행하는 경로는 없습니다.
@@ -93,20 +93,20 @@ export CUBE_INSTANCE=journey
 export CUBE_API_SECRET=local-example-secret-change-me-0123456789
 export DL_ALLOW_SERVICE_CREDENTIALS=true
 export DL_DATABASE_URL=memory
-.venv-method/bin/python -m uvicorn examples.methods.patterns.server:create_app --factory --host 127.0.0.1 --port 8011
+.venv-method/bin/python -m uvicorn examples.methods.scenarios.server:create_app --factory --host 127.0.0.1 --port 8011
 ```
 
 다른 터미널에서 SQL URL을 export한 뒤:
 
 ```bash
-.venv-method/bin/python -m examples.methods.patterns.journey --api http://127.0.0.1:8011 --all --verify-sql
-.venv-method/bin/python -m examples.methods.patterns.journey --api http://127.0.0.1:8011 --case did --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --api http://127.0.0.1:8011 --all --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --api http://127.0.0.1:8011 --case did --verify-sql
 ```
 
 `run_id`로 `GET /runs/{id}`를 조회해 canonical bindings, query attempts, 버전·검증·경고를 확인합니다. Web의 Run viewer와 MCP `run_step`도 같은 RunEngine/Registry를 사용합니다. 개발 함수 자동 업로드나 별도 실행기는 없습니다. 종료는 개발 서버 터미널에서 Ctrl-C입니다.
 
 ## 5. 수정 실험과 디버깅
 
-`group_metric`의 order 또는 limit을 바꿔 실행하면 full-spec fixture가 불일치한 필드를 표시합니다. peer의 두 번째 호출 앞에 breakpoint를 넣으면 같은 함수에서 세 쿼리가 어떻게 이어지는지 볼 수 있습니다. `session.last_trial`의 attempts/queries/result를 검사합니다. `explore.ipynb`는 이 함수와 같은 CLI 검증 함수를 import하며 별도 구현이 없습니다.
+`group_metric`의 order 또는 limit을 바꿔 실행하면 full-spec fixture가 불일치한 필드를 표시합니다. peer의 두 번째 호출 앞에 breakpoint를 넣으면 같은 함수에서 세 쿼리가 어떻게 이어지는지 볼 수 있습니다. `session.last_trial`의 attempts/queries/result를 검사합니다. `docs/tutorials/methods/query_scenarios.ipynb`는 이 함수와 같은 CLI 검증 함수를 import하며 별도 구현이 없습니다.
 
 현재 데이터는 기술통계·입력 매핑·join/grain·다중 조회·추출·실패 경로를 시험하기에 충분합니다. 인과효과 정확도에는 알려진 생성식의 합성 fixture가 필요합니다. 실제 인과 검증에는 처치 수령 시점·선정 설계·간섭/겹치는 캠페인·개체별 기간 완전성과 식별 가정을 추가로 확보해야 합니다.

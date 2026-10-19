@@ -32,7 +32,7 @@ Decision Layer는 시맨틱 레이어에 재사용할 수 있는 분석 절차�
 
 ## 내 데이터로 사용하기
 
-[Cube](guides/cube.md) 또는 [dbt Semantic Layer](guides/dbt.md)를 연결한 뒤
+초기 제품은 [Cube](guides/cube.md)만 지원합니다. 연결한 뒤
 [AI 클라이언트](guides/mcp.md)나 웹 앱에서 사용하세요.
 [Recipe 만들기](guides/recipes.md)와 [실행 기록 읽기](guides/runs.md)에서 이어갈 수 있습니다.
 

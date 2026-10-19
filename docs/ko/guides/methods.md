@@ -1,8 +1,43 @@
-# 첫 Method 작성, 실행, 테스트
+# Method 작성과 테스트
 
-일반 Python 함수 하나를 작성하고 명시적으로 등록합니다. 의미 정의, join, 권한은 semantic layer에 남습니다. 이 페이지의 코드는 구현된 API이며, 앞으로 구현할 의사 코드가 아닙니다. 기존 class 기반 Method도 계속 사용할 수 있습니다.
+[Method 프로젝트](method-projects.md)에서 시작합니다. Python 계산 함수와 Skill
+Markdown을 같은 폴더에서 관리하고 CLI 검사·로컬 실행·API 시작이 같은 파일을
+읽습니다. 완성 예제는 `examples/methods/project`에 있습니다.
 
-**내 Method를 직접 작성하고 수정해보려면** VS Code/Jupyter에서 `examples/methods/patterns/write_your_method.ko.ipynb`를 여세요. 준비된 시나리오 실행뿐 아니라 함수 작성 → 등록 → 입력 선택 → 결과 확인 → 코드 수정이 셀로 이어집니다. 영어 notebook과 코드는 동일하며, 마지막 선택적 연결 셀에서 같은 함수를 현재 Cube에 사용합니다.
+```sh
+decision-layer init my_team
+cd my_team
+decision-layer new python rank
+decision-layer new skill metric_review
+decision-layer check
+decision-layer list
+decision-layer serve --reload
+```
+
+`<이름>/methods/<정의>/method.py`는 `python_method`로 만든 `METHOD` 객체 하나를
+내보냅니다. Skill은 자체 폴더에 `SKILL.md`를 둡니다. `list`는 원본 경로를 함께
+보여주므로 어디서 등록됐는지 확인할 수 있습니다. 프로젝트 표시는
+`decision-layer.yaml`이며 운영에서는 `DL_PROJECT_DIR`로 이 폴더를 지정합니다.
+기존 모듈의 `METHODS` 등록도 계속 지원합니다.
+
+새 계산은 일반 Python 함수, 기록된 조회를 안내하는 지침은 Skill, 기존 Method의
+재사용 가능한 실행 순서는 Recipe로 만듭니다. `DataInput(columns={...})`에
+`Column(source="measure")`처럼 필요한 열을 선언합니다. 지표와 차원을 모두
+허용하면 `source=["measure", "dimension"]`으로 명시합니다. 같은 이름의 함수
+인자에는 조회한 열 이름이 자동으로 전달됩니다. 분석 단위의 키도
+`"entity_id": Column(source="dimension", role="entity_key")`처럼 선언합니다.
+실행할 때는 `bindings={"entity_id": "cube://...", ...}`로 실제 식별자를 연결합니다.
+다른 변수와 등록 및 실행 방식이 같습니다. 기존 measures/dimensions, RoleSpec, column_args 형식도 계속 지원합니다.
+
+`docs/tutorials/methods/write_your_method.ko.ipynb`에서 순위 함수와 OLS 함수를
+작성하고 로컬에서 등록 및 실행할 수 있습니다. 프로젝트 저장, 관리자 화면, MCP 연결과
+실제 Cube 실행은 [만든 Method 사용하기](./method-deployment.md)에서 이어집니다.
+로컬 trial은 코드를 업로드하거나 Run을 저장하지 않습니다. 서버 실행은 같은 입력
+조건으로 실행하고 Run에 근거를 남깁니다.
+
+## 고급 경로: 소스 조회를 직접 제어해야 할 때
+
+아래 예제는 source-aware 고급 API입니다. 일반 계산 함수에 이 형식을 강제하지 않습니다.
 
 ## 1. 외부 연결 없이 시작
 
@@ -11,15 +46,15 @@
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
-.venv/bin/python -m examples.methods.patterns --case by_group
-.venv/bin/python -m pytest -q examples/methods/patterns/test_patterns.py
+.venv/bin/python -m examples.methods.scenarios --case by_group
+.venv/bin/python -m pytest -q tests/examples/test_scenarios.py
 ```
 
 ## 2. 함수 작성
 
 `Measure`, `Dimension`은 기존 semantic 객체의 참조를 받습니다. `ctx`가 기간과 필터, 권한, 제한을 적용합니다. 함수 signature에서 manifest가 생성되므로 역할 선언과 인자 매핑을 중복 작성하지 않습니다. 아래는 실제 테스트하는 소스입니다.
 
-<<< @/../examples/methods/patterns/methods.py#group_metric
+<<< @/../examples/methods/scenarios/methods.py#group_metric
 
 `@method`는 Method 이름과 버전을 지정합니다. `interpretation="association"`은
 관측 데이터의 요약과 관계 분석을 뜻합니다. 그룹별 조회, 월별 추이, 회귀의 연관성
@@ -30,7 +65,7 @@ python3 -m venv .venv
 월별 조회도 같은 `Table`을 반환합니다. 웹은 시간 정보를 사용해 추이 그래프를
 표시하므로 별도의 반환 타입을 선택할 필요가 없습니다.
 
-<<< @/../examples/methods/patterns/methods.py#series
+<<< @/../examples/methods/scenarios/methods.py#series
 
 주요 결과가 하나의 추정값과 분석 상세 정보라면 `Estimate`를 사용합니다.
 
@@ -78,8 +113,8 @@ Python 호출은 직접 실행하므로 대화를 진행하지 않습니다. AI�
 ```python
 from decision_layer.dev import MethodSession
 from decision_layer.methods import Scope
-from examples.methods.patterns.methods import group_metric
-from examples.methods.patterns.scenarios import scenarios, M, GROUP, DATE, FEB
+from examples.methods.scenarios.methods import group_metric
+from examples.methods.scenarios.scenarios import scenarios, M, GROUP, DATE, FEB
 
 scenario = next(s for s in scenarios() if s.name == "by_group")
 provider = scenario.provider()
@@ -144,8 +179,8 @@ session.close()
 
 | Method | 용도 |
 | --- | --- |
-| `query.aggregate` | 정의된 지표 값 조회 |
-| `query.trend` | 기간별 추이와 기간 비교 |
+| `analysis.metric_lookup` (Skill) | 정의된 지표 값 조회 |
+| `analysis.trend` (Skill) | 기간별 추이와 기간 비교 |
 | `query.drilldown` | 그룹별 값과 변화를 나누고 특정 항목을 이어서 조사 |
 | `stats.binary_matching` | DoWhy로 처치 집단을 매칭해 비교 (ATT) |
 | `stats.regression_adjustment` | DoWhy OLS로 처치 1단위 증가당 변화량 또는 특정 대비 추정 |
@@ -177,3 +212,73 @@ session에서는 `session.register(ols, replace=True)`를 사용합니다. 재�
 설치하는 플러그인 기능은 아닙니다. 마켓과 웹 플러그인 관리는 후속 범위입니다.
 기본 목록은 접근 권한 제한을 뜻하지 않습니다. 기존 Recipe의 명시적인 참조는
 정상적인 권한과 검증을 적용해 계속 실행됩니다.
+
+## 조회 Skill 연결 (ADR-098/103)
+
+노트북 마지막 절은 `analysis.drilldown` → `analysis.peer_comparison` 두 단계입니다.
+AI가 `run_skill_query`로 쿼리를 제출하면 공통 실행기가 기간·필터·권한·한도를
+검사하고 실제 조회·실패를 기록합니다. `finish_skill_step`에서 실제 행을 선택합니다.
+가구 회귀 단계를 자동으로 덧붙이지 않습니다. 별도로 등록한 Python 계산에 선택
+근거와 필터를 전달하는 DataInput 경로는 유지하며 앞 절의 함수 예제로 배웁니다.
+
+Web Run에서 지침·쿼리·결과·오류를 확인합니다. 지침을 읽었다고 동료 집단의
+타당성이 검증되는 것은 아닙니다. Web은 외부 AI 실행을 기다리며 노트북 실습은
+실제 Claude 실험이 아닌 fixture 재현입니다.
+
+## 조회 Skill과 계산 분리 (ADR-099/103)
+
+기본 지표 조회·추이는 한국어 `analysis.metric_lookup`, `analysis.trend` Skill입니다.
+공통 실행기에 실제 조회와 결과를 기록합니다. 기간 변화·시계열 진단·예제 가구 회귀는
+새 Method 목록에서 제외했습니다. 필요한 계산이 제공되지 않으면 해당 주장을 중단하며,
+Skill 문장이나 AI의 임의 계산을 검증 근거로 쓰지 않습니다.
+
+드릴다운·추이 지침은 1.1.0입니다. 과거 버전을 고정한 Recipe와 Run은 유지합니다.
+현재 `campaign_recipe()` 1.1.0은 드릴다운 → peer 조회의 두 단계입니다.
+과거 세 단계 실험은 `legacy_campaign_recipe()`로 명시적으로 재현합니다.
+
+## Web에서 코드와 Skill 수정 (ADR-100)
+
+Method 상세에서 Python 진입·보조 코드 또는 서식 있는 Skill을 읽습니다. 수정은
+현재 버전에서 새 초안을 만들고, 저장 → 구문·등록 검사 → 검토 확인 → 새 버전 게시
+순서입니다. 검사 통과는 실제 데이터나 분석 품질의 검증이 아닙니다. Python 검사와
+게시는 신뢰한 운영자 코드를 실행하며, Method 게시 권한이 별도로 필요합니다.
+
+일반 설치는 `DL_METHOD_ASSETS_DIR`와 `DL_ALLOW_METHOD_EDITING=true`로 운영자가
+활성화합니다. `DL_METHOD_EDITORS`/`DL_METHOD_PUBLISHERS`는 Recipe 역할과 별개입니다.
+현재 local/demo만 지원하며 공유 환경의 임의 코드 sandbox는 없습니다. 예제 Compose는
+기존 data 볼륨의 `/data/method-assets`를 사용합니다. UI 게시 파일과 원래 Git 모듈은
+별도 버전 원본이며, Git 반영은 명시적으로 검토·이관합니다.
+
+새 Run은 선택된 코드와 해시를 저장합니다. 과거 Run에 코드가 없으면 현재 코드로
+대신 표시하지 않습니다. 이전에 등록된 버전은 고정 Recipe에서 계속 선택할 수 있으며,
+설치되지 않은 버전은 거부합니다. 외부 라이브러리 전체와 환경 재현은 별도 관리합니다.
+
+### Web의 작성 코드와 전체 소스
+
+새 계산은 일반 함수와 `python_method`/`DataInput` 등록으로 시작합니다. Web의
+**Python 작성 코드**에는 선택한 분석의 함수·필요한 검사·등록만 표시하고 수정
+초안도 여기서 시작합니다. 같은 파일의 다른 분석·Recipe·테스트 준비 코드를
+작성자에게 복사하도록 요구하지 않습니다. 실제 원본과 해시는 **전체 소스와 실행
+근거 보기**에서 확인합니다. 동적 초기화로 안전하게 분리할 수 없으면 원본을 유지합니다.
+
+호환용으로 남긴 `stats.series_diagnostics` 1.1.0은 계산을 일반 pandas 함수로 분리한 과거 구현입니다.
+입력은 `period`, `metric`, `value` 열, 출력은 `metric`, `from`, `to`, `before`,
+`after`, `change` 열입니다. 이 특정 기본 분석은 `SeriesDiagnostics(함수, version=...)`
+한 줄로 기존 조회·기간 검사·최신성 검사·결과 어댑터에 연결합니다. 이것을 새 분석
+전체에 요구하는 틀로 사용하지 않습니다. 일반적인 새 분석에는 위의 DataInput 경로를
+사용하세요. 이전 1.0.0은 고정된 Recipe에서 계속 실행할 수 있습니다.
+
+### 상세 화면에서 바로 편집하기
+
+지침 위의 **Skill.md 편집**, 코드 위의 **Python 편집**을 누르면 읽던 자리가 편집기로
+전환됩니다. 줄 번호·구문 색상·찾기/바꾸기·실행 취소를 지원하며 **미리보기**와
+**변경 비교**를 오가도 작성 내용을 유지합니다. ⌘/Ctrl+S는 초안 저장입니다.
+**구문·등록 검사**는 필요한 초안 저장을 먼저 처리합니다. Python은 신뢰한 코드라는
+검토 확인이 있어야 검사할 수 있습니다. 검사 통과와 검토 확인 후 **v… 게시**를 누릅니다.
+게시 전에는 실행 버전이 바뀌지 않으며, 고정된 Recipe와 과거 Run도 바뀌지 않습니다.
+
+읽기로 돌아가도 편집 내용은 같은 화면에 유지됩니다. 다른 링크로 이동할 때 미저장
+내용이 있으면 저장·계속 편집·버리기를 선택합니다. 새로고침/창 닫기는 브라우저의
+미저장 경고를 사용합니다. 서버 초안 저장 후에는 페이지를 새로 열어도 이어서 편집할
+수 있습니다. 저장 중 새로 입력한 내용은 미저장 상태로 남습니다. 서버 초안 충돌은
+작성 내용을 유지하고 서버 내용과 비교한 뒤, 사용할 기준을 명시적으로 선택합니다.

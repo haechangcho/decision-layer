@@ -28,11 +28,10 @@ def create_router(settings, provider, source_manager):
 
 
     def require_source_admin(request: Request, admin_key: Annotated[str | None, Header(alias="X-Decision-Layer-Admin-Key")] = None) -> None:
-        """Editing the shared connection is gated only where DL_SOURCE_ADMIN_TOKEN is set (a shared
-        deployment). Without it this is a single-user/local install and editing is open (ADR-033)."""
+        """Missing configuration disables HTTP administration in every deployment mode."""
         expected = request.app.state.settings.source_admin_token
         if not expected:
-            return
+            raise SourceAdminRequired("Source administration is disabled. Configure the source in the server environment or set DL_SOURCE_ADMIN_TOKEN.")
         if not admin_key or not hmac.compare_digest(admin_key, expected):
             raise SourceAdminRequired(_("Enter the source administrator key configured by the server."))
 
@@ -43,7 +42,7 @@ def create_router(settings, provider, source_manager):
     @router.get("/sources/providers")
     async def source_providers() -> list[dict]:
         entries = []
-        for name, title in (("cube", "Cube"), ("dbt", "dbt Semantic Layer")):
+        for name, title in (("cube", "Cube"),):
             config = await source_manager.effective(resolve_secret=False, provider=name)
             entries.append({"provider": name, "title": title, "api_url": config.api_url,
                             "instance": config.instance, "auth_method": config.auth_method,
@@ -63,12 +62,9 @@ def create_router(settings, provider, source_manager):
         try:
             config = value
             effective = await source_manager.effective(resolve_secret=False, provider=config.provider)
-            if config.provider != "cube" and config.auth_method == "api_secret":
-                raise SourceConfigError("SOURCE_AUTH_METHOD_INVALID", "API secrets apply only to Cube development connections.")
-            environment_id = effective.environment_id if effective.environment_overrides["environment_id"] else config.environment_id
-            if config.provider == "dbt" and (not environment_id or config.auth_method != "token"):
-                raise SourceConfigError("SOURCE_ENVIRONMENT_REQUIRED", "Enter the dbt environment ID and use access-token authentication.")
+            environment_id = None
             api_url = effective.api_url if effective.environment_overrides["api_url"] else config.api_url
+            source_manager.require_approved_endpoint(config.provider, api_url)
             auth_method = effective.auth_method if effective.environment_overrides["auth_method"] else config.auth_method
             groups = (effective.service_groups if effective.environment_overrides["service_groups"]
                       else tuple(config.service_groups or effective.service_groups))
@@ -78,7 +74,9 @@ def create_router(settings, provider, source_manager):
             if auth_method == "api_secret":
                 supplied = config.api_secret.get_secret_value() if config.api_secret else None
                 current = await source_manager.effective(provider=config.provider)
-                secret = current.api_secret if effective.environment_overrides["api_secret"] else supplied or current.api_secret
+                same_endpoint = api_url.rstrip("/") == current.api_url.rstrip("/")
+                secret = (current.api_secret if effective.environment_overrides["api_secret"] and same_endpoint
+                          else supplied or (current.api_secret if same_endpoint else None))
                 if not secret:
                     raise SourceConfigError("SOURCE_SECRET_REQUIRED", "Enter the Cube API secret to test this connection.", 400)
             creds = credentials(authorization, allow_service=settings.allow_service_credentials,

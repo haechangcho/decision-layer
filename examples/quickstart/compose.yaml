@@ -55,6 +55,7 @@ services:
       CUBE_INSTANCE: quickstart
       CUBE_API_SECRET: local-quickstart-secret-change-me-0123456789
       DL_ALLOW_SERVICE_CREDENTIALS: 'true'
+      DL_DEPLOYMENT_MODE: demo
       DL_RECIPES_DIR: /recipes
       DL_DATABASE_URL: sqlite:////data/runs.db
     volumes:

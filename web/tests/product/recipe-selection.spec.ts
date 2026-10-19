@@ -30,13 +30,13 @@ test("one click registers a runtime procedure without opening a review popup", a
   await page.route("**/api/runs/rules-test/recipe", async route => {
     expect(route.request().postDataJSON()).toEqual({});
     requests++;
-    await route.fulfill({ json: { ...recipe, name: "runtime-rules", status: "published" } });
+    await route.fulfill({ json: { ...recipe, name: "runtime-rules", status: "draft" } });
   });
   await page.goto("/runs/rules-test");
   await page.getByRole("button", { name: "Recipe로 등록", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Recipe로 등록했습니다" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recipe 초안을 저장했습니다" })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Recipe 보기", exact: true })).toHaveAttribute("href", "/recipes/runtime-rules");
+  await expect(page.getByRole("link", { name: "Recipe 초안 검토", exact: true })).toHaveAttribute("href", "/recipes/runtime-rules/edit");
   await page.screenshot({ path: info.outputPath("recipe-one-click.png"), fullPage: true });
   expect(requests).toBe(1);
 });

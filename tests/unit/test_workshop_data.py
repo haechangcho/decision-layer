@@ -3,8 +3,8 @@ from dataclasses import replace
 
 import pytest
 
-from examples.methods.patterns import teaching_data
-from examples.methods.patterns.scenarios import scenarios
+from examples.methods.statistics import teaching_data
+from examples.methods.scenarios.scenarios import scenarios
 
 
 async def test_open_kernel_with_previous_scenario_name(monkeypatch):

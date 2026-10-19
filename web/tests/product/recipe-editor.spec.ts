@@ -446,3 +446,46 @@ test("existing investigation stays editable without a destructive mode switch", 
   await expect.poll(() => state.submission()?.recipe.version).toBe("1.0.1");
   expect(state.submission()!.recipe).toEqual({ ...before, version: "1.0.1", status: "draft", description: "MCP 보험 분석", routing: { ...before.routing, objective: "MCP 보험 분석" } });
 });
+
+// A normal Python function may have no role named "metric".
+test("Method link tests ordinary column roles without saving or inventing a metric binding", async ({ page }) => {
+  await mockApi(page);
+  const native = { name: "workshop.rank_columns", version: "1.0.0", description: "Rank values",
+    kind: "stats", execution: "dataframe", implementation: "python", outputs: ["table"],
+    requires_period: true, roles: {
+      value: {kind: "measure", required: true}, group: {kind: "dimension", required: true},
+    }, parameters: {descending: {type: "boolean", default: true}} };
+  let releaseMethods!: () => void;
+  const methodsReady = new Promise<void>(resolve => { releaseMethods = resolve; });
+  await page.route("**/api/methods", async route => {
+    await methodsReady;
+    await route.fulfill({json:[native]});
+  });
+  let submitted: {recipe: Recipe; step_index: number; scope: {date_range: string[]; time_dimension: string}} | undefined;
+  let saves = 0;
+  await page.route("**/api/recipes", route => { saves++; return route.fulfill({status:500}); });
+  await page.route("**/api/recipes:preview", route => {
+    submitted = route.request().postDataJSON();
+    return route.fulfill({json:{id:"columns-preview", preview:true, status:"completed", running:null,
+      validation:[], created_at:new Date().toISOString(), steps:[{step:submitted!.recipe.steps[0],
+        method:"method://workshop.rank_columns@1.0.0", result:{status:"success", interpretation:"association",
+          warnings:[], validation:[], primary:{type:"table", data:[{group:"외래",value:42,rank:1}]}, artifacts:[],
+          provenance:{method:"method://workshop.rank_columns@1.0.0",semantic_refs:[metric,dimension],queries:[]}}}]}});
+  });
+  await page.goto("/recipes/new?method=workshop.rank_columns");
+  await page.getByLabel("분석할 지표", {exact:true}).selectOption(metric);
+  releaseMethods();
+  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.getByLabel("value", {exact:true}).selectOption(metric);
+  await page.getByLabel("group", {exact:true}).selectOption(dimension);
+  await page.getByRole("button", {name:"결과 확인",exact:true}).click();
+  await page.getByLabel("미리보기 시작일").fill("2026-09-01");
+  await page.getByLabel("미리보기 종료일").fill("2026-09-30");
+  await page.getByRole("button", {name:"이 조건으로 확인",exact:true}).click();
+  await expect(page.getByText("미리보기 결과", {exact:true})).toBeVisible();
+  expect(submitted!.recipe.steps[0].bindings).toEqual({value:metric,group:dimension});
+  expect(submitted!.recipe.steps[0].method_version).toBe("1.0.0");
+  expect(submitted!.scope.date_range).toEqual(["2026-09-01","2026-09-30"]);
+  expect(submitted!.scope.time_dimension).toBe("cube://local/fact_accident/payment_dt");
+  expect(saves).toBe(0);
+});

@@ -138,8 +138,8 @@ def test_typed_outputs_reject_malformed_payloads():
 
 
 async def test_table_preserves_monthly_query_metadata_and_rows():
-    from examples.methods.patterns.__main__ import run_scenario
-    from examples.methods.patterns.scenarios import scenarios, M
+    from examples.methods.scenarios.__main__ import run_scenario
+    from examples.methods.scenarios.scenarios import scenarios, M
     trial = await run_scenario(next(s for s in scenarios() if s.name == "trend"))
     artifact = trial.result.primary
     assert artifact.type == "table"
@@ -167,7 +167,7 @@ def test_plain_tables_and_historical_artifacts_need_no_column_metadata():
 
 
 async def test_legacy_time_series_method_contract_still_executes():
-    from examples.methods.patterns.scenarios import scenarios, M, DATE, JAN_FEB
+    from examples.methods.scenarios.scenarios import scenarios, M, DATE, JAN_FEB
     @method("example.legacy_series", version="1.0.0", interpretation="descriptive")
     async def legacy_series(ctx, *, metric: Measure) -> TimeSeries:
         data = await ctx.aggregate(measures={"metric": metric}, time_granularity="month")

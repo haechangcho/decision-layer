@@ -128,7 +128,7 @@ Use `recipe_selection` when executing a Recipe. Restart the MCP client after upg
 
 ## Source Credentials
 
-The local Cube and dbt samples enable a development service identity, so they need no `DL_TOKEN`. For an existing source, set `DL_TOKEN` to its bearer token in the adapter's private environment. Use the same source and identity in Web and MCP to access the same Runs. See [Cube connection](cube.md) or [dbt Semantic Layer](dbt.md). Never commit tokens or reuse sample secrets in a shared deployment.
+The local Cube samples enable a development service identity, so they need no `DL_TOKEN`. For an existing source, set `DL_TOKEN` to its bearer token in the adapter's private environment. Use the same source and identity in Web and MCP to access the same Runs. See [Cube connection](cube.md). Only Cube is supported in the initial product. Never commit tokens or reuse sample secrets in a shared deployment.
 
 `DL_LOCALE=ko` requests Korean Method messages; the default is English. Client-provided question, purpose and origin labels are context, not authenticated approval.
 
@@ -150,3 +150,27 @@ The local Cube and dbt samples enable a development service identity, so they ne
 Ordinary drilldown results include `step_id` and `selection_sources`. When following the highest-ranked group, pass the returned `path` source as the next step's `drill_path` rather than copying the observed name. For a leading member's peer comparison, use its `condition` source as `subject` and its `parents` source as `peers`. The engine records the rule and resolved values together; incomplete output cannot select a winner, and ties ask for input.
 
 A Run may use literal targets. Direct registration defaults to new runtime-selection rules or required typed inputs, not remembered targets. Explicit Recipe fixed policies remain fixed. Recipe `inputs` appear in `list_recipes`; supply declared inputs to `start_run`. See [Recipe authoring](recipes.md).
+
+## Local deployment and procedure publication
+
+The sample installer accepts `--client claude` or `--client codex`; both use the
+same stdio bridge and canonical engine. To save a completed owned Run, use
+`save_procedure`. It returns a draft; review fixed values, periods, filters and
+origin references before `publish_procedure`. Saving does not publish.
+
+Only local/demo deployments are currently supported. Do not expose the service
+as a shared server: independent application authentication and execution/network
+isolation are pending, and `DL_DEPLOYMENT_MODE=shared` fails closed. Source save/test
+requires `DL_SOURCE_ADMIN_TOKEN` and an exact operator-approved endpoint. Missing
+keys disable those APIs. Use server environment configuration for initial sources;
+`DL_SOURCE_ALLOWED_URLS` approves additional exact URLs. Keep secrets out of chat.
+The normal environment example disables service credentials; the synthetic demo
+explicitly enables its local identity.
+
+Bearer callers need a subject in `DL_RECIPE_EDITORS` to edit or
+`DL_RECIPE_PUBLISHERS` to publish/archive/restore; publishers may also edit.
+Shared Run viewers cannot create its Recipe. The explicit local service identity
+owns its local assets. DELETE now archives without removing YAML versions. A
+publisher restores with `POST /recipes/{name}/restore` and the archived
+`base_version`. `.retired/` and `.history/` should travel with the Recipe directory
+in backups/Git. Historical Runs are not rewritten. See ADR-094 for limits.

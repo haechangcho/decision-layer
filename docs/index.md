@@ -32,7 +32,7 @@ Use a Recipe when existing Methods cover the analysis. Add a Method when a new c
 
 ## Use your data
 
-[Connect Cube](guides/cube.md) or [dbt Semantic Layer](guides/dbt.md), then
+The initial release supports [Cube](guides/cube.md) only. Then
 [connect an AI client](guides/mcp.md) or use the Web app.
 Learn to [create a Recipe](guides/recipes.md) and [review a Run](guides/runs.md).
 

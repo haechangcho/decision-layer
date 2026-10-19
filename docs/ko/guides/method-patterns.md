@@ -16,7 +16,7 @@ Method의 조회 형태를 아래처럼 분류합니다. 이 구현 범위에서
 
 기간과 공통 필터는 실행 입력입니다. 함수는 measure·group 또는 time bucket만 선택합니다. 누락된 bucket을 0으로 채우거나 top-N을 전체 모집단으로 취급하지 않습니다.
 
-<<< @/../examples/methods/patterns/methods.py#series
+<<< @/../examples/methods/scenarios/methods.py#series
 
 ## B. 여러 조회의 조합
 
@@ -24,9 +24,9 @@ Method의 조회 형태를 아래처럼 분류합니다. 이 구현 범위에서
 
 `peers`는 비교 집단 조건이고 `subject`는 대상 조건입니다. 실행의 공통 필터는 세 조회에 모두 적용됩니다. 대상 dimension을 공통 필터에 넣으면 전체 비교가 깨지므로 거절합니다. 대상과 제외 조건의 권한은 동일 provider가 적용합니다.
 
-<<< @/../examples/methods/patterns/methods.py#peer
+<<< @/../examples/methods/scenarios/methods.py#peer
 
-<<< @/../examples/methods/patterns/methods.py#period_difference
+<<< @/../examples/methods/scenarios/methods.py#period_difference
 
 ## C–G. Entity와 panel
 

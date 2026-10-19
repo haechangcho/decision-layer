@@ -13,7 +13,7 @@ description: 단위 테스트부터 웹과 실제 MCP 실행까지 검증합니�
 
 ```bash
 make test
-.venv/bin/python -m pytest -q examples/methods
+.venv/bin/python -m pytest -q tests/examples
 ```
 
 실행 중인 데이터 소스는 필요하지 않습니다. 실제 연동 테스트는 전용 환경변수를 설정하지 않으면 건너뜁니다. 건너뛴 테스트는 연동을 검증한 것이 아닙니다. `tests/fixtures/`의 합성 메타데이터는 계약 검증용이며 별도 배포 예제가 아닙니다.

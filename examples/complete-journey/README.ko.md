@@ -46,7 +46,7 @@ docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
 PostgreSQL, Cube, API와 Web이 실행됩니다. **http://127.0.0.1:3000/catalog** 로 접속하세요.
-처음 설치하면 Cube 연결이 자동 설정되고 Recipe는 비어 있습니다. 기존에 저장한 연결은 유지됩니다.
+예제는 Cube 연결과 demo 모드를 명시적으로 선택합니다. 처음 설치하면 Recipe는 비어 있습니다. 기존 연결 설정·Run은 저장소에 보존하지만, 이전에 선택한 dbt 연결은 활성화하지 않습니다.
 첫 실행에는 공식 원본 약 128 MB 다운로드와 8개 테이블 적재로 몇 분이 걸립니다.
 프로모션 테이블이 커서 시간이 걸리며, 이후에는 캐시와 DB를 재사용합니다.
 오프라인 환경에서는 원본 압축 파일을 `data/complete-journey.zip`에 두세요. 체크섬 검증은 그대로 수행합니다.
@@ -280,3 +280,13 @@ docker compose -p decision-layer-cube restart cube api
 ## 새로운 Method 작성·테스트
 
 [직접 테스트 시나리오](../../docs/ko/guides/method-scenarios.md)는 drilldown·추이·다중 조회·OLS·DoWhy·EconML·단일/분할 panel을 같은 실행 모델로 검증합니다. 기존 데이터와 native Cube model을 사용하며 현재 checkout의 observation key/panel model을 적용하세요. 분석 환경 extras는 선택적으로 설치합니다. 기존 DB 행을 다시 적재할 필요는 없습니다. 관측 캠페인 데이터의 식별 가정은 확인되지 않았으며 기본 인과 라이브러리 사례는 이를 거절합니다.
+
+## Skill 연결 예제
+
+`campaign_recipe()` 1.1.0은 `analysis.drilldown` → `analysis.peer_comparison`의
+두 조회 단계로 구성됩니다. Claude/Codex가 공통 조회 도구를 실행하며 실제 조회·선택 근거를
+Run에 남깁니다. Markdown을 여는 것만으로 자동 실행되지는 않습니다.
+별도 Python 계산 작성법은 Method 입문 notebook의 일반 함수 + DataInput 예제를 참고하세요.
+Compose의 `examples.recipes.skill_chain` 모듈은 과거 Run과 고정 Recipe를 위해 이전 계산을
+호환 등록하지만 새 Method 목록에는 제공하지 않습니다. 기존 실험 검증 스크립트는
+`legacy_campaign_recipe()`로 당시 세 단계 절차를 명시적으로 재현합니다.

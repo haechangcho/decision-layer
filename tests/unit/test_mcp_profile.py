@@ -44,6 +44,23 @@ def test_defaults_expose_everything(monkeypatch):
     assert {"bindings", "measures", "dimensions", "entity"} <= set(step.input_schema["properties"])
 
 
+async def test_recipe_saving_and_publication_use_the_canonical_api(monkeypatch):
+    s = load(monkeypatch)
+    calls = []
+    async def call(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return {"status": "draft" if path.endswith('/recipe') else "published"}
+    monkeypatch.setattr(s, '_call', call)
+    assert (await s.save_procedure('run_owned'))['status'] == 'draft'
+    assert (await s.publish_procedure('my-procedure', '1.0.0'))['status'] == 'published'
+    assert calls == [('POST', '/runs/run_owned/recipe', {'json': {}}),
+                     ('POST', '/recipes/my-procedure/publish', {'json': {'base_version': '1.0.0'}})]
+    disabled = load(monkeypatch, DL_MCP_RECIPES='off')
+    assert not {'save_procedure', 'publish_procedure'} & {tool.name for tool in await disabled.mcp.list_tools()}
+    monkeypatch.delenv('DL_MCP_RECIPES')
+    importlib.reload(disabled)
+
+
 def test_blocked_recording_is_required_in_every_profile(monkeypatch):
     for profile in ("on", "off"):
         s = load(monkeypatch, DL_MCP_RECIPES=profile)

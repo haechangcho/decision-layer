@@ -27,8 +27,7 @@ make web
 Open Web at **http://localhost:5210** and the REST API reference at
 **http://localhost:8000/docs**. The Docker sample uses Web port 3000 instead.
 
-The API starts without a semantic source. Connect [Cube](cube.md) or
-[dbt Semantic Layer](dbt.md) for live analysis. Runs use local SQLite by default;
+The API starts without a semantic source. Connect [Cube](cube.md) for live analysis; the initial product supports Cube only. Runs use local SQLite by default;
 set `DL_RECIPES_DIR=./recipes make api` to save Recipe files in that folder.
 
 If port 8000 is occupied, start the API with an available port:
@@ -66,7 +65,7 @@ Use your actual host Cube port if customized. Start Web as above. Cube models un
 
 The sample's PostgreSQL stores source data, not Runs. The native API uses its own SQLite database and does not automatically share the container API's Run history. Recipes live in the specified folder. Do not commit local datasets or credentials.
 
-For dbt development, use an existing dbt Semantic Layer environment and the [official API connection](dbt.md). The adapter contract tests use mocked GraphQL responses; production verification requires real credentials.
+The legacy dbt module and mocked contract tests remain as reference only (ADR-096); dbt is not a supported connection in the initial release.
 :::
 
 ## Verify your change
@@ -88,3 +87,12 @@ For Web changes, see [Interface design](design-system.md).
 The repository keeps [Product context](https://github.com/haechangcho/decision-layer/blob/main/docs/PRODUCT_CONTEXT.md)
 and [Decisions](https://github.com/haechangcho/decision-layer/blob/main/docs/DECISIONS.md)
 for product direction and design history.
+
+## Python Method formatting
+
+Use `make format-methods` before review and `make check-method-format` for the CI check.
+Both use the pinned Ruff formatter and bundled configuration: 88 columns, four spaces,
+double quotes. Current Methods and authoring examples are covered; frozen historical
+implementations are not rewritten. For your own module, run `ruff format path/to/method.py`
+with the repository configuration. Web uses the same formatter through **코드 정리**;
+**변경 비교** highlights added/deleted lines with line numbers before explicit saving.

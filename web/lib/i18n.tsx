@@ -205,6 +205,7 @@ const ko: Record<string, string> = {
   "not applicable": "해당 없음",
   "needs attention": "확인 필요",
   "This connection is managed by environment variables on the server. To change it, update the environment variables (.env) and restart.": "이 연결은 서버의 환경변수로 관리됩니다. 바꾸려면 환경변수(.env)를 수정하고 서버를 재시작하세요.",
+  "HTTP source administration is disabled. Configure the connection in the server environment.": "HTTP 연결 설정은 비활성화되어 있습니다. 서버 환경변수에서 연결을 설정하세요.",
   "Server administrator key": "서버 관리자 키",
   "Changing the shared Cube connection on this deployment requires the server administrator key.": "이 배포에서 공유 Cube 연결을 바꾸려면 서버 관리자 키가 필요합니다.",
   "Open settings": "설정 열기",

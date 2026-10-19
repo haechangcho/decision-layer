@@ -14,8 +14,8 @@ from decision_layer.methods import Refused, Scope, register_builtins
 from decision_layer.methods.context import ExecutionContext
 from decision_layer.semantic.credentials import AnonymousServiceCredentials
 from decision_layer.settings import Settings
-from examples.methods.patterns.scenarios import scenarios, M, BEFORE, BASELINE, UNIT, DATE, FEB
-from examples.methods.patterns.methods import group_metric
+from examples.methods.scenarios.scenarios import scenarios, M, BEFORE, BASELINE, UNIT, DATE, FEB
+from examples.methods.scenarios.methods import group_metric
 
 HAS_STATS = importlib.util.find_spec("pandas") is not None and importlib.util.find_spec("statsmodels") is not None
 
@@ -221,7 +221,7 @@ async def test_statistical_worker_does_not_inherit_server_credential_environment
 def test_optional_estimators_execute_and_record_through_canonical_api(case, dependency):
     if not importlib.util.find_spec(dependency):
         pytest.skip("Install analytical extras")
-    from examples.methods.patterns.journey import wire
+    from examples.methods.scenarios.journey import wire
     scenario = next(s for s in scenarios() if s.name == case)
     provider = scenario.provider()
     settings = Settings(cube_api_url="http://fixture", cube_api_secret="fixture", database_url="memory", allow_service_credentials=True)

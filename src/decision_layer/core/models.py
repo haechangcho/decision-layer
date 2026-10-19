@@ -178,6 +178,52 @@ class RoleSpec(BaseModel):
     exclusive_group: str | None = None  # alternative semantic inputs, shown as one picker
 
 
+class DataInput(BaseModel):
+    """Column names are also runtime binding names; Cube refs stay outside Python."""
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    measures: list[str] = Field(default_factory=list)
+    dimensions: list[str] = Field(default_factory=list)
+    # Normalized column contracts shared by every execution surface.
+    columns: dict[str, RoleSpec] = Field(default_factory=dict)
+    # Pass these roles' resolved column names as ordinary function arguments.
+    # They are semantic bindings, not caller-supplied calculation options.
+    column_args: list[str] = Field(default_factory=list)
+    entity: str | None = None
+    format: Literal["dataframe", "records"] = "dataframe"
+    minimum_rows: int = Field(default=1, ge=0)
+    filters_parameter: str | None = None
+    period_parameter: str | None = None
+    period_role: Literal["current", "comparison"] = "current"
+    time_granularity: Literal["day", "week", "month", "quarter", "year"] | None = None
+
+    @model_validator(mode="after")
+    def valid_columns(self):
+        names = [*self.measures, *self.dimensions, *self.columns]
+        if not names or len(set(names)) != len(names):
+            raise ValueError("Declare distinct data column names")
+        if len(set(self.column_args)) != len(self.column_args) or set(self.column_args) - set(names):
+            raise ValueError("column_args must name distinct declared data columns")
+        if any(not n.isidentifier() for n in [*names, *([self.entity] if self.entity else []),
+                                              *([self.period_parameter] if self.period_parameter else [])]):
+            raise ValueError("Input and binding names must be Python identifiers")
+        entity_column = self.columns.get(self.entity) if self.entity else None
+        if entity_column and (entity_column.kind != "entity" or entity_column.multiple
+                              or not entity_column.required or entity_column.accepted_kinds):
+            raise ValueError("The entity column must be one required entity role")
+        if self.entity and not entity_column and (self.entity in names or "unit" in names):
+            raise ValueError("Entity binding must be separate; unit is the returned key column")
+        if self.time_granularity and "time" in names:
+            raise ValueError("time is reserved for the returned time bucket")
+        if self.period_role == "comparison" and not self.period_parameter:
+            raise ValueError("Comparison input requires an explicit period parameter")
+        if any((role.kind not in ("dimension", "measure") and
+                not (name == self.entity and role.kind == "entity")) or
+               set(role.accepted_kinds or []) - {"dimension", "measure"}
+               for name, role in self.columns.items()):
+            raise ValueError("Data columns must be governed measures or dimensions")
+        return self
+
+
 class InputSourcePolicy(BaseModel):
     allowed: list[Literal["literal", "input", "step"]] = Field(default_factory=lambda: ["literal", "input"])
     default: Literal["literal", "previous_result", "parameter_parents", "runtime_input"] = "literal"
@@ -213,14 +259,27 @@ ArtifactType = Literal["estimate", "interval", "table", "breakdown_table", "cont
 Interpretation = Literal["association", "causal_conditional", "descriptive", "associational"]
 
 
+class MethodGuide(BaseModel):
+    """Versioned advisory text; never an executed check or analytical result."""
+    name: str
+    version: str
+    sha256: str
+    markdown: str
+    suggested_methods: list[str] = Field(default_factory=list)
+    enforcement: Literal["advisory"] = "advisory"
+
+
 class MethodManifest(BaseModel):
+    data_inputs: dict[str, DataInput] = Field(default_factory=dict)
     name: str                                      # "query.drilldown"
     version: str
     kind: Literal["query", "stats", "causal"]
     description: str
     roles: dict[str, RoleSpec]
     parameters: dict[str, ParamSpec] = Field(default_factory=dict)
-    execution: Literal["semantic_pushdown", "dataframe"]
+    implementation: Literal["python", "skill"] = "python"
+    execution: Literal["semantic_pushdown", "dataframe", "agent_guided"]
+    agent_executable: bool = False
     requires_capabilities: list[str] = Field(default_factory=list)
     requires_packages: dict[str, str] = Field(default_factory=dict)
     interpretation: Interpretation                 # ADR-019
@@ -431,7 +490,9 @@ class SelectionCandidate(BaseModel):
 
 class SelectionOutput(BaseModel):
     """Unrounded, eligible ranked groups; independent of presentation row limits."""
-    kind: Literal["ranked_groups"] = "ranked_groups"
+    kind: Literal["ranked_groups", "selected_group"] = "ranked_groups"
+    reason: str | None = None
+    evidence: dict[str, Any] = Field(default_factory=dict)
     complete: bool
     rank_by: str
     direction: Literal["asc", "desc"]
@@ -463,6 +524,7 @@ class RuntimeInputSource(BaseModel):
 class CallerInfo(BaseModel):
     subject: str | None = None
     groups: list[str] = Field(default_factory=list)
+    authentication: Literal["provider", "local_service"] = "provider"
 
 
 class ExecutionAuthor(BaseModel):
@@ -575,7 +637,48 @@ class RunConclusion(BaseModel):
     limitations: list[str] = Field(default_factory=list, max_length=8, description="Short plain-language limits on the conclusion. Avoid internal field names, validator codes and implementation jargon.")
 
 
+class SkillQueryRecord(BaseModel):
+    id: str
+    purpose: str
+    spec: DatasetSpec
+    period_role: Literal["current", "comparison"] = "current"
+    status: Literal["running", "success", "failed", "interrupted"] = "running"
+    result: Result | None = None
+    error: dict[str, Any] | None = None
+    author: ExecutionAuthor | None = None
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    finished_at: datetime | None = None
+
+
+class SkillExecution(BaseModel):
+    manifest: MethodManifest
+    guide: MethodGuide
+    status: Literal["awaiting_agent", "completed", "refused"] = "awaiting_agent"
+    queries: list[SkillQueryRecord] = Field(default_factory=list)
+    completion_reason: str | None = None
+    completed_by: ExecutionAuthor | None = None
+
+
+class SourceFile(BaseModel):
+    name: str
+    content: str
+    sha256: str
+
+
+class MethodSource(BaseModel):
+    name: str
+    version: str
+    available: bool = True
+    origin: Literal["installed", "managed"] = "installed"
+    files: list[SourceFile] = Field(default_factory=list)
+    editor_content: str | None = None
+    authoring_content: str | None = None
+    coverage: str = "Entry module and selected local helpers; external-library internals and environment are not archived."
+
+
 class StepRecord(BaseModel):
+    code: MethodSource | None = None
+    skill: SkillExecution | None = None
     step: PlanStep
     requested_step: PlanStep | None = None
     input_resolutions: list[dict[str, Any]] = Field(default_factory=list)
@@ -599,6 +702,7 @@ class Run(BaseModel):
     id: str
     plan: AnalysisPlan
     origin: Literal["unknown", "python", "api", "web", "mcp"] = "unknown"
+    method_guides: list[MethodGuide] = Field(default_factory=list)
     recipe_snapshot: Recipe | None = None          # immutable copy, not a pointer (MVP_PLAN §15)
     goals: list[AnalysisGoal] = Field(default_factory=list, max_length=12)
     remediations: list[RunRemediation] = Field(default_factory=list)
@@ -610,6 +714,8 @@ class Run(BaseModel):
     query_attempts: list[QueryAttempt] = Field(default_factory=list)
     query_attempt_baseline: int | None = Field(default=None, ge=0)
     active_step: PlanStep | None = None
+    active_skill_step: str | None = None
+    skill_preview_limit: int | None = None
     interactive: bool = False
     preview: bool = False                           # unsaved Recipe snapshot, executed through the same engine
     steps: list[StepRecord] = Field(default_factory=list)

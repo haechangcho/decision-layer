@@ -1,0 +1,10 @@
+# Shared by Web formatting, source projection and repository tooling.
+target-version = "py311"
+line-length = 88
+preview = false
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+docstring-code-format = false

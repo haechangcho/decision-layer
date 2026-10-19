@@ -47,4 +47,4 @@ bash scripts/demo.sh stop
 
 ## Next steps
 
-[Connect Cube](./cube.md) · [Connect dbt](./dbt.md) · [Create Recipes](./recipes.md) · [Contribute a Method](./methods.md)
+[Connect Cube](./cube.md) · [Create Recipes](./recipes.md) · [Contribute a Method](./methods.md)

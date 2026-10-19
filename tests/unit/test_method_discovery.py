@@ -20,8 +20,8 @@ async def test_normal_ambiguous_multiple_and_unsupported_questions():
     session = await MethodSession.fixture(fixture_provider())
     register_builtins(session.registry)
     # Human-resolved intent: "Show this measure". No natural-language parsing is claimed.
-    lookup = session.find_methods(goal=goal(["metric_lookup"], refs=[METRIC, DIMENSION]))
-    assert [c["manifest"]["name"] for c in lookup["candidates"]] == ["query.aggregate"]
+    lookup = session.find_methods(goal=goal(refs=[METRIC, DIMENSION]), names=["analysis.metric_lookup"])
+    assert [c["manifest"]["name"] for c in lookup["candidates"]] == ["analysis.metric_lookup"]
     assert lookup["candidates"][0]["input_candidates"]["metric"] == [METRIC]
     # "Analyze this": the system cannot infer a purpose from a valid measure.
     ambiguous = session.find_methods(goal=goal(refs=[METRIC]))
@@ -77,10 +77,13 @@ async def test_missing_requirements_are_explained_without_querying(monkeypatch):
 async def test_conditional_capabilities_are_not_promised_by_default():
     session = await MethodSession.fixture(fixture_provider())
     register_builtins(session.registry)
-    report = session.find_methods(goal=goal(["period_change"]), names=["query.trend"])
+    from decision_layer.methods.time_analysis import PeriodChange
+    session.register(PeriodChange(), replace=True)
+    report = session.find_methods(goal=goal(["period_change"]), names=["stats.period_change"])
     candidate = report["candidates"][0]
-    assert candidate["conditional_capabilities"]["period_change"]
-    assert "period_change" not in session.registry.get("query.trend").manifest.result_capabilities({})
+    assert "comparison" in candidate["required_inputs"]
+    assert not candidate["conditional_capabilities"]
+    assert not session.find_methods(names=["query.trend"])["candidates"]
 
 
 def test_rest_and_python_share_results_and_caller_visibility(cube_meta, tmp_path):
@@ -123,15 +126,15 @@ def test_invalid_dependency_and_ambiguous_optional_type_fail_early():
 
 
 async def test_executable_developer_flow_preserves_query_and_provenance():
-    from examples.methods.patterns.discovery import demonstrate
+    from examples.methods.scenarios.discovery import demonstrate
     report = await demonstrate()
-    assert report["lookup_candidates"] == ["query.aggregate"]
+    assert report["lookup_candidates"] == ["analysis.metric_lookup"]
     assert [row["metric"] for row in report["rows"]] == [30, 20, 10]
     assert report["query_attempts"] == 1
     assert report["method_version"] == "method://example/group_metric@1.0.0"
-    from examples.methods.patterns.scenarios import M, GROUP, DATE
+    from examples.methods.scenarios.scenarios import M, GROUP, DATE
     assert set(report["semantic_refs"]) == {M, GROUP, DATE}
-    from examples.methods.patterns.methods import group_metric
+    from examples.methods.scenarios.methods import group_metric
     assert group_metric.manifest.interpretation == "association"
 
 
@@ -168,8 +171,8 @@ async def test_compatibility_methods_are_resolvable_but_not_new_candidates():
     session = await MethodSession.fixture(fixture_provider())
     register_builtins(session.registry)
     retired = {"stats.adjusted_difference", "stats.dml", "stats.did"}
-    assert len(session.registry.manifests()) == 5
-    assert len(session.registry.manifests(include_compatibility=True)) == 16
+    assert len([m for m in session.registry.manifests() if m.implementation == "python"]) == 2
+    assert len([m for m in session.registry.manifests(include_compatibility=True) if m.implementation == "python"]) == 18
     assert retired.isdisjoint(m.name for m in session.registry.manifests())
     for name in retired:
         legacy = session.registry.get(name)
@@ -182,7 +185,7 @@ async def test_compatibility_methods_are_resolvable_but_not_new_candidates():
 async def test_cem_is_compatibility_only():
     session = await MethodSession.fixture(fixture_provider())
     register_builtins(session.registry)
-    assert "causal.cem" not in {m.name for m in session.registry.manifests()}
+    assert "causal.cem" not in {m.name for m in session.registry.manifests() if m.implementation == "python"}
     assert session.registry.get("causal.cem").manifest.version == "1.1.1"
     assert session.find_methods(names=["causal.cem"])["candidates"] == []
 
@@ -191,12 +194,12 @@ async def test_optional_method_can_be_enabled_with_existing_registration():
     from decision_layer.methods.peer_comparison import PeerComparison
     session = await MethodSession.fixture(fixture_provider())
     register_builtins(session.registry)
-    assert {m.name for m in session.registry.manifests()} == {
-        "query.aggregate", "query.trend", "query.drilldown", "stats.regression_adjustment", "stats.binary_matching",
+    assert {m.name for m in session.registry.manifests() if m.implementation == "python"} == {
+        "stats.regression_adjustment", "stats.binary_matching",
     }
     assert session.find_methods(names=["query.peer_comparison"])["candidates"] == []
     # replace=True acknowledges an existing compatibility registration locally.
     session.register(PeerComparison(), replace=True)
     assert session.find_methods(names=["query.peer_comparison"])["candidates"]
-    assert len(session.registry.manifests()) == 6
+    assert len([m for m in session.registry.manifests() if m.implementation == "python"]) == 3
     assert not session.provider.calls

@@ -28,7 +28,7 @@ async def test_cube_notebook_with_mock_http(cube_meta, monkeypatch):
         else:
             data = [{metric: 60}]
         return httpx.Response(200, json={"data": data})
-    path = Path(__file__).resolve().parents[2] / "examples/methods/first_method/explore.ipynb"
+    path = Path(__file__).resolve().parents[2] / "docs/tutorials/methods/first_method.ipynb"
     with respx.mock:
         respx.get(env["CUBE_API_URL"] + "/meta").respond(200, json=cube_meta)
         respx.post(env["CUBE_API_URL"] + "/load").mock(side_effect=load)

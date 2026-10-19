@@ -39,7 +39,7 @@ async def group_metric(ctx, *, metric: Measure, group: Dimension,
 
 The current executable implementation adds bounds and explains its purpose once:
 
-<<< @/../examples/methods/patterns/methods.py#group_metric
+<<< @/../examples/methods/scenarios/methods.py#group_metric
 
 No separate description, input schema, output schema, search tags or capability list
 is needed for this local Method. The annotation describes the input type, not its
@@ -50,7 +50,7 @@ business meaning: a measure can still be the wrong outcome for the question.
 Run the complete Python example from the repository root:
 
 ```bash
-.venv/bin/python -m examples.methods.patterns.discovery
+.venv/bin/python -m examples.methods.scenarios.discovery
 .venv/bin/python -m pytest tests/unit/test_method_discovery.py
 ```
 
@@ -78,7 +78,7 @@ report = session.find_methods(goal=AnalysisGoal(
 ))
 ```
 
-This fragment assumes the session and references from `patterns/discovery.py`.
+This fragment assumes the session and references from `examples/methods/scenarios/discovery.py`.
 The capability name is copied from the registered contract for governed lookup. Do
 not invent a tag for an unsupported question or choose a tag merely because it yields
 a candidate. An empty list makes no assertion about analytical purpose.

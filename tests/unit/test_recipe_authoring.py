@@ -71,7 +71,7 @@ def test_recipe_save_is_disabled_without_a_configured_directory():
         RecipeStore(None, "cube", "local").save(recipe(), None)
 
 
-def test_delete_removes_all_versions_and_hand_authored_files_only_for_the_recipe(tmp_path):
+def test_archive_preserves_all_versions_and_restore_recovers_hand_authored_files(tmp_path):
     import yaml
 
     store = RecipeStore(tmp_path, "cube", "local")
@@ -86,13 +86,30 @@ def test_delete_removes_all_versions_and_hand_authored_files_only_for_the_recipe
         store.delete(first.name, "1.0.0")
     assert store.get(first.name, include_drafts=True) == draft
     store.delete(first.name, "1.0.1")
-    assert not (folder / "hand-authored.yml").exists()
+    assert (folder / "hand-authored.yml").exists()
     assert RecipeStore(tmp_path, "cube", "local").list() == [other]
     assert store.list_drafts() == []
     with pytest.raises(UnknownRecipe):
         store.get(first.name, "1.0.0")
     with pytest.raises(UnknownRecipe):
         store.delete(first.name, "1.0.1")
+    with pytest.raises(RecipeConflict):
+        store.restore(first.name, "1.0.0")
+    assert store.restore(first.name, "1.0.1", actor="publisher") == draft
+    assert store.get(first.name, "1.0.0") == first
+    assert store.get(other.name) == other
+    import json
+    events = [json.loads(path.read_text()) for path in (tmp_path / ".history").glob("*.json")]
+    assert any(event["action"] == "restore" and event["actor"] == "publisher" for event in events)
+
+
+@pytest.mark.parametrize("name", ["2Q_Report", "Team-Report"])
+def test_restore_accepts_existing_recipe_name_contract(tmp_path, name):
+    store = RecipeStore(tmp_path, "cube", "local")
+    original = recipe().model_copy(update={"name": name})
+    store.save(original, None)
+    store.delete(name, original.version)
+    assert store.restore(name, original.version) == original
 
 
 @pytest.mark.parametrize("method,params", [

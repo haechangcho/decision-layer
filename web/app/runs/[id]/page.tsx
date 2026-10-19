@@ -1,4 +1,5 @@
 "use client";
+import { SourceEvidence, MethodMarkdown } from "@/features/methods/method-content";
 import { LoadingState } from "@/components/loading-indicator";
 
 import { useParams, useRouter } from "next/navigation";
@@ -40,7 +41,7 @@ export default function RunPage() {
   const shareDialog = useRef<HTMLDialogElement>(null);
   const mine = !!me && me.subject === run?.caller.subject;
   useEffect(() => {                                   // a background job is running: refresh until it ends
-    if (!run?.running) return;
+    if (!run?.running && !run?.active_skill_step) return;
     const t = setTimeout(reload, 2000);
     return () => clearTimeout(t);
   }, [run, reload]);
@@ -76,8 +77,8 @@ export default function RunPage() {
   const pendingMetric = run.pending_execution?.step?.bindings.metric;
   if (typeof pendingMetric === "string" && !pendingMetric.startsWith("$") && !metricRefs.includes(pendingMetric)) metricRefs.push(pendingMetric);
   const metricNames = metricRefs.map((ref) => byRef.get(ref)?.title ?? "지표 이름 확인 필요");
-  const canContinue = mine && !run.preview && !run.needs_input && run.status === "open" && !run.running && !!manifests && (recipe?.mode !== "pipeline" || !!run.recipe_invocation?.completed);
-  const canConclude = mine && !run.preview && run.status === "open" && !run.running &&
+  const canContinue = mine && !run.preview && !run.active_skill_step && !run.needs_input && run.status === "open" && !run.running && !!manifests && (recipe?.mode !== "pipeline" || !!run.recipe_invocation?.completed);
+  const canConclude = mine && !run.preview && !run.active_skill_step && run.status === "open" && !run.running &&
     ((!run.needs_input && run.steps.length > 0) || (!!run.goals?.length && !run.steps.length));
   const canShare = mine && !run.preview && !run.caller.subject?.startsWith("service:");
   const selectedStep = run.steps[current];
@@ -87,20 +88,26 @@ export default function RunPage() {
   return <div className={`${styles.page} ${styles.runPage}`}>
     <Link className={styles.back} href="/runs"><ArrowLeft size={15} />실행 기록</Link>
     <header className={styles.runOverview} aria-label="질문과 실행 정보">
-    <div className={styles.heading}><div><p className={styles.eyebrow}>{run.preview ? "미리보기" : "RUN"} · {runOriginLabel(run.origin)} · {new Date(run.created_at).toLocaleString()}</p><h1>{run.plan.question || recipe?.description || recipe?.name || (metricNames[0] ? `${metricNames[0]} 분석` : "분석 결과")}</h1></div><div className={styles.runHeaderActions}><span className={`${styles.badge} ${run.status === "failed" || stopped ? styles.badgeFailed : run.status === "open" ? styles.badgeOpen : ""}`}>{run.status === "completed" ? "완료" : run.status === "failed" ? "실패" : stopped ? lastStatus === "needs_input" ? "입력 필요" : "중단" : run.running ? "진행 중" : run.steps.length ? "결론 대기" : "대기 중"}</span>{mine && <RunDelete run={run} onDeleted={() => router.push("/runs")} />}</div></div>
+    <div className={styles.heading}><div><p className={styles.eyebrow}>{run.preview ? "미리보기" : "RUN"} · {runOriginLabel(run.origin)} · {new Date(run.created_at).toLocaleString()}</p><h1>{run.plan.question || recipe?.description || recipe?.name || (metricNames[0] ? `${metricNames[0]} 분석` : "분석 결과")}</h1></div><div className={styles.runHeaderActions}><span className={`${styles.badge} ${run.status === "failed" || (stopped && !run.active_skill_step) ? styles.badgeFailed : run.status === "open" ? styles.badgeOpen : ""}`}>{run.status === "completed" ? "완료" : run.active_skill_step ? "AI 실행 대기" : run.status === "failed" ? "실패" : stopped ? lastStatus === "needs_input" ? "입력 필요" : "중단" : run.running ? "진행 중" : run.steps.length ? "결론 대기" : "대기 중"}</span>{mine && <RunDelete run={run} onDeleted={() => router.push("/runs")} />}</div></div>
     <p className={styles.runScope}><strong>{metricNames.join(" · ") || "지표 선택 전"}</strong><span>{periodLabel(run)}</span>{timeTitle && <span>{timeTitle} 기준</span>}{run.scope_resolution?.source && <span>{({ caller: "호출자 선택", conversation: "대화에서 이어받음", ai_proposal: "AI 제안", recipe_default: "Recipe 기본 기간", organization_default: "조직 기본 기간", unspecified: "아직 선택하지 않음" } as Record<string, string>)[run.scope_resolution.source] || "선택 출처 미확인"}</span>}</p>
     <RunProcedure run={run} detailed />
     </header>
+    {run.method_guides?.map(guide => <details key={guide.name} aria-label="사용한 Skill 지침">
+      <summary>참고한 Skill · {guide.name} · v{guide.version}</summary>
+      <p>실행 시 저장한 참고 지침입니다. 검사 통과나 계산 결과를 의미하지 않습니다.</p>
+      <MethodMarkdown content={guide.markdown} /><small>SHA-256 {guide.sha256}</small>
+    </details>)}
     {mine && run.needs_input && <RunPeriodInput key={`${run.id}:${run.scope_revision}`} run={run} objects={objects} onDone={() => reload()} />}
     {!run.preview && showRegistration && reusableSteps.length > 0 && <section className={styles.runRecipeDecision} aria-label="Recipe 등록">
-      <div><h2>{registered ? "Recipe로 등록했습니다" : hasAdditionalAnalysis ? "추가 분석을 포함해 새 Recipe로 저장" : "이 분석 절차를 Recipe로 저장"}</h2><p>{registered ? "레시피 목록과 MCP에서 바로 실행할 수 있습니다." : hasAdditionalAnalysis ? "기존 Recipe는 유지하고, 이번 분석 절차를 별도로 저장합니다." : `${run.steps.length}단계 · 분석 대상은 실행할 때마다 앞 단계 결과에서 다시 선택합니다.`}</p></div>
-      <div className={styles.runDraftActions}>{registered ? <Link className={styles.runPrimary} href={`/recipes/${encodeURIComponent(registered.name)}`}><Check size={16} />Recipe 보기</Link>
+      <div><h2>{registered ? (registered.status === "published" ? "이미 게시된 Recipe입니다" : "Recipe 초안을 저장했습니다") : hasAdditionalAnalysis ? "추가 분석을 포함해 새 Recipe로 저장" : "이 분석 절차를 Recipe로 저장"}</h2><p>{registered ? (registered.status === "published" ? "게시된 절차를 새 기간에 다시 실행할 수 있습니다." : "입력 조건과 공개할 내용을 검토하고 게시하면 다시 실행할 수 있습니다.") : hasAdditionalAnalysis ? "기존 Recipe는 유지하고, 이번 분석 절차를 별도로 저장합니다." : `${run.steps.length}단계 · 분석 대상은 실행할 때마다 앞 단계 결과에서 다시 선택합니다.`}</p></div>
+      <div className={styles.runDraftActions}>{registered ? <Link className={styles.runPrimary} href={`/recipes/${encodeURIComponent(registered.name)}${registered.status === "published" ? "" : "/edit"}`}><Check size={16} />{registered.status === "published" ? "Recipe 보기" : "Recipe 초안 검토"}</Link>
         : <button type="button" className={styles.runPrimary} disabled={!canRegister || registering} onClick={registerRecipe}>{registering ? <LoaderCircle className={styles.spinning} size={16} /> : <BookPlus size={16} />}{registering ? "등록 중…" : "Recipe로 등록"}</button>}
         <Link className={styles.runEditLink} href={`/recipes/new?${candidateParams.toString()}`}><SlidersHorizontal size={14} />편집해서 저장</Link></div>
       {rejectedCalculations > 0 && !registered && <p className={styles.runActionNote}>검증을 통과하지 못한 계산 {rejectedCalculations}개도 절차로 저장합니다. 설정과 검증 기준은 유지되며, 재실행에서 기준을 충족하지 못하면 중단합니다. 보조 비교로 자동 전환하지 않습니다.</p>}
       {!canRegister && !registered && <p className={styles.runActionNote}>{canConclude ? "분석 결론을 저장하면 등록할 수 있습니다. 입력 부족이나 계산 전 거부 단계가 있다면 편집해서 저장하세요." : "완료된 분석은 바로 등록할 수 있습니다. 입력 부족이나 계산 전 거부 단계는 편집해서 저장에서 제외하거나 수정하세요."}</p>}
       {registerError && <p className={styles.inlineError} role="alert">{registerError}</p>}
     </section>}
+    {run.active_skill_step && !run.running && <p className={styles.runNotice} role="status">Skill 단계에서 AI 실행을 기다립니다. Claude·Codex에서 이 Run을 이어서 실행하면 쿼리와 결과가 아래에 기록됩니다.</p>}
     {run.running && <p className={styles.runNotice} role="status">분석 중 · {run.running.method ? methodName(run.running.method) : run.running.kind} · {new Date(run.running.started_at).toLocaleTimeString()} 시작</p>}
     {run.error && <p className={styles.error} role="alert">{run.error.message} · 오류 코드 {run.error.code}</p>}
     {(!run.needs_input || run.steps.length > 0) && <><RunAnswer run={run} warnings={warnings} onSelect={index => { setOpen(index); setTab("result"); document.getElementById("run-step-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
@@ -109,6 +116,7 @@ export default function RunPage() {
     <RunGraph run={run} titles={byRef} selected={current} onSelect={index => { setOpen(index); setTab("result"); }} /></>}
     {selectedStep ? <section id="run-step-detail" className={styles.runStepDetail}><span>{current + 1} / {run.steps.length}단계</span><h2>{methodName(selectedStep.step.method)}</h2><p className={styles.runPurpose}><span>분석 목적</span>{stepPurpose(selectedStep.step, run)}</p>
       {isSourcePurpose(selectedStep.step, run) && selectedStep.step.purpose && <div className={styles.runPurposeContext}><p><strong>이번 실행 기간</strong> {periodLabel(run)}</p><p><strong>등록 당시 단계 설명</strong> {selectedStep.step.purpose}</p><span>이 설명은 원래 분석에서 가져왔습니다. 실제 적용 범위는 이번 실행 기간과 사용한 설정에서 확인하세요.</span></div>}
+      {selectedStep.skill ? <SkillLog skill={selectedStep.skill} /> : <details><summary>실행 당시 Python 코드</summary><SourceEvidence source={selectedStep.code} historical /></details>}
       <div className={styles.runTabs} role="tablist" aria-label="분석 단계 정보" onKeyDown={event => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
         event.preventDefault(); const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=tab]")];
@@ -223,4 +231,20 @@ function NextStep({ run, allowSteps, manifests, objects, onDone }: {
       {err && <p className={styles.inlineError} role="alert">{err}</p>}
     </form>
   );
+}
+
+function SkillLog({ skill }: { skill: import("@/lib/api").SkillExecution }) {
+  return <section aria-label="Skill 실행 로그">
+    <h3>Skill 실행 로그 · v{skill.guide.version}</h3>
+    <p>{skill.status === "awaiting_agent" ? "AI가 쿼리를 선택하고 실행하는 단계입니다." : skill.completion_reason}</p>
+    <details><summary>실행 당시 지침과 해시</summary><MethodMarkdown content={skill.guide.markdown} /><small>SHA-256 {skill.guide.sha256}</small></details>
+    {!skill.queries.length && <p>아직 실행한 쿼리가 없습니다. 지침을 읽은 것만으로 검증 통과나 결과가 기록되지는 않습니다.</p>}
+    {skill.queries.map(query => <details key={query.id} open={query.status === "failed" || query.status === "interrupted"}>
+      <summary>{query.id} · {({success:"조회 완료",failed:"조회 실패",running:"조회 중",interrupted:"실행 중단"})[query.status]} · {query.purpose}</summary>
+      <p>{new Date(query.started_at).toLocaleString()}</p>
+      {query.error && <p role="alert">{query.error.code}: {query.error.message}</p>}
+      <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{JSON.stringify({request:query.spec, result:query.result?.primary?.data, validation:query.result?.validation, provenance:query.result?.provenance}, null, 2)}</pre>
+    </details>)}
+    <p>실제 조회와 입력 검사를 기록합니다. 지침 준수·동료 집단의 적절성·인과 가정을 검증했다는 뜻은 아닙니다.</p>
+  </section>;
 }

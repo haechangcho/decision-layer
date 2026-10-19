@@ -28,7 +28,7 @@ export default function MethodsPage() {
       </div>
       <div className={styles.libraryColumns} aria-hidden="true"><span>분석 방법</span><span>설명</span><span>버전</span><span /></div>
       {loading && !data ? <LoadingState /> : shown.map((method) => <Link key={method.name} href={`/methods/${encodeURIComponent(method.name)}`} className={styles.libraryRow}>
-        <span className={styles.libraryName}><strong>{(method.label || methodName(method.name))}</strong><small>{method.name}</small></span>
+        <span className={styles.libraryName}><strong>{(method.label || methodName(method.name))}</strong><small>{method.implementation === "skill" ? "Skill 지침" : "Python 실행"} · {method.name}</small></span>
         <span className={styles.libraryMetric}>{method.description.split(". ")[0].replace(/\.$/, "") + "."}</span>
         <span className={styles.librarySteps}>v{method.version}</span>
         <ArrowRight size={17} className={styles.libraryArrow} />

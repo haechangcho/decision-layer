@@ -4,16 +4,18 @@
 같은 Recipe가 새로운 선두 부문을 선택하고, 동률에서는 추가 입력을 요구하는지 확인합니다.
 
 
-## Claude Code에 설치
+## Claude Code 또는 Codex에 설치
 
-복제한 저장소에서 Node.js, Claude Code, Docker가 준비된 상태로 실행하세요.
+복제한 저장소에서 Node.js, 사용할 AI 클라이언트, Docker가 준비된 상태로 실행하세요.
 
 ```bash
 node scripts/install.mjs setup --client claude
+# Codex를 선택하면:
+node scripts/install.mjs setup --client codex
 ```
 
 런타임을 `~/.local/share/decision-layer/runtime`에 준비하고 샘플을 검증한 뒤
-`decision-layer-demo`를 등록합니다. Claude Code를 다시 시작하고 아래 질문을 하세요.
+`decision-layer-demo`를 등록합니다. 선택한 클라이언트를 다시 시작하고 아래 질문을 하세요.
 Python 설치나 MCP JSON 편집은 필요 없습니다. Docker가 켜져 있으면 중지된 API도
 다시 시작합니다. 같은 이름의 다른 연결은 덮어쓰지 않습니다. 웹은 근거 확인용입니다.
 
@@ -75,3 +77,6 @@ bash scripts/demo.sh stop
 재실행은 새 Run과 Recipe를 만듭니다. 종료는 데이터를 보존합니다.
 공용 로컬 서비스 계정을 사용하므로 사용자 간 권한 분리를 검증한 데모는 아닙니다.
 초기화와 전체 실행 근거 추출은 [영문 안내](README.md#replay-evidence-and-shutdown)를 참고하세요.
+
+Codex 상태 확인: `node scripts/install.mjs doctor --client codex`. 연결 제거: `codex mcp remove decision-layer-demo`.
+절차 저장은 초안을 만들고, 검토 후 게시해야 새 기간에 실행할 수 있습니다. 예제 replay는 두 단계를 모두 수행합니다.

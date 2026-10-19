@@ -76,7 +76,7 @@ def _fields(values, roles):
     return list(dict.fromkeys(selected))
 
 
-async def request_data(ctx, *, entity=None, measures=None, dimensions=None, filters=None,
+async def request_data(ctx, *, entity=None, entity_alias="unit", measures=None, dimensions=None, columns=None, filters=None,
                        period=None, period_role="current", by_time=None, time_granularity=None,
                        order=None, limit=None, label=None):
     if not entity and not ctx.provider.capabilities().aggregate_queries:
@@ -98,9 +98,18 @@ async def request_data(ctx, *, entity=None, measures=None, dimensions=None, filt
         obj = ctx.obj(entity)
         if obj.kind != "dimension" or not any(o.public and o.entity == entity for o in ctx.catalog.objects):
             raise Refused(_("The analysis unit must be a provider-declared primary dimension"))
-        roles["unit"] = [("unit", entity)]
+        roles[entity_alias] = [(entity_alias, entity)]
     selected_dimensions = _fields(dimensions, roles)
+    selected_columns = _fields(columns, roles)
     selected_measures = _fields(measures, roles)
+    selected_measures = list(dict.fromkeys([
+        *selected_measures,
+        *(ref for ref in selected_columns if ctx.obj(ref).kind == "measure"),
+    ]))
+    selected_dimensions = list(dict.fromkeys([
+        *selected_dimensions,
+        *(ref for ref in selected_columns if ctx.obj(ref).kind != "measure"),
+    ]))
     if entity:
         # Statistical variables can be native per-unit measures or dimensions.
         variable_measures = [ref for ref in selected_dimensions if ctx.obj(ref).kind == "measure"]
@@ -140,7 +149,7 @@ async def request_data(ctx, *, entity=None, measures=None, dimensions=None, filt
         raise Refused(_("The result exceeds the complete-extraction bound"))
     data = MethodData(dataset, roles)
     if entity:
-        keys = ["unit", *(["time"] if time_granularity else [])]
+        keys = [entity_alias, *(["time"] if time_granularity else [])]
         seen = set()
         for row in data.records():
             key = tuple(row[name] for name in keys)

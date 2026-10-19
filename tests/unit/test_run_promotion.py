@@ -1,6 +1,7 @@
 import pytest
 
 from decision_layer.core.models import Run
+from decision_layer.methods import registry
 from decision_layer.recipes.from_run import RunPromotionError, candidate_from_run, runtime_recipe_from_run
 
 
@@ -11,7 +12,7 @@ DIMENSION = "cube://local/ecom_order/channel"
 def run():
     def step(method, bindings, params, sources):
         return {"step": {"method": method, "purpose": "Recorded purpose", "bindings": bindings, "params": params},
-                "method": f"method://{method}@1.0.0", "result": {"status": "success"},
+                "method": registry.get(method).ref, "result": {"status": "success"},
                 "parameter_sources": sources,
                 "started_at": "2026-10-01T10:00:00Z", "finished_at": "2026-10-01T10:00:01Z"}
 
@@ -36,7 +37,7 @@ def test_selected_run_steps_preserve_recorded_settings_and_scope():
     for original, copied in zip(source.steps, recipe.steps):
         assert copied.params == original.step.params
         assert copied.bindings == original.step.bindings
-        assert copied.purpose == original.step.purpose
+        assert not copied.purpose  # Run-specific prose is not automatically published
         assert copied.method_version == original.method.rpartition("@")[2]
 
 

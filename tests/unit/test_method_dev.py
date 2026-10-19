@@ -44,6 +44,10 @@ async def test_peer_queries_and_independent_expected_result():
 async def test_registry_is_local_and_replacement_explicit():
     original = global_registry.get("query.peer_comparison")
     session, _ = await session_for()
+    listed = session.list_methods()
+    assert [method.name for method in listed] == ["query.peer_comparison"]
+    listed[0].description = "Edited local copy"
+    assert session.list_methods()[0].description != "Edited local copy"
     with pytest.raises(InvalidBinding, match="already registered"):
         session.register(PeerComparison())
     edited = PeerComparison()
@@ -171,5 +175,4 @@ async def test_row_bound_refuses_without_providing_capability():
     trial = await session.run("query.peer_comparison", bindings=BINDINGS, params=PARAMS, scope=scope())
     assert trial.result.status == "refused" and trial.result.provides == []
     assert len(trial.attempts) == 1 and trial.attempts[0].status == "failed"
-
 

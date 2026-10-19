@@ -50,7 +50,7 @@ async def test_matching_uses_the_shared_entity_query_and_provenance():
     from decision_layer.methods import Scope, register_builtins
     from decision_layer.core.models import DatasetSpec, TimeScope
     from decision_layer.testing import FixtureProvider, QueryFixture
-    from examples.methods.patterns.scenarios import catalog, M, TREAT, BASELINE, UNIT, DATE, FEB
+    from examples.methods.scenarios.scenarios import catalog, M, TREAT, BASELINE, UNIT, DATE, FEB
     frame = sample()
     spec = DatasetSpec(grain="entity", measures=[M], dimensions=[TREAT, BASELINE], entity=UNIT,
         time=TimeScope(dimension=DATE, date_range=FEB), limit_rows=50001)

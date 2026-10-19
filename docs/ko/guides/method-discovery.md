@@ -37,7 +37,7 @@ async def group_metric(ctx, *, metric: Measure, group: Dimension,
 
 현재 실행 가능한 구현은 입력 범위를 제한하고 목적을 한 번 설명합니다.
 
-<<< @/../examples/methods/patterns/methods.py#group_metric
+<<< @/../examples/methods/scenarios/methods.py#group_metric
 
 이 로컬 Method에는 별도 description, 입력 스키마, 출력 스키마, 검색 태그나
 capability 목록이 필요하지 않습니다. 타입은 입력의 종류를 설명합니다.
@@ -48,7 +48,7 @@ measure 타입에 맞더라도 질문에서 원하는 결과 지표가 아닐 �
 저장소 루트에서 전체 Python 예제를 실행합니다.
 
 ```bash
-.venv/bin/python -m examples.methods.patterns.discovery
+.venv/bin/python -m examples.methods.scenarios.discovery
 .venv/bin/python -m pytest tests/unit/test_method_discovery.py
 ```
 
@@ -76,7 +76,7 @@ report = session.find_methods(goal=AnalysisGoal(
 ))
 ```
 
-이 코드는 `patterns/discovery.py`의 session과 참조를 사용합니다.
+이 코드는 `examples/methods/scenarios/discovery.py`의 session과 참조를 사용합니다.
 `metric_lookup`은 등록된 지표 조회 계약에서 가져온 이름입니다. 지원하지 않는
 질문에 태그를 지어 넣거나, 후보가 나오게 하려고 태그를 바꾸면 안 됩니다.
 빈 목록은 분석 목적에 관한 계약을 주장하지 않습니다.

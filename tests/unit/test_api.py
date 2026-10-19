@@ -35,7 +35,7 @@ def test_errors_are_structured(cube_meta):
 
 
 def test_recipe_writes_use_caller_identity_and_create_new_versions(cube_meta, tmp_path):
-    c = client(cube_meta, recipes_dir=str(tmp_path))
+    c = client(cube_meta, recipes_dir=str(tmp_path), recipe_publishers=("alice",))
     document = {"recipe": {"name": "orders-test", "version": "1.0.0", "description": "test",
         "semantic_scope": {"primary_metric": ref("ecom_order.return_rate")}, "mode": "pipeline",
         "steps": [{"id": "trend", "method": "query.trend", "bindings": {"metric": "$scope.primary_metric"},

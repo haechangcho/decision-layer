@@ -11,9 +11,10 @@ make setup
 make example
 ```
 
-Edit `examples/methods/patterns/methods.py`, rerun its test and read
-[the Method guide](docs/guides/methods.md). For three-query combination, run
-`.venv/bin/python -m examples.methods.patterns --case peer`.
+Start with the [hands-on tutorial](docs/tutorials/index.md), then save your Method in
+[the example project](examples/methods/project/README.md). Reusable example functions
+live under `examples/`; their automated checks live under `tests/examples/`.
+Use the [repository map](docs/guides/repository.md) to find the owner of a change.
 
 Use [local development](docs/guides/development.md) for Web/API changes and
 [the sample](examples/complete-journey/README.md) only when live data is needed.

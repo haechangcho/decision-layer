@@ -9,7 +9,7 @@ const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const root = process.env.DL_INSTALL_DIR || path.join(os.homedir(), '.local', 'share', 'decision-layer', 'runtime');
 const args = process.argv.slice(2);
 const command = args.shift() || 'setup';
-const usage = 'Usage: decision-layer [setup|doctor|stop|replay] [--client claude]';
+const usage = 'Usage: decision-layer [setup|doctor|stop|replay] [--client claude|codex]';
 function run(cmd, argv, options={}) {
   const r=spawnSync(cmd,argv,{cwd:root,stdio:'inherit',...options});
   if(r.error || r.status!==0) throw new Error(`${cmd} failed. ${r.error?.message || `Exit ${r.status}`}`);
@@ -21,23 +21,33 @@ function available(cmd, argv) {
 }
 try {
   if(args.includes('--help') || command==='--help') { console.log(usage); process.exit(0); }
-  if(args.length && (args.length!==2 || args[0]!=='--client' || args[1]!=='claude')) throw new Error(usage);
+  if(args.length && (args.length!==2 || args[0]!=='--client' || !['claude','codex'].includes(args[1]))) throw new Error(usage);
+  const client=args[1] || 'claude';
+  const title=client==='codex' ? 'Codex' : 'Claude Code';
+  const inspectArgs=['mcp','get','decision-layer-demo',...(client==='codex' ? ['--json'] : [])];
   if(!['setup','doctor','stop','replay'].includes(command)) throw new Error(usage);
   if(!available('docker',['info'])) throw new Error('Start Docker Desktop (or Docker Engine with Compose v2), then rerun.');
   if(!available('docker',['compose','version'])) throw new Error('Docker Compose v2 is required.');
   if(command==='doctor') {
     run('docker',['compose','-f','examples/quickstart/compose.yaml','ps']);
-    if(available('claude',['--version'])) run('claude',['mcp','get','decision-layer-demo']);
-    console.log('Expected: healthy services and decision-layer-demo registered in Claude Code.');
+    if(!available(client,['--version'])) throw new Error(`Install ${title} first.`);
+    run(client,inspectArgs);
+    console.log(`Expected: healthy services and decision-layer-demo registered in ${title}.`);
   } else if(command==='stop' || command==='replay') {
     run('bash',['scripts/demo.sh',command]);
   } else {
-    if(!available('claude',['--version'])) throw new Error('Install Claude Code first, then rerun. For a standalone demo: bash scripts/demo.sh');
+    if(!available(client,['--version'])) throw new Error(`Install ${title} first, then rerun. For a standalone demo: bash scripts/demo.sh`);
     const bridge=path.join(root,'scripts','mcp-demo.sh');
     // Refuse to overwrite an unrelated server registered under our name.
-    const existing=spawnSync('claude',['mcp','get','decision-layer-demo'],{cwd:sourceRoot,encoding:'utf8'});
-    if(existing.status===0 && !existing.stdout.includes(bridge)) {
-      throw new Error('decision-layer-demo already points elsewhere. Keep it, or explicitly remove it with: claude mcp remove decision-layer-demo');
+    const existing=spawnSync(client,inspectArgs,{cwd:sourceRoot,encoding:'utf8'});
+    let managed=existing.stdout?.includes(bridge);
+    if(existing.status===0 && client==='codex') {
+      const registered=JSON.parse(existing.stdout);
+      managed=registered.transport?.command==='bash' && JSON.stringify(registered.transport?.args)===JSON.stringify([bridge]);
+    }
+    if(existing.error) throw new Error(`Cannot inspect ${title} MCP configuration: ${existing.error.message}`);
+    if(existing.status===0 && !managed) {
+      throw new Error(`decision-layer-demo already points elsewhere. Keep it, or explicitly remove it with: ${client} mcp remove decision-layer-demo`);
     }
     const marker=path.join(root,'.decision-layer-install');
     if(existsSync(root) && !existsSync(marker)) throw new Error(`Refusing to overwrite unmanaged directory: ${root}`);
@@ -55,7 +65,7 @@ try {
     catch(error) { throw new Error(`Setup could not finish. Details: ${logPath}\n${error.message}`); }
     finally { closeSync(log); }
     console.log(`Replay verified. Setup details: ${logPath}`);
-    if(existing.status!==0) run('claude',['mcp','add','--scope','user','--transport','stdio','decision-layer-demo','--','bash',bridge]);
-    console.log('\nReady. Restart Claude Code, then ask:\n\nUse Decision Layer to reuse the saved department investigation for February 2026. Show its leading department, regions and evidence.\n\nAsk for March next: tied leaders require a choice.\nNo Python install, MCP JSON or port configuration is needed. Docker must remain running.\nThis sample uses synthetic data. Connect your own semantic source separately.\nRemove the client connection: claude mcp remove decision-layer-demo\nInspect results: http://localhost:3100/runs\nStop the sample: rerun this installer with stop instead of setup');
+    if(existing.status!==0) run(client,['mcp','add',...(client==='claude' ? ['--scope','user','--transport','stdio'] : []),'decision-layer-demo','--','bash',bridge]);
+    console.log(`\nReady. Restart ${title}, then ask:\n\nUse Decision Layer to reuse the saved department investigation for February 2026. Show its leading department, regions and evidence.\n\nAsk for March next: tied leaders require a choice.\nNo Python install, MCP JSON or port configuration is needed. Docker must remain running.\nThis sample uses synthetic data. Connect your own semantic source separately.\nRemove the client connection: ${client} mcp remove decision-layer-demo\nInspect results: http://localhost:3100/runs\nStop the sample: rerun this installer with stop instead of setup`);
   }
 } catch(error) { console.error(error.message); process.exitCode=1; }

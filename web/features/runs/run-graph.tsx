@@ -31,7 +31,7 @@ function StepNode({ data, selected }: NodeProps) {
       {value.source && <span className={s.source}>{t(value.source)}</span>}
       <strong>{value.purpose}</strong>
       <span className={s.finding}>{value.finding}</span>
-      <span className={s.status} data-status={value.status}>{value.status === "success" && <Check size={12} />}{value.status === "success" ? "완료" : value.status === "failed" ? "실패" : value.status === "refused" ? "비교 불가" : "입력 필요"}</span>
+      <span className={s.status} data-status={value.status}>{value.status === "success" && <Check size={12} />}{value.status === "success" ? "완료" : value.status === "failed" ? "실패" : value.status === "refused" ? "비교 불가" : value.status === "awaiting_agent" ? "AI 실행 대기" : "입력 필요"}</span>
     </button>
     {value.toggleDraft && <label className={s.draftChoice}><input type="checkbox" checked={value.draftSelected} onChange={value.toggleDraft} aria-label={`${value.index + 1}단계 초안에 포함`} />초안에 포함</label>}
     <Handle type="source" position={Position.Bottom} isConnectable={false} />
@@ -65,7 +65,7 @@ export function RunGraph({ run, titles, selected, onSelect, draftSelection, onTo
   const nodes = [
     { id: "run-metric", type: "metric", position: compact ? { x: 20, y: 0 } : { x: 0, y: Math.max(0, (run.steps.length - 1) * spacing / 2) }, data: { names: metricNames.length ? metricNames : ["지표 미지정"], compact } },
     ...run.steps.map((record, index) => ({ id: `run-step:${index}`, type: "step", position: compact ? { x: 0, y: 135 + index * spacing } : { x: 330, y: index * spacing }, selected: index === selected,
-      data: { index, method: record.step.method, purpose: stepPurpose(record.step, run), finding: stepFinding(record), status: record.result.status, compact,
+      data: { index, method: record.step.method, purpose: stepPurpose(record.step, run), finding: stepFinding(record), status: record.skill?.status === "awaiting_agent" ? "awaiting_agent" : record.result.status, compact,
         source: mixedProcedure ? record.invocation_id ? "Recipe step" :
           index < run.steps.findIndex(item => !!item.invocation_id) ? "Exploration step" : "Additional analysis" : undefined,
         select: () => onSelect(index), draftSelected: draftSelection?.includes(index),

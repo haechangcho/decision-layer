@@ -8,7 +8,7 @@ Optional libraries are installed in the development/server environment, never du
 
 ```bash
 python3.11 -m venv .venv-method
-.venv-method/bin/python -m pip install -c examples/methods/patterns/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
+.venv-method/bin/python -m pip install -c examples/methods/statistics/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
 ```
 ## Register and use
 
@@ -16,7 +16,7 @@ Use a fresh fixture session or a real Cube connection. The four data roles are o
 
 ```python
 from decision_layer.methods import Scope, register_builtins
-from examples.methods.patterns.scenarios import M, TREAT, BASELINE, UNIT, DATE, FEB
+from examples.methods.scenarios.scenarios import M, TREAT, BASELINE, UNIT, DATE, FEB
 
 register_builtins(session.registry)
 trial = await session.run(
@@ -46,7 +46,7 @@ estimate = model.estimate_effect(
 )
 ```
 
-The hands-on `examples/methods/patterns/write_your_method.en.ipynb` contains native DoWhy calculation and a small Method wrapper. Reviewed server functions must live in importable Python modules. No generic estimator facade is required.
+The hands-on `docs/tutorials/methods/advanced_method.en.ipynb` contains native DoWhy calculation and a small Method wrapper. Reviewed server functions must live in importable Python modules. No generic estimator facade is required.
 
 <<< @/../src/decision_layer/methods/advanced.py#binary_regression
 
@@ -93,7 +93,7 @@ Implementation and experiments remain pinned to 0.13.
 Run the known-effect example after installing `.[stats,dowhy]`:
 
 ```bash
-.venv/bin/python -m examples.methods.patterns.dowhy_basics
+.venv/bin/python -m examples.methods.statistics.dowhy_basics
 .venv/bin/python -m pytest tests/unit/test_dowhy_matching.py
 ```
 
@@ -172,6 +172,6 @@ The matching Method remains binary and targets the treated population.
 Execute the same implementation used by both workshop notebooks:
 
 ```bash
-.venv/bin/python -m examples.methods.patterns.continuous_regression
+.venv/bin/python -m examples.methods.statistics.continuous_regression
 .venv/bin/python -m pytest tests/unit/test_regression_adjustment.py
 ```

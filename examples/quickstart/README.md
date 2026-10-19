@@ -5,16 +5,18 @@ January, Grocery leads in February, and they tie in March. One saved procedure
 must follow the new leader and ask for input when there is no unique leader.
 
 
-## Install into Claude Code
+## Install into Claude Code or Codex
 
-From the cloned repository, with Node.js, Claude Code and running Docker:
+From the cloned repository, with Node.js, Claude Code or Codex and running Docker:
 
 ```bash
 node scripts/install.mjs setup --client claude
+# Or choose Codex:
+node scripts/install.mjs setup --client codex
 ```
 
 Setup copies the runtime to `~/.local/share/decision-layer/runtime`, starts and
-checks the sample, and registers `decision-layer-demo`. Restart Claude Code and
+checks the sample, and registers `decision-layer-demo`. Restart the selected client and
 ask the February question below. No local Python or manual MCP JSON is needed.
 The bridge can restart stopped API dependencies while Docker is running.
 Setup never overwrites a different server using the same name. Existing sample
@@ -22,7 +24,9 @@ Runs stay in Docker volumes. The Web viewer is optional.
 
 `node scripts/install.mjs doctor` checks the services and registration;
 `node scripts/install.mjs stop` stops services without deleting data.
-Remove the connection with `claude mcp remove decision-layer-demo`.
+For Codex diagnostics use `node scripts/install.mjs doctor --client codex`.
+Remove the connection with `claude mcp remove decision-layer-demo` or
+`codex mcp remove decision-layer-demo` for the selected client.
 The installer is currently supported on macOS/Linux shells and Windows WSL2;
 native Windows installation has not been validated.
 

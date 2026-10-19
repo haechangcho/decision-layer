@@ -33,7 +33,7 @@ def reusable_result(result: Result) -> bool:
     )
 
 
-def candidate_from_run(run: Run, indices: list[int]) -> RecipeCandidate:
+def candidate_from_run(run: Run, indices: list[int], registry=registry) -> RecipeCandidate:
     if run.preview:
         raise RunPromotionError(_("A preview cannot be promoted. Save or run the analysis first."))
     if not indices or indices != sorted(set(indices)) or any(i < 0 or i >= len(run.steps) for i in indices):
@@ -44,7 +44,15 @@ def candidate_from_run(run: Run, indices: list[int]) -> RecipeCandidate:
     selected = [run.steps[i] for i in indices]
     if any(not reusable_result(record.result) for record in selected):
         raise RunPromotionError(_("Only calculated Run steps can become a Recipe. Steps awaiting input or refused before an analytical output need editing."))
-    metrics = [record.step.bindings.get("metric") for record in selected]
+    metrics = []
+    for record in selected:
+        manifest = registry.get(record.step.method, record.method.rpartition("@")[2] or None).manifest
+        measures = [ref for key, role in manifest.roles.items() if role.kind == "measure"
+                    for ref in ([record.step.bindings[key]] if isinstance(record.step.bindings.get(key), str)
+                                else record.step.bindings.get(key, []))]
+        metrics.extend(measures)
+    if not metrics:
+        raise RunPromotionError("Selected steps need a governed measure.")
     if not is_semantic_ref(metrics[0]):
         raise RunPromotionError(_("The first selected step needs a governed metric."))
     primary = metrics[0]
@@ -59,7 +67,7 @@ def candidate_from_run(run: Run, indices: list[int]) -> RecipeCandidate:
             original = next((step for step in run.recipe_snapshot.steps if step.id == record.step.id), None)
         original = original or record.step
         params = {**record.step.params, **original.params}
-        manifest = registry.get(record.step.method).manifest
+        manifest = registry.get(record.step.method, record.method.rpartition("@")[2] or None).manifest
         for name, spec in manifest.parameters.items():
             value = params.get(name)
             if spec.type == "drill_path" and value and not is_dynamic(value):
@@ -68,15 +76,15 @@ def candidate_from_run(run: Run, indices: list[int]) -> RecipeCandidate:
                 review_notes.append(f"{original.id or index + 1}.{name}: this fixed period will be reused on every execution.")
         steps.append(PlanStep(id=original.id or f"step_{index + 1}", method=record.step.method,
                               method_version=record.method.rpartition("@")[2] or None,
-                              purpose=original.purpose,
+                              purpose=original.purpose if original.purpose_context == "procedure" else "",
                               purpose_context=original.purpose_context or ("procedure" if run.recipe_snapshot and not run.recipe_snapshot.origin_runs else "source_run"),
                               bindings=original.bindings, params=params))
     if run.plan.scope.get("date_range") or run.plan.scope.get("filters"):
         review_notes.append("Run period and shared filters are execution context, not automatically fixed Recipe rules. Review the scope before publishing.")
     recipe = Recipe(name=f"analysis-{run.id[-8:].lower()}", version="1.0.0", status="draft",
-                    description=run.plan.question or _("Analysis from Run {run_id}", run_id=run.id),
+                    description="Reusable analysis procedure (review before publication)",
                     origin_runs=[run.id],
-                    source_question=run.plan.question,
+                    source_question=None,
                     semantic_scope=SemanticScope(primary_metric=primary, related_metrics=related,
                                                  preferred_dimensions=run.recipe_snapshot.semantic_scope.preferred_dimensions if run.recipe_snapshot else [],
                                                  required_filters=run.recipe_snapshot.semantic_scope.required_filters if run.recipe_snapshot else []),
@@ -88,19 +96,20 @@ def candidate_from_run(run: Run, indices: list[int]) -> RecipeCandidate:
                     mode="pipeline", steps=steps)
     recipe.limits.max_queries = max(recipe.limits.max_queries, sum(len(record.result.provenance.queries) for record in selected))
     try:
-        validate_recipe(recipe)
+        validate_recipe(recipe, registry=registry)
     except DecisionLayerError as e:
         raise RunPromotionError("Include the earlier steps required by the selected procedure.", cause=e.message, **e.details) from e
+    review_notes.append("The question and Run-specific purposes were omitted. Review fixed values, filters, scope and origin Run references before publication; they may contain sensitive context.")
     return RecipeCandidate(recipe=recipe, source_run_id=run.id, selected_steps=indices, review_notes=review_notes)
 
 
-def runtime_recipe_from_run(run: Run) -> Recipe:
+def runtime_recipe_from_run(run: Run, registry=registry) -> Recipe:
     """Construct a new runtime-selection procedure, not a reconstruction of past intent."""
-    recipe = candidate_from_run(run, list(range(len(run.steps)))).recipe.model_copy(deep=True)
+    recipe = candidate_from_run(run, list(range(len(run.steps))), registry=registry).recipe.model_copy(deep=True)
     paths: dict[str, list[str]] = {}
     for index, step in enumerate(recipe.steps):
         record = run.steps[index]
-        manifest = registry.get(step.method).manifest
+        manifest = registry.get(step.method, step.method_version).manifest
         policy = recipe.method_parameters.get(step.method)
         for name, spec in manifest.parameters.items():
             value = step.params.get(name)
@@ -145,5 +154,5 @@ def runtime_recipe_from_run(run: Run) -> Recipe:
             dimension = record.step.params.get("next_dimension") or next((member for member in dimensions if member not in used), None)
             if is_semantic_ref(dimension):
                 paths[step.id] = [*used, dimension]
-    validate_recipe(recipe)
+    validate_recipe(recipe, registry=registry)
     return recipe

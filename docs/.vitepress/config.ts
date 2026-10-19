@@ -11,7 +11,6 @@ function sidebar(locale: '' | 'ko') {
       item('Start here', '시작하기', '/'),
       item('Run the sample', '샘플 실행', '/guides/quickstart'),
       item('Connect Cube', 'Cube 연결', '/guides/cube'),
-      item('Connect dbt Semantic Layer', 'dbt Semantic Layer 연결', '/guides/dbt'),
       item('Connect an AI client', 'AI 도구 연결', '/guides/mcp')
     ] },
     { text: ko ? '분석 사용하기' : 'Use Decision Layer', items: [
@@ -19,12 +18,16 @@ function sidebar(locale: '' | 'ko') {
       item('Runs and evidence', '실행 기록과 근거', '/guides/runs')
     ] },
     { text: ko ? '개발과 기여' : 'Develop', items: [
+      item('Hands-on tutorials', '직접 해보기', '/tutorials/'),
+      item('Method projects', 'Method 프로젝트', '/guides/method-projects'),
+      ...(ko ? [{ text: '만든 Method 사용하기', link: '/ko/guides/method-deployment' }] : []),
       item('First Method', '첫 Method 개발', '/guides/methods'),
       item('Method discovery', 'Method 작성과 AI 탐색', '/guides/method-discovery'),
       item('Authoring patterns', 'Method 작성 패턴', '/guides/method-patterns'),
       item('Run test scenarios', '직접 테스트 시나리오', '/guides/method-scenarios'),
       item('Optional advanced analysis', '선택 고급 분석', '/guides/statistical-methods'),
       item('CEM and PyWhy review', 'CEM·PyWhy 검토', '/guides/pywhy-review'),
+      item('Repository structure', '저장소 구조', '/guides/repository'),
       item('Local development', '개발 환경', '/guides/development'),
       item('Testing', '테스트', '/guides/testing')
     ] },
@@ -42,7 +45,7 @@ export default defineConfig({
   ignoreDeadLinks: 'localhostLinks',
   srcExclude: [
     'README.md', 'GETTING_STARTED.md', 'MVP_PLAN.md', 'REFERENCES.md',
-    'PRODUCT_CONTEXT.md', 'DECISIONS.md',
+    'PRODUCT_CONTEXT.md', 'DECISIONS.md', 'PRD.md',
     'PRODUCT_UX_IMPLEMENTATION_PLAN.ko.md', 'PRODUCT_UX_MILESTONES.ko.md',
     'SOURCE_CONNECTION_DESIGN.ko.md', 'internal/**', 'design/**', 'research/**',
     'assets/README.md'

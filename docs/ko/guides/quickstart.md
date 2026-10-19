@@ -44,4 +44,4 @@ bash scripts/demo.sh stop
 
 ## 다음 단계
 
-[Cube 연결](./cube.md) · [dbt 연결](./dbt.md) · [Recipe 만들기](./recipes.md) · [Method 기여](./methods.md)
+[Cube 연결](./cube.md) · [Recipe 만들기](./recipes.md) · [Method 기여](./methods.md)

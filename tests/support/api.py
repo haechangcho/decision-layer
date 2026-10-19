@@ -9,4 +9,7 @@ def client(cube_meta, **settings):
     s = Settings(cube_api_url="http://x", cube_instance="local", cube_api_secret=settings.get("secret"),
                  cube_service_groups=("ecommerce",), database_url="memory", allow_service_credentials=True,
                  recipes_dir=settings.get("recipes_dir"))
+    from dataclasses import replace
+    s = replace(s, recipe_editors=settings.get("recipe_editors", ()),
+                recipe_publishers=settings.get("recipe_publishers", ()))
     return TestClient(create_app(s, CubeProvider(FakeClient(cube_meta, rows_total=3), "local")))

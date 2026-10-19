@@ -8,7 +8,7 @@
 
 ```bash
 python3.11 -m venv .venv-method
-.venv-method/bin/python -m pip install -c examples/methods/patterns/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
+.venv-method/bin/python -m pip install -c examples/methods/statistics/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
 ```
 ## 등록하고 사용
 
@@ -16,7 +16,7 @@ python3.11 -m venv .venv-method
 
 ```python
 from decision_layer.methods import Scope, register_builtins
-from examples.methods.patterns.scenarios import M, TREAT, BASELINE, UNIT, DATE, FEB
+from examples.methods.scenarios.scenarios import M, TREAT, BASELINE, UNIT, DATE, FEB
 
 register_builtins(session.registry)
 trial = await session.run(
@@ -46,7 +46,7 @@ estimate = model.estimate_effect(
 )
 ```
 
-`examples/methods/patterns/write_your_method.ko.ipynb`에는 원래 DoWhy 계산과 짧은 Method 연결 코드가 있습니다. 서버에서 사용할 함수는 검토한 import 가능한 Python 모듈에 저장합니다. 범용 estimator facade는 필요하지 않습니다.
+`docs/tutorials/methods/advanced_method.ko.ipynb`에는 원래 DoWhy 계산과 짧은 Method 연결 코드가 있습니다. 서버에서 사용할 함수는 검토한 import 가능한 Python 모듈에 저장합니다. 범용 estimator facade는 필요하지 않습니다.
 
 <<< @/../src/decision_layer/methods/advanced.py#binary_regression
 
@@ -93,7 +93,7 @@ primary unit·유일한 non-null key·유한값·결측·처치군·인코딩 �
 `.[stats,dowhy]`를 설치한 뒤 알려진 효과를 가진 예제를 실행합니다.
 
 ```bash
-.venv/bin/python -m examples.methods.patterns.dowhy_basics
+.venv/bin/python -m examples.methods.statistics.dowhy_basics
 .venv/bin/python -m pytest tests/unit/test_dowhy_matching.py
 ```
 
@@ -171,6 +171,6 @@ Method는 단위를 임의로 변환하지 않습니다.
 한영 실습 노트북과 같은 구현을 실행합니다.
 
 ```bash
-.venv/bin/python -m examples.methods.patterns.continuous_regression
+.venv/bin/python -m examples.methods.statistics.continuous_regression
 .venv/bin/python -m pytest tests/unit/test_regression_adjustment.py
 ```

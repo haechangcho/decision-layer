@@ -6,9 +6,9 @@ Run from the repository root. Each CLI checks its result and exits nonzero on mi
 
 ```bash
 python3.11 -m venv .venv-method
-.venv-method/bin/python -m pip install -c examples/methods/patterns/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
-.venv-method/bin/python -m examples.methods.patterns --all
-.venv-method/bin/python -m examples.methods.patterns.failures --all
+.venv-method/bin/python -m pip install -c examples/methods/statistics/constraints-py311.txt -e '.[dev,stats,dowhy,econml]'
+.venv-method/bin/python -m examples.methods.scenarios --all
+.venv-method/bin/python -m examples.methods.scenarios.failures --all
 ```
 
 | case | Pattern | Queries | Independent expected values |
@@ -29,8 +29,8 @@ python3.11 -m venv .venv-method
 Use `--case peer` instead of `--all` to isolate a case. `scenarios.py` holds independent full requests; `methods.py` holds authored functions; `verify()` checks answers. Output exposes aliases and comparison units. OLS values are treatment/baseline coefficients; mixed values are aggregate/min/max/unit count. The DoWhy/EconML target of 2 comes from the known generating process, not a ground truth for observational sample data.
 
 ```bash
-.venv-method/bin/python -m examples.methods.patterns --case peer
-.venv-method/bin/python -m pytest -q examples/methods/patterns tests/unit/test_method_authoring.py tests/unit/test_advanced_methods.py
+.venv-method/bin/python -m examples.methods.scenarios --case peer
+.venv-method/bin/python -m pytest -q tests/examples/test_scenarios.py tests/unit/test_method_authoring.py tests/unit/test_advanced_methods.py
 ```
 
 ## 2. Verify failures and refusals
@@ -70,11 +70,11 @@ cd ../..
 ```bash
 export DL_JOURNEY_CUBE_URL=http://127.0.0.1:4000/cubejs-api/v1
 export DL_JOURNEY_DATABASE_URL='postgresql://journey_reader:local-read-only@127.0.0.1:5433/journey'
-.venv-method/bin/python -m examples.methods.patterns.journey --all --verify-sql
-.venv-method/bin/python -m examples.methods.patterns.journey --case did --verify-sql
-.venv-method/bin/python -m examples.methods.patterns.journey --case did-split --verify-sql
-.venv-method/bin/python -m examples.methods.patterns.journey --case dowhy
-.venv-method/bin/python -m examples.methods.patterns.journey --case econml
+.venv-method/bin/python -m examples.methods.scenarios.journey --all --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --case did --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --case did-split --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --case dowhy
+.venv-method/bin/python -m examples.methods.scenarios.journey --case econml
 ```
 
 Use the URL above only for the local demo reader; replace server/user/token for other environments. SQL oracles run on a read-only connection. Methods do not gain a raw SQL execution path.
@@ -93,20 +93,20 @@ export CUBE_INSTANCE=journey
 export CUBE_API_SECRET=local-example-secret-change-me-0123456789
 export DL_ALLOW_SERVICE_CREDENTIALS=true
 export DL_DATABASE_URL=memory
-.venv-method/bin/python -m uvicorn examples.methods.patterns.server:create_app --factory --host 127.0.0.1 --port 8011
+.venv-method/bin/python -m uvicorn examples.methods.scenarios.server:create_app --factory --host 127.0.0.1 --port 8011
 ```
 
 In another terminal, export the SQL URL and run:
 
 ```bash
-.venv-method/bin/python -m examples.methods.patterns.journey --api http://127.0.0.1:8011 --all --verify-sql
-.venv-method/bin/python -m examples.methods.patterns.journey --api http://127.0.0.1:8011 --case did --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --api http://127.0.0.1:8011 --all --verify-sql
+.venv-method/bin/python -m examples.methods.scenarios.journey --api http://127.0.0.1:8011 --case did --verify-sql
 ```
 
 Use `run_id` with `GET /runs/{id}` to inspect canonical bindings, attempts, versions, validation and warnings. Web Run viewers and MCP `run_step` use the same RunEngine/Registry. There is no automatic function upload or separate executor. Stop the development server with Ctrl-C.
 
 ## 5. Edit and debug
 
-Change `group_metric` order or limit; the full-spec fixture identifies the mismatched field. Put a breakpoint before the second peer call to observe all three requests in one function. Inspect attempts/queries/result in `session.last_trial`. `explore.ipynb` imports the same functions and CLI verification helpers, with no duplicate implementation.
+Change `group_metric` order or limit; the full-spec fixture identifies the mismatched field. Put a breakpoint before the second peer call to observe all three requests in one function. Inspect attempts/queries/result in `session.last_trial`. `docs/tutorials/methods/query_scenarios.ipynb` imports the same functions and CLI verification helpers, with no duplicate implementation.
 
 The existing data is sufficient for descriptive calculations, input mapping, joins/grain, multiple requests, extraction and failure paths. Known synthetic generating processes are needed for estimator accuracy. Real causal validation additionally needs treatment receipt times, assignment design, overlapping-campaign/interference review, unit-level period completeness and identification assumptions.

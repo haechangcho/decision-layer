@@ -6,9 +6,21 @@ services:
     environment:
       DL_DATABASE_URL: sqlite:////data/decision_layer.db
       DL_RECIPES_DIR: /recipes
+      DL_METHOD_ASSETS_DIR: /data/method-assets
+      DL_ALLOW_METHOD_EDITING: ${DL_ALLOW_METHOD_EDITING:-false}
+      DL_METHOD_EDITORS: ${DL_METHOD_EDITORS:-}
+      DL_METHOD_PUBLISHERS: ${DL_METHOD_PUBLISHERS:-}
       DL_SOURCE_ADMIN_TOKEN: ${DL_SOURCE_ADMIN_TOKEN:-}
       DL_SOURCE_CONFIG_KEY: ${DL_SOURCE_CONFIG_KEY:-}
       DL_ALLOW_SERVICE_CREDENTIALS: ${DL_ALLOW_SERVICE_CREDENTIALS:-false}
+      DL_DEPLOYMENT_MODE: ${DL_DEPLOYMENT_MODE:-local}
+      DL_SOURCE_ALLOWED_URLS: ${DL_SOURCE_ALLOWED_URLS:-}
+      DL_RECIPE_EDITORS: ${DL_RECIPE_EDITORS:-}
+      DL_RECIPE_PUBLISHERS: ${DL_RECIPE_PUBLISHERS:-}
+      CUBE_API_URL: ${CUBE_API_URL:-http://host.docker.internal:4000/cubejs-api/v1}
+      CUBE_INSTANCE: ${CUBE_INSTANCE:-local}
+      CUBE_API_SECRET: ${CUBE_API_SECRET:-}
+      CUBE_SERVICE_GROUPS: ${CUBE_SERVICE_GROUPS:-}
     volumes:
       - data:/data
       - recipes:/recipes

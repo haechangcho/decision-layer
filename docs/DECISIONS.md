@@ -1150,6 +1150,7 @@ are not rewritten and no provider model annotations or domain rules are introduc
 **Status:** Accepted (2026-10-08). Supersedes the local gateway portion of ADR-056/058.
 
 Product connections are Cube REST and the official dbt Semantic Layer GraphQL API.
+This provider-availability decision is superseded by ADR-096 for the initial product.
 Remove the custom MetricFlow gateway, provider, optional dependencies, Docker stack,
 UI option and gateway-specific tests and instructions. The local retail example runs
 Cube only. dbt SQL/YAML models remain reference definitions for an existing dbt
@@ -1748,3 +1749,707 @@ The installer retains runtime files in `~/.local/share/decision-layer/runtime`
 npm cache entry. It refuses unmanaged installation directories and preserves sample
 state in Docker volumes. GitHub-package installation is a distribution path, not a
 new plugin runtime or automatic publication mechanism.
+
+## ADR-094 — Fail closed administration and explicit procedure publication
+
+Status: accepted (2026-10-15), first implementation increment of the revised PRD.
+Supersedes ADR-033's missing-key administration, ADR-038's unrestricted Recipe
+writes, ADR-050/061's immediate publication, and ADR-051's physical Recipe deletion.
+The immutable version and draft rules of ADR-043 remain.
+
+Only explicit `local` and `demo` deployment modes are supported. `shared` and
+unknown modes fail at application construction. This is a release gate, not a
+claim that setting a mode secures a publicly exposed server. Bind local services
+to loopback; the Compose ports do so. HTTP Host/Origin checks reject unapproved
+browser origins and DNS-rebinding hostnames. Local service credentials remain an
+explicit opt-in, default false in the general environment example; the isolated
+synthetic sample opts in. Provider-authenticated subjects are still local trust
+identities. Independent verified application identity, DNS/egress enforcement,
+source credential/user separation and a real Python sandbox remain required before
+shared deployment. No old Run owner is reassigned.
+
+Missing `DL_SOURCE_ADMIN_TOKEN` now disables HTTP source save/test. A supplied
+admin key must also respect exact operator-approved endpoints: the configured
+Cube/dbt URL or `DL_SOURCE_ALLOWED_URLS`. Saved legacy endpoints outside that set
+fail closed until an operator approves/configures them. A changed endpoint cannot
+inherit the previous encrypted secret; a connection test cannot sign with the old
+secret for a different endpoint. Environment credentials belong to the environment
+endpoint. This closes arbitrary URL selection by HTTP callers; it does not claim
+DNS pinning or constrain trusted local Python connections.
+
+`DL_RECIPE_EDITORS` and `DL_RECIPE_PUBLISHERS` list authenticated subjects. Publishers
+may edit; readers cannot write or inspect drafts. Explicit local service identity
+is the runtime owner's identity, not an arbitrary token with a similar subject.
+Run-to-Recipe candidate/save requires Run ownership and editing permission; shared
+read access never grants promotion. Default save creates a draft. Publication
+requires publisher permission and either the existing draft publication endpoint
+or an explicitly supplied reviewed Recipe. Questions and Run-specific purposes
+are omitted from generated drafts. Fixed values, filters and origin references
+still require review; no automatic sensitive-data detection is claimed.
+
+Recipe DELETE now writes a retirement marker in `.retired/`, retaining every YAML
+version. It removes the asset from discovery/execution; publisher-only restore
+checks the archived base version. New save/publish/archive/restore operations write
+actor/version/time events in `.history/`. These filesystem records are auditable
+local history, not a tamper-proof transactional audit service. Git changes remain
+operator-owned. Existing published assets are not retrospectively approved or
+redacted, and historical Run snapshots remain unchanged.
+
+REST, Web and MCP share these routes. `save_procedure` returns a draft;
+`publish_procedure` publishes a reviewed draft. Existing clients relying on immediate
+publication must add review/publication. The synthetic replay follows this flow.
+The installer supports `--client codex` alongside Claude, preserves conflicting
+registrations and uses the same existing stdio bridge (extends ADR-093).
+
+## ADR-095 — Native calculations adapt to existing Method contracts
+
+Status: accepted (2026-10-15), extends ADR-081/083/084 without replacing typed Methods.
+
+`calculation(fn, name=..., version=..., table=InputTable(...))` creates a normal
+Method for an existing synchronous Python function. The function's first argument
+receives records or a pandas DataFrame; remaining named scalar options use the
+existing parameter contract. Column aliases map to runtime semantic roles; no
+metric SQL or business definitions move into the calculation. Default output is
+Table; Estimate and explicit output adapters are supported. Executable validators
+return ValidationResult records. The default interpretation is association.
+
+Extraction uses the existing context aggregate/entity paths, scoped credentials,
+provider capabilities and budgets. Missing/non-finite required values, insufficient
+rows and duplicate returned grain stop before the native calculation. Source
+completeness, official meaning and causal assumptions are not verified by these
+checks. The registered Method version, queries, input mapping and native function
+name accompany the result. Existing async/class Methods keep their contracts;
+multiple queries, time bucketing and more complex inputs remain advanced Methods.
+
+Local trials retain ordinary breakpoints. Server execution uses the existing
+bounded worker and importable module-level functions; context/credentials are not
+calculation arguments. This worker is not an arbitrary-code security sandbox.
+Reviewed package registration remains required; no code upload or local data-file
+source is added. The paired workshop notebooks start with the tested native path,
+retain advanced examples and show existing Cube/dbt connections with explicit
+skipped live checks. dbt entity extraction and direct DW/DM/BigQuery remain unsupported.
+
+
+## ADR-096 — Initial product supports Cube only
+
+Status: accepted (2026-10-15), narrows ADR-073's product provider coverage and
+ADR-095's live notebook examples. Supersedes the PRD's direct-connection P0 proposal.
+
+The initial journey is Claude/Codex → example Cube → organization Cube → save and
+rerun a procedure. Do not implement dbt, BigQuery, direct DW/DM or local data-file
+connections for this increment. Cube may itself use a warehouse or mart; this is
+not a direct Decision Layer connector. Organizations without Cube can evaluate the
+sample but cannot use their own data in this release. This limits the initial
+market deliberately to test reuse before expanding backend coverage.
+
+Source input schemas, the configured provider factory, provider discovery and Web
+settings offer Cube only. Unsupported stored providers fail closed with an explicit
+message, never silently switch to Cube. To recover a deployment with an old active
+provider, an operator explicitly sets DL_SOURCE_PROVIDER=cube and CUBE_API_URL to an
+approved Cube endpoint before restart, or uses SourceConfigManager.save with an
+explicit Cube configuration offline. Prior connection records remain stored.
+
+The existing dbt module and isolated adapter contract tests are retained as legacy
+reference, not wired into product connection configuration. The generic provider
+protocol and dependency injection remain for tests and future integrations; this
+is not a sandbox that prevents trusted Python code from importing old modules.
+Run snapshots, owner identities and semantic URIs are not rewritten. Old dbt Recipes
+cannot be rerun against Cube by renaming refs; reviewed bindings and numerical
+comparison must produce a new version. Historical records remain in storage; access
+still requires the original ownership rules and credentials, not automatic identity
+migration. Operators needing the former execution behavior must retain a pinned
+legacy runtime, separate from this initial product configuration.
+
+The paired Method notebooks show ordinary calculations plus Cube only. Existing
+advanced Methods remain valid. Raw SQL/DDL/DML/DCL and Cube management/refresh
+operations are not exposed. Cube's own SQL, upstream privileges and pre-aggregation
+writes cannot be certified solely by a read API call. Dedicated source permissions
+and Cube deployment review remain necessary. Direct SQL AST and backend-specific
+security tests are deferred with their connectors, not claimed as implemented.
+
+Revisit one additional backend only after Cube reuse is demonstrated and repeated
+customer demand identifies a specific blocked workflow. Preserve generic contracts
+without prebuilding adapters. Shared deployment remains disabled under ADR-094.
+
+## ADR-097 — Method assets with advisory Skills and ordinary Python
+
+Status: accepted (2026-10-15), revises ADR-003's executable-only Method definition
+and extends ADR-095. Explicitly requested as a runtime/authoring change, not merely
+a notebook rewrite. Cube-only scope and local/demo security gates remain.
+
+A discoverable Method asset has an implementation discriminator. `python` remains
+an executable capability; `skill` is versioned advisory Markdown with suggested
+registered tools. Both appear in the method catalog, but only Python can execute
+as a Run/Recipe step. `describe_method` includes Skill text on demand;
+`get_method_guide(authoring|cube-query)` provides package-version-matched guidance.
+The Cube guide covers discovery, meaning, grain, aggregation, periods, peers,
+refusals and read-only boundaries. Cube models are not Wren MDL. Skill text is
+never counted as evidence, validation, permission or automatic goal coverage.
+
+`start_analysis(guide=name)` / RunStartRequest records the selected Skill's exact
+text/version/hash on the Run. The AI executes ordinary registered tools on that
+Run; the engine does not interpret Markdown or automatically replay its steps.
+A Recipe is required for deterministic sequence/branch enforcement. Skills may
+recommend advanced/compatibility tools through explicit lookup; this does not
+re-enable them all in default discovery. Agent adherence remains an evaluation
+question, not an engine guarantee. MCP allow-lists still apply to execution.
+
+`python_method(fn, inputs={argument: DataInput(...)})` adapts an ordinary synchronous
+function. No `ctx`, async, semantic annotations or output subclasses are required
+inside it. Columns use one name for both the function and runtime semantic binding;
+multiple input tables, explicit comparison periods and time buckets are supported.
+Simple options infer types from defaults/annotations or explicit parameter types.
+Numbers, dictionaries, row lists and DataFrames adapt to normal Result artifacts;
+complex library outputs may use a reviewed output adapter. Advanced async/class
+Methods and the earlier `calculation` adapter remain compatible.
+
+Data extraction uses the existing scoped context/provider/budgets. Python input
+checks actually execute: minimum rows, columns, finite measures and unique non-null
+returned grain. Additional ordinary checks run before the calculation; failures
+stop it and are recorded. The adapter never asserts causal validity. Library-internal
+checks are not individually marked as validated unless explicitly instrumented.
+Source/function/check/adapter fingerprints and installed dependency versions improve
+inspection, but do not trace arbitrary Python internals, closures, network/filesystem
+access or recreate the full environment. The existing bounded worker is not a
+sandbox. No remote code-upload or shared arbitrary-code execution is added.
+
+Operators own Python modules exporting `METHODS` and Skill Markdown directories in
+Git. `DL_METHOD_MODULES` imports reviewed installed modules; `DL_SKILLS_DIR` loads
+reviewed Markdown. All Markdown in that directory must be assets. Startup rejects
+duplicate names and invalid tool references. Each API app has an isolated registry
+used by discovery, execution, Recipe validation/configuration/routing/promotion.
+There is no Method editing/publication UI: trial, tests, Git review, version bump,
+package/environment pinning and restart are the current publishing flow. Retain
+released packages to reproduce old code; snapshots alone do not archive binaries.
+
+Old manifests default to Python, old Runs default to no Skill snapshots. Historical
+Run data is not rewritten. Changed code requires a new Method version; pinned
+Recipe steps reject an installed version mismatch. Run-to-Recipe promotion accepts
+native measure aliases instead of requiring a parameter literally named `metric`.
+The main ko/en notebooks now teach these paths; former advanced content is retained
+as `advanced_method.*.ipynb`. No database schema migration is required for the additive
+JSON fields. Old clients must filter Skill assets from executable choices.
+
+## ADR-098 — Agent-executed Skill steps inside mixed Recipes
+
+Status: accepted (2026-10-15), supersedes ADR-097's restriction that all Skills are
+Run-level guidance only. The user explicitly requires query-oriented Skills and
+Python computations to connect as Method steps, visible in the same Run.
+
+Skill Markdown may opt into `query_execution: true` with existing typed role and
+parameter definitions. `analysis.drilldown` and `analysis.peer_comparison` are new
+Skill implementations. They contain analytical instructions, not hidden calls to
+the former Python drilldown/peer classes. The common engine executes structured
+Cube read queries proposed by the client agent. `query.drilldown` and
+`query.peer_comparison` retain their exact implementations and versions for old
+Recipes; drilldown leaves default discovery. Existing advisory-only Skills remain
+readable but cannot become executable stages. No old ID silently changes behavior.
+
+A mixed pipeline pauses at a Skill with `AGENT_EXECUTION_REQUIRED`. The client uses
+`run_skill_query` and `finish_skill_step`; completion resumes the next Skill or
+Python stage. Web-only execution waits for a client agent, never pretends to run
+Markdown. Execution/adherence are distinct: prose is advisory; bound metrics, query
+period, required filters, budgets, source permissions and evidence references are
+checked by code. The Skill snapshot includes its manifest, text, version and hash.
+Per-query IDs, purposes, structured specs, real Results, errors, timestamps and
+caller-reported/protocol agent attribution are persisted under the Skill step.
+
+Skill queries use aggregate DatasetSpecs, explicit dates and bounded rows. Current
+periods must equal Run scope; comparison periods must be explicitly bound to the
+Skill. Only bound metrics and their provider-declared counts are allowed. Inherited
+population and arbitrary required filters cannot be omitted. Source discovery and
+provider checks remain canonical. No raw SQL, source administration, arbitrary
+Python or new data provider is exposed. Client-generated narrative is not numeric
+evidence or validation. Query success does not certify peer suitability or complete
+coverage. The Skill currently certifies no analytical `provides` capabilities.
+
+A selected group must point to a real query ID/row/dimension. It is explicitly
+`selected_group`, not a server-verified ranking/anomaly. Exports retain the selected
+value and its evidence, reason and full query filters. Equality-only path/condition
+projections remain useful for subjects; full population propagation uses
+`selected_group.evidence.filters`, including exclusions and ranges. Native Python
+DataInput supports a separate `filters_parameter` so a later calculation consumes
+those filters without adding SDK conventions to its function body. Fixed Python
+steps remain deterministic; agent decisions may differ on replay and are recorded.
+
+An active Skill blocks unrelated steps and Run completion. Query IDs deduplicate
+identical requests; a changed request with the same ID is rejected. Failed queries
+remain visible; corrected queries require new IDs. Bounded workers and query
+budgets still apply. Pending agent stages survive restart; interrupted reads are
+marked interrupted and not silently replayed. Shared viewers cannot execute or
+finish stages. Historical Runs remain unchanged; additive JSON fields need no SQL
+migration. Reviewed legacy Recipes require an explicit new version to adopt Skills.
+
+The complete-journey demo mounts a reviewed example Python module read-only and
+registers its ordinary statsmodels function to demonstrate the full chain. This is
+a demo asset, not another builtin estimator or a code-upload feature. Python remains
+trusted installed code; shared arbitrary-code hosting remains disabled.
+
+### ADR-098 follow-up — bounded MCP evidence after real Claude trials
+
+Real Claude MCP trials reached successful server-side Skill→Skill→Python execution,
+but repeated full Skill query logs caused 54–92 KB tool replies. Claude persisted or
+rejected these oversized replies and could not inspect the final coefficient table.
+A completed server Run alone therefore did not establish usable client execution.
+
+MCP Run responses now include the active frozen guide once, completed Skill guide
+metadata and query summaries. They do not duplicate every stored table or native SQL.
+`run_skill_query` returns up to 25 rows; `get_skill_query` reads a stored query page
+through the same authorized Run read path, without executing another provider query.
+Pagination reports total rows, next offset and absolute row-index semantics for
+selection. Validation, errors, provenance summaries and exported filters remain
+visible. Full Run evidence and Web inspection are unchanged; compaction uses copies.
+This is an interface payload fix, not a new analytical or permission model.
+
+## ADR-099 — Korean query Skills and separate time calculations
+
+Status: accepted (2026-10-16). The user approved replacing the public aggregate/trend
+Method entries with Skills and explicitly requested Korean Skill authoring.
+
+Default discovery now offers analysis.metric_lookup and analysis.trend as Korean
+query-executing Markdown. query.aggregate/query.trend remain their original Python
+implementations and versions for explicit existing Recipes; historical Run evidence
+is unchanged. No Skill receives a provides capability merely by following prose.
+The existing shared Skill query runtime handles structured Cube reads and logging.
+
+Time calculations and executable validators remain code: stats.period_change calls
+the shared period-change calculation for explicit dates, supported tests, per-day
+comparisons and source-declared factors, with period/observed-coverage checks.
+stats.series_diagnostics computes largest observed adjacent moves with ties retained
+and runs calendar/observed-coverage checks. Both consume full explicit population
+filters. Neither delegates to legacy Trend nor certifies ingestion completeness or
+causal validity. Missing period values stop the new comparison. No generic pipeline
+or validator execution language is introduced.
+
+All shipped Skill assets are Korean. Existing drilldown/peer and advisory guides
+release as 1.0.1 with new hashes; old Run snapshots retain the original English text.
+The example campaign Recipe becomes 1.0.1 with explicit Skill pins. Existing pinned
+1.0.0 Skill Recipes require explicit review and a new Recipe version; an installed
+version mismatch is rejected rather than silently substituted. This registry still
+loads one version per logical Method ID; retain the old package/environment for
+exact old-version reruns. Legacy query.aggregate/query.trend Recipes need no rewrite.
+
+## ADR-100 — Inspectable code and opt-in local Method/Skill editing
+
+Status: accepted (2026-10-16). The user explicitly requested Python source visibility,
+UI editing of both Python and Skills, and a readable/high-contrast Skill display.
+This supersedes ADR-097's no-Method-editing-UI/no-HTTP-code-publication boundary for
+trusted local/demo operators. Runtime AI still maps to registered assets; no arbitrary
+Python/SQL execution tool or untrusted shared code host is added.
+
+Method detail renders Skill Markdown safely (no raw HTML or automatic image fetch),
+and syntax-highlights Python entry/helper code. New Run records retain selected Python
+source/hash/version; old Runs are not backfilled from current code. The snapshot covers
+entry modules and selected local helpers only, not full library internals or environments.
+
+UI editing uses a separate managed asset directory with draft revision/base-version
+CAS, explicit version increments, source comparison, syntax/registration checking and
+reviewed immutable publication. Installed Git/package files are never edited in place.
+Git remains the authority for installed versions, managed files for UI releases; moving
+changes between them is an explicit operator action. Concurrent/stale writes are rejected.
+
+Python code must export one registered Method in METHODS under the same logical name.
+The managed publication version is applied as registration metadata by visible generated
+code. Checking imports executes code in a credential-reduced child with a 15-second
+limit, while publication imports trusted reviewed code in the server. This does not
+isolate host files/network or certify calculations. UI labels the limited check scope
+and requires review before Python checks and all publication. Draft save alone does not
+execute code or change active assets. No dependency installation is performed by the UI.
+
+DL_ALLOW_METHOD_EDITING plus DL_METHOD_ASSETS_DIR opt in. Separate Method editor and
+publisher roles prevent Recipe publishers from acquiring code-execution rights. The
+explicit local service operator may edit in local/demo; shared mode remains blocked.
+The sample demo enables editing, generic Compose leaves it off. No anonymous shared
+code publication is claimed safe. Source inspection uses registered assets only; there
+is no caller-supplied filesystem path or module import endpoint.
+
+The registry stores exact installed/managed versions and retains old releases across
+publication/restart. Pinned Recipe validation/execution resolves that version, and
+unavailable pins in new authoring/execution are rejected rather than silently substituted.
+Historical files with unavailable versions remain structurally readable so retained
+old Recipe versions cannot prevent startup; execution has no fallback. Startup package changes
+still require compatible dependencies/source environments; source snapshots do not
+recreate all binaries. An installed/UI same-version collision blocks startup pending explicit source/version
+reconciliation. Higher installed versions remain current while older managed versions
+remain resolvable. Local draft/publish locking is single-process, not distributed.
+
+## ADR-101 — Authorable code is distinct from complete execution source
+
+Status: accepted (2026-10-16). The user rejected platform internals as the primary
+Method authoring experience. Code visibility alone is insufficient when the first
+screen/editor contains unrelated assets, Recipe builders and framework contracts.
+
+The normal extension remains an ordinary synchronous Python function plus separate
+`python_method`/`DataInput` registration. No new mandatory Method base class,
+async function, Artifact or bespoke estimator API is introduced for contributors.
+
+Method detail and draft initialization now use the selected asset's functions,
+referenced checks/constants/imports and registration, preserving their formatting.
+This is an authoring projection, not the exact original file bytes: relative imports
+become absolute and UI-managed version metadata is reflected in the registration.
+Unknown dynamic module initialization falls back to the full source rather than
+pretending to infer its dependencies. Exact entry/helper source and hashes remain
+available separately, collapsed by default. Run snapshots retain their own projection
+and complete evidence; current code never replaces missing historical evidence.
+
+`stats.series_diagnostics@1.1.0` is an actual calculation split, not an illustrative
+copy: a normal pandas function accepts period/metric/value rows and returns the
+largest adjacent changes with ties. Its existing source-bound adapter retains Cube
+queries, scope/filter propagation, checks, warnings and output contracts. Editing
+that function changes the calculation run by the canonical engine. Its registration
+reuses that particular input/output adapter; it is not required boilerplate for new
+analyses, which use the general Python registration path. Builtin 1.0.0 remains
+installed for pinned Recipes. Other advanced source-aware Methods are not falsely
+presented as already migrated to DataInput.
+
+Analytical complexity is not removed by hiding checks or shortening a causal fit.
+Required analytical diagnostics remain executable and inspectable. Full source
+view and trusted code review/publication rules from ADR-100 remain in force.
+
+ADR-100/101 UX refinement (2026-10-16): the read surface switches in place to a
+Python/Markdown editor above the content, with preview/comparison, explicit dirty/
+saved/checked/published states, keyboard draft save and unsaved link/unload protection.
+Check saves the exact current draft first. Background metadata refreshes do not reset
+an editing buffer; save responses do not mark subsequently typed edits as saved.
+Conflicts retain local text and offer an explicit remote comparison/rebase. Existing
+server revisions, reviewed-code gates, publisher permissions and immutable publication
+remain authoritative; this does not add execution APIs or anonymous editing rights.
+
+## ADR-102 — One ordinary calculation entry, explicit input contracts and retained advanced cases
+
+Status: accepted (2026-10-16), requested as an actual registration/runtime change.
+Extends ADR-097/101; Cube-only and trusted local publication boundaries remain.
+
+New calculations use `python_method(fn, inputs={argument: DataInput(...)})`. A normal
+function receives DataFrame(s)/records and calculation options. It does not select
+Cube credentials, semantic objects, query periods or filters. Use one file shape:
+imports, ordinary calculation, optional checks/output presentation, METHODS export.
+The earlier `calculation/InputTable` remains a frozen compatibility API; it is no
+longer a second tutorial path. Advanced async/class contracts are still supported.
+
+DataInput is now a canonical typed model exposed as `MethodManifest.data_inputs`.
+The same declarations build the executable roles and appear in REST/MCP/Web.
+Simple measures/dimensions remain lists of stable calculation column names. An
+entity input may optionally use existing RoleSpec declarations for mixed or
+multiple variables; a multiple role expands to name_0, name_1, etc. The source
+owns entity identity, metric definitions and aggregation. The engine checks roles,
+period/access/budgets, column bounds, actual returned columns, finite measures and
+unique non-null returned grain. Resolved alias-to-reference mappings are recorded
+as python.resolved_inputs along with existing query specs/native queries. DataFrame
+attrs optionally expose semantic_refs for result labels, not credentials or source
+control. Missing required bindings refuse before querying; ambiguous time dimensions
+use existing NeedsInput. Business-variable roles are not inferred or certified by
+these type checks; the client must ask about ambiguous meaning.
+
+stats.binary_matching and stats.regression_adjustment 1.1.0 use actual ordinary
+analyze(data, ...) functions and this general input path. DoWhy calls and analytical
+diagnostics remain visible. Regression options have an executable pre-query check
+in the same bounded compute worker. Presentation records passed diagnostics only
+after successful calculation; identification remains unverified. Both installed
+1.0.0 implementations and their import paths remain resolvable for pinned Recipes.
+Changed input validation and extra provenance justify a new version even where
+numerical payloads agree. No historical Run/code snapshot is rewritten.
+
+Two justified advanced cases remain explicit: series_diagnostics 1.1.0 already
+has an ordinary pandas function but retains the source-bound adapter for calendar/
+observed-coverage checks and its existing time-series/table output contract;
+period_change needs provider-declared denominators, aggregation kind and factor
+relationships to choose additional queries and valid comparisons. Neither adapter
+is a required beginner template. Forcing them into a generic dataframe schema or
+removing checks to shorten code would lose their contract; no new loader/DSL is
+introduced for cosmetic uniformity.
+
+Default Python choices remain the four distinct numerical capabilities. Central
+compatibility registration keeps old aggregate/trend/drilldown/peer, CEM, earlier
+statistical contracts and optional unit/panel analyses outside new discovery.
+The local pre-change inventory contains 22 Runs including 8 legacy drilldown,
+1 trend and 2 aggregate steps. Removing those implementations would break actual
+retained assets. No blanket filesystem deletion is justified by absence from the
+current UI; public callers can pin previously shipped packages. Repository examples
+and managed versions remain usable. Existing UI drafts are preserved and version
+conflicts use the existing explicit review path. See the dated evidence directory
+for the audit, execution comparisons and remaining limits.
+
+ADR-102 execution follow-up: a real Cube comparison exposed that worker-captured
+library warnings were only attached to dict payloads, disappearing for ordinary
+function MethodOutput adapters. The common worker now appends those warnings to
+Result.warnings. Legacy dict payloads retain backend_warnings for compatibility;
+comparisons check numerical payloads and warning preservation separately.
+
+## ADR-103 — Retire redundant default calculations, retain pinned execution (2026-10-16)
+
+**Accepted.** User explicitly removed `stats.period_change`, `stats.series_diagnostics`,
+and `example.household_regression` from the product's default choices. Supersedes
+their default-catalog status in ADR-099/102; ordinary Python authoring is unchanged.
+
+- Keep released implementations/version lookups for existing Recipes and Runs. The
+  default REST/MCP/Python discovery catalog excludes these names. Exact historical
+  execution remains supported; this is retirement, not deletion of historical code.
+- Operator modules may export `COMPATIBILITY_METHODS` alongside `METHODS`. Managed
+  asset restoration/publication preserves a name's compatibility status, so a saved
+  UI revision cannot accidentally restore a retired catalog choice on restart. An
+  explicit operator registration can still reactivate a Method.
+- Publish drilldown/trend instructions as 1.1.0 without referrals to retired methods;
+  archive previous released text for exact-version lookup. Skills describe queried
+  values and stop unsupported calculation claims. No prose or AI arithmetic replaces
+  numerical validation. Existing Run snapshots and managed drafts are not rewritten.
+- `campaign_recipe()` 1.1.0 has two query Skills. `legacy_campaign_recipe()` and
+  historical evaluation scripts retain the old three-stage procedure explicitly.
+  Existing stored Recipe releases are preserved; a new version is required to adopt
+  the query-only procedure. Default Python choices remain regression adjustment and
+  binary matching.
+
+## ADR-104 — Shared Python formatting and line review (2026-10-16)
+
+**Accepted.** Python Method authors use a pinned Ruff 0.12.3 formatter with one
+bundled `methods/python-style.toml` configuration (88 columns, four spaces, double
+quotes, stable mode). Root tooling extends that same configuration. No new Method
+class or calculation signature is introduced. Prefer imports → calculation →
+optional checks/presentation → METHODS; omit unused sections. Statistical imports
+may remain local to keep optional dependencies optional at discovery time.
+
+- Current builtin calculation modules, first-method/plain-function examples and
+  paired authoring notebooks use the style. The formatter changes layout; function
+  options, algorithms and existing version references are unchanged. `make
+  format-methods` applies it; `make check-method-format` and CI enforce the scoped
+  contributor surface without rewriting frozen compatibility modules.
+- New source capture formats only the selected authoring projection, preserving
+  comments and referenced definitions. Full evidence files and hashes remain exact,
+  and stored Run snapshots/published assets are not rewritten. Thus a readable
+  projection can differ in whitespace from the actual source evidence.
+- POST `/methods/{name}/source:format` requires enabled editing and Method edit
+  permission. It accepts bounded Python text, parses/formats without importing it,
+  limits formatter runtime, and compares the before/after AST. It returns text only,
+  with no persistence or registration. Syntax errors leave the editor unchanged.
+  It does not require trusting/executing a Python draft.
+- Web offers explicit formatting, Shift+Alt+F and a one-action revert. Formatting
+  changes reset review/check readiness. Save, registration check and publication
+  remain explicit. Code/Skill comparison shows actual added/deleted lines with
+  original/new line numbers and context; whitespace is not ignored because Python
+  indentation is meaningful. Comparisons are bounded and fall back on full preview
+  when too large. Formatting/diff never imply analytical validation.
+
+## ADR-105 — Ordinary column arguments and an executable authoring workshop (2026-10-16)
+
+**Accepted.** The authoring unit remains an ordinary synchronous function plus a
+small separate `python_method` registration. Extend ADR-097/102 with
+`DataInput.column_args`, rather than another decorator, planner or estimator API.
+A data scientist can keep `ols(data, outcome, treatment, confounders)` and call it
+with their own DataFrame/column names before registering it.
+
+- Function identity/version, row grain, semantic variable roles and materialization
+  checks are explicit. Scalar option defaults/types and the function docstring are
+  inferred as before. Definitions, joins and source access remain provider-owned.
+  Actual refs, scope and filters are supplied per invocation, never inferred from
+  parameter spelling. The AI may propose existing catalog objects and ask about
+  ambiguous meaning; type checks do not certify confounder choice or causality.
+- Each column argument must name a role in its own input and an actual separate
+  function parameter. Exactly one input owns each argument. Scalar roles supply a
+  column-name string; multiple roles supply ordered lists of resolved aliases.
+  Absent optional roles supply None/[]; required omissions refuse before querying.
+  These are binding roles, not user-overridable calculation options. Fixed-column
+  functions and all installed/pinned Methods remain supported without migration.
+- The existing Registry → context → bounded compute path queries, validates and
+  injects those names. The manifest serializes the declaration to REST/MCP/Web;
+  `python.resolved_inputs` records actual argument and alias-to-ref maps. No AI code
+  generation, local-file data connector or separate execution service is added.
+- The paired first-Method notebooks now demonstrate direct ordinary Python, governed
+  execution, pre-query failures, data refusals, native statsmodels OLS, multiple
+  inputs, default DoWhy OLS/matching, module installation and Web/MCP usage. The
+  optional column_arguments module is a teaching asset, not a third default Method.
+  Offline fixtures and request replay are explicitly distinct from live Cube/AI
+  validation. Real Cube execution remains opt-in with discovered references.
+- Web explains column arguments and links to the existing single-step Recipe preview.
+  Users can choose data/dates and inspect results/queries without saving a Recipe.
+  Method deep links seed only declared roles and pin the selected version; they
+  must not inject an undeclared metric role into outcome/value-based functions.
+  Registration checks do not count as numerical tests. Preview executes published
+  code, never an unsaved editor draft. Existing source/version publication boundaries
+  remain unchanged.
+
+Validation compares direct/registered numerical results with known synthetic slopes,
+checks optional/list arguments and invalid registration, prevents client overrides
+and queries on missing bindings, exercises MCP through HTTP and the server worker,
+and runs the workshop top to bottom. Analytical correctness still needs Method-
+specific tests and independent review of observational assumptions.
+
+## ADR-106 — One Method project from authoring to server registration (2026-10-19)
+
+**Accepted.** The public extension entry is a project identified by
+`decision-layer.yaml` (`config_version: 1`, `name: <python_package>`). Definitions live in
+`<name>/methods/<definition>/`. A Python entry is `method.py` exporting one `METHOD`
+object; a Skill entry is `SKILL.md` using the existing frontmatter contract. Helper
+files are not discovered. Ordinary functions and `python_method` / DataInput remain
+unchanged; the project adds organization and loading, not another calculation DSL.
+
+- `decision-layer init`, `new python|skill`, `check`, `list`, and `serve` scaffold and
+  inspect the same definitions. Lists show source paths. Check validates registration
+  and references, never analytical quality. A marked project is found from cwd and
+  parents; `--project` / `DL_PROJECT_DIR` explicitly selects it elsewhere. An invalid
+  explicit project fails rather than silently serving only built-ins.
+- API startup, CLI and MethodSession.load_project share the project loader and
+  canonical Registry. Python modules remain ordinarily importable so the spawned
+  server worker can resolve functions. Project packages need distinct Python names.
+  A running process does not hot-patch imported functions; development serve --reload
+  restarts on changes, and deployment ships reviewed files/dependencies and restarts.
+  CLI serve defaults Run storage to the project's `.decision-layer/decision_layer.db`
+  rather than an installed-package directory; explicit DL_DATABASE_URL wins.
+- Only selected local project code is imported. Definition symlinks stay in the
+  project definitions directory. Duplicate identities, malformed exports, invalid
+  Skills and missing suggested tools fail with paths before the target registry is
+  changed. Python and Skill registrations are staged together, allowing Skill
+  references to definitions later in directory order.
+- Built-ins and their historical versions remain intact. Legacy DL_METHOD_MODULES /
+  METHODS, DL_SKILLS_DIR and managed Web publications remain compatible. Publication
+  version/source rules, permissions, Run evidence and interpretation are unchanged.
+  No code upload service, package installer, auto-import of every installed package,
+  marketplace or new execution engine is added.
+
+The design borrows a marked project/configured paths from
+[dbt](https://docs.getdbt.com/reference/dbt_project.yml), a shared project-definition
+loader and CLI inspection from
+[Dagster's loader](https://github.com/dagster-io/dagster/blob/master/python_modules/dagster/dagster/components/core/load_defs.py),
+and explicit discovery boundaries and diagnostic commands from
+[pytest](https://docs.pytest.org/en/latest/how-to/writing_plugins.html). Automatic
+installed-package entry points are deferred: local team definitions need a visible
+project directory before a distribution/plugin ecosystem.
+
+
+## ADR-107 — Package the existing admin UI with the Python application (2026-10-19)
+
+**Accepted.** A Method project is the local application entry point. `serve` starts
+the admin console at `/ui/` and canonical API on one origin. `--api-only` preserves
+the lightweight API development path. Existing root REST endpoints stay compatible;
+`/api/` mounts the same API instance, caller checks and engine used by REST/MCP.
+
+The existing client React pages are compiled with Vite for distribution, with a
+small React Router adapter for their Next navigation imports. Next remains available
+for existing Web development/deployment. No parallel Method UI or execution logic
+is introduced. Release CI builds the console before wheel/sdist construction, and
+installation requires neither Node nor Docker. Missing UI assets fail with a build
+remedy, rather than silently presenting an API-only product.
+
+Local persistent state defaults to `.decision-layer/`, Recipes to `recipes/`, with
+explicit environment settings taking precedence. Project identity/path are visible
+in the console. File-authored Methods are edited in their files; opt-in Web drafts
+and immutable publication remain governed by ADR-100 and do not overwrite project
+files. Source credentials and editor permissions are not silently enabled. This is
+a local application, not a new shared deployment or sandbox.
+
+## ADR-108 — Concise column declarations and invocation-time entities (2026-10-19)
+
+**Accepted.** New ordinary Python registrations use the public
+`DataInput(columns={name: Column(...)})` authoring API. `Column.source` is required:
+`"measure"`, `"dimension"`, or an explicit list of both. `dtype`, `multiple`,
+`required`, and `description` express constraints once. The author-facing models
+compile to the existing core DataInput/RoleSpec manifest at registration; they do
+not introduce a second engine or change stored manifest formats.
+
+- Matching Column names and function arguments automatically produce the existing
+  column_args contract. Ambiguous ownership across tables fails registration;
+  explicit column_args can select the owner. An inferred column argument cannot be
+  overridden as a calculation option. Fixed-column functions need no extra list.
+- `grain="entity"` declares entity observations without a user-invented binding
+  alias. It compiles to the canonical entity role named `entity`; the existing
+  `entity=...` invocation input on Python/REST/MCP selects the actual provider-owned
+  key. Entity identity, joins and aggregation remain provider-owned. Missing keys
+  and unsupported grain fail closed. Separate entity roles on multiple tables
+  remain available through the advanced legacy declaration.
+- Aggregate inputs can declare Column roles too. Actual selected kinds determine
+  measure/dimension query fields, preserving list aliases. Returned aggregate grain
+  validation uses the resolved dimension aliases; entity grain retains its unique,
+  non-null unit/time checks. This never asserts statistical independence.
+- Existing measures/dimensions/RoleSpec/explicit column_args and named entity roles
+  remain supported, including installed historical implementations. Supersedes the
+  author-facing requirement for explicit column_args in ADR-105, not its canonical
+  execution/evidence contract. Shared Web discovery reads the normalized manifest.
+- DataFrame results use the existing automatic table adapter. Dict estimates remain
+  explicit via output="estimate". No dependency installation or new result-type
+  inference is introduced. Notebook, CLI scaffold and example project use the same
+  authoring path; this source change does not publish a new PyPI version.
+
+## ADR-109 — Declare analysis keys alongside other input columns (2026-10-19)
+
+**Accepted.** The preferred authoring form for entity observations is
+`Column(source="dimension", role="entity_key")` inside `DataInput.columns`.
+The author chooses its name (for example entity_id or customer_id), and callers
+supply the real semantic reference under that same name in bindings. This replaces
+ADR-108's preferred grain="entity" / separate entity=... syntax; that syntax and
+older explicit entity roles remain compatible.
+
+- source describes allowed semantic kinds; role describes the column's use.
+  An entity_key must be one required dimension, backed by a provider-declared
+  entity identifier. Each input table allows one key. Conflicting grain/entity
+  declarations, multiple keys, optional keys, and measure keys fail registration.
+  Time granularity remains separate; a key does not establish independence.
+- Registration compiles the key to the existing canonical entity role, retaining
+  its constraints and description. The canonical DataInput.entity names that role,
+  and its columns entry retains the declared key. No new invocation fields or
+  semantic definitions are introduced. Required bindings and provider grain
+  validation still run through the ordinary Registry and dataset path.
+- The returned key column preserves the author's name. Matching function arguments
+  receive that column name like other Column inputs. Alias collisions fail before
+  extraction; null/duplicate keys fail before calculation. Legacy tables retain
+  their unit alias. Queries, resolved aliases and references remain in provenance.
+- Notebook and project examples use bindings for every semantic input. Web shows
+  the declared key once and labels its role. Source publication and PyPI release
+  remain separate actions; this implementation updates the local repository.
+
+## ADR-110 — Organize learning material and code by responsibility (2026-10-19)
+
+**Accepted.** Learning notebooks live in `docs/tutorials/methods/`. Reusable example
+code lives under `examples/methods/authoring`, `statistics`, `scenarios`, and
+`examples/recipes`; complete team projects remain under `examples/methods/project`.
+The previous `patterns` folder mixed these responsibilities and is removed. Example
+and notebook tests belong in `tests/examples`, discovered by the ordinary test run.
+VitePress links to tutorial sources and a repository map instead of duplicating
+notebook content in generated Markdown.
+
+- Update imports, CLI examples, Docker mounts, CI, formatter targets and links in
+  the same change. The complete-journey demo mounts `examples` as an importable
+  namespace and loads `examples.recipes.skill_chain`.
+- Product authoring exports remain in `decision_layer.methods`. Built-in assembly
+  moves to `methods/catalog.py`, re-exporting `register_builtins` at its existing
+  public path. Implementation module paths, Method IDs, versions and historical
+  evidence remain unchanged. Example modules are repository teaching assets, not
+  installed public APIs; local settings referencing them need the new paths.
+- Method presentation and editing components live in `web/features/methods`,
+  matching Recipe and Run feature ownership. Shared routes still use the same
+  components and canonical API. This changes organization, not execution behavior.
+- The introductory English notebook follows the current Korean rank/OLS sequence.
+  Both are executed from the tutorial directory against prepared data. Advanced
+  SDK notebooks remain separate references.
+
+This is a repository organization change, not a new package, provider, execution
+engine, UI runtime or PyPI release. Generated frontend assets and local project
+state remain separate from editable source.
+
+## ADR-111 — Separate product orchestration from execution policies and presentation (2026-10-19)
+
+**Accepted.** Refactor product implementation by responsibility while preserving
+public Python imports, Method manifests, REST/MCP payloads and stored Run schemas.
+
+- PythonMethod delegates canonical registration, provider-side extraction and
+  worker-side calculation to `methods/function/`. Option/data check handling is
+  shared; expected validation failures stop computation, programming errors still
+  propagate, and existing validation codes/messages remain intact.
+- RunEngine retains lifecycle, locks, jobs and pipeline resumption. Step execution,
+  context creation, budgets/scope and read authorization have separate modules with
+  explicit dependencies. Shared Run reads still check every recorded semantic ref;
+  query attempts are still persisted before the provider call. Errors remain
+  re-exported from their existing engine import path.
+- MCP evidence projection is separate from registered tools and HTTP dispatch.
+  Projection never modifies stored results or performs queries. Instruction text
+  is kept separately, using the same locale and client-profile selection.
+- API host/origin/locale handling and operator permission checks have dedicated
+  modules; Method and Recipe permissions share the same explicit local-owner rule.
+  CLI file scaffolding is separate from argument dispatch and serving, with the
+  existing Python entry points retained.
+- Recipe editing separates graph nodes, reusable field controls, step settings and
+  pure editor values. The parent retains mutation/preview state so asynchronous
+  configuration and YAML conflict checks keep their existing behavior.
+
+No new runtime, public abstraction or interface-specific execution path is added.
+Existing integration tests cover worker execution, private/shared Run access, Skill
+continuations, API errors and MCP payloads. Regression tests pin check ordering and
+programming-error behavior; browser checks cover Recipe edits and saved selections.

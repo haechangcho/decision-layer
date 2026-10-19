@@ -62,6 +62,10 @@ def walkthrough(client, emit=print):
     check_run(first, 'Home', 6200, 3720)
     emit('JANUARY  Home leads: 6,200. Its North region contributes 3,720.')
     recipe = request(client, 'POST', f"/runs/{first['id']}/recipe", json={})
+    assert recipe['status'] == 'draft'
+    assert recipe.get('source_question') is None
+    recipe = request(client, 'POST', f"/recipes/{recipe['name']}/publish",
+                     json={'base_version': recipe['version']})
     assert recipe['steps'][1]['params']['drill_path'] == RULE
     assert not recipe.get('default_scope', {}).get('date_range')
     emit('SAVED    A Recipe that selects the current leader, not the word Home.')

@@ -75,10 +75,10 @@ python3.11 -m venv .venv-pywhy-review
 .venv-pywhy-review/bin/python -m pip install -e '.[dev,stats,dowhy,econml]' -c examples/methods/pywhy_review/constraints-013-py311.txt
 .venv-pywhy-review/bin/python -m examples.methods.pywhy_review.experiment
 .venv-pywhy-review/bin/python -m examples.methods.pywhy_review.session
-.venv-pywhy-review/bin/python -m pytest -q examples/methods/pywhy_review/test_review.py
+.venv-pywhy-review/bin/python -m pytest -q tests/examples/test_pywhy_review.py
 ```
 
-Executable sources are in `examples/methods/pywhy_review/`: ordinary functions in `experiment.py`, typed adapters in `methods.py`, registration/execution with independently specified query fixtures in `session.py`, and tests of the same implementation in `test_review.py`. `explore.ipynb` imports these functions too. Its cells were executed by pytest; optional Jupyter installation and kernel selection are separate, and the notebook UI itself was not tested.
+Executable sources are in `examples/methods/pywhy_review/`: ordinary functions in `experiment.py`, typed adapters in `methods.py`, registration/execution with independently specified query fixtures in `session.py`, and tests of the same implementation in `tests/examples/test_pywhy_review.py`. `docs/tutorials/methods/pywhy_review.ipynb` imports these functions too. Its cells were executed by pytest; optional Jupyter installation and kernel selection are separate, and the notebook UI itself was not tested.
 
 ```python
 from examples.methods.pywhy_review.experiment import data, native, dml
@@ -180,7 +180,7 @@ DoWhy 0.14 distribution metadata requires NumPy >2.0, conflicting with the curre
 python3.11 -m venv .venv-pywhy-014
 .venv-pywhy-014/bin/python -m pip install -e '.[dev,stats]' 'dowhy==0.14' 'econml==0.16.0' -c examples/methods/pywhy_review/constraints-014-py311.txt
 .venv-pywhy-014/bin/python -m examples.methods.pywhy_review.experiment
-.venv-pywhy-014/bin/python -m pytest -q examples/methods/pywhy_review/test_review.py
+.venv-pywhy-014/bin/python -m pytest -q tests/examples/test_pywhy_review.py
 ```
 
 The isolated 0.14 numerical experiment passed but recorded NumPy matrix-operation overflow/invalid/divide-by-zero warnings. Finite estimates near expected values do not justify ignoring warnings and declaring production support. Investigating their origin/platform reproducibility and choosing a warning policy remain upgrade gates. The 0.13 pandas positional-indexing warning and string-wrapper deprecation on both versions were also recorded.

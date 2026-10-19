@@ -28,7 +28,14 @@ def _invalid(message: str, field: str) -> RecipeEditError:
     return RecipeEditError(message, field=field)
 
 
-def validate_recipe(recipe: Recipe) -> None:
+def validate_recipe(recipe: Recipe, registry=registry, *, allow_uninstalled_versions: bool = False) -> None:
+    def selected_version(name, version):
+        if allow_uninstalled_versions and version:
+            try:
+                registry.get(name, version)
+            except InvalidBinding:
+                return None  # Historical structure may be inspected; execution never uses this fallback.
+        return version
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}", recipe.name):
         raise _invalid("Recipe name must contain only letters, numbers, underscores or hyphens.", "name")
     if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", recipe.version):
@@ -80,7 +87,7 @@ def validate_recipe(recipe: Recipe) -> None:
 
     for method in recipe.allowed_methods:
         try:
-            registry.get(method)
+            registry.plannable(method)
         except InvalidBinding as e:
             raise _invalid(e.message, "allowed_methods") from e
     available = set(recipe.allowed_methods if recipe.mode == "investigation" else (step.method for step in recipe.steps))
@@ -88,27 +95,29 @@ def validate_recipe(recipe: Recipe) -> None:
         field = f"method_parameters.{method}"
         if method not in available:
             raise _invalid("Parameter policy refers to a Method outside this Recipe.", field)
-        manifest = registry.get(method).manifest
-        for name, value in policy.fixed.items():
-            if name not in manifest.parameters:
-                raise _invalid(f"Unknown Method parameter: {name}.", f"{field}.fixed.{name}")
-            if is_dynamic(value):
-                raise _invalid("Fixed parameters must be literal values.", f"{field}.fixed.{name}")
-            try:
-                registry.resolve_params(method, {name: value}, partial=True)
-            except InvalidBinding as e:
-                raise _invalid(e.message, f"{field}.fixed.{name}") from e
-        if policy.runtime_allowed is not None:
-            if len(policy.runtime_allowed) != len(set(policy.runtime_allowed)):
-                raise _invalid("Runtime parameter names must be unique.", f"{field}.runtime_allowed")
-            for name in policy.runtime_allowed:
-                if name not in manifest.parameters or name in policy.fixed:
-                    raise _invalid(f"Parameter cannot be selected at runtime: {name}.", f"{field}.runtime_allowed")
+        versions = {step.method_version for step in recipe.steps if step.method == method} or {None}
+        for version in versions:
+            manifest = registry.get(method, selected_version(method, version)).manifest
+            for name, value in policy.fixed.items():
+                if name not in manifest.parameters:
+                    raise _invalid(f"Unknown Method parameter: {name}.", f"{field}.fixed.{name}")
+                if is_dynamic(value):
+                    raise _invalid("Fixed parameters must be literal values.", f"{field}.fixed.{name}")
+                try:
+                    registry.resolve_params(method, {name: value}, partial=True, version=selected_version(method, version))
+                except InvalidBinding as e:
+                    raise _invalid(e.message, f"{field}.fixed.{name}") from e
+            if policy.runtime_allowed is not None:
+                if len(policy.runtime_allowed) != len(set(policy.runtime_allowed)):
+                    raise _invalid("Runtime parameter names must be unique.", f"{field}.runtime_allowed")
+                for name in policy.runtime_allowed:
+                    if name not in manifest.parameters or name in policy.fixed:
+                        raise _invalid(f"Parameter cannot be selected at runtime: {name}.", f"{field}.runtime_allowed")
     for i, step in enumerate(recipe.steps):
         if step.exploration or step.goal_ids:
             raise _invalid("Run goal links and exploration flags do not belong in reusable Recipe steps.", f"steps[{i}]")
         try:
-            manifest = registry.get(step.method).manifest
+            manifest = registry.plannable(step.method, selected_version(step.method, step.method_version)).manifest
         except InvalidBinding as e:
             raise _invalid(e.message, f"steps[{i}].method") from e
         if step.id and (not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", step.id) or step.id in previous):
@@ -152,7 +161,7 @@ def validate_recipe(recipe: Recipe) -> None:
                 raise _invalid(f"{key} conflicts with the Recipe's fixed value.", f"steps[{i}].params.{key}")
             if key in step.params and not (isinstance(value, str) and value.startswith("$")):
                 try:
-                    registry.resolve_params(step.method, {key: value}, partial=True)
+                    registry.resolve_params(step.method, {key: value}, partial=True, version=selected_version(step.method, step.method_version))
                 except InvalidBinding as e:
                     raise _invalid(e.message, f"steps[{i}].params.{key}") from e
         expressions(step.bindings, f"steps[{i}].bindings")

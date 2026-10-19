@@ -15,8 +15,9 @@ Decision Layer는 시맨틱 참조, 검토된 Method, 재사용 가능한 Recipe
 | 공통 타입·ID | `src/decision_layer/core/` |
 | Method 구현·작성 API | `src/decision_layer/methods/` |
 | 로컬 Method 개발 | `src/decision_layer/dev.py` |
+| 프로젝트 로딩·CLI | `src/decision_layer/project.py`, `src/decision_layer/cli.py` |
 | 쿼리 fixture | `src/decision_layer/testing.py` |
-| 시맨틱 계약·Cube/dbt adapter | `src/decision_layer/semantic/` |
+| 시맨틱 계약·Cube adapter (과거 dbt 코드 보존) | `src/decision_layer/semantic/` |
 | 연결 설정·인증 정보 저장 | `src/decision_layer/sources/` |
 | Recipe 검증·편집·등록 | `src/decision_layer/recipes/` |
 | Run 실행·작업·근거·저장 | `src/decision_layer/runs/` |
@@ -69,6 +70,12 @@ OLS, DoWhy 조정 대비, EconML DML, panel 대비가 있습니다.
 폴더나 이름만으로 인과 주장을 정당화하지 않습니다.
 
 `methods/__init__.py`는 작성용 타입을 공개하고 기본 Method를 명시적으로 등록합니다.
+팀의 Python·Skill 정의는 `decision-layer.yaml`이 있는 프로젝트의
+`<이름>/methods/` 아래에 둡니다. `method.py`의 `METHOD` 객체와 `SKILL.md`를 CLI,
+로컬 `MethodSession.load_project`, API가 같은 로더로 읽습니다. `list`에서 원본
+경로를 확인하며 운영에서는 `DL_PROJECT_DIR`로 프로젝트를 선택합니다. 기존
+모듈·Skill 디렉터리 등록도 호환됩니다. ADR-106과
+[프로젝트 가이드](guides/method-projects.md)를 참고하세요.
 구현 모듈은 import만으로 자신을 등록하지 않습니다. Registry는 파라미터·입력 연결을 검사하고,
 해석 범위·실행 근거를 기록하며, 선언하지 않은 artifact 타입·선택·기능을 거절합니다.
 출력 수치와 payload의 정확성은 독립적인 Method 테스트가 필요합니다.
@@ -82,7 +89,7 @@ ADR-003/019/060/062/067/069/070을 참고하세요.
 
 ## 시맨틱 provider
 
-제품 연결은 Cube REST와 공식 hosted dbt Semantic Layer GraphQL API입니다.
+초기 제품 연결은 Cube REST만 지원합니다(ADR-096). dbt·BigQuery·DW·DM 직접 연결은 초기 범위에서 제외합니다. 기존 dbt 코드는 과거 계약 회귀용으로 보존하며 제품 연결 목록에는 제공하지 않습니다.
 별도의 MetricFlow gateway는 제공하지 않습니다. Adapter는 원본 metadata를
 SemanticCatalog로 변환하고 DatasetSpec을 실행합니다. 선언된 관계는 탐색 정보이며,
 join·grain 지원을 보증하지 않습니다. 실제 실행에서 다시 검증합니다.
@@ -143,3 +150,33 @@ Method는 검토된 Python과 독립 테스트로, Recipe는 공통 명세로, p
 노트북 호스팅·코드 업로드 실행·동적 플러그인 설치·별도 프런트엔드 런타임·범용 스케줄러는 보류합니다.
 
 Python 호출자는 함수 인자를 이름 그대로 사용하며 정규화와 role/parameter 분류는 내부에 둡니다. 새 통계 Method는 AnalysisDesign·가정 체크박스 없이 제한된 개별 계약을 사용하고 가정 미검증·연관성 결과를 기록합니다. 기존 ID·버전의 원래 계약은 호환 모듈에 유지합니다(ADR-084).
+
+## 쿼리 실행 Skill 단계 (ADR-098)
+
+ADR-097의 참고용 Skill 제한을 확장한다. `query_execution: true` Markdown은
+Recipe/Run 단계로 등록되며, 실행기는 외부 Claude/Codex의 쿼리 선택을 기다린다.
+`run_skill_query`는 기존 ExecutionContext로 Cube 조회를 수행하고 쿼리 요청·결과·
+오류·작성 클라이언트를 저장한다. `finish_skill_step`은 실제 결과 행을 참조하는
+선택을 저장하고 다음 Skill 또는 Python 단계로 이어간다. Skill 본문 준수와 동료
+집단 타당성을 자동 검증하지 않는다.
+
+기본 드릴다운·peer 조사는 `analysis.drilldown`, `analysis.peer_comparison`
+Skill이며, `query.drilldown`, `query.peer_comparison` Python 구현은 기존 Recipe
+호환용으로 유지한다. 새 Skill은 별도 ID이므로 과거 Run 의미를 바꾸지 않는다.
+`selected_group.evidence.filters`에는 제외·범위 조건도 보존되며, 후속 Python
+`DataInput.filters_parameter`가 전체 조건을 입력 조회에 적용한다.
+
+대기 중인 단계·지침 버전·해시·쿼리는 Run 저장소에 유지된다. 중단된 쿼리는
+자동 재실행하지 않는다. Web은 외부 AI 실행을 기다리는 상태와 실제 쿼리 로그를
+표시한다. 서버 자체 LLM, 임의 Python/SQL 실행, 새 데이터 연결은 추가하지 않는다.
+
+## 한국어 조회 Skill과 추이 계산 분리 (ADR-099)
+
+기본 지표 조회·추이 조사는 `analysis.metric_lookup`, `analysis.trend`가 담당한다.
+계산·검사는 `stats.period_change`, `stats.series_diagnostics`에서 실행한다.
+`query.aggregate`, `query.trend`는 이전 구현·버전 그대로 호환 등록하며, 기본 목록에서
+제외한다. 배포 Skill은 한국어이고 기존 지침 번역은 1.0.1로 구분한다.
+1.0.0을 고정한 Skill Recipe는 새 버전으로 검토·게시해야 하며 과거 Run은 보존한다.
+
+
+학습 노트북은 `docs/tutorials/`, 예제 코드는 `examples/`, 자동 검증은 `tests/examples/`에 있습니다. [저장소 구조](guides/repository.md)에서 전체 위치를 확인하세요.

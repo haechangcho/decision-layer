@@ -32,6 +32,8 @@ build/
 /docs/internal/
 /docs/design/
 /docs/research/
+/docs/PRD.md
+/docs/prd-evidence/
 /docs/.vitepress/cache/
 /docs/.vitepress/dist/
 /docs/MVP_PLAN.md

@@ -37,7 +37,9 @@
     ".next-local/types/**/*.ts",
     ".next-local/dev/types/**/*.ts",
     ".next-hc-cube/types/**/*.ts",
-    ".next-hc-cube/dev/types/**/*.ts"
+    ".next-hc-cube/dev/types/**/*.ts",
+    ".next-style-review/types/**/*.ts",
+    ".next-style-review/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

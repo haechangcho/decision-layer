@@ -1,10 +1,10 @@
 """Runs HTTP routes; analytical work stays in the canonical engine."""
 from __future__ import annotations
+from ..runs.skills import SkillQueryRequest, SkillFinishRequest
 from fastapi import Query, Request
 from fastapi.responses import JSONResponse, Response
 from ..i18n import _
 from ..core.models import PlanStep, Recipe, Result, Run
-from ..methods import registry
 from ..methods.invocation import invocation_inputs
 from ..recipes.from_run import RecipeCandidate, RunPromotionError, candidate_from_run, runtime_recipe_from_run
 from ..service import MethodProposalRequest, RunCompleteRequest, RunRecipeRequest, RunScopeRequest, RunShareRequest, RunStartRequest, RunStepRequest, RunUseRecipeRequest
@@ -12,11 +12,12 @@ from ..service import BlockedAnalysisRequest, RemediationCreateRequest, Remediat
 from ..runs import remediation
 from ..i18n import _
 from fastapi import APIRouter
-from .dependencies import Caller, Creds, JobFailed, NoResult, accepted, run_origin, waited
+from .dependencies import Caller, Creds, JobFailed, NoResult, accepted, run_origin, waited, require_recipe_permission
 
 from ..recipes.authoring import check_recipe_semantics
 
 def create_router(settings, provider, recipes, engine):
+    registry = engine.registry
     router = APIRouter()
     @router.post("/runs", response_model=Run, responses={202: {"description": "pipeline still running"}})
     async def run_start(req: RunStartRequest, creds: Creds, caller: Caller, request: Request, wait: float | None = None):
@@ -25,7 +26,7 @@ def create_router(settings, provider, recipes, engine):
         run = await engine.start(creds, caller, recipe=req.recipe, question=req.question, scope=req.scope.as_dict(),
                                  wait=waited(settings, wait), origin=run_origin(request), author=req.author,
                                  goals=req.goals, recipe_selection=req.recipe_selection,
-                                 recipe_review=req.recipe_review, interactive=req.interactive)
+                                 recipe_review=req.recipe_review, interactive=req.interactive, guide=req.guide)
         return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
 
     @router.get("/runs", response_model=list[Run])
@@ -51,14 +52,18 @@ def create_router(settings, provider, recipes, engine):
 
     @router.get("/runs/{run_id}/recipe-candidate", response_model=RecipeCandidate)
     async def run_recipe_candidate(run_id: str, creds: Creds, caller: Caller, indices: list[int] = Query(...)) -> RecipeCandidate:
-        run = await engine.get(creds, caller, run_id)
-        candidate = candidate_from_run(run, indices)
+        run = await engine._owned(run_id, caller)
+        require_recipe_permission(settings, caller)
+        candidate = candidate_from_run(run, indices, registry=registry)
         await check_recipe_semantics(candidate.recipe, provider, creds)
         return candidate
 
     @router.post("/runs/{run_id}/recipe", response_model=Recipe)
     async def run_recipe_register(run_id: str, creds: Creds, caller: Caller, body: RunRecipeRequest = RunRecipeRequest()) -> Recipe:
-        run = await engine.get(creds, caller, run_id)
+        run = await engine._owned(run_id, caller)
+        require_recipe_permission(settings, caller, publish=body.reviewed)
+        if body.reviewed and body.recipe is None:
+            raise RunPromotionError("Submit the reviewed Recipe explicitly before publication.")
         if run.status != "completed" or run.running:
             raise RunPromotionError("Complete the analysis before registering its procedure.")
         from ..recipes.loader import UnknownRecipe
@@ -68,14 +73,15 @@ def create_router(settings, provider, recipes, engine):
                 existing = recipes.get(name, include_drafts=True)
             except UnknownRecipe:
                 existing = None
-            if existing and existing.origin_runs == [run.id] and existing.status == "published":
+            if existing and existing.origin_runs == [run.id]:
                 await check_recipe_semantics(existing, provider, creds)
                 return existing
-        recipe = (body.recipe or runtime_recipe_from_run(run)).model_copy(update={"name": name, "origin_runs": [run.id], "status": "published"})
+        recipe = (body.recipe or runtime_recipe_from_run(run, registry=registry)).model_copy(update={
+            "name": name, "origin_runs": [run.id], "status": "published" if body.reviewed else "draft"})
         from ..recipes.authoring import validate_recipe
-        validate_recipe(recipe)
+        validate_recipe(recipe, registry=registry)
         for step in recipe.steps:
-            if step.method_version and registry.get(step.method).manifest.version != step.method_version:
+            if step.method_version and registry.get(step.method, step.method_version).manifest.version != step.method_version:
                 raise RunPromotionError("The recorded Method version is not installed. Edit the candidate before registering it.")
         await check_recipe_semantics(recipe, provider, creds)
         # A repeated click returns the same version instead of making another Recipe.
@@ -83,13 +89,13 @@ def create_router(settings, provider, recipes, engine):
         try:
             existing = recipes.get(recipe.name, include_drafts=True)
         except UnknownRecipe:
-            return recipes.save(recipe, None)
-        if existing.origin_runs != [run.id] or existing.status != "published":
+            return recipes.save(recipe, None, actor=caller.subject)
+        if existing.origin_runs != [run.id]:
             from ..recipes.authoring import RecipeConflict
             raise RecipeConflict("A different Recipe already uses this name.")
         if existing.model_dump() != recipe.model_dump():
             from ..recipes.authoring import RecipeConflict
-            raise RecipeConflict("This Run already has a different published Recipe. Save changes as a new version in the editor.")
+            raise RecipeConflict("This Run already has a different Recipe. Save changes as a new version in the editor.")
         return existing
 
     @router.get("/runs/{run_id}", response_model=Run)
@@ -144,6 +150,16 @@ def create_router(settings, provider, recipes, engine):
         maps = {"measures": req.measures, "dimensions": req.dimensions, "entity": req.entity} if req.measures or req.dimensions or req.entity else None
         run, result = await engine.step(creds, caller, run_id, PlanStep(**values), wait=waited(settings, wait), author=req.author, input_maps=maps)
         return result if result is not None else accepted(run)
+
+    @router.post("/runs/{run_id}/steps/{step_id}/queries")
+    async def skill_query(run_id: str, step_id: str, req: SkillQueryRequest, creds: Creds, caller: Caller, wait: float | None = None):
+        run, query = await engine.skill_query(creds, caller, run_id, step_id, req, wait=waited(settings, wait))
+        return query if query is not None else accepted(run)
+
+    @router.post("/runs/{run_id}/steps/{step_id}:finish", response_model=Run)
+    async def finish_skill(run_id: str, step_id: str, req: SkillFinishRequest, creds: Creds, caller: Caller, wait: float | None = None):
+        run = await engine.finish_skill(creds, caller, run_id, step_id, req, wait=waited(settings, wait))
+        return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
 
     @router.post("/runs/{run_id}:complete", response_model=Run)
     async def run_complete(run_id: str, req: RunCompleteRequest, caller: Caller) -> Run:

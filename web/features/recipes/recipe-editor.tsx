@@ -1,280 +1,33 @@
 "use client";
 
-import { useEffect, useRef, useState, type Ref } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Background, Controls, Handle, Position, ReactFlow, applyNodeChanges, useNodesInitialized, useReactFlow, type Edge, type Node, type NodeProps } from "@xyflow/react";
-import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, Check, Code2, GitBranch, Play, Plus, Save, Search, Trash2, Undo2, Workflow, X } from "lucide-react";
+import { Background, Controls, ReactFlow, applyNodeChanges, type Edge, type Node } from "@xyflow/react";
+import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, Check, Code2, Play, Plus, Save, Search, Trash2, Undo2, X } from "lucide-react";
 import "@xyflow/react/dist/style.css";
-import { api, ApiError, type MethodManifest, type ParamSpec, type PlanStep, type Recipe, type RecipeCandidate, type RoleSpec, type Run, type SemanticObject, type SourceReadiness } from "@/lib/api";
+import { api, type MethodManifest, type PlanStep, type Recipe, type RecipeCandidate, type Run, type SourceReadiness } from "@/lib/api";
 import { useApi, useCatalog } from "@/lib/hooks";
 import { methodName } from "@/lib/method-name";
 import { ResultView, ValidationList } from "@/components/result";
 import { recipeChanges } from "@/lib/recipe-changes";
 import { RecipeDelete } from "./recipe-delete";
-import { declaredPath, selectionLabel, sourceLabel } from "@/features/recipes/step-input-source";
+import { sourceLabel } from "@/features/recipes/step-input-source";
 import { RecipeRuntimeInputs } from "./recipe-runtime-inputs";
 import { RunPeriodInput } from "@/features/runs/run-period-input";
-import { ParamInput } from "@/components/forms";
-import { GroupInput } from "@/components/group-input";
-import groupsStyle from "@/components/group-input.module.css";
 import { suggestedDateRange, suggestedTimeDimension } from "@/lib/semantic-dates";
 import s from "@/components/analysis-canvas.module.css";
 
-const blank = (): Recipe => ({ name: "", version: "1.0.0", description: "", status: "draft", mode: "pipeline", routing: { use_for: [], do_not_use_for: [] }, semantic_scope: { primary_metric: "", related_metrics: [], preferred_dimensions: [], required_filters: [] }, steps: [], allowed_methods: [], validators: [], limits: { max_steps: 12, max_queries: 30 } });
-const bump = (version: string) => version.replace(/\d+$/, n => String(Number(n) + 1));
-const refs = (value: unknown): string[] => Array.isArray(value) ? value : typeof value === "string" ? [value] : [];
-const newName = (metric: string) => `${metric.split("/").pop()?.replaceAll("_", "-") || "analysis"}-${crypto.randomUUID().slice(0, 6)}`;
-const previewDates = (): [string, string] => {
-  const today = new Date();
-  const start = new Date(today.getFullYear(), today.getMonth(), 1);
-  const date = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
-  return [date(start), date(today)];
-};
-const explainError = (error: unknown) => {
-  if (error instanceof ApiError && error.details && typeof error.details === "object" && "field" in error.details) {
-    const field = (error.details as { field?: unknown }).field;
-    if (typeof field === "string") return `${field}: ${error.message}`;
-  }
-  return error instanceof Error ? error.message : "Recipe를 저장하지 못했습니다.";
-};
-type FieldError = { field: string; message: string };
-function validationField(error: unknown): FieldError | null {
-  if (!(error instanceof ApiError)) return null;
-  const details = error.details;
-  if (details && typeof details === "object" && "field" in details && typeof details.field === "string")
-    return { field: details.field, message: error.message };
-  if (Array.isArray(details) && Array.isArray(details[0]?.loc)) {
-    const path = details[0].loc.filter((part: unknown) => part !== "body").reduce((value: string, part: unknown) =>
-      typeof part === "number" ? `${value}[${part}]` : value ? `${value}.${part}` : String(part), "");
-    return path ? { field: path, message: String(details[0].msg || error.message) } : null;
-  }
-  return null;
-}
-
-function RecipeNode({ data, selected }: NodeProps) {
-  return <div className={`${s.node} ${selected ? s.selected : ""}`}>
-    <Handle type="target" position={Position.Top} />
-    <span className={s.nodeKind}>{data.scope ? <GitBranch size={16} /> : <Workflow size={16} />}{String(data.kind)}</span>
-    <strong>{String(data.label)}</strong><span className={s.nodeStatus}>{String(data.detail)}</span>
-    <Handle type="source" position={Position.Bottom} />
-    <Handle type="source" id="selection-out" position={Position.Right} />
-    <Handle type="target" id="selection-in" position={Position.Right} />
-  </div>;
-}
-const nodeTypes = { recipe: RecipeNode };
-
-function FitRecipe({ count }: { count: number }) {
-  const initialized = useNodesInitialized();
-  const { fitView } = useReactFlow();
-  useEffect(() => {
-    if (initialized) void fitView({ padding: 0.18, duration: 200 });
-  }, [initialized, count, fitView]);
-  return null;
-}
-
-function RefField({ label, value, objects, multiple, onChange, inherited, selectRef, error, fieldPath }: {
-  label: string; value: unknown; objects: SemanticObject[]; multiple?: boolean;
-  onChange: (value: string | string[]) => void; inherited?: string; selectRef?: Ref<HTMLSelectElement>; error?: string; fieldPath?: string;
-}) {
-  const list = refs(value);
-  const expression = typeof value === "string" && value.startsWith("$") ? value : null;
-  return <div className={s.refField} data-recipe-field={fieldPath}><span>{label}</span>{expression ? <div className={s.inherited}><span>{inherited || expression}</span><button type="button" className={s.secondary} onClick={() => onChange(multiple ? [] : "")}>직접 선택</button></div> : multiple ? <>
-    {list.map((ref, i) => <div className={s.refRow} key={`${ref}-${i}`}><span>{objects.find(o => o.ref === ref)?.title || ref}</span><button type="button" className={s.icon} title={`${label} 삭제`} aria-label={`${label} ${i + 1} 삭제`} onClick={() => onChange(list.filter((_, j) => i !== j))}><X size={14} /></button></div>)}
-    <select aria-label={label} aria-invalid={!!error} value="" onChange={e => e.target.value && onChange([...list, e.target.value])}><option value="">선택해서 추가</option>{objects.filter(o => !list.includes(o.ref)).map(o => <option key={o.ref} value={o.ref}>{o.title}</option>)}</select>
-  </> : <select ref={selectRef} aria-label={label} aria-invalid={!!error} value={list[0] || ""} onChange={e => onChange(e.target.value)}><option value="">선택하세요</option>{list[0] && !objects.some(o => o.ref === list[0]) && <option value={list[0]}>카탈로그에서 이름 확인 필요</option>}{objects.map(o => <option key={o.ref} value={o.ref}>{o.title}</option>)}</select>}{error && <small className={s.fieldError} role="alert">{error}</small>}</div>;
-}
-
-function roleObjects(role: RoleSpec, objects: SemanticObject[]) {
-  if (role.accepted_kinds) return objects.filter(object => role.accepted_kinds!.includes(object.kind));
-  if (role.kind === "measure") return objects.filter((object) => object.kind === "measure" && (!role.metric_kinds || role.metric_kinds.includes(object.metric_kind ?? "")));
-  if (role.kind === "dimension") return objects.filter((object) => object.kind === "dimension" || object.kind === "time_dimension");
-  if (role.kind === "time_dimension") return objects.filter((object) => object.kind === "time_dimension");
-  if (role.kind === "entity") return objects.filter(object => object.kind === "dimension" && objects.some(member => member.entity === object.ref));
-  return objects.filter((object) => !!object.entity);
-}
-
-const roleLabels: Record<string, string> = {
-  metric: "분석 지표", related: "함께 볼 지표", dimensions: "나눠 볼 순서", conditions: "비교 조건",
-  treatment: "비교 대상", treatment_measure: "비교 기준 지표", entity: "분석 단위",
-};
-const parameterLabel = (name: string) => ({ subject: "비교 대상", peers: "동료 집단 조건", drill_path: "분석 범위", granularity: "시간 단위", vs_previous: "직전 같은 길이와 비교", top_n: "표시할 그룹 수", min_count: "최소 그룹 건수", rank_by: "정렬 기준" } as Record<string, string>)[name] || name;
-
-function ParameterField({ name, spec, value, onChange, disabled = false, error, fieldPath, objects = [], dataType, oppositeValue }: { name: string; spec: ParamSpec; value: unknown; onChange: (value: unknown) => void; disabled?: boolean; error?: string; fieldPath?: string; objects?: SemanticObject[]; dataType?: string; oppositeValue?: unknown }) {
-  const label = spec.label || parameterLabel(name);
-  const current = value ?? spec.default;
-  const source = sourceLabel(current);
-  if (source) return <p>{source}</p>;
-  if (typeof current === "string" && current.startsWith("$")) return <div className={s.refField}><span>{label}</span><code className={s.expression}>{current}</code></div>;
-  if (spec.type === "group") return <fieldset className={s.fields} disabled={disabled} data-recipe-field={fieldPath}><GroupInput label={label} spec={spec} value={current} dataType={dataType} oppositeValue={oppositeValue} onChange={onChange} />{error && <small className={s.fieldError} role="alert">{error}</small>}</fieldset>;
-  if (spec.type === "drill_path") {
-    const items = Array.isArray(current) ? current as { member: string; value: unknown }[] : [];
-    const change = (index: number, patch: Record<string, unknown>) => onChange(items.map((item, i) => i === index ? { ...item, ...patch } : item));
-    return <fieldset disabled={disabled} data-recipe-field={fieldPath}><legend>{label}</legend>
-      {items.map((item, index) => <div key={index} className={s.refField}>
-        <select aria-label={`${name === "subject" ? "대상" : "동료"} 차원 ${index + 1}`} value={item.member} onChange={event => change(index, { member: event.target.value, value: "" })}><option value="">차원 선택</option>{objects.filter(object => object.kind === "dimension").map(object => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
-        <input aria-label={`${name === "subject" ? "대상" : "동료"} 값 ${index + 1}`} placeholder="값 입력" value={String(item.value ?? "")} onChange={event => change(index, { value: objects.find(object => object.ref === item.member)?.data_type === "number" && event.target.value !== "" ? Number(event.target.value) : event.target.value })} />
-        <button type="button" className={s.secondary} onClick={() => onChange(items.filter((_, i) => i !== index))}><X size={13} />삭제</button>
-      </div>)}
-      {(spec.meaning !== "comparison_subject" || !items.length) && <button type="button" className={s.secondary} onClick={() => onChange([...items, { member: "", value: "" }])}><Plus size={13} />조건 추가</button>}
-      {error && <small className={s.fieldError} role="alert">{error}</small>}
-    </fieldset>;
-  }
-  const options: Record<string, string> = { day: "일별", week: "주별", month: "월별", quarter: "분기별", value: "지표 값", vs_rest: "나머지 그룹과의 차이", count: "건수", desc: "높은 값부터", asc: "낮은 값부터" };
-  if (typeof current === "string" && current.startsWith("$")) return <div className={s.refField}><span>{label}</span><code className={s.expression}>{current}</code></div>;
-  if (spec.type === "boolean") return <label className={s.check} data-recipe-field={fieldPath}><input type="checkbox" aria-invalid={!!error} disabled={disabled} checked={!!current} onChange={event => onChange(event.target.checked)} />{label}{error && <small className={s.fieldError} role="alert">{error}</small>}</label>;
-  if (spec.type === "enum") return <label data-recipe-field={fieldPath}>{label}<select aria-label={label} aria-invalid={!!error} disabled={disabled} value={String(current ?? "")} onChange={event => onChange(event.target.value)}>{(spec.enum || []).map(option => <option value={option} key={option}>{options[option] || option}</option>)}</select>{error && <small className={s.fieldError} role="alert">{error}</small>}</label>;
-  if (spec.type === "integer" || spec.type === "number") return <label data-recipe-field={fieldPath}>{label}<input type="number" aria-invalid={!!error} disabled={disabled} step={spec.type === "integer" ? 1 : "any"} min={spec.minimum ?? undefined} max={spec.maximum ?? undefined} value={current == null ? "" : Number(current)} onChange={event => onChange(event.target.value === "" ? null : Number(event.target.value))} /><small>{spec.description}</small>{error && <small className={s.fieldError} role="alert">{error}</small>}</label>;
-  if (spec.semantic_kind) return <fieldset disabled={disabled}><RefField label={label} value={current} objects={objects.filter(object => object.kind === spec.semantic_kind || spec.semantic_kind === "dimension" && object.kind === "time_dimension")} multiple={spec.type === "ref_list"} onChange={onChange} error={error} fieldPath={fieldPath} /></fieldset>;
-  if (spec.type === "string") return <label data-recipe-field={fieldPath}>{label}<input aria-invalid={!!error} disabled={disabled} value={String(current ?? "")} onChange={event => onChange(event.target.value)} /><small>{spec.description}</small>{error && <small className={s.fieldError} role="alert">{error}</small>}</label>;
-  return <fieldset disabled={disabled} data-recipe-field={fieldPath}><ParamInput name={label} spec={spec} value={current} onChange={onChange} />{error && <small className={s.fieldError} role="alert">{error}</small>}</fieldset>;
-}
-
-function StepSettings({ step, manifest, onChange, objects, recipe, stepIndex, fieldError, methods }: { step: PlanStep; manifest: MethodManifest; onChange: (s: PlanStep) => void; objects: SemanticObject[]; recipe: Recipe; stepIndex: number; fieldError: FieldError | null; methods: MethodManifest[] }) {
-  const [editingMetric, setEditingMetric] = useState(false);
-  const bind = (key: string, value: unknown) => onChange({ ...step, bindings: { ...step.bindings, [key]: value } });
-  const param = (key: string, value: unknown) => onChange({ ...step, params: { ...step.params, [key]: value } });
-  const policy = recipe.method_parameters?.[step.method];
-  const fixed = (name: string) => Object.hasOwn(policy?.fixed ?? {}, name);
-  const parameterValue = (name: string) => fixed(name) ? policy!.fixed[name] : step.params[name];
-  const visible = (spec: ParamSpec) => !spec.visible_when || (parameterValue(spec.visible_when.parameter) ?? manifest.parameters[spec.visible_when.parameter]?.default) === spec.visible_when.equals;
-  const basicParameters = Object.entries(manifest.parameters).filter(([, spec]) => visible(spec) && (spec.ui_group === "basic" || spec.required && spec.ui_group !== "hidden") && spec.meaning !== "analysis_scope");
-  const describeSource = (value: unknown, spec: ParamSpec) => {
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      const ref = value as { source?: string; step_id?: string; project?: string; name?: string };
-      if (ref.source === "step") {
-        const index = recipe.steps.findIndex(item => item.id === ref.step_id);
-        if (index >= 0) {
-          const upstream = recipe.steps[index];
-          const resolved = { ...upstream, bindings: { ...upstream.bindings, metric: upstream.bindings.metric === "$scope.primary_metric" ? recipe.semantic_scope.primary_metric : upstream.bindings.metric } };
-          return `${index + 1}단계에서 ${selectionLabel(resolved, ref.project || "path", methods, { titles: new Map(objects.map(object => [object.ref, object])), steps: recipe.steps.map(item => ({ ...item, bindings: { ...item.bindings, dimensions: item.bindings.dimensions === "$scope.preferred_dimensions" ? recipe.semantic_scope.preferred_dimensions : item.bindings.dimensions } })) })} · 실행마다 다시 선택`;
-        }
-      }
-      if (ref.source === "input") return `실행할 때 선택 · ${recipe.inputs?.[ref.name || ""]?.label || spec.label || "분석 대상"}`;
-    }
-    if (Array.isArray(value) && value.length) return value.map(item => `${objects.find(object => object.ref === item.member)?.title || "항목"}: ${String(item.value)}`).join(" · ");
-    return spec.meaning === "comparison_population" ? "전체 분석 범위의 다른 대상들과 비교" : "전체 분석 범위";
-  };
-  const metricBinding = step.bindings.metric;
-  const usesRecipeMetric = metricBinding === "$scope.primary_metric";
-  const metricRef = usesRecipeMetric ? recipe.semantic_scope.primary_metric : metricBinding;
-  const metricTitle = typeof metricRef === "string" ? objects.find(o => o.ref === metricRef)?.title || metricRef || "지표 미설정" : "지표 미설정";
-  const metricObject = objects.find(object => object.ref === metricRef);
-  const countRoles = Object.entries(manifest.roles).filter(([, role]) => role.default_binding === "unit_count");
-  const [countBusy, setCountBusy] = useState(false);
-  const [countError, setCountError] = useState("");
-  const [countRetry, setCountRetry] = useState(0);
-  const latestStep = useRef(step); latestStep.current = step;
-  const latestChange = useRef(onChange); latestChange.current = onChange;
-  const missingCount = metricObject?.metric_kind === "average" && countRoles.some(([key]) => !step.bindings[key]);
-  useEffect(() => {
-    if (!missingCount) { setCountBusy(false); return; }
-    let cancelled = false;
-    setCountBusy(true); setCountError("");
-    api<Recipe>("/recipes:configure-step", { body: { recipe, step_index: stepIndex } }).then(configured => {
-      if (cancelled) return;
-      const bindings = { ...latestStep.current.bindings };
-      let changed = false;
-      for (const [key] of countRoles) if (!bindings[key] && configured.steps[stepIndex].bindings[key]) { bindings[key] = configured.steps[stepIndex].bindings[key]; changed = true; }
-      if (changed) latestChange.current({ ...latestStep.current, bindings });
-    }).catch(error => { if (!cancelled) setCountError(explainError(error)); }).finally(() => { if (!cancelled) setCountBusy(false); });
-    return () => { cancelled = true; };
-  }, [metricRef, missingCount, manifest.name, stepIndex, countRetry]);
-  const roleAlternatives = (name: string) => {
-    const group = manifest.roles[name]?.exclusive_group;
-    return Object.entries(manifest.roles).filter(([key, role]) => group ? role.exclusive_group === group : key === name);
-  };
-  const parameterField = ([name, spec]: [string, ParamSpec]) => {
-    const path = `steps[${stepIndex}].params.${name}`;
-    const value = parameterValue(name);
-    const boundRole = spec.semantic_role ? roleAlternatives(spec.semantic_role).find(([key]) => step.bindings[key])?.[0] : undefined;
-    const reference = boundRole ? step.bindings[boundRole] : undefined;
-    const subject = Object.entries(manifest.parameters).find(([, item]) => item.type === "group" && item.semantic_role === spec.semantic_role && item.meaning === "comparison_subject");
-    return <ParameterField key={`${name}:${reference}`} objects={objects} name={name} spec={spec} value={value} disabled={fixed(name)} fieldPath={path} dataType={objects.find(object => object.ref === reference)?.data_type} oppositeValue={subject ? parameterValue(subject[0]) : undefined} error={fieldError?.field === path ? fieldError.message : undefined} onChange={value => param(name, value)} />;
-  };
-  const roleField = ([name, role]: [string, RoleSpec]) => {
-    const inherited = name === "metric" ? objects.find(o => o.ref === recipe.semantic_scope.primary_metric)?.title || "미선택"
-      : name === "dimensions" ? recipe.semantic_scope.preferred_dimensions.map(ref => objects.find(o => o.ref === ref)?.title || ref).join(" → ") || "미선택" : undefined;
-    const path = `steps[${stepIndex}].bindings.${name}`;
-    if (role.default_binding === "unit_count") {
-      if (metricObject?.metric_kind !== "average") return step.bindings[name] ? <div key={name} className={groupsStyle.countIssue}><p>변경한 지표에는 이전 건수 연결을 사용할 수 없습니다.</p><button type="button" className={s.secondary} onClick={() => { const bindings = { ...step.bindings }; delete bindings[name]; onChange({ ...step, bindings }); }}>이전 건수 연결 제거</button></div> : null;
-      const current = objects.find(object => object.ref === step.bindings[name]);
-      if (current && metricObject.entity && current.count_measure === current.ref && current.entity === metricObject.entity && current.metric_kind === "count") return null;
-      const candidates = roleObjects(role, objects).filter(object => !!metricObject.entity && object.entity === metricObject.entity && object.count_measure === object.ref);
-      return <div key={name} className={groupsStyle.countIssue}>
-        <p>{countBusy ? "비교할 분석 단위를 확인하고 있습니다…" : "평균을 비교하려면 같은 분석 단위의 건수를 확인해야 합니다. 자동으로 확인할 수 없어 연결이 필요합니다."}</p>
-        {countError && <><p role="alert">{countError}</p><button type="button" className={s.secondary} onClick={() => setCountRetry(value => value + 1)}>다시 확인</button></>}
-        {!countBusy && (candidates.length ? <RefField label="분석 단위의 건수 확인" value={step.bindings[name]} objects={candidates} onChange={next => { const bindings = { ...step.bindings }; if (next) bindings[name] = next; else delete bindings[name]; onChange({ ...step, bindings }); }} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} /> : <p>연결된 semantic layer에서 기본 분석 단위와 같은 단위의 행 건수를 제공해야 합니다. 모델 담당자에게 확인해 주세요. <Link href="/sources">연결 상태 확인</Link></p>)}
-      </div>;
-    }
-    if (role.exclusive_group) {
-      const alternatives = roleAlternatives(name);
-      if (alternatives[0][0] !== name) return null;
-      const keys = alternatives.map(([key]) => key);
-      const value = alternatives.map(([key]) => step.bindings[key]).find(Boolean);
-      const parameters = basicParameters.filter(([, spec]) => spec.semantic_role && keys.includes(spec.semantic_role));
-      const candidates = objects.filter(object => alternatives.some(([, alternative]) => roleObjects(alternative, [object]).length));
-      return <div key={name} className={s.fields}>
-        <h3 className={groupsStyle.heading}>비교할 두 집단</h3>
-        <fieldset className={s.fields} disabled={parameters.some(([key]) => fixed(key))}><RefField label={role.label || roleLabels[name] || name} value={value} objects={candidates} fieldPath={path} error={fieldError && keys.some(key => fieldError.field === `steps[${stepIndex}].bindings.${key}`) ? fieldError.message : undefined} onChange={next => {
-          const bindings = { ...step.bindings }; keys.forEach(key => delete bindings[key]);
-          const chosen = objects.find(object => object.ref === next);
-          const selectedRole = alternatives.find(([, alternative]) => chosen && roleObjects(alternative, [chosen]).length);
-          if (selectedRole) bindings[selectedRole[0]] = next;
-          const params = { ...step.params }; parameters.forEach(([key]) => { if (!fixed(key)) delete params[key]; });
-          onChange({ ...step, bindings, params });
-        }} /></fieldset>
-        {!!value && <div className={`${groupsStyle.pair} ${s.comparisonPair}`}>{parameters.map(parameterField)}</div>}
-      </div>;
-    }
-    const selector = Object.entries(manifest.parameters).find(([parameter, spec]) => role.editor_parameter === parameter && spec.type === "string" && spec.semantic_role === name && spec.semantic_kind === role.kind);
-    if (selector) {
-      const [parameter] = selector;
-      const resolvedSteps: PlanStep[] = recipe.steps.map(item => ({ ...item, bindings: { ...item.bindings, dimensions: item.bindings.dimensions === "$scope.preferred_dimensions" ? recipe.semantic_scope.preferred_dimensions : item.bindings.dimensions } }));
-      const resolved = resolvedSteps[stepIndex];
-      const value = parameterValue(parameter) ?? declaredPath(resolved, resolvedSteps).at(-1);
-      const candidates = roleObjects(role, objects);
-      const parameterPath = `steps[${stepIndex}].params.${parameter}`;
-      return <fieldset key={name} disabled={fixed(parameter)}><RefField label={role.label || roleLabels[name] || name} value={value} objects={candidates} fieldPath={path} error={fieldError?.field === path || fieldError?.field === parameterPath ? fieldError.message : undefined} onChange={next => {
-        if (!next) {
-          const params = { ...step.params }; delete params[parameter];
-          onChange({ ...step, bindings: { ...step.bindings, [name]: [] }, params });
-          return;
-        }
-        const dimensions = refs(resolved.bindings[name]);
-        onChange({ ...step, bindings: { ...step.bindings, [name]: dimensions.includes(String(next)) ? dimensions : [...dimensions, String(next)] }, params: { ...step.params, [parameter]: next } });
-      }} /></fieldset>;
-    }
-    return <RefField key={name} label={role.label || roleLabels[name] || name} value={step.bindings[name]} objects={roleObjects(role, objects)} multiple={role.multiple} inherited={inherited} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} onChange={next => bind(name, next)} />;
-  };
-  const context = Object.entries(manifest.parameters).filter(([, spec]) => spec.meaning === "analysis_scope").map(([name, spec]) => {
-    const value = parameterValue(name);
-    return sourceLabel(value) || Array.isArray(value) && value.length ? describeSource(value, spec) : null;
-  }).filter(Boolean);
-  return <>
-    {manifest.roles.metric && <div><p className={s.nodeStatus}>{Object.values(manifest.roles).some(role => role.exclusive_group) ? "비교할 지표" : "분석 지표"}</p><div className={s.inherited}><strong>{metricTitle}</strong><button type="button" className={s.secondary} onClick={() => setEditingMetric(!editingMetric)}>{editingMetric ? "완료" : "지표 변경"}</button></div></div>}
-    {editingMetric && manifest.roles.metric && <>
-      <RefField label="이 단계에서 사용할 지표" value={metricBinding} objects={roleObjects(manifest.roles.metric, objects)} inherited={metricTitle} fieldPath={`steps[${stepIndex}].bindings.metric`} error={fieldError?.field === `steps[${stepIndex}].bindings.metric` ? fieldError.message : undefined} onChange={next => bind("metric", next)} />
-      {!usesRecipeMetric && <button type="button" className={s.secondary} onClick={() => { bind("metric", "$scope.primary_metric"); setEditingMetric(false); }}><Undo2 size={13} />Recipe 지표 사용</button>}
-    </>}
-    {context.map((text, index) => <p key={index} className={s.nodeStatus}>{text}</p>)}
-    {policy && <p className={s.nodeStatus}>이 절차에 지정된 실행 제약을 유지합니다. 변경은 코드 보기에서 할 수 있습니다.</p>}
-    {Object.entries(manifest.roles).filter(([name, role]) => name !== "metric" && (role.required || role.exclusive_group || step.bindings[name] || role.default_binding === "unit_count" && metricObject?.metric_kind === "average")).map(roleField)}
-    {basicParameters.filter(([, spec]) => !spec.semantic_role || !manifest.roles[spec.semantic_role]?.exclusive_group).map(([name, spec]) => {
-      const path = `steps[${stepIndex}].params.${name}`;
-      const value = parameterValue(name);
-      return spec.type === "drill_path" && sourceLabel(value) ? <div className={s.refField} key={name}><strong>{spec.label || parameterLabel(name)}</strong><span className={s.nodeStatus}>{describeSource(value, spec)}</span></div>
-        : parameterField([name, spec]);
-    })}
-    <label>{step.purpose_context === "source_run" ? "원래 분석의 단계 설명 (재사용할 설명으로 수정 가능)" : "이 단계에서 확인할 내용"}<textarea rows={2} maxLength={240} value={step.purpose ?? ""} onChange={event => onChange({ ...step, purpose: event.target.value || null, purpose_context: "procedure" })} /></label>
-  </>;
-}
-
+import { blank, bump, refs, newName, previewDates, explainError, validationField, roleLabels, type FieldError } from "./editor-model";
+import { nodeTypes, FitRecipe } from "./recipe-nodes";
+import { RefField } from "./recipe-fields";
+import { StepSettings } from "./step-settings";
 
 export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const router = useRouter();
   const { objects, byRef, error: catalogError } = useCatalog();
-  const { data: methods, error: methodsError } = useApi<MethodManifest[]>("/methods");
+  const { data: allMethods, error: methodsError } = useApi<MethodManifest[]>("/methods");
+  const methods = useMemo(() => allMethods?.filter(method => method.implementation !== "skill" || method.agent_executable), [allMethods]);
   const { data: readiness } = useApi<SourceReadiness>("/sources/current/readiness");
   const [recipe, setRecipe] = useState<Recipe>(() => initial || blank());
   const [saved, setSaved] = useState<Recipe | undefined>(initial);
@@ -309,6 +62,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const metricSelect = useRef<HTMLSelectElement>(null);
   const previewOutput = useRef<HTMLElement>(null);
   const inspector = useRef<HTMLElement>(null);
+  const initializedFromLink = useRef(false);
   const latestRecipe = useRef(recipe);
   latestRecipe.current = recipe;
   const dirty = !saved || JSON.stringify(recipe) !== JSON.stringify(saved);
@@ -337,7 +91,10 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const previewPeriodRule = !previewDatesTouched.current && recipe.default_scope?.period?.mode === "relative";
   const previewWithPeriod = !previewPeriodRule && (previewLimited || previewRequiresPeriod);
   const previewDatesInvalid = previewWithPeriod && (!previewRange[0] || !previewRange[1] || previewRange[0] > previewRange[1]);
-  const activeManifest = methods?.find(method => method.name === active?.method);
+  const latestManifest = methods?.find(method => method.name === active?.method);
+  const needsPinnedManifest = !!active && (!latestManifest || !!active.method_version && latestManifest.version !== active.method_version);
+  const { data: pinnedManifest, error: pinnedError } = useApi<MethodManifest>(needsPinnedManifest ? `/methods/${encodeURIComponent(active.method)}${active.method_version ? `?version=${encodeURIComponent(active.method_version)}` : ""}` : null);
+  const activeManifest = needsPinnedManifest ? pinnedManifest : latestManifest;
   useEffect(() => { setPreviewFormOpen(false); }, [selected]);
   const displayMethod = (name: string) => methods?.find(method => method.name === name)?.label || methodName(name);
   const missingRoles = activeManifest ? Object.entries(activeManifest.roles).filter(([name, role]) => {
@@ -352,10 +109,11 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       : previewRun.error && previewRun.steps.length ? previewRun.steps.length : null
     : null;
   useEffect(() => {
-    if (initial) return;
+    if (initial || initializedFromLink.current) return;
     const params = new URLSearchParams(window.location.search);
     const sourceRun = params.get("from_run");
     if (sourceRun) {
+      initializedFromLink.current = true;
       const indices = params.getAll("step");
       const query = new URLSearchParams();
       for (const index of indices) query.append("indices", index);
@@ -368,9 +126,20 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       return;
     }
     const method = params.get("method");
-    const metric = params.get("metric") || "";
-    setRecipe(r => ({ ...r, name: metric ? newName(metric) : "", semantic_scope: { ...r.semantic_scope, primary_metric: metric }, steps: method ? [{ id: "step_1", method, bindings: { metric: "$scope.primary_metric" }, params: {} }] : [] }));
-  }, [initial]);
+    if (method && !methods) return;
+    initializedFromLink.current = true;
+    const manifest = methods?.find(item => item.name === method);
+    if (method && !manifest) { setError("선택한 분석 방법을 사용할 수 없습니다. 분석 방법 목록에서 다시 선택하세요."); return; }
+    setRecipe(current => {
+      const metric = current.semantic_scope.primary_metric || params.get("metric") || "";
+      return {
+        ...current,
+        name: current.name || (metric ? newName(metric) : ""),
+        semantic_scope: { ...current.semantic_scope, primary_metric: metric },
+        steps: method && manifest ? [{ id: "step_1", method, method_version: manifest.version, bindings: manifest.roles.metric ? { metric: "$scope.primary_metric" } : {}, params: {} }] : [],
+      };
+    });
+  }, [initial, methods]);
   useEffect(() => { if (!dirty) return; const warn = (e: BeforeUnloadEvent) => e.preventDefault(); window.addEventListener("beforeunload", warn); return () => window.removeEventListener("beforeunload", warn); }, [dirty]);
   useEffect(() => {
     if (!previewRun?.running) return;
@@ -553,7 +322,10 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
             <button className={s.icon} title="단계 삭제" aria-label="단계 삭제" onClick={() => pipeline ? updateSteps(recipe.steps.filter((_, i) => i !== selected)) : change({ ...recipe, allowed_methods: recipe.allowed_methods.filter((_, i) => i !== selected) })}><Trash2 size={16} /></button>
           </div></div>
           <h2>{displayMethod(active.method)}</h2>
-          {pipeline && activeManifest ? <StepSettings key={`${selected}-${active.method}`} step={active} manifest={activeManifest} methods={methods ?? []} objects={objects} recipe={recipe} stepIndex={selected} fieldError={fieldError} onChange={step => change({ ...recipe, steps: recipe.steps.map((s, i) => i === selected ? step : s) })} /> : !pipeline ? <p className={s.dependency}>MCP에서 이 Recipe를 선택하면 실행 결과에 따라 다음 분석과 입력을 정합니다.</p> : <p role="status">분석 설정을 불러오는 중…</p>}
+          {active.method_version && <p className={s.dependency}>이 단계의 고정 버전 · v{active.method_version}</p>}
+          {pinnedError && <p className={s.error} role="alert">{pinnedError.message}</p>}
+          {pipeline && active.method_version && latestManifest && active.method_version !== latestManifest.version && <button type="button" className={s.secondary} disabled={busy} onClick={() => configure({ ...recipe, steps:recipe.steps.map((step,index) => index===selected ? { ...step, method_version:latestManifest.version, bindings:{}, params:{} } : step) },selected)}>v{latestManifest.version} 적용 · 입력 설정 다시 선택</button>}
+          {pipeline && activeManifest ? <StepSettings key={`${selected}-${active.method}-${active.method_version || "latest"}`} step={active} manifest={activeManifest} methods={methods ?? []} objects={objects} recipe={recipe} stepIndex={selected} fieldError={fieldError} onChange={step => change({ ...recipe, steps: recipe.steps.map((s, i) => i === selected ? step : s) })} /> : !pipeline ? <p className={s.dependency}>MCP에서 이 Recipe를 선택하면 실행 결과에 따라 다음 분석과 입력을 정합니다.</p> : <p role="status">분석 설정을 불러오는 중…</p>}
           {pipeline && <section className={s.previewSection} aria-label="결과 확인">
             {previewFormOpen && <>
               <RecipeRuntimeInputs specs={recipe.inputs ?? {}} values={previewInputs} onChange={setPreviewInputs} objects={objects} />

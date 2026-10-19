@@ -28,8 +28,7 @@ make web
 웹은 **http://localhost:5210**, REST API 문서는 **http://localhost:8000/docs**입니다.
 Docker 샘플의 웹 포트는 3000입니다.
 
-소스 연결 없이도 API는 시작됩니다. 실제 분석에는 [Cube](cube.md)나
-[dbt Semantic Layer](dbt.md)를 연결하세요. Run은 기본적으로 로컬 SQLite에 저장됩니다.
+소스 연결 없이도 API는 시작됩니다. 실제 분석에는 [Cube](cube.md)를 연결하세요. 초기 제품은 Cube만 지원합니다. Run은 기본적으로 로컬 SQLite에 저장됩니다.
 Recipe 파일을 저장하려면 `DL_RECIPES_DIR=./recipes make api`로 실행하세요.
 
 8000 포트를 이미 사용 중이라면 포트를 바꿉니다.
@@ -67,7 +66,7 @@ DL_DATABASE_URL=sqlite:///./data/journey-development.db \
 
 샘플 PostgreSQL에는 원본 데이터가 저장됩니다. 직접 실행한 API는 별도 SQLite DB를 사용하므로 컨테이너 API의 Run 기록을 자동으로 공유하지 않습니다. Recipe는 지정한 폴더의 YAML 파일입니다. 로컬 데이터와 인증 정보는 커밋하지 마세요.
 
-dbt 개발은 기존 dbt Semantic Layer 환경에 [공식 API로 연결](dbt.md)하세요. 어댑터 계약 테스트는 GraphQL 응답을 모의하며, 실제 연동 검증에는 dbt 환경과 인증 정보가 필요합니다.
+기존 dbt 모듈과 mock 계약 테스트는 과거 구현 참고용으로 보존합니다(ADR-096). 초기 제품의 지원 연결은 Cube뿐입니다.
 :::
 
 ## 변경 확인
@@ -87,3 +86,12 @@ PR 제출은 [기여 가이드](https://github.com/haechangcho/decision-layer/bl
 웹 화면을 수정할 때는 [인터페이스 디자인](design-system.md)을 참고하세요.
 제품 방향과 기존 설계 이유는 저장소의 [제품 맥락](https://github.com/haechangcho/decision-layer/blob/main/docs/PRODUCT_CONTEXT.md)과
 [설계 결정](https://github.com/haechangcho/decision-layer/blob/main/docs/DECISIONS.md)에 보존합니다.
+
+## Python Method 코드 정리
+
+`make format-methods`로 정리하고 `make check-method-format`으로 CI와 같은 검사를
+실행합니다. 고정된 Ruff와 공통 설정으로 88열·공백 4칸·큰따옴표를 사용합니다.
+현재 Method와 입문 예제를 대상으로 하며 과거 호환 구현은 다시 쓰지 않습니다.
+직접 만든 모듈은 저장소 설정으로 `ruff format path/to/method.py`를 실행하세요.
+Web의 **코드 정리**도 같은 형식이며 **변경 비교**에서 추가·삭제 줄과 줄 번호를
+확인한 뒤 초안을 저장합니다. 정리만으로 계산·검사·게시는 실행되지 않습니다.

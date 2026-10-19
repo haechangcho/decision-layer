@@ -4,22 +4,20 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, Check, CheckCircle2, Database, Info, LockKeyhole, Save, ShieldCheck, Wifi } from "lucide-react";
 
-import { api, getSourceAdminKey, getSourceCallerToken, setSourceAdminKey, setToken, type SourceConfig, type SourceReadiness, type SourceTestResult } from "@/lib/api";
+import { api, getSourceAdminKey, getSourceCallerToken, setSourceAdminKey, setToken, type SemanticCatalog, type SourceConfig, type SourceReadiness, type SourceTestResult } from "@/lib/api";
 import { LoadingIndicator } from "@/components/loading-indicator";
 import { useT } from "@/lib/i18n";
 import styles from "./sources.module.css";
 
-const PROVIDER_TITLES = { cube: "Cube", dbt: "dbt Semantic Layer" };
+const PROVIDER_TITLES = { cube: "Cube" };
 
 export default function SourcesPage() {
   const t = useT();
   const [source, setSource] = useState<SourceConfig | null>(null);
-  const [providers, setProviders] = useState<SourceConfig[]>([]);
   const [provider, setProvider] = useState<SourceConfig["provider"]>("cube");
-  const prefix = { cube: "CUBE", dbt: "DBT" }[provider];
+  const prefix = "CUBE";
   const ENV_LABEL = { api_url: `${prefix}_API_URL`, auth_method: `${prefix}_AUTH_METHOD`, api_secret: "CUBE_API_SECRET", service_groups: "CUBE_SERVICE_GROUPS" };
   const [instance, setInstance] = useState("");
-  const [environmentId, setEnvironmentId] = useState("");
   const [adminKey, setAdminKey] = useState("");
   const [unlocked, setUnlocked] = useState(false);     // admin key accepted (shared deployment)
   const [url, setUrl] = useState("");
@@ -40,7 +38,6 @@ export default function SourcesPage() {
     setSource(config);
     setProvider(config.provider);
     setInstance(config.instance);
-    setEnvironmentId(config.environment_id ? String(config.environment_id) : "");
     setUrl(config.api_url);
     setAuth(config.auth_method);
     setGroups(config.service_groups.join(", "));
@@ -52,26 +49,17 @@ export default function SourcesPage() {
     api<SourceConfig>("/sources/current")
       .then(applyConfig)
       .catch((cause) => setError(cause instanceof Error ? cause.message : t("Could not load the connection settings.")));
-    api<SourceConfig[]>("/sources/providers").then(setProviders).catch(() => {});
   }, [applyConfig, t]);
 
   // Fields a user may change: not fixed by an environment variable, and on a shared
   // deployment only after the admin key is accepted.
-  const selectedConfig = provider === source?.provider ? source : providers.find(p => p.provider === provider);
+  const selectedConfig = source;
   const locked = (field: string) => !!selectedConfig?.environment_overrides[field];
   const canEdit = !!source && source.editable && (!source.admin_required || unlocked);
 
   function normalizedGroups() { return groups.split(",").map((v) => v.trim()).filter(Boolean); }
   function editBody() {
-    return { provider, instance, api_url: url, auth_method: auth, ...(provider === "dbt" ? { environment_id: Number(environmentId) } : {}), ...(auth === "api_secret" && secret ? { api_secret: secret } : {}), service_groups: normalizedGroups() };
-  }
-
-  function chooseProvider(name: SourceConfig["provider"]) {
-    const config = providers.find(p => p.provider === name);
-    setProvider(name); setSecret(""); setCallerToken(""); setTest(null); setSaved(false); setReadiness(null); setMessage(""); setError("");
-    setUrl(config?.api_url || ""); setInstance(config?.instance || "local");
-    setEnvironmentId(config?.environment_id ? String(config.environment_id) : "");
-    setAuth(config?.auth_method || "token"); setGroups(config?.service_groups.join(", ") || "");
+    return { provider, instance, api_url: url, auth_method: auth, ...(auth === "api_secret" && secret ? { api_secret: secret } : {}), service_groups: normalizedGroups() };
   }
 
   async function unlock() {
@@ -89,6 +77,17 @@ export default function SourcesPage() {
   async function testConnection() {
     setBusy("test"); setError(""); setMessage(""); setTest(null); setSaved(false); setReadiness(null);
     try {
+      if (envManaged) {
+        // Inspect the configured source; no administrator-only arbitrary-target test.
+        const catalog = await api<SemanticCatalog>("/semantic/catalog", { callerToken: auth === "token" ? callerToken.trim() : "" });
+        if (!catalog.objects.length) throw new Error(t("No metrics are visible. Check the semantic models and access permissions."));
+        if (auth === "token") setToken(callerToken.trim());
+        setTest({ status: "connected", provider: catalog.provider, instance: catalog.instance, objects: catalog.objects.length,
+          measures: catalog.objects.filter(obj => obj.kind === "measure").length,
+          dimensions: catalog.objects.filter(obj => obj.kind === "dimension").length,
+          time_dimensions: catalog.objects.filter(obj => obj.kind === "time_dimension").length });
+        return;
+      }
       const result = await api<SourceTestResult>("/sources/current:test", {
         method: "POST", admin: source?.admin_required, callerToken: auth === "token" ? callerToken.trim() : "", body: editBody(),
       });
@@ -102,7 +101,7 @@ export default function SourcesPage() {
     setBusy("save"); setError(""); setMessage("");
     try {
       const config = await api<SourceConfig>("/sources/current", { method: "PUT", admin: source?.admin_required, body: editBody() });
-      applyConfig(config); setProviders(previous => [...previous.filter(item => item.provider !== config.provider), config]); setSecret(""); setToken(auth === "token" ? callerToken.trim() : ""); window.dispatchEvent(new Event("decision-layer.source-updated")); setMessage(t("Connection settings saved.")); setSaved(true);
+      applyConfig(config); setSecret(""); setToken(auth === "token" ? callerToken.trim() : ""); window.dispatchEvent(new Event("decision-layer.source-updated")); setMessage(t("Connection settings saved.")); setSaved(true);
     } catch (cause) { setError(cause instanceof Error ? cause.message : t("Could not save the connection settings.")); }
     finally { setBusy(null); }
   }
@@ -114,8 +113,8 @@ export default function SourcesPage() {
     finally { setBusy(null); }
   }
 
-  const envManaged = !!source && !source.editable;     // everything fixed by env vars → status only
-  const matchesSaved = !!source && source.provider === provider && source.api_url === url && source.instance === instance && source.auth_method === auth && JSON.stringify(source.service_groups) === JSON.stringify(normalizedGroups()) && !secret && (auth !== "token" || callerToken.trim() === getSourceCallerToken()) && (provider !== "dbt" || source.environment_id === Number(environmentId));
+  const envManaged = !!source && !source.editable;     // HTTP administration disabled or every field fixed → status only
+  const matchesSaved = !!source && source.provider === provider && source.api_url === url && source.instance === instance && source.auth_method === auth && JSON.stringify(source.service_groups) === JSON.stringify(normalizedGroups()) && !secret && (auth !== "token" || callerToken.trim() === getSourceCallerToken());
 
   return <div className={styles.page}>
     <Link className={styles.back} href="/catalog"><ArrowLeft size={15} />{t("Metric catalog")}</Link>
@@ -129,14 +128,14 @@ export default function SourcesPage() {
         <dl className={styles.summary}>
           <div><dt>{t("Provider")}</dt><dd>{t(PROVIDER_TITLES[source.provider])}</dd></div>
           <div><dt>{t("API URL")}</dt><dd><code>{source.api_url}</code>{locked("api_url") && <small><LockKeyhole size={12} />{ENV_LABEL.api_url}</small>}</dd></div>
-          {source.provider === "dbt" && <div><dt>{t("Environment ID")}</dt><dd>{source.environment_id || "—"}</dd></div>}
-          <div><dt>{t("Authentication")}</dt><dd>{t(source.auth_method === "none" ? "No authentication (development)" : source.auth_method === "api_secret" ? "API secret (development)" : "Access token")}{source.environment_overrides.auth_method && <small><LockKeyhole size={12} /> {source.provider === "cube" ? "CUBE_AUTH_METHOD" : "DBT_AUTH_METHOD"}</small>}</dd></div>
+          <div><dt>{t("Authentication")}</dt><dd>{t(source.auth_method === "none" ? "No authentication (development)" : source.auth_method === "api_secret" ? "API secret (development)" : "Access token")}{source.environment_overrides.auth_method && <small><LockKeyhole size={12} /> CUBE_AUTH_METHOD</small>}</dd></div>
           {source.provider === "cube" && source.auth_method === "api_secret" && <div><dt>{t("Service groups")}</dt><dd>{source.service_groups.join(", ") || "—"}{locked("service_groups") && <small><LockKeyhole size={12} /> {ENV_LABEL.service_groups}</small>}</dd></div>}
         </dl>
       </section>}
 
-      {/* Env-managed: nothing to edit here */}
-      {envManaged && <p className={styles.help}><Info size={14} /> {t("This connection is managed by environment variables on the server. To change it, update the environment variables (.env) and restart.")}</p>}
+      {/* Operator configuration stays outside the HTTP API when no admin key exists. */}
+      {!source.admin_configured && <p className={styles.help}><Info size={14} />{t("HTTP source administration is disabled. Configure the connection in the server environment.")}</p>}
+      {envManaged && source.admin_configured && <p className={styles.help}><Info size={14} /> {t("This connection is managed by environment variables on the server. To change it, update the environment variables (.env) and restart.")}</p>}
       {envManaged && auth === "token" && <label className={styles.field}><span id="readonly-token-label">{t("Access token")}</span><input aria-labelledby="readonly-token-label" type="password" autoComplete="off" value={callerToken} disabled={busy !== null} onChange={e => { setCallerToken(e.target.value); invalidateTest(); }} placeholder={t("Enter without the Bearer prefix")} /><small>{t("Used only in this browser tab after saving. Not stored in the server database.")}</small></label>}
 
       {/* Shared deployment, not yet unlocked: ask for the admin key */}
@@ -154,19 +153,15 @@ export default function SourcesPage() {
       {/* Editable: the form */}
       {canEdit && <section className={styles.formSection}>
         <div className={styles.sectionHeading}><h2>{t("Connection settings")}</h2><span>{!matchesSaved ? t("Unsaved changes") : t("Saved on the server")}</span></div>
-        <label className={styles.field}><span>{t("Provider")}</span><select value={provider} onChange={e => chooseProvider(e.target.value as SourceConfig["provider"])} disabled={busy !== null || locked("provider")}><option value="cube">Cube</option><option value="dbt">dbt Semantic Layer</option></select></label>
-        {provider === "dbt" && <p className={styles.help}>{t("Connect to your organization's dbt Semantic Layer using its GraphQL endpoint, deployment environment ID and access token.")}</p>}
+        <div className={styles.field}><span>{t("Provider")}</span><strong>Cube</strong></div>
         <label className={styles.field}><span id="source-url-label">{t("API URL")}</span>
-          <input aria-labelledby="source-url-label" aria-describedby="source-url-help" value={url} onChange={(e) => { setUrl(e.target.value); invalidateTest(); }} placeholder={provider === "cube" ? "https://cube.example.com/cubejs-api/v1" : "https://semantic-layer.cloud.getdbt.com/api/graphql"} disabled={busy !== null || locked("api_url")} />
+          <input aria-labelledby="source-url-label" aria-describedby="source-url-help" value={url} onChange={(e) => { setUrl(e.target.value); invalidateTest(); }} placeholder="https://cube.example.com/cubejs-api/v1" disabled={busy !== null || locked("api_url")} />
           <small id="source-url-help">{t("Use an address reachable from the Decision Layer server.")}</small>
           {locked("api_url") && <small><LockKeyhole size={13} />{t("Fixed by environment variable")} · {ENV_LABEL.api_url}</small>}</label>
-        {provider === "dbt" && <label className={styles.field}><span id="dbt-environment-label">{t("Environment ID")}</span>
-          <input aria-labelledby="dbt-environment-label" inputMode="numeric" value={environmentId} onChange={e => { setEnvironmentId(e.target.value); invalidateTest(); }} placeholder="123456" disabled={busy !== null || locked("environment_id")} />
-          <small>{t("Use the deployment environment configured for Semantic Layer in dbt.")}</small></label>}
         <label className={styles.field}><span id="source-auth-label">{t("Authentication")}</span>
           <select aria-labelledby="source-auth-label" value={auth} onChange={(e) => { setAuth(e.target.value as "token" | "api_secret" | "none"); invalidateTest(); }} disabled={busy !== null || locked("auth_method")}>
             <option value="token">{t("Access token")}</option>
-            {source.service_credentials_allowed && provider !== "dbt" && <>{provider === "cube" && <option value="api_secret">{t("API secret (development)")}</option>}<option value="none">{t("No authentication (development)")}</option></>}</select>
+            {source.service_credentials_allowed && <>{provider === "cube" && <option value="api_secret">{t("API secret (development)")}</option>}<option value="none">{t("No authentication (development)")}</option></>}</select>
           {locked("auth_method") && <small><LockKeyhole size={13} />{t("Fixed by environment variable")} · {ENV_LABEL.auth_method}</small>}</label>
         {auth === "token" ? <label className={styles.field}><span id="source-token-label">{t("Access token")}</span>
           <input aria-labelledby="source-token-label" aria-describedby="source-token-help" type="password" autoComplete="off" value={callerToken} disabled={busy !== null} onChange={(e) => { setCallerToken(e.target.value); invalidateTest(); }} placeholder={t("Enter without the Bearer prefix")} />
@@ -184,7 +179,7 @@ export default function SourcesPage() {
         {canEdit && !test && <p className={styles.actionHint}>{t("Test the connection before saving. Then explore the available metrics.")}</p>}
         <div className={styles.actions}>
           <button className={styles.testButton} onClick={() => void testConnection()}
-            disabled={busy !== null || (!envManaged && !canEdit) || !/^https?:\/\/\S+$/.test(url) || (auth === "token" && !callerToken.trim()) || (provider === "dbt" && !/^[1-9]\d*$/.test(environmentId))}>
+            disabled={busy !== null || (!envManaged && !canEdit) || !/^https?:\/\/\S+$/.test(url) || (auth === "token" && !callerToken.trim())}>
             {busy === "test" ? <><LoadingIndicator />{t("Testing…")}</> : <><Wifi size={16} />{t("Test connection")}</>}</button>
           {canEdit && <button className={styles.saveButton} onClick={() => void saveSettings()} disabled={busy !== null || !test || saved}>
             {busy === "save" ? t("Saving…") : <><Save size={15} />{t("Save settings")}</>}</button>}

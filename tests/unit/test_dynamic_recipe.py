@@ -106,13 +106,14 @@ async def test_promotion_preserves_rules_and_dependency_closure(provider, tmp_pa
     assert candidate_from_run(run, [0, 1, 2]).recipe.steps[1].params["drill_path"] == source("groups")
 
 
-async def test_promotion_marks_original_intent_without_rewriting_it(provider, tmp_path):
+async def test_promotion_omits_original_intent_without_rewriting_the_run(provider, tmp_path):
     run = await execute(provider, tmp_path)
     run.recipe_snapshot = None
     run.plan.recipe = None
     run.steps[0].requested_step.purpose = "Compare sales in July through September"
     candidate = candidate_from_run(run, [0, 1, 2])
-    assert candidate.recipe.steps[0].purpose == "Compare sales in July through September"
+    assert not candidate.recipe.steps[0].purpose
+    assert run.steps[0].requested_step.purpose == "Compare sales in July through September"
     assert candidate.recipe.steps[0].purpose_context == "source_run"
     assert candidate.recipe.default_scope.date_range is None
     run.steps[0].requested_step.purpose_context = "procedure"

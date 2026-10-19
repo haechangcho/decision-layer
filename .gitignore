@@ -32,6 +32,7 @@ examples/*/recipes-dbt/*
 /web/test-results/
 /web/playwright-report/
 /web/.next-local/
+/web/.next-style-review/
 /web/.next-hc-cube/
 /web/.next-empty/
 node_modules/
@@ -41,3 +42,5 @@ node_modules/
 examples/*/dbt/target/
 examples/*/dbt/logs/
 examples/*/dbt/.user.yml
+
+/src/decision_layer/static/

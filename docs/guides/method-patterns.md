@@ -16,7 +16,7 @@ Classify data access by grain and extraction count to avoid overlap within the i
 
 Period and common filters are invocation inputs. The function selects measures and groups or time buckets. Missing buckets are not filled with zero; top-N is not treated as the complete population.
 
-<<< @/../examples/methods/patterns/methods.py#series
+<<< @/../examples/methods/scenarios/methods.py#series
 
 ## B. Combine several queries
 
@@ -24,9 +24,9 @@ Period and common filters are invocation inputs. The function selects measures a
 
 `peers` defines the comparison conditions; `subject` defines the target. Invocation filters apply to all three queries. A shared filter on the subject dimension would invalidate the overall benchmark and is refused. The same provider applies permissions to target and exclusion queries.
 
-<<< @/../examples/methods/patterns/methods.py#peer
+<<< @/../examples/methods/scenarios/methods.py#peer
 
-<<< @/../examples/methods/patterns/methods.py#period_difference
+<<< @/../examples/methods/scenarios/methods.py#period_difference
 
 ## C–G. Entities and panels
 

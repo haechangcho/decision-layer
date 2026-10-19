@@ -47,7 +47,9 @@ def test_delete_run_endpoint_preserves_registered_recipe(provider, tmp_path):
     result = client.post(f"/runs/{run['id']}/steps", json={"method": "query.trend", "bindings": {"metric": RR}})
     assert result.status_code == 200
     assert client.post(f"/runs/{run['id']}:complete", json={"summary": "Done"}).status_code == 200
-    assert client.post(f"/runs/{run['id']}/recipe", json={"reviewed": True}).status_code == 200
+    draft = client.post(f"/runs/{run['id']}/recipe", json={}).json()
+    assert draft["status"] == "draft"
+    assert client.post(f"/recipes/{draft['name']}/publish", json={"base_version": draft["version"]}).status_code == 200
     response = client.delete(f"/runs/{run['id']}")
     assert response.status_code == 204
     assert client.get(f"/runs/{run['id']}").status_code == 404
@@ -83,6 +85,7 @@ def test_registration_accepts_calculated_refusal_but_reexecution_still_refuses(p
     recipe = response.json()
     assert len(recipe["steps"]) == 1
     assert client.post(path + "/recipe").json() == recipe
+    recipe = client.post(f"/recipes/{recipe['name']}/publish", json={"base_version": recipe["version"]}).json()
     replay = client.post("/runs", json={"recipe": recipe["name"], "scope": SCOPE}).json()
     assert replay["steps"][0]["result"]["status"] == "refused", replay
     assert client.get(path).json()["steps"][0]["result"]["status"] == "refused"
@@ -105,13 +108,18 @@ def test_one_click_registration_replays_settings_and_is_idempotent(provider, tmp
     response = client.post(endpoint)
     assert response.status_code == 200, response.json()
     recipe = response.json()
-    assert recipe["status"] == "published"
+    assert recipe["status"] == "draft"
     assert recipe["steps"][0]["params"] == source["steps"][0]["step"]["params"]
-    assert recipe["steps"][0]["purpose"] == "Inspect groups"
+    assert not recipe["steps"][0]["purpose"]
+    assert recipe["source_question"] is None
     assert recipe["steps"][0]["method_version"] == "2.0.0"
     assert recipe["semantic_scope"]["required_filters"] == []
     assert recipe["default_scope"]["date_range"] is None
-    assert client.post(endpoint, json={"reviewed": True}).json() == recipe
+    assert client.post(endpoint, json={"reviewed": True}).status_code == 422
+    assert client.post(endpoint, json={}).json() == recipe
+    assert client.get("/recipes").json() == []
+    recipe = client.post(f"/recipes/{recipe['name']}/publish", json={"base_version": recipe["version"]}).json()
+    assert recipe["status"] == "published" and recipe["version"] == "1.0.1"
     assert len(client.get("/recipes").json()) == 1
     replay = client.post("/runs", json={"recipe": recipe["name"], "scope": scope}).json()
     assert replay["status"] == "completed", replay
@@ -121,17 +129,16 @@ def test_one_click_registration_replays_settings_and_is_idempotent(provider, tmp
     assert replay["steps"][0]["result"]["provenance"]["queries"][0]["native_query"] == source["steps"][0]["result"]["provenance"]["queries"][0]["native_query"]
     cleared = client.post("/runs", json={"recipe": recipe["name"], "scope": {"date_range": None}}).json()
     assert cleared["plan"]["scope"]["date_range"] is None
-    recipe["version"] = "1.0.1"
+    recipe["version"] = "1.0.2"
     recipe["steps"][0]["method_version"] = "0.0.0"
-    assert client.put(f"/recipes/{recipe['name']}", json={"recipe": recipe, "base_version": "1.0.0"}).status_code == 200
-    blocked = client.post("/runs", json={"recipe": recipe["name"], "scope": scope}).json()
-    assert blocked["status"] == "failed"
-    assert blocked["steps"][0]["result"]["provenance"]["queries"] == []
+    # An unavailable pin is rejected during authoring; it cannot replace the valid published Recipe.
+    assert client.put(f"/recipes/{recipe['name']}", json={"recipe": recipe, "base_version": "1.0.1"}).status_code == 422
+    assert client.get(f"/recipes/{recipe['name']}").json()["version"] == "1.0.1"
     assert client.delete(f"/recipes/{recipe['name']}?base_version=1.0.0").status_code == 409
     assert client.delete(f"/recipes/{recipe['name']}?base_version=1.0.1").status_code == 204
     assert client.get("/recipes").json() == []
     assert client.get(f"/runs/{source['id']}").json() == source
-    assert client.get(f"/runs/{replay['id']}").json()["recipe_snapshot"]["version"] == "1.0.0"
+    assert client.get(f"/runs/{replay['id']}").json()["recipe_snapshot"]["version"] == "1.0.1"
     assert client.post("/runs", json={"recipe": recipe["name"]}).status_code == 404
 
 
@@ -277,7 +284,8 @@ def test_mcp_rest_execution_cannot_bypass_question_run_contract(provider, tmp_pa
     assert client.post(path + "/recipe").status_code == 422
     assert client.get(path).json()["status"] == "open"
     assert client.post(path + ":complete", json={"conclusion": {"answer": "Reviewed", "findings": [{"text": "Change result", "step_indices": [0]}], "goal_outcomes": [outcome.model_dump(mode="json") for outcome in MCP_OUTCOMES]}}).status_code == 200
-    assert client.post(path + "/recipe", json={"reviewed": True}).status_code == 200
+    assert client.post(path + "/recipe", json={"reviewed": True}).status_code == 422
+    assert client.post(path + "/recipe", json={}).json()["status"] == "draft"
     assert len(client.get("/runs").json()) == 1
 
 

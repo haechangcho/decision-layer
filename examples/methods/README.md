@@ -1,40 +1,24 @@
 # Method examples
 
-From the repository root, install Python 3.11+ development dependencies and run:
+1. Follow the [Python Method notebook](../../docs/tutorials/methods/write_your_method.en.ipynb)
+   ([한국어](../../docs/tutorials/methods/write_your_method.ko.ipynb)).
+2. Use [project/](project/README.md) to save Methods and Skills for the server.
+3. Explore [authoring/](authoring/README.md), [statistics/](statistics/README.md)
+   or [scenarios/](scenarios/README.md) for a specific need.
+
+The notebook uses prepared data and needs no Cube server or AI connection.
+Use a Python environment with this checkout installed and the `stats` extra.
+Launch it from this repository so it can import the example modules.
+
+`first_method/` and `peer_comparison/` demonstrate the advanced SDK contracts.
+`pywhy_review/` contains optional estimator experiments. These are supporting
+examples, not additional setup steps for writing a Method.
+
+Run example checks from the repository root:
 
 ```bash
-make setup
-make example
+.venv/bin/python -m pytest -q tests/examples
 ```
 
-Start with `first_method/method.py`. Its fixture supplies independently known group
-values and an exact semantic query; `test_method.py` registers and executes the Method
-through the public SDK. Edit the implementation or expected query and rerun the test.
-
-For an existing Method with three queries:
-
-```bash
-.venv/bin/python -m pytest -q examples/methods/peer_comparison
-```
-
-The production implementation is `src/decision_layer/methods/peer_comparison.py`.
-The example checks subject/peer/overall populations and expected 4/6 percentage-point
-differences. Fixtures are single-use and verify requests/combination, not warehouse
-aggregation, authentication, joins or causal validity.
-
-Each example has an optional `explore.ipynb`. Launch Jupyter from the repository root
-with a kernel containing the editable package. Notebooks import ordinary Python
-modules; there are no duplicated percent-cell sources or generation scripts. Restart
-or reload the module after editing, then register with `replace=True`.
-
-The peer notebook needs no credentials. The first-Method notebook uses Cube. Set
-`CUBE_API_URL`, `CUBE_TOKEN`, and optionally `CUBE_INSTANCE` (default `local`) in the
-kernel environment. The discovery cell lists refs; set `CUBE_METRIC`,
-`CUBE_DIMENSION`, `CUBE_TIME_DIMENSION`, `ANALYSIS_START` and `ANALYSIS_END` from those
-visible refs, or edit the selection variables directly. Do not save tokens in cells
-or outputs. Preview requires a Cube-accepted token with a subject claim.
-
-Direct trials stay in the kernel for breakpoints. Query attempts and results are
-inspectable; exceptions propagate. Recipe previews execute in workers and store Runs
-only in memory. Neither uploads code/results to an API server. Call `session.close()`
-after preview. See [the Method guide](../../docs/guides/methods.md) for the full workflow.
+See the [repository example map](../README.md) and
+[Method development guide](../../docs/guides/methods.md).

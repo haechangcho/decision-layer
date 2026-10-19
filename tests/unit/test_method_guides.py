@@ -16,7 +16,7 @@ def test_translations_share_code_and_cases(page):
     pattern = r"```[^\n]*\n(.*?)```|^<<< ([^\n]+)$"
     assert re.findall(pattern, en, flags=re.M | re.S) == re.findall(pattern, ko, flags=re.M | re.S)
     if page == "method-scenarios":
-        from examples.methods.patterns.scenarios import scenarios
+        from examples.methods.scenarios.scenarios import scenarios
         for case in scenarios():
             assert f"| {case.name} |" in en and f"| {case.name} |" in ko
 
@@ -24,7 +24,7 @@ def test_translations_share_code_and_cases(page):
 @pytest.mark.skipif(not importlib.util.find_spec("dowhy") or not importlib.util.find_spec("econml"),
                     reason="Install analytical extras for optional notebook")
 async def test_optional_notebook_imports_the_tested_implementations(monkeypatch):
-    namespace = await execute_notebook(ROOT / "examples/methods/patterns/explore.ipynb", monkeypatch)
+    namespace = await execute_notebook(ROOT / "docs/tutorials/methods/query_scenarios.ipynb", monkeypatch)
     assert namespace["trial"].result.status == "success"
     assert abs(namespace["dowhy_trial"].result.primary.data["value"] - 2) < .15
     assert abs(namespace["econml_trial"].result.primary.data["value"] - 2) < .15

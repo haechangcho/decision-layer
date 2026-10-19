@@ -26,6 +26,14 @@ services:
     depends_on:
       cube: {condition: service_healthy}
     environment:
-      DL_DEFAULT_SOURCE_PROVIDER: cube
+      DL_DEPLOYMENT_MODE: demo
+      DL_METHOD_ASSETS_DIR: /data/method-assets
+      DL_ALLOW_METHOD_EDITING: "true"
+      DL_SOURCE_PROVIDER: cube
+      CUBE_API_URL: http://cube:4000/cubejs-api/v1
       CUBE_INSTANCE: journey
       CUBE_API_SECRET: local-example-secret-change-me-0123456789
+      DL_METHOD_MODULES: examples.recipes.skill_chain
+      PYTHONPATH: /opt/decision-layer
+    volumes:
+      - ../../examples:/opt/decision-layer/examples:ro

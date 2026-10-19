@@ -44,7 +44,7 @@ cd examples/complete-journey
 docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900
 ```
 
-This starts PostgreSQL, Cube, API and Web. Open **http://127.0.0.1:3000/catalog**. A fresh installation connects Cube and starts without Recipes. Existing saved connections take precedence.
+This starts PostgreSQL, Cube, API and Web. Open **http://127.0.0.1:3000/catalog**. The example explicitly selects Cube and demo mode. A fresh installation starts without Recipes. Existing connection records and Runs remain stored, but a previously selected dbt connection is not activated.
 First startup downloads the official 128 MB archive and streams all eight source tables into PostgreSQL.
 The promotion table is large, so allow several minutes. Later starts reuse the cache and database.
 For offline setup, place the original archive at `data/complete-journey.zip`; its checksum is still checked.
@@ -270,3 +270,13 @@ and [tests](../../docs/guides/testing.md). Keep the source data private to your 
 ## Author and test new Methods
 
 [Manual scenarios](../../docs/guides/method-scenarios.md) cover drilldown, trends, multiple queries, OLS, DoWhy, EconML and single/partitioned panels through the same execution model. Use existing data and the current checkout’s native Cube observation-key/panel models. Analytical extras are optional; no DB-row re-import is needed. Identification assumptions are unverified in observational campaign data, and the default causal-library scenarios refuse them.
+
+## Connected Skill example
+
+`campaign_recipe()` 1.1.0 connects `analysis.drilldown` to `analysis.peer_comparison`.
+Claude/Codex calls the common query tools; the Run retains actual queries and selection evidence.
+Opening Markdown alone does not execute it. For separate Python calculations, see the ordinary
+function + DataInput example in the Method authoring notebook.
+Compose retains `examples.recipes.skill_chain` for historical pinned execution only; its retired calculation
+is absent from the new Method catalog. Historical evaluation scripts explicitly use
+`legacy_campaign_recipe()` to reproduce their original three-stage experiment.
