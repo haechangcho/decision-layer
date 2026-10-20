@@ -5,7 +5,7 @@ description: Install from PyPI, then use the sample or connect your Cube server.
 
 # Install and start
 
-Install with Python 3.11 or later. The package includes the admin Web UI.
+Start in an empty working directory with Python 3.11 or later. The package includes the admin Web UI.
 
 ```bash
 python3 -m venv .venv
@@ -44,11 +44,24 @@ This runs registered procedures on synthetic data; it does not generate answers 
 Press `Ctrl+C` in the running terminal to stop the server and sample containers.
 Data, Recipes and Runs are kept. Run `decision-layer demo` again to restart.
 
-The sample project lives in `~/.decision-layer/demo/`.
-Editable Method files live in its `sample_shop/methods/` directory; startup prints this path.
-An older empty demo gains these files on its next start. Custom definitions and execution history are preserved. Source data lives in the
-sample's Docker PostgreSQL volume; Run history lives in `.decision-layer/runs.db`
-inside the sample project.
+The project is created **in the directory where you run the command**, alongside your virtual environment.
+
+```text
+workspace/
+├── .venv/
+├── decision-layer.yaml
+├── pyproject.toml
+└── sample_shop/methods/
+    ├── metric_lookup/SKILL.md
+    ├── drilldown/SKILL.md
+    ├── ols/method.py
+    └── matching/method.py
+```
+
+A directory containing unrelated files gets a `decision-layer-demo/` subdirectory instead.
+Running again inside the generated project reuses its code and data. Startup prints the actual paths.
+Source data remains in the PostgreSQL volume; Runs live in the project's `.decision-layer/runs.db`.
+Older `~/.decision-layer/demo/` projects are preserved. Run the command from that directory to continue an old demo.
 
 If startup was interrupted and containers remain running, stop them with:
 

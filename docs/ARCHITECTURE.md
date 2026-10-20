@@ -86,7 +86,7 @@ Background jobs run in-process; recovery records interrupted work. This is not a
 
 The PyPI package contains the Python server and built admin console. `console.py` serves API routes and `/ui`; editable frontend source lives in `web/`. Release CI generates `src/decision_layer/static/`, which is not edited directly. VitePress documentation deploys separately.
 
-`decision-layer demo` starts only sample PostgreSQL and Cube in Docker, then launches the installed server. Its own project and containers do not inherit organization source settings. Source data remains in a PostgreSQL volume; Runs use the sample project's SQLite database.
+`decision-layer demo` creates a visible project in the current empty/virtualenv-only workspace (or a safe child directory if populated), then starts sample PostgreSQL and Cube in Docker and launches the installed server. Subsequent commands inside that project select the same root (ADR-118). Its own project and containers do not inherit organization source settings. Source data remains in a PostgreSQL volume; Runs use the sample project's SQLite database.
 
 Only local and isolated demo deployments are supported. Shared deployment is blocked pending independent application identity and execution isolation. Source administration requires an operator key and approved endpoint. Recipe and Method editing/publication have separate permissions.
 

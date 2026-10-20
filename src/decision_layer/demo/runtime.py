@@ -26,11 +26,18 @@ ASSETS = ("compose.yaml", "seed.sql", "cube/model/sales.yml", "cube/healthcheck.
 
 
 def demo_directory(directory=None) -> Path:
-    return (
-        Path(directory).expanduser().resolve()
-        if directory
-        else Path.home() / ".decision-layer" / "demo"
-    )
+    if directory is not None:
+        return Path(directory).expanduser().resolve()
+    current = Path.cwd().resolve()
+    # A command from inside a demo keeps using that same project.
+    for candidate in (current, *current.parents):
+        marker = candidate / MARKER
+        if marker.exists() or marker.is_symlink():
+            return candidate
+    if all(entry.name == ".venv" for entry in current.iterdir()):
+        return current
+    # Never initialize over unrelated files in a populated working directory.
+    return current / "decision-layer-demo"
 
 
 def require_managed(root: Path) -> None:
@@ -47,7 +54,7 @@ def require_managed(root: Path) -> None:
 
 def prepare(root: Path) -> Project:
     root = root.resolve()
-    if root.exists() and any(root.iterdir()):
+    if root.exists() and any(entry.name != ".venv" for entry in root.iterdir()):
         require_managed(root)
         project = Project.find(root)
         from .upgrade import upgrade_empty_demo

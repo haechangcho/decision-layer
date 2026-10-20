@@ -342,3 +342,52 @@ def test_upgrade_rejects_configuration_symlink(tmp_path):
     with pytest.raises(ValueError, match="symlink"):
         runtime.prepare(project.root)
     assert outside.read_text() == content
+
+
+def test_default_demo_is_created_in_current_workspace_and_keeps_venv(
+    tmp_path, monkeypatch
+):
+    workspace = tmp_path / "dl"
+    environment = workspace / ".venv"
+    environment.mkdir(parents=True)
+    keep = environment / "pyvenv.cfg"
+    keep.write_text("keep interpreter configuration")
+    monkeypatch.chdir(workspace)
+    assert runtime.demo_directory() == workspace
+    project = runtime.prepare(runtime.demo_directory())
+    assert (workspace / "decision-layer.yaml").is_file()
+    assert project.methods_dir == workspace / "sample_shop" / "methods"
+    for entry in [
+        "metric_lookup/SKILL.md",
+        "drilldown/SKILL.md",
+        "ols/method.py",
+        "matching/method.py",
+    ]:
+        assert (project.methods_dir / entry).is_file()
+    assert keep.read_text() == "keep interpreter configuration"
+    # Repeat and stop from a package subdirectory still select this workspace.
+    monkeypatch.chdir(project.methods_dir / "ols")
+    assert runtime.demo_directory() == workspace
+
+
+def test_default_demo_does_not_overwrite_a_populated_workspace(tmp_path, monkeypatch):
+    readme = tmp_path / "README.md"
+    readme.write_text("keep my project")
+    monkeypatch.chdir(tmp_path)
+    selected = runtime.demo_directory()
+    assert selected == tmp_path / "decision-layer-demo"
+    runtime.prepare(selected)
+    assert readme.read_text() == "keep my project"
+    assert runtime.demo_directory() == selected
+
+
+def test_default_demo_does_not_reuse_the_old_global_project(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    old = home / ".decision-layer" / "demo"
+    runtime.prepare(old)
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    monkeypatch.setattr(Path, "home", lambda: home)
+    monkeypatch.chdir(workspace)
+    assert runtime.demo_directory() == workspace
+    assert runtime.demo_directory(old) == old

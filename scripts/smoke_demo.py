@@ -24,6 +24,10 @@ def available_port():
 def main():
     with tempfile.TemporaryDirectory(prefix="decision-layer-demo-qa-") as folder:
         root = Path(folder).resolve() / "sample"
+        root.mkdir()
+        (root / ".venv").mkdir()
+        environment_marker = root / ".venv" / "preserved.txt"
+        environment_marker.write_text("keep virtual environment")
         port, cube_port = available_port(), available_port()
         while port == cube_port:
             cube_port = available_port()
@@ -33,8 +37,6 @@ def main():
             "-m",
             "decision_layer",
             "demo",
-            "--directory",
-            str(root),
             "--port",
             str(port),
             "--cube-port",
@@ -43,7 +45,7 @@ def main():
         with log_path.open("w") as log:
             process = subprocess.Popen(
                 command,
-                cwd=folder,
+                cwd=root,
                 stdout=log,
                 stderr=subprocess.STDOUT,
                 start_new_session=True,
@@ -62,6 +64,15 @@ def main():
                     )
                 time.sleep(0.5)
             evidence = json.loads(evidence_path.read_text())
+            assert (root / "decision-layer.yaml").is_file()
+            assert environment_marker.read_text() == "keep virtual environment"
+            for entry in (
+                "metric_lookup/SKILL.md",
+                "drilldown/SKILL.md",
+                "ols/method.py",
+                "matching/method.py",
+            ):
+                assert (root / "sample_shop" / "methods" / entry).is_file()
             with httpx.Client(
                 base_url=f"http://127.0.0.1:{port}", trust_env=False
             ) as client:

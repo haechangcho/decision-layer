@@ -63,7 +63,8 @@ def main(argv=None):
     )
     demo.add_argument("action", nargs="?", choices=["start", "stop"], default="start")
     demo.add_argument(
-        "--directory", help="Sample project directory (default: ~/.decision-layer/demo)"
+        "--directory",
+        help="Sample project directory (default: current folder; decision-layer-demo/ if populated)",
     )
     demo.add_argument("--port", type=int, help="Local Web/API port (default: 8000)")
     demo.add_argument(

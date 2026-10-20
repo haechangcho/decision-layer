@@ -11,7 +11,7 @@ def init_project(path: str | Path, name: str | None = None, *, empty=False):
     root = Path(path).resolve()
     name = name or re.sub(r"\W", "_", root.name).lower()
     config = ProjectConfig(name=name, include_builtin_methods=False)
-    if root.exists() and any(root.iterdir()):
+    if root.exists() and any(entry.name != ".venv" for entry in root.iterdir()):
         raise ProjectError(f"Directory is not empty: {root}")
     methods = root / name / "methods"
     methods.mkdir(parents=True)

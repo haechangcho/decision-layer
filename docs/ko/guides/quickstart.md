@@ -5,7 +5,7 @@ description: PyPI로 설치하고 샘플 데이터 또는 내 Cube에 연결합�
 
 # 설치하고 시작하기
 
-Python 3.11 이상에서 설치합니다. 관리자 화면도 패키지에 포함되어 있습니다.
+빈 작업 폴더에서 시작합니다. Python 3.11 이상이 필요하며 관리자 화면도 패키지에 포함되어 있습니다.
 
 ```bash
 python3 -m venv .venv
@@ -41,10 +41,24 @@ decision-layer demo
 실행한 터미널에서 `Ctrl+C`를 누르면 서버와 샘플 컨테이너가 종료됩니다.
 데이터, Recipe와 실행 기록은 유지되며, 다시 `decision-layer demo`로 시작할 수 있습니다.
 
-기본 프로젝트는 `~/.decision-layer/demo/`에 있습니다.
-기본 Method 파일은 그 안의 `sample_shop/methods/`에 생성되며, 실행한 터미널에도 경로가 표시됩니다.
-이전 데모에 Method 파일이 없었다면 첫 재실행에서 추가합니다. 직접 작성한 파일과 기존 실행 기록은 유지합니다.
+프로젝트는 **명령을 실행한 폴더**에 생성됩니다. 가상환경이 있어도 같은 폴더를 사용합니다.
+
+```text
+작업 폴더/
+├── .venv/
+├── decision-layer.yaml
+├── pyproject.toml
+└── sample_shop/methods/
+    ├── metric_lookup/SKILL.md
+    ├── drilldown/SKILL.md
+    ├── ols/method.py
+    └── matching/method.py
+```
+
+이미 다른 파일이 있는 폴더에서는 `decision-layer-demo/` 하위 폴더에 생성합니다.
+생성된 프로젝트 안에서 다시 실행하면 같은 코드와 데이터를 사용합니다. 터미널에도 실제 경로가 표시됩니다.
 샘플 원본 데이터는 Docker의 PostgreSQL 볼륨에, 실행 기록은 프로젝트의 `.decision-layer/runs.db`에 저장됩니다.
+이전 버전의 `~/.decision-layer/demo/`도 유지됩니다. 그 데모를 이어서 쓰려면 해당 폴더에서 실행하세요.
 
 시작이 중단되어 컨테이너만 남았다면 다음 명령으로 멈춥니다.
 

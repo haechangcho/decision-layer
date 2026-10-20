@@ -2613,3 +2613,25 @@ Method implementations remain available through the existing registry.
 Startup prints the actual Method directory. The installation guide uses --upgrade
 so the same command installs a fresh environment and updates an existing one.
 This is a bounded managed-demo migration, not general project synchronization.
+
+
+## ADR-118 — Keep the demo project in the user's workspace (2026-10-20)
+
+**Accepted.** A new install followed by demo must leave editable Skill and Python
+files in the workspace where the user ran the command. A hidden global project
+made the normal first-install flow appear to create no definitions and reused
+unrelated prior QA state. This supersedes the home-directory default from ADR-112.
+
+Without --directory, use the current directory when it is empty or contains only
+.venv. Inside an existing managed demo, reuse its marked ancestor. In an unrelated
+populated directory, create/use a visible decision-layer-demo child and never
+initialize over existing files. The shared init scaffold accepts a virtualenv-only
+root without changing the environment. Explicit directories remain supported.
+
+Older home-directory demos are preserved and can still be selected explicitly or
+by running from inside them; do not move their databases or Docker volumes behind
+the user's back. Every project retains its own definitions, Recipes, Runs and
+container identity. Startup reports the selected project and Method directory.
+Installed-package live-demo QA uses a virtualenv-only workspace and the default
+command path, and asserts that visible files and recorded executions share that
+same root. No separate Web/Python/MCP execution logic is added.

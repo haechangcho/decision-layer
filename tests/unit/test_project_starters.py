@@ -159,3 +159,15 @@ async def test_starter_executes_through_mcp_rest_and_spawned_worker(
         assert saved["code"]["available"]
         assert saved["result"]["provenance"]["method"].endswith("@2.0.0")
         assert len(provider.calls) == 1
+
+
+def test_init_uses_a_folder_containing_only_a_virtual_environment(tmp_path):
+    from decision_layer.project_scaffold import init_project
+
+    environment = tmp_path / ".venv"
+    environment.mkdir()
+    marker = environment / "keep.txt"
+    marker.write_text("keep environment")
+    project = init_project(tmp_path, "local_team")
+    assert (project.methods_dir / "ols" / "method.py").is_file()
+    assert marker.read_text() == "keep environment"
