@@ -55,7 +55,7 @@ Add this entry alongside existing MCP servers and restart the client.
 
 Ask your connected AI client a business question:
 
-> Compare February 2026 revenue by product and show the metrics and evidence used.
+> Which department leads revenue in February 2026, and what is its revenue by region? Show the metrics and evidence used.
 
 AI reads registered methods and the semantic catalog, selects inputs and asks about ambiguous meanings or dates.
 
@@ -69,6 +69,8 @@ Open the returned Run link to inspect results and queries. Save a recurring anal
 | `DL_WEB_URL` | Admin console URL for result links |
 | `DL_TOKEN` | Bearer token required for an existing Cube user |
 | `DL_LOCALE` | Method message language; use `ko` for Korean |
+
+The sample contains revenue, departments and regions for January–March 2026. Grocery leads February revenue at 6,720.
 
 The sample uses a local test identity. Keep real tokens in private client settings, outside Git.
 

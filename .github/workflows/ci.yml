@@ -117,6 +117,6 @@ jobs:
       - name: Run installed demo outside the checkout
         run: |
           python -m venv "$RUNNER_TEMP/demo-qa"
-          "$RUNNER_TEMP/demo-qa/bin/python" -m pip install "$(realpath dist/*.whl)[stats]"
+          "$RUNNER_TEMP/demo-qa/bin/python" -m pip install --pre "$(realpath dist/*.whl)[stats,mcp]"
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/demo-qa/bin/python" "$GITHUB_WORKSPACE/scripts/smoke_demo.py"

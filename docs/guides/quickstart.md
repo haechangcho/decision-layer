@@ -10,8 +10,10 @@ Install with Python 3.11 or later. The package includes the admin Web UI.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --pre 'decision-layer[stats]'
+pip install --pre 'decision-layer[stats,mcp]'
 ```
+
+`stats` includes data and statistical libraries; `mcp` includes the AI connection adapter.
 
 Use `--pre` while Decision Layer is a prerelease. Then choose a starting point.
 

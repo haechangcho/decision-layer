@@ -10,10 +10,10 @@ Python 3.11 이상에서 설치합니다. 관리자 화면도 패키지에 포�
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --pre 'decision-layer[stats]'
+pip install --pre 'decision-layer[stats,mcp]'
 ```
 
-현재는 사전 배포 버전이므로 `--pre`를 사용합니다. 설치 후 목적에 맞게 시작하세요.
+현재는 사전 배포 버전이므로 `--pre`를 사용합니다. `stats`는 데이터 처리와 통계 계산, `mcp`는 AI 연결에 필요한 패키지를 함께 설치합니다.
 
 ## 샘플로 먼저 체험하기
 

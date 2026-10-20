@@ -38,7 +38,7 @@ jobs:
       - name: Install the built wheel in a separate environment
         run: |
           python -m venv "$RUNNER_TEMP/package-qa"
-          "$RUNNER_TEMP/package-qa/bin/python" -m pip install "$(realpath dist/*.whl)[stats]"
+          "$RUNNER_TEMP/package-qa/bin/python" -m pip install --pre "$(realpath dist/*.whl)[stats,mcp]"
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/package-qa/bin/python" "$GITHUB_WORKSPACE/scripts/smoke_distribution.py"
       - uses: actions/upload-artifact@v4

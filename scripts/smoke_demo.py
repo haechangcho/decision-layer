@@ -1,5 +1,6 @@
 """Exercise the installed demo outside the checkout, including Ctrl+C cleanup."""
 
+import asyncio
 import json
 from pathlib import Path
 import signal
@@ -10,6 +11,8 @@ import tempfile
 import time
 
 import httpx
+
+from smoke_mcp import verify_mcp
 
 
 def available_port():
@@ -80,6 +83,9 @@ def main():
                 assert (
                     evidence["march"]["steps"][-1]["result"]["status"] == "needs_input"
                 )
+            asyncio.run(
+                verify_mcp(f"http://127.0.0.1:{port}", f"http://127.0.0.1:{port}/ui")
+            )
             process.send_signal(signal.SIGINT)
             assert process.wait(timeout=45) == 0
             assert (root / ".decision-layer" / "runs.db").stat().st_size > 0
