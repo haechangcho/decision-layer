@@ -1,6 +1,6 @@
-# Contribute to the product
+# Development and tests
 
-To add your team's calculation, start with [Write a Method](methods.md). This guide
+To add your team's calculation, start with [Register in a project](method-projects.md). This guide
 covers changes to Decision Layer itself. Use Python 3.11+ and Node.js 22.
 
 ## Install and run
@@ -26,30 +26,9 @@ Open Web at `http://localhost:5210` and API docs at `http://localhost:8000/docs`
 Live queries require [Cube](cube.md). To try the installed sample, use
 `decision-layer demo` from [Install and start](quickstart.md).
 
-## Code map
+## Find the code to change
 
-```text
-src/decision_layer/
-├── methods/       # Method registration, input contracts and calculations
-├── recipes/       # Reusable analysis procedures
-├── runs/          # Execution, authorization and recorded evidence
-├── semantic/      # Cube connection and canonical queries
-├── api/           # REST API
-├── mcp/           # AI tools using that API
-└── demo/          # Installed sample resources and launcher
-web/
-├── app/           # Routes
-├── features/      # Method, Recipe and Run screens
-└── components/    # Shared UI
-docs/              # Guides and the bilingual Method notebook
-examples/          # Authoring tutorial, complete project and product demos
-tests/             # Unit, API, provider and tutorial checks
-└── support/       # Shared fixtures and known-answer cases
-```
-
-Change execution rules in the shared Python code. Web, REST and MCP use the same
-execution model. See [Architecture](../ARCHITECTURE.md) for detailed ownership.
-Frontend builds generate `src/decision_layer/static/`; edit source files rather than generated assets.
+See [Code structure](../ARCHITECTURE.md) for execution flow and module ownership. Change execution rules in shared Python code rather than adding separate calculations to Web, REST or MCP.
 
 Read `AGENTS.md`, `docs/PRODUCT_CONTEXT.md`, `docs/ARCHITECTURE.md` and
 `docs/DECISIONS.md` before changing product behavior. Record architecture changes in the decisions log.
@@ -64,6 +43,7 @@ make test
 npm --prefix web run typecheck
 npm --prefix web run build:console
 npm ci
+npm run docs:test
 npm run docs:build
 ```
 

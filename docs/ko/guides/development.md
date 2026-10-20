@@ -1,6 +1,6 @@
-# 제품 개발에 기여하기
+# 개발 환경과 테스트
 
-팀의 분석 함수를 추가하려면 [Method 만들기](methods.md)를 먼저 읽으세요.
+팀의 분석 함수를 추가하려면 [프로젝트에 등록하기](method-projects.md)를 먼저 읽으세요.
 이 문서는 Decision Layer 자체의 실행 코드나 화면을 수정하는 개발자를 위한 안내입니다.
 Python 3.11 이상과 Node.js 22가 필요합니다.
 
@@ -27,30 +27,9 @@ make web
 실제 조회는 [Cube 연결](cube.md)이 필요합니다. 샘플 체험만 하려면
 [설치하고 시작하기](quickstart.md)의 `decision-layer demo`를 사용하세요.
 
-## 코드 위치
+## 수정할 코드 찾기
 
-```text
-src/decision_layer/
-├── methods/       # Method registration, input contracts and calculations
-├── recipes/       # Reusable analysis procedures
-├── runs/          # Execution, authorization and recorded evidence
-├── semantic/      # Cube connection and canonical queries
-├── api/           # REST API
-├── mcp/           # AI tools using that API
-└── demo/          # Installed sample resources and launcher
-web/
-├── app/           # Routes
-├── features/      # Method, Recipe and Run screens
-└── components/    # Shared UI
-docs/              # Guides and the bilingual Method notebook
-examples/          # Authoring tutorial, complete project and product demos
-tests/             # Unit, API, provider and tutorial checks
-└── support/       # Shared fixtures and known-answer cases
-```
-
-실행 규칙은 Python 공통 코드에서 수정합니다. Web, REST와 MCP는 같은 실행 모델을 사용합니다.
-상세 책임은 [아키텍처](../ARCHITECTURE.md)에 있습니다.
-프론트엔드의 빌드 결과는 `src/decision_layer/static/`에 생성되며 직접 수정하지 않습니다.
+[코드 구조](../ARCHITECTURE.md)에서 실행 흐름과 모듈별 책임을 확인하세요. 실행 규칙은 Python 공통 코드에서 수정하며 Web, REST와 MCP에 별도 계산을 추가하지 않습니다.
 
 변경 전에 저장소의 `AGENTS.md`, `docs/PRODUCT_CONTEXT.md`, `docs/ARCHITECTURE.md`,
 `docs/DECISIONS.md`를 읽으세요. 설계가 바뀌면 결정 기록도 갱신합니다.
@@ -65,6 +44,7 @@ make test
 npm --prefix web run typecheck
 npm --prefix web run build:console
 npm ci
+npm run docs:test
 npm run docs:build
 ```
 

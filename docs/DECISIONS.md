@@ -2513,3 +2513,9 @@ explanation rather than download or environment instructions; setup-tagged cells
 are collapsed. Keep installation and connection tasks in their guides, API details
 in the existing reference, and product contribution separate from Method authorship.
 The original notebook downloads remain available at their existing URLs.
+
+Reference material is task-oriented: Method API documents ordinary-function
+arguments, inputs, results and checks; Code structure summarizes current ownership
+and execution boundaries. Historical migration notes stay in this decisions log,
+not duplicated as a second architecture chronology. Contribution setup/tests link
+to that single code map. This is documentation consolidation, not a contract change.

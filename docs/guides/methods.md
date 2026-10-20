@@ -29,3 +29,5 @@ Web, REST and MCP share the same execution code. A local notebook session lets a
 [Connect a Python function](../tutorials/write-your-method) shows ranking and OLS with code and results.
 
 Continue with [Register in a project](method-projects.md) to make a function available in the service. If existing Methods cover the analysis, compose them in a [Recipe](recipes.md).
+
+See [Method API](../reference/method-contract.md) to look up registration arguments and input options.

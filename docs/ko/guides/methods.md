@@ -29,3 +29,5 @@ Web, REST와 MCP도 같은 실행 코드를 사용합니다. 노트북의 로컬
 [Python 함수 연결 예제](../tutorials/write-your-method)에서 순위 계산과 OLS가 어떻게 데이터를 받는지 코드와 결과로 살펴볼 수 있습니다.
 
 함수를 서비스에 추가하는 방법은 [프로젝트에 등록하기](method-projects.md)에 있습니다. 이미 등록된 Method만으로 분석할 수 있다면 새 함수를 만들지 않고 [Recipe](recipes.md)로 조합합니다.
+
+등록 인자와 입력 옵션을 찾아보려면 [Method API](../reference/method-contract.md)를 참고하세요.

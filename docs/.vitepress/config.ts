@@ -21,12 +21,12 @@ function sidebar(locale: '' | 'ko') {
     { text: ko ? 'Method 확장하기' : 'Extend Methods', items: [
       item('Understand Methods', 'Method 이해하기', '/guides/methods'),
       item('Connect a Python function', 'Python 함수 연결 예제', '/tutorials/write-your-method'),
-      item('Register in a project', '프로젝트에 등록하기', '/guides/method-projects')
+      item('Register in a project', '프로젝트에 등록하기', '/guides/method-projects'),
+      item('Method API', 'Method API', '/reference/method-contract')
     ] },
-    { text: ko ? '개발과 참고' : 'Development and reference', collapsed: true, items: [
-      item('Contribute to the product', '제품 개발하기', '/guides/development'),
-      item('Method contract', 'Method 계약', '/reference/method-contract'),
-      item('Architecture', '아키텍처', '/ARCHITECTURE')
+    { text: ko ? '제품 개발' : 'Product development', collapsed: true, items: [
+      item('Development and tests', '개발 환경과 테스트', '/guides/development'),
+      item('Code structure', '코드 구조', '/ARCHITECTURE')
     ] }
   ]
 }
