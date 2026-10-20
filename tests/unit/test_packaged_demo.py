@@ -215,3 +215,130 @@ def test_invalid_ports_do_not_start_services(monkeypatch, tmp_path, port, cube_p
     monkeypatch.setattr(runtime, "require_docker", unexpected)
     with pytest.raises(ValueError, match="Ports|different"):
         runtime.run_demo(directory=tmp_path / "sample", port=port, cube_port=cube_port)
+
+
+def legacy_demo(root):
+    from decision_layer.project_scaffold import init_project
+
+    project = init_project(root, "sample_shop", empty=True)
+    (root / runtime.MARKER).write_text(json.dumps(runtime.OWNER))
+    (root / "decision-layer.yaml").write_text("config_version: 1\nname: sample_shop\n")
+    metadata = root / "pyproject.toml"
+    contents = metadata.read_text()
+    contents = (
+        contents[: contents.index("[project.optional-dependencies]")]
+        + contents[contents.index("[tool.hatch") :]
+    )
+    import re
+
+    metadata.write_text(
+        re.sub(
+            r"decision-layer\[stats,mcp\]==[A-Za-z0-9.]+",
+            "decision-layer[stats]==0.1.0a5",
+            contents,
+        )
+    )
+    return project
+
+
+def test_old_empty_demo_gains_editable_methods_once_and_preserves_history(tmp_path):
+    from decision_layer.methods.loading import configured_registry
+    from decision_layer.settings import Settings
+    import shutil
+    import tomllib
+
+    root = tmp_path / "sample"
+    old = legacy_demo(root)
+    (root / ".decision-layer").mkdir()
+    history = root / ".decision-layer" / "runs.db"
+    history.write_bytes(b"keep recorded runs")
+    recipes = root / "recipes"
+    recipes.mkdir()
+    (recipes / "mine.yaml").write_text("keep recipe")
+    project = runtime.prepare(root)
+    assert project.config.include_builtin_methods is False
+    assert history.read_bytes() == b"keep recorded runs"
+    assert (recipes / "mine.yaml").read_text() == "keep recipe"
+    for entry in [
+        "metric_lookup/SKILL.md",
+        "drilldown/SKILL.md",
+        "ols/method.py",
+        "matching/method.py",
+    ]:
+        assert (old.methods_dir / entry).is_file()
+    metadata = tomllib.loads((root / "pyproject.toml").read_text())
+    assert metadata["project"]["optional-dependencies"]["test"]
+    target = configured_registry(Settings(project_dir=str(root)))
+    assert len(target.manifests()) == 4
+    assert all(item.version == "2.0.0" for item in target.manifests())
+    assert target.get("stats.regression_adjustment", "1.1.0")
+    source = project.methods_dir / "ols" / "method.py"
+    source.write_text(source.read_text() + "\n# my change\n")
+    shutil.rmtree(project.methods_dir / "matching")
+    runtime.prepare(root)
+    assert source.read_text().endswith("# my change\n")
+    assert not (project.methods_dir / "matching").exists()
+
+
+def test_old_custom_demo_remains_untouched(tmp_path):
+    project = legacy_demo(tmp_path / "sample")
+    custom = project.methods_dir / "custom.py"
+    custom.write_text("keep my helper")
+    config = (project.root / "decision-layer.yaml").read_bytes()
+    metadata = (project.root / "pyproject.toml").read_bytes()
+    runtime.prepare(project.root)
+    assert (project.root / "decision-layer.yaml").read_bytes() == config
+    assert (project.root / "pyproject.toml").read_bytes() == metadata
+    assert custom.read_text() == "keep my helper"
+    assert not (project.methods_dir / "ols").exists()
+
+
+def test_old_demo_upgrade_rolls_back_on_partial_copy(tmp_path, monkeypatch):
+    from decision_layer.demo import upgrade
+
+    project = legacy_demo(tmp_path / "sample")
+    original = (project.root / "decision-layer.yaml").read_bytes()
+
+    def broken_copy(source, destination, **kwargs):
+        (destination / "partial.py").write_text("partial")
+        raise OSError("disk failure")
+
+    monkeypatch.setattr(upgrade.shutil, "copytree", broken_copy)
+    with pytest.raises(OSError, match="disk failure"):
+        runtime.prepare(project.root)
+    assert (project.root / "decision-layer.yaml").read_bytes() == original
+    assert sorted(p.name for p in project.methods_dir.iterdir()) == ["__init__.py"]
+
+
+def test_upgrade_preserves_custom_project_dependencies(tmp_path):
+    project = legacy_demo(tmp_path / "sample")
+    metadata = project.root / "pyproject.toml"
+    content = metadata.read_text().replace(
+        "dependencies = [", 'dependencies = ["my-company-package", '
+    )
+    metadata.write_text(content)
+    runtime.prepare(project.root)
+    assert metadata.read_text() == content
+    assert (project.methods_dir / "ols" / "method.py").is_file()
+
+
+def test_upgrade_does_not_fill_an_explicitly_empty_project(tmp_path):
+    from decision_layer.project_scaffold import init_project
+
+    project = init_project(tmp_path / "sample", "sample_shop", empty=True)
+    (project.root / runtime.MARKER).write_text(json.dumps(runtime.OWNER))
+    runtime.prepare(project.root)
+    assert not (project.methods_dir / "ols").exists()
+
+
+def test_upgrade_rejects_configuration_symlink(tmp_path):
+    project = legacy_demo(tmp_path / "sample")
+    configuration = project.root / "decision-layer.yaml"
+    outside = tmp_path / "outside.yaml"
+    content = configuration.read_text()
+    outside.write_text(content)
+    configuration.unlink()
+    configuration.symlink_to(outside)
+    with pytest.raises(ValueError, match="symlink"):
+        runtime.prepare(project.root)
+    assert outside.read_text() == content

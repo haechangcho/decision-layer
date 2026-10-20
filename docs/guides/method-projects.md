@@ -103,6 +103,7 @@ Runs are stored in `.decision-layer/decision_layer.db` and Recipes in `recipes/`
 Notebook, CLI and server share the loader but retain their own execution history.
 Web-published versions are managed separately and do not overwrite project source.
 
-Package upgrades never overwrite project files or automatically add defaults to existing projects.
+Package upgrades never overwrite project files or add defaults to ordinary existing projects.
+An older empty managed demo gains starter files when `demo` runs again.
 Use a new directory to repeat first-install QA. Older configurations retain their built-in catalog;
 new configurations set `include_builtin_methods: false` to discover local project definitions instead.

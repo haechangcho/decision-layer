@@ -10,7 +10,7 @@ Install with Python 3.11 or later. The package includes the admin Web UI.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --pre 'decision-layer[stats,mcp]'
+pip install --upgrade --pre 'decision-layer[stats,mcp]'
 ```
 
 `stats` includes data and statistical libraries; `mcp` includes the AI connection adapter.
@@ -44,7 +44,9 @@ This runs registered procedures on synthetic data; it does not generate answers 
 Press `Ctrl+C` in the running terminal to stop the server and sample containers.
 Data, Recipes and Runs are kept. Run `decision-layer demo` again to restart.
 
-The sample project lives in `~/.decision-layer/demo/`. Source data lives in the
+The sample project lives in `~/.decision-layer/demo/`.
+Editable Method files live in its `sample_shop/methods/` directory; startup prints this path.
+An older empty demo gains these files on its next start. Custom definitions and execution history are preserved. Source data lives in the
 sample's Docker PostgreSQL volume; Run history lives in `.decision-layer/runs.db`
 inside the sample project.
 

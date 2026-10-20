@@ -2592,3 +2592,24 @@ Known synthetic answers and invalid inputs test calculations without requiring a
 semantic server. This does not assert validation on a user's actual data or replace
 Run provenance. Wheel smoke checks cover generated files, tests, CLI/API discovery
 and MCP startup outside the source checkout.
+
+
+## ADR-117 — Upgrade the original empty managed demo (2026-10-20)
+
+**Accepted.** ADR-116 left existing demos without editable starter files, so the
+normal install-and-demo commands could not deliver the documented project layout.
+After verifying the demo ownership marker, `demo` upgrades an older project only
+when its configuration predates include_builtin_methods and its methods directory
+contains no user files other than package initializers and bytecode caches.
+
+Stage the same scaffold used by init, copy its four definitions, and atomically
+switch the configuration to local discovery. Update dependency metadata only if
+it exactly matches the earlier generated template; retain custom dependencies.
+Roll back newly created folders and metadata on failure. Existing Runs, Recipes,
+source data and custom definitions are untouched. Explicitly configured projects
+and previously removed starter files are never repopulated. Pinned historical
+Method implementations remain available through the existing registry.
+
+Startup prints the actual Method directory. The installation guide uses --upgrade
+so the same command installs a fresh environment and updates an existing one.
+This is a bounded managed-demo migration, not general project synchronization.

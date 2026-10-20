@@ -10,7 +10,7 @@ Python 3.11 이상에서 설치합니다. 관리자 화면도 패키지에 포�
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --pre 'decision-layer[stats,mcp]'
+pip install --upgrade --pre 'decision-layer[stats,mcp]'
 ```
 
 현재는 사전 배포 버전이므로 `--pre`를 사용합니다. `stats`는 데이터 처리와 통계 계산, `mcp`는 AI 연결에 필요한 패키지를 함께 설치합니다.
@@ -42,6 +42,8 @@ decision-layer demo
 데이터, Recipe와 실행 기록은 유지되며, 다시 `decision-layer demo`로 시작할 수 있습니다.
 
 기본 프로젝트는 `~/.decision-layer/demo/`에 있습니다.
+기본 Method 파일은 그 안의 `sample_shop/methods/`에 생성되며, 실행한 터미널에도 경로가 표시됩니다.
+이전 데모에 Method 파일이 없었다면 첫 재실행에서 추가합니다. 직접 작성한 파일과 기존 실행 기록은 유지합니다.
 샘플 원본 데이터는 Docker의 PostgreSQL 볼륨에, 실행 기록은 프로젝트의 `.decision-layer/runs.db`에 저장됩니다.
 
 시작이 중단되어 컨테이너만 남았다면 다음 명령으로 멈춥니다.

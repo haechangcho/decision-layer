@@ -5,6 +5,7 @@ import importlib.metadata
 import json
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import tempfile
 
@@ -32,6 +33,21 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
     sample = prepare(root / "sample")
     assert all((sample.root / name).is_file() for name in ASSETS)
     assert "cubejs/cube:" in (sample.root / "compose.yaml").read_text()
+    # Reproduce upgrading a demo created before editable starters existed.
+    for kind in ("metric_lookup", "drilldown", "ols", "matching"):
+        shutil.rmtree(sample.methods_dir / kind)
+    (sample.root / "decision-layer.yaml").write_text(
+        "config_version: 1\nname: sample_shop\n"
+    )
+    saved_run = sample.root / ".decision-layer" / "preserved-run.txt"
+    saved_run.write_text("keep execution evidence")
+    sample = prepare(sample.root)
+    assert not sample.config.include_builtin_methods
+    assert all(
+        (sample.methods_dir / kind / "method.py").is_file()
+        for kind in ("ols", "matching")
+    )
+    assert saved_run.read_text() == "keep execution evidence"
     run("init", "qa_team", cwd=root)
     project = root / "qa_team"
     for definition in (
@@ -45,7 +61,10 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
     initial = json.loads(run("list", "--json", cwd=project))
     assert len(initial) == 4
     assert all(item["version"] == "2.0.0" for item in initial)
-    assert all(Path(item["source"]).resolve().is_relative_to(project.resolve()) for item in initial)
+    assert all(
+        Path(item["source"]).resolve().is_relative_to(project.resolve())
+        for item in initial
+    )
     run("new", "python", "rank", cwd=project)
     run("new", "skill", "review", cwd=project)
     print(run("check", cwd=project))

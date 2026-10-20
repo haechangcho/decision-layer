@@ -50,6 +50,9 @@ def prepare(root: Path) -> Project:
     if root.exists() and any(root.iterdir()):
         require_managed(root)
         project = Project.find(root)
+        from .upgrade import upgrade_empty_demo
+
+        project = upgrade_empty_demo(project)
     else:
         project = init_project(root, "sample_shop")
         (root / MARKER).write_text(json.dumps(OWNER) + "\n")
@@ -187,12 +190,12 @@ def run_demo(action="start", *, directory=None, port=None, cube_port=None) -> in
         raise ValueError(
             f"Port {port} is unavailable. Run decision-layer demo --port <available-port>."
         ) from exc
-    prepare(root)
+    project = prepare(root)
     config_path.write_text(
         json.dumps({"port": port, "cube_port": cube_port}, indent=2) + "\n"
     )
     print(
-        f"Sample project: {root}\nPreparing PostgreSQL and Cube. First startup downloads Docker images.",
+        f"Sample project: {root}\nMethods: {project.methods_dir}\nPreparing PostgreSQL and Cube. First startup downloads Docker images.",
         flush=True,
     )
     process = None
