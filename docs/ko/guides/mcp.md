@@ -12,15 +12,14 @@ Decision Layer를 설치한 가상환경에서 실행합니다.
 
 ```bash
 pip install --pre 'decision-layer[mcp]'
-which decision-layer-mcp
 ```
 
-아래 명령의 `/absolute/path/decision-layer-mcp`를 출력된 실행 파일 경로로 바꿉니다. 서버의 포트를 바꿨다면 API와 Web 주소도 맞춥니다.
+아래 연결 명령은 설치된 실행 파일의 경로를 자동으로 사용합니다. 서버의 포트를 바꿨다면 API와 Web 주소도 맞춥니다.
 
 ## Codex
 
 ```bash
-codex mcp add decision-layer --env DL_API_URL=http://127.0.0.1:8000 --env DL_WEB_URL=http://127.0.0.1:8000/ui -- /absolute/path/decision-layer-mcp
+codex mcp add decision-layer --env DL_API_URL=http://127.0.0.1:8000 --env DL_WEB_URL=http://127.0.0.1:8000/ui -- "$(command -v decision-layer-mcp)"
 codex mcp list
 ```
 
@@ -29,7 +28,7 @@ codex mcp list
 ## Claude Code
 
 ```bash
-claude mcp add --scope user --env DL_API_URL=http://127.0.0.1:8000 --env DL_WEB_URL=http://127.0.0.1:8000/ui --transport stdio decision-layer -- /absolute/path/decision-layer-mcp
+claude mcp add --scope user --env DL_API_URL=http://127.0.0.1:8000 --env DL_WEB_URL=http://127.0.0.1:8000/ui --transport stdio decision-layer -- "$(command -v decision-layer-mcp)"
 claude mcp list
 ```
 
@@ -43,7 +42,13 @@ claude mcp list
 ~/Library/Application Support/Claude/claude_desktop_config.json
 ```
 
-기존 `mcpServers` 항목을 유지하면서 `decision-layer`를 추가합니다.
+먼저 실행 파일의 경로를 확인합니다.
+
+```bash
+which decision-layer-mcp
+```
+
+아래 JSON의 `command`를 출력된 경로로 바꾸고, 기존 `mcpServers` 항목을 유지하면서 `decision-layer`를 추가합니다.
 
 ```json
 {
@@ -86,7 +91,7 @@ AI는 등록된 분석 방법과 semantic catalog를 확인하고, 필요한 입
 
 ## 연결되지 않을 때
 
-- **실행 파일을 찾지 못함**: `which decision-layer-mcp`로 경로와 가상환경을 확인합니다.
+- **`ENOENT` 또는 실행 파일을 찾지 못함**: 설치한 가상환경을 활성화하고 `which decision-layer-mcp`로 경로를 확인합니다. Claude Code에 잘못 등록했다면 `claude mcp remove --scope user decision-layer`로 삭제한 뒤 위 연결 명령을 다시 실행합니다.
 - **API에 연결되지 않음**: 서버 실행 상태와 `DL_API_URL`의 포트를 확인합니다.
 - **권한 오류나 지표 누락**: [Cube 연결](cube.md)의 토큰과 접근 권한을 확인합니다.
 - **도구가 보이지 않음**: 클라이언트나 MCP 세션을 다시 시작합니다.
