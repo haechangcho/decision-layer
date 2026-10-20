@@ -71,3 +71,5 @@ body { -webkit-font-smoothing: antialiased; }
   .vp-doc table { display:block; overflow-x:auto; }
   .vp-doc div[class*='language-'] { margin-left:0; margin-right:0; }
 }
+
+.vp-doc .notebook-output-label { margin-bottom: -12px; color: var(--vp-c-text-2); font-size: 12px; font-weight: 600; }

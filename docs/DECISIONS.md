@@ -2492,3 +2492,17 @@ separate example CLI. Remove unused experiment servers, live research runners an
 old notebook-compatibility helpers. Shared introductory data lives beside the
 retained authoring example. Production Methods, historical Method contracts and
 recorded Runs are unaffected.
+
+## ADR-114 — Read the Method notebook inside the documentation (2026-10-20)
+
+**Accepted.** VitePress renders the retained Korean and English Method notebooks
+through dynamic routes. The ipynb remains the single editable source of prose,
+code and saved outputs; no generated Markdown copy is committed. Publish the same
+original files as downloads and link the pages from the Method guide and sidebar.
+This supersedes ADR-110's choice to link only to notebook sources.
+
+Documentation builds do not execute Python, call Cube or run an AI. Existing
+notebook tests verify the examples separately. Render saved textual outputs as
+inert fenced text, never as executable notebook HTML/JavaScript; a saved error
+fails the documentation build. Running the notebook still requires the repository
+example modules. No in-browser notebook runtime or product execution path is added.

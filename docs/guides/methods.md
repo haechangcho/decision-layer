@@ -3,7 +3,7 @@
 Write an ordinary Python function and declare the data it needs. Decision Layer
 queries the selected data, passes it to your function and records server execution in a Run.
 
-Start with the [Method authoring notebook](https://github.com/haechangcho/decision-layer/blob/main/docs/tutorials/methods/write_your_method.en.ipynb).
+Start with the [Method authoring notebook](/tutorials/write-your-method).
 It walks through ranking and OLS, registration and execution on prepared data.
 
 ## Define the function and its inputs

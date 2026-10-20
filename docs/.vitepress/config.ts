@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import { notebookDownloads } from './notebooks.mjs'
 
 const github = 'https://github.com/haechangcho/decision-layer'
 
@@ -19,6 +20,7 @@ function sidebar(locale: '' | 'ko') {
     ] },
     { text: ko ? '개발과 기여' : 'Develop', items: [
       item('Write a Method', 'Method 만들기', '/guides/methods'),
+      item('Run the notebook', '노트북으로 따라 하기', '/tutorials/write-your-method'),
       item('Use a Method project', '프로젝트에서 사용하기', '/guides/method-projects'),
       item('Contribute to the product', '제품 개발하기', '/guides/development')
     ] },
@@ -30,6 +32,7 @@ function sidebar(locale: '' | 'ko') {
 }
 
 export default defineConfig({
+  vite: { plugins: [notebookDownloads()] },
   title: 'Decision Layer',
   description: 'Connect governed metrics to reusable analysis procedures.',
   lang: 'en-US',

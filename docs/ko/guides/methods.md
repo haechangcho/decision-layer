@@ -3,7 +3,7 @@
 일반 Python 함수를 작성하고, 어떤 데이터를 받을지 선언합니다.
 Decision Layer가 선택한 데이터를 조회해 함수에 전달하고, 서버 실행 결과는 Run에 기록합니다.
 
-처음이라면 [Method 작성 노트북](https://github.com/haechangcho/decision-layer/blob/main/docs/tutorials/methods/write_your_method.ko.ipynb)을 실행해 보세요.
+처음이라면 [Method 작성 노트북](/ko/tutorials/write-your-method)을 따라 해보세요.
 순위 계산과 OLS를 작성하고, 준비된 데이터로 등록과 실행을 직접 해볼 수 있습니다.
 
 ## 함수와 입력 정의하기
