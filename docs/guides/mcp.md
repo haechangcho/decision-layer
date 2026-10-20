@@ -4,6 +4,8 @@ Connect MCP so AI can discover and execute registered Methods and Recipes. Start
 
 The adapter runs on your computer and calls the Decision Layer API. Use a client that supports local stdio MCP servers.
 
+Keep the server terminal running. Use another terminal with the same virtual environment activated for the commands below.
+
 ## Install the adapter
 
 In the virtual environment where Decision Layer is installed:
@@ -35,6 +37,14 @@ claude mcp list
 
 ## Claude Desktop
 
+Open **Settings → Developer → Edit Config** in the desktop app. On macOS, the file is:
+
+```text
+~/Library/Application Support/Claude/claude_desktop_config.json
+```
+
+Add `decision-layer` alongside existing `mcpServers` entries.
+
 ```json
 {
   "mcpServers": {
@@ -49,11 +59,11 @@ claude mcp list
 }
 ```
 
-Add this entry alongside existing MCP servers and restart the client.
+Save, fully quit Claude Desktop, and reopen it. See the [official local MCP guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers) for details.
 
 ## Ask and inspect the result
 
-Ask your connected AI client a business question:
+First ask which metrics and analysis methods are available to check the connection. With the sample running, continue with:
 
 > Which department leads revenue in February 2026, and what is its revenue by region? Show the metrics and evidence used.
 

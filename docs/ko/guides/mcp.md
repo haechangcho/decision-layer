@@ -4,6 +4,8 @@ AI가 등록된 Method와 Recipe를 찾고 실행하도록 MCP를 연결합니�
 
 MCP 어댑터는 내 컴퓨터에서 실행되고 Decision Layer API에 요청합니다. 로컬 stdio를 지원하는 클라이언트에서 사용할 수 있습니다.
 
+서버를 실행한 터미널은 켜두세요. 아래 설치와 연결 명령은 새 터미널에서 같은 가상환경을 활성화한 뒤 실행합니다.
+
 ## 어댑터 설치
 
 Decision Layer를 설치한 가상환경에서 실행합니다.
@@ -35,6 +37,14 @@ claude mcp list
 
 ## Claude Desktop
 
+앱의 **Settings → Developer → Edit Config**에서 설정 파일을 엽니다. macOS에서는 다음 위치에 있습니다.
+
+```text
+~/Library/Application Support/Claude/claude_desktop_config.json
+```
+
+기존 `mcpServers` 항목을 유지하면서 `decision-layer`를 추가합니다.
+
 ```json
 {
   "mcpServers": {
@@ -49,11 +59,11 @@ claude mcp list
 }
 ```
 
-기존 MCP 설정에 이 항목을 추가하고 클라이언트를 다시 시작합니다.
+저장한 뒤 Claude Desktop을 완전히 종료하고 다시 엽니다. 자세한 설정은 [공식 로컬 MCP 가이드](https://modelcontextprotocol.io/docs/develop/connect-local-servers)를 참고하세요.
 
 ## 질문하고 결과 확인하기
 
-연결한 AI에게 분석할 내용을 질문합니다.
+먼저 “사용할 수 있는 지표와 분석 방법을 보여줘”라고 질문해 연결을 확인합니다. 샘플 서버에서는 이어서 다음 질문을 할 수 있습니다.
 
 > 2026년 2월 매출 1위 부문과 해당 부문의 지역별 매출을 알려줘. 사용한 지표와 분석 근거도 보여줘.
 
