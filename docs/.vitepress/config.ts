@@ -9,7 +9,7 @@ function sidebar(locale: '' | 'ko') {
   const item = (en: string, kr: string, path: string) => ({ text: ko ? kr : en, link: prefix + path })
   return [
     { text: ko ? '시작하기' : 'Get started', items: [
-      item('Start here', '시작하기', '/'),
+      item('Introduction', '소개', '/'),
       item('Install and start', '설치하고 시작하기', '/guides/quickstart'),
       item('Connect Cube', 'Cube 연결', '/guides/cube'),
       item('Connect an AI client', 'AI 도구 연결', '/guides/mcp')
@@ -18,13 +18,13 @@ function sidebar(locale: '' | 'ko') {
       item('Recipes', 'Recipe 만들기', '/guides/recipes'),
       item('Runs and evidence', '실행 기록과 근거', '/guides/runs')
     ] },
-    { text: ko ? '개발과 기여' : 'Develop', items: [
-      item('Write a Method', 'Method 만들기', '/guides/methods'),
-      item('Run the notebook', '노트북으로 따라 하기', '/tutorials/write-your-method'),
-      item('Use a Method project', '프로젝트에서 사용하기', '/guides/method-projects'),
-      item('Contribute to the product', '제품 개발하기', '/guides/development')
+    { text: ko ? 'Method 확장하기' : 'Extend Methods', items: [
+      item('Understand Methods', 'Method 이해하기', '/guides/methods'),
+      item('Connect a Python function', 'Python 함수 연결 예제', '/tutorials/write-your-method'),
+      item('Register in a project', '프로젝트에 등록하기', '/guides/method-projects')
     ] },
-    { text: ko ? '참고 문서' : 'Reference', collapsed: true, items: [
+    { text: ko ? '개발과 참고' : 'Development and reference', collapsed: true, items: [
+      item('Contribute to the product', '제품 개발하기', '/guides/development'),
       item('Method contract', 'Method 계약', '/reference/method-contract'),
       item('Architecture', '아키텍처', '/ARCHITECTURE')
     ] }

@@ -1,41 +1,29 @@
 ---
-title: Start here
-description: Reuse analytical procedures on governed semantic data.
+title: Introduction
+description: Register reviewed analytical methods for people and AI to reuse.
 ---
 
 # Decision Layer
 
-**Teach your AI how your team analyzes data.**
+**Let people and AI reuse your team's reviewed analysis methods.**
 
-Turn a reviewed analysis into a reusable procedure with recorded steps, checks and evidence.
-
-Decision Layer connects your semantic layer to reusable analytical procedures.
-Run them through Web, Python, REST or MCP, and inspect the inputs, queries and results.
-
-The semantic layer defines metrics, dimensions and access. Decision Layer defines how to analyze them.
-
-## Start with your task
-
-| Task | Guide | Requirements |
-| --- | --- | --- |
-| Install and connect your Cube | [Install and start](guides/quickstart.md) | Python 3.11+, an existing Cube server |
-| Try the sample | [Run the sample](guides/quickstart.md#try-the-sample) | Python 3.11+, Docker and Compose |
-| Write and test a Method | [First Method](guides/methods.md) | Python 3.11+ |
-| Work on Web or API | [Local development](guides/development.md) | Python 3.11+, Node.js 22 |
+Decision Layer connects semantic data to registered analytical code. Save recurring analyses as procedures and keep a record of their inputs, queries and results.
 
 ## Three concepts
 
-- **Method**: one analytical capability, such as trend or peer comparison. It can combine several queries.
-- **Recipe**: your team's procedure, built from existing Methods and semantic references.
-- **Run**: a recorded execution with versions, inputs, query evidence and limitations.
+| Concept | Role |
+|---|---|
+| **Method** | One analytical capability, such as OLS or trend analysis |
+| **Recipe** | A team procedure composed of Methods |
+| **Run** | The inputs, queries and results of one analysis |
 
-Use a Recipe when existing Methods cover the analysis. Add a Method when a new calculation is needed.
+The semantic layer defines metrics, dimensions, joins and access. Decision Layer manages **how to analyze** that data.
 
-## Use your data
+## Choose where to start
 
-The initial release supports [Cube](guides/cube.md) only. Then
-[connect an AI client](guides/mcp.md) or use the Web app.
-Learn to [create a Recipe](guides/recipes.md) and [review a Run](guides/runs.md).
+- **Understand the flow**: [Understand Methods](guides/methods.md) explains how functions connect to data.
+- **Read the code**: [Connect a Python function](tutorials/write-your-method) shows ranking and OLS inputs and results.
+- **Use the product**: [Install and start](guides/quickstart.md) runs a sample or connects an existing Cube.
+- **Add your team's analysis**: [Register in a project](guides/method-projects.md) makes Methods available in the admin console and through AI.
 
-For implementation details, see [Architecture](ARCHITECTURE.md) and the
-[Method contract](reference/method-contract.md).
+See [Create a Recipe](guides/recipes.md) to compose a procedure and [Runs and evidence](guides/runs.md) to inspect its execution.

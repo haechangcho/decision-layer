@@ -1,7 +1,7 @@
 # 아키텍처
 
 Provider, 실행 엔진, 인터페이스를 수정할 때 참고하는 문서입니다.
-첫 Method 개발은 [개발 가이드](guides/methods.md)부터 시작하세요.
+기본 흐름은 [Method 이해하기](guides/methods.md)에서 살펴볼 수 있습니다.
 
 Decision Layer는 시맨틱 참조, 검토된 Method, 재사용 가능한 Recipe를 실행하고 근거를 기록합니다.
 웹·REST·Python·MCP는 같은 계약과 실행 규칙을 사용합니다.

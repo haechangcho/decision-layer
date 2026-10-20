@@ -1,12 +1,36 @@
 # Method contract
 
 Use this page when declaring inputs, outputs or editor behavior.
-For an executable walkthrough, start with [First Method](../guides/methods.md).
+Start with [Understand Methods](../guides/methods.md) or the [Python function example](../tutorials/write-your-method).
 
+
+## Register an ordinary Python function
+
+Use `python_method(function, name=..., version=..., inputs=...)`.
+`inputs` maps each DataFrame argument to a `DataInput`. Export the resulting
+object as `METHOD` in the project's `method.py`.
+
+| Declaration | Meaning |
+|---|---|
+| `Column(source="measure")` | Metric |
+| `Column(source="dimension")` | Dimension |
+| `Column(source=["measure", "dimension"])` | Either semantic kind |
+| `Column(source="dimension", role="entity_key")` | A key identifying each row, such as customer or order ID |
+| `Column(..., dtype="number")` | Numeric values only |
+| `Column(..., multiple=True)` | Several variables |
+| `DataInput(..., minimum_rows=10)` | Minimum row count |
+
+Function arguments matching declared columns receive resolved DataFrame column names.
+Ordinary options are inferred from the function's types and defaults. `output="auto"`
+adapts tables and estimates; `table` or `estimate` requires one result shape. Shared
+code checks inputs and data requirements. Add analysis-specific checks with
+`checks=[check_function]`.
+
+See [Connect a Python function](../tutorials/write-your-method) for registration and execution.
 
 ## Function authoring API and internal contract
 
-The preferred path is `@method(...)` with typed keyword arguments: `Measure`, `Dimension`, `TimeDimension`, `Entity`, `DateRange`, `Equality`, `list[Filter]`. Roles, ordinary parameters and output types generate the existing `MethodManifest`. `requires_packages` declares installed-version checks, not runtime installation. Unsupported annotations fail before registration.
+For advanced control over queries, use `@method(...)` with typed keyword arguments: `Measure`, `Dimension`, `TimeDimension`, `Entity`, `DateRange`, `Equality`, `list[Filter]`. Roles, ordinary parameters and output types generate the existing `MethodManifest`. `requires_packages` declares installed-version checks, not runtime installation. Unsupported annotations fail before registration.
 
 - `ctx.aggregate(...)`: provider aggregates, with explicit top-N or bounded complete extraction.
 - `ctx.entities(...)`: complete observations at a declared primary unit, keyed by unit × time when bucketed.
@@ -37,7 +61,7 @@ Advanced variable roles can explicitly accept measures and dimensions (`accepted
 
 Default complete extraction limits are 50,000 rows, 100 selected aliases and two million cells; smaller server policy row limits take precedence. A sentinel row detects truncation instead of accepting partial samples. Statistical encoding also limits 100 columns / two million cells. Bounded filter/window lists (30), query budgets/deadlines and attempt recording apply. Cross-query warehouse snapshot consistency is not guaranteed.
 
-Results record versions, canonical specs, attempts/labels, installed required-library versions, Python, validation and warnings. Arbitrary class artifact payloads still need independent tests. Start with the [executable authoring guide](../guides/methods.md) and [scenarios](../guides/methods.md).
+Results record versions, canonical specs, attempts/labels, installed required-library versions, Python, validation and warnings. Arbitrary class artifact payloads still need independent tests. See the [Python function example](../tutorials/write-your-method) for the basic flow.
 
 The class API below remains the extension path for additional artifacts, selections and specialized contracts. Simple Methods need no duplicate manual manifest declaration.
 
@@ -51,7 +75,7 @@ code-upload executor. Web, Python, REST and MCP use the same contracts.
 2. Declare its name, version, roles, parameters, execution mode, interpretation and artifact types in `MethodManifest`.
 3. Implement `async run(ctx, bindings, params) -> MethodOutput`.
 4. Fetch required columns and grain through `ctx.dataset(DatasetSpec(...))`.
-5. Add the implementation to `register_builtins()` in `methods/__init__.py`. Modules do not register themselves on import.
+5. Add the implementation to `register_builtins()` in `methods/catalog.py`. Modules do not register themselves on import.
 6. Add independent answer and failure tests. Use localization helpers and add Korean user-facing messages in `i18n/ko.json`.
 
 Keep metric formulas, joins and permissions in the semantic provider. Do not bypass
@@ -163,4 +187,4 @@ New Python authors pass named function arguments directly. Roles/parameters are 
 
 ## Discovery and authoring defaults
 
-`@method(name, version=...)` defaults to `association`. The signature supplies types and the docstring supplies the description; purpose is not inferred from code. `provides` is optional, but explicit result assertions still govern Recipe and goal evidence. See [the audit and executable discovery examples](../guides/methods.md). `POST /methods:search` uses `MethodSearchRequest` (`goal`, optional `names`) and never executes analytical queries.
+`@method(name, version=...)` defaults to `association`. The signature supplies types and the docstring supplies the description; purpose is not inferred from code. `provides` is optional, but explicit result assertions still govern Recipe and goal evidence. See [the Method overview](../guides/methods.md). `POST /methods:search` uses `MethodSearchRequest` (`goal`, optional `names`) and never executes analytical queries.

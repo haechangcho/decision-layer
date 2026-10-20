@@ -19,24 +19,14 @@ function fence(value, language) {
 
 export function renderNotebook(notebook, language) {
   const ko = language === 'ko'
-  const filename = `write_your_method.${language}.ipynb`
-  const source = `https://github.com/haechangcho/decision-layer/blob/main/docs/tutorials/methods/${filename}`
-  const tools = ko
-    ? `<a href="/notebooks/${filename}" download>노트북 다운로드</a> | [GitHub에서 보기](${source})\n\n노트북에 저장된 코드와 실행 결과를 보여줍니다. 직접 실행하려면 [개발 환경](/ko/guides/development)을 준비하고 저장소의 \`docs/tutorials/methods\`에서 노트북을 여세요.`
-    : `<a href="/notebooks/${filename}" download>Download notebook</a> | [View on GitHub](${source})\n\nThis page shows the code and saved outputs. To run it, [set up the repository](/guides/development) and open the notebook in \`docs/tutorials/methods\`.`
-  let firstMarkdown = true
   return notebook.cells.map(cell => {
     if (cell.cell_type === 'markdown') {
-      let content = text(cell.source)
+      const content = text(cell.source)
         .replaceAll('write_your_method.en.ipynb', '/tutorials/write-your-method')
         .replaceAll('write_your_method.ko.ipynb', '/ko/tutorials/write-your-method')
         .replaceAll('../../ko/guides/', '/ko/guides/')
         .replaceAll('../../guides/', '/guides/')
         .replaceAll('.md)', ')')
-      if (firstMarkdown) {
-        content = content.replace(/^(# .+)$/m, `$1\n\n${tools}`)
-        firstMarkdown = false
-      }
       return content
     }
     if (cell.cell_type !== 'code') return ''
@@ -47,9 +37,13 @@ export function renderNotebook(notebook, language) {
       const value = item.output_type === 'stream' ? item.text : item.data?.['text/plain']
       return value == null ? [] : [fence(value, 'text')]
     })
-    return [fence(cell.source, 'python'), ...output.length ? [
+    const input = fence(cell.source, 'python')
+    if (cell.metadata?.tags?.includes('docs-setup')) {
+      return `<details>\n<summary>${ko ? '예제 데이터 준비 코드' : 'Example data setup'}</summary>\n\n${input}\n\n</details>`
+    }
+    return [input, ...(output.length ? [
       `<p class="notebook-output-label">${ko ? '실행 결과' : 'Output'}</p>`, ...output,
-    ] : []].join('\n\n')
+    ] : [])].join('\n\n')
   }).join('\n\n')
 }
 

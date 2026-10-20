@@ -2506,3 +2506,10 @@ notebook tests verify the examples separately. Render saved textual outputs as
 inert fenced text, never as executable notebook HTML/JavaScript; a saved error
 fails the documentation build. Running the notebook still requires the repository
 example modules. No in-browser notebook runtime or product execution path is added.
+
+Documentation navigation follows understanding a Method, reading the Python
+function example, and registering it in a project. The example opens with its
+explanation rather than download or environment instructions; setup-tagged cells
+are collapsed. Keep installation and connection tasks in their guides, API details
+in the existing reference, and product contribution separate from Method authorship.
+The original notebook downloads remain available at their existing URLs.

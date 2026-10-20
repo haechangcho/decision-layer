@@ -15,10 +15,9 @@ for (const entry of notebooks) {
         if (value) assert.ok(content.includes(value.join('').trimEnd()))
       }
     }
-    assert.ok(content.includes(`href="/notebooks/${entry.filename}" download`))
     assert.ok(!content.includes('../../guides/'))
     assert.ok(!content.includes('../../ko/guides/'))
-    assert.ok(content.includes('/tutorials/write-your-method'))
+    assert.ok(content.includes('/guides/method-projects'))
   })
 }
 

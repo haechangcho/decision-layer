@@ -1,7 +1,7 @@
 # Architecture
 
-Use this page when changing providers, execution or interfaces. For a first Method,
-start with [the tutorial](guides/methods.md).
+Use this page when changing providers, execution or interfaces. For the basic flow,
+start with [Understand Methods](guides/methods.md).
 
 Decision Layer turns governed semantic references, reviewed analytical Methods and
 reusable Recipes into recorded analyses. Web, REST, Python and MCP use the same

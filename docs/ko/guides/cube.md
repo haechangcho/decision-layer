@@ -1,25 +1,36 @@
----
-title: Cube 연결
-description: 이미 운영 중인 Cube를 Decision Layer에 연결합니다.
----
-
 # Cube 연결
 
-Decision Layer는 Cube의 데이터베이스를 직접 연결하거나 지표 정의를 다시 만들지 않습니다. 운영 중인 Cube의 REST API를 사용합니다.
+Decision Layer는 Cube의 REST API에서 지표와 차원을 읽고 데이터를 조회합니다. 지표 정의와 조인은 Cube에서 관리합니다.
 
-## 연결하기
+## 연결 정보 입력하기
 
-샘플 Cube는 `examples/complete-journey`에서 `docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900`으로 실행합니다. 아래는 이미 운영 중인 Cube를 연결하는 방법입니다.
+[설치하고 시작하기](quickstart.md)에 따라 서버를 실행한 뒤 관리자 화면의 **데이터 연결**을 엽니다.
 
-1. 저장소 루트에서 `docker compose up -d --build --wait`를 실행하세요.
-2. [Sources](http://localhost:3000/sources)를 여세요.
-3. Cube API URL과 인증 방식을 입력하고 **연결 테스트**를 누르세요.
-4. 연결되면 **Metrics**에서 지표와 차원을 확인하세요.
+1. Cube API URL과 인증 방식을 입력합니다.
+2. **연결 테스트**로 접근 여부를 확인하고 저장합니다.
+3. **지표**에서 사용할 지표와 차원이 보이는지 확인합니다.
 
-Docker 안의 API가 컴퓨터에서 실행되는 Cube에 접근한다면 URL은 보통 `http://host.docker.internal:4000/cubejs-api/v1`입니다. 원격 Cube는 해당 서버의 전체 API URL을 입력하세요. 컨테이너 안에서 `localhost`는 그 컨테이너 자신입니다.
+| Cube 위치 | API URL 예시 |
+|---|---|
+| 같은 컴퓨터 | `http://127.0.0.1:4000/cubejs-api/v1` |
+| 원격 서버 | `https://your-cube.example/cubejs-api/v1` |
+| Decision Layer가 Docker 안에서 실행되는 경우 | `http://host.docker.internal:4000/cubejs-api/v1` |
 
-URL만으로 연결되는지는 Cube의 인증 설정에 달려 있습니다. 운영 환경에서는 Cube가 발급하고 검증하는 사용자 토큰을 사용하세요. 개발용 API secret 방식은 로컬 테스트용입니다. 화면에서 저장한 비밀값은 암호화되고 환경변수 설정이 우선합니다.
+주소는 Decision Layer 서버에서 접근할 수 있어야 합니다. 컨테이너 안의 `localhost`는 그 컨테이너 자신입니다.
 
-연결 실패 시에는 URL에 `/cubejs-api/v1`이 포함됐는지, API 컨테이너에서 접근 가능한 주소인지, 사용자의 토큰에 모델 접근 권한이 있는지 확인하세요.
+## 인증
 
-자세한 옵션과 포트 변경은 [영문 연결 가이드](/guides/cube)를 참고하세요. 다음 단계는 [Recipe 만들기](./recipes.md)입니다.
+운영 중인 Cube는 해당 환경에서 발급한 사용자 토큰을 사용합니다. 개발용 API secret과 샘플 인증은 로컬 테스트에 사용합니다.
+
+저장한 인증 정보는 암호화되며 환경변수 설정이 우선합니다. 연결 저장에 필요한 관리자 설정은 [.env.example](https://github.com/haechangcho/decision-layer/blob/main/.env.example)을 참고하세요.
+
+## 연결되지 않을 때
+
+| 증상 | 확인할 내용 |
+|---|---|
+| 서버에 접근할 수 없음 | URL의 `/cubejs-api/v1`, 포트와 네트워크 |
+| 401 또는 403 | 토큰의 유효기간과 접근 권한 |
+| 지표가 보이지 않음 | 배포한 Cube 모델과 사용자의 모델 접근 권한 |
+| 필요한 날짜나 변수가 없음 | Cube에 해당 정의가 있는지 확인 |
+
+연결한 데이터는 [Recipe](recipes.md)와 [AI 도구](mcp.md)에서 사용할 수 있습니다.

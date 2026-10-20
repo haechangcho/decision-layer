@@ -1,40 +1,29 @@
 ---
-title: 시작하기
-description: 시맨틱 데이터에 분석 절차를 연결하고 재사용합니다.
+title: 소개
+description: 팀의 분석 방법을 등록하고 사람과 AI가 재사용합니다.
 ---
 
 # Decision Layer
 
-**우리 팀의 분석 방식을 AI에게 가르치세요.**
+**팀이 검토한 분석 방법을 사람과 AI가 함께 사용합니다.**
 
-검토한 분석을 실행 단계·검증·근거가 남는 재사용 절차로 만듭니다.
-
-Decision Layer는 시맨틱 레이어에 재사용할 수 있는 분석 절차를 연결합니다.
-웹, Python, REST, MCP에서 실행하고 입력·쿼리·결과를 확인할 수 있습니다.
-
-지표·차원·권한은 시맨틱 레이어가 정의합니다. Decision Layer는 그 데이터를 분석하는 절차를 관리합니다.
-
-## 목적에 맞게 시작하기
-
-| 목적 | 따라갈 문서 | 필요한 환경 |
-| --- | --- | --- |
-| 설치하고 내 Cube에 연결 | [설치하고 시작하기](guides/quickstart.md) | Python 3.11 이상, 기존 Cube |
-| 샘플 데이터로 제품 체험 | [샘플 실행](guides/quickstart.md#샘플로-먼저-체험하기) | Python 3.11 이상, Docker와 Compose |
-| Method 작성·테스트 | [첫 Method 개발](guides/methods.md) | Python 3.11 이상 |
-| 웹·API 개발 | [로컬 개발 환경](guides/development.md) | Python 3.11 이상, Node.js 22 |
+Decision Layer는 semantic layer의 데이터와 등록된 분석 코드를 연결합니다. 반복하는 분석은 절차로 저장하고, 실행한 입력과 쿼리, 결과는 기록으로 남깁니다.
 
 ## 세 가지 개념
 
-- **Method**: 추세, 동료 집단 비교 같은 하나의 분석 기능입니다. 여러 쿼리를 조합할 수 있습니다.
-- **Recipe**: 기존 Method와 시맨틱 참조로 구성한 팀의 분석 절차입니다.
-- **Run**: 실행에 사용한 버전·입력·쿼리 근거·한계를 남긴 기록입니다.
+| 개념 | 역할 |
+|---|---|
+| **Method** | OLS나 추세 분석처럼 하나의 분석 방법 |
+| **Recipe** | 여러 Method로 구성한 팀의 분석 절차 |
+| **Run** | 한 번의 분석에서 사용한 입력, 쿼리와 결과 |
 
-기존 Method로 분석할 수 있으면 Recipe를 만듭니다. 새로운 계산이 필요하면 Method를 추가합니다.
+지표, 차원, 조인과 권한은 semantic layer가 정의합니다. Decision Layer는 그 데이터를 **어떻게 분석할지** 관리합니다.
 
-## 내 데이터로 사용하기
+## 원하는 곳에서 시작하세요
 
-초기 제품은 [Cube](guides/cube.md)만 지원합니다. 연결한 뒤
-[AI 클라이언트](guides/mcp.md)나 웹 앱에서 사용하세요.
-[Recipe 만들기](guides/recipes.md)와 [실행 기록 읽기](guides/runs.md)에서 이어갈 수 있습니다.
+- **동작 원리 이해하기**: [Method 이해하기](guides/methods.md)에서 함수와 데이터가 연결되는 흐름을 봅니다.
+- **코드로 살펴보기**: [Python 함수 연결 예제](tutorials/write-your-method)에서 순위 계산과 OLS의 입력과 결과를 읽습니다.
+- **제품 사용하기**: [설치하고 시작하기](guides/quickstart.md)에서 샘플을 실행하거나 기존 Cube에 연결합니다.
+- **팀의 분석 추가하기**: [프로젝트에 등록하기](guides/method-projects.md)에서 Method를 관리자 화면과 AI에 제공합니다.
 
-구현 세부사항은 [아키텍처](ARCHITECTURE.md)와 [Method 계약](reference/method-contract.md)을 참고하세요.
+분석 절차를 구성하려면 [Recipe 만들기](guides/recipes.md), 실행한 근거를 확인하려면 [실행 기록과 근거](guides/runs.md)를 보세요.

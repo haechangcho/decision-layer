@@ -1,6 +1,6 @@
-# Use a Method project
+# Register in a project
 
-Save [your function](methods.md) in a project to use it through the admin UI and AI.
+Save [the example function](../tutorials/write-your-method) in a project to use it through the admin UI and AI.
 Python, CLI commands and the server read the same project files.
 
 ## Create a project and definition

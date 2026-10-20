@@ -1,56 +1,36 @@
-# Connect an existing Cube
+# Connect Cube
 
-Decision Layer does not need to own Cube's database or run Cube in the same stack.
+Decision Layer reads metrics and dimensions and queries data through Cube's REST API. Cube owns metric definitions and joins.
 
-## Start
+## Enter the connection
 
-For a Cube with sample data, run `docker compose -p decision-layer-cube up -d --build --wait --wait-timeout 900` from `examples/complete-journey`. The instructions below connect your existing Cube.
+[Install and start](quickstart.md) the server, then open **Sources** in the admin console.
 
-From the repository root:
+1. Enter the Cube API URL and authentication method.
+2. Test the connection and save it.
+3. Check that the required metrics and dimensions appear in **Metrics**.
 
-```bash
-docker compose up -d --build --wait
-```
+| Cube location | Example API URL |
+|---|---|
+| Same computer | `http://127.0.0.1:4000/cubejs-api/v1` |
+| Remote server | `https://your-cube.example/cubejs-api/v1` |
+| Decision Layer runs inside Docker | `http://host.docker.internal:4000/cubejs-api/v1` |
 
-Open **http://localhost:3000/sources**. Enter the full Cube REST API URL, select authentication, then test and save. Continue to Catalog, then create a Recipe or connect [MCP](mcp.md).
-
-| Cube location | API URL example |
-| --- | --- |
-| On your computer, accessed by the Docker API | `http://host.docker.internal:4000/cubejs-api/v1` |
-| Remote deployment | `https://your-cube.example/cubejs-api/v1` |
-| Same Docker network | `http://cube:4000/cubejs-api/v1` |
-| Both Cube and API run natively | `http://localhost:4000/cubejs-api/v1` |
-
-Inside a container, `localhost` means that container. Root Compose supplies the host gateway mapping for `host.docker.internal`.
+The address must be reachable from the Decision Layer server. Inside a container, `localhost` refers to that container.
 
 ## Authentication
 
-Use a token issued by your Cube deployment for token authentication. A URL alone works only when the source permits the selected access mode. Decision Layer does not mint enterprise identity tokens or bypass Cube authorization.
+For an existing deployment, use a user token issued by that Cube environment. API-secret authentication and sample credentials are for local testing.
 
-Development API-secret authentication is for local development, not production identity. The [sample](https://github.com/haechangcho/decision-layer/blob/main/examples/complete-journey/README.md) configures local credentials for you. Sharing a service identity requires explicit server configuration and changes the access boundary.
-
-Saved connection secrets are encrypted. Environment overrides take precedence and appear locked in Sources. Keep the server encryption key stable when persisting configuration. See [.env.example](https://github.com/haechangcho/decision-layer/blob/main/.env.example) and [Architecture](../ARCHITECTURE.md). Variables in a Compose `.env` file reach containers only if `compose.yaml` forwards them.
-
-## Ports and storage
-
-```bash
-WEB_PORT=3010 API_PORT=8010 docker compose up -d --build --wait
-docker compose ps
-docker compose logs --tail=100 api web
-docker compose down
-```
-
-Use the changed API port in MCP. `down` preserves named Recipe and Run volumes; `down -v` deletes them. Recipes are YAML files; Runs are separate database records.
-
-For a Git-managed Recipe folder, create `recipes/` and replace `recipes:/recipes` in `compose.yaml` with `./recipes:/recipes`. Web writes files but does not make Git commits or PRs.
+Saved credentials are encrypted; environment settings take precedence. See [.env.example](https://github.com/haechangcho/decision-layer/blob/main/.env.example) for connection administration settings.
 
 ## Troubleshoot
 
-| Failure | Next action |
-| --- | --- |
-| Unreachable | Check API URL, container DNS, firewall and TLS from the API network. |
-| 401/403 | Renew the token or request source access. |
-| No visible cubes | Check deployed models and the identity's semantic permissions. |
-| Missing date or supporting measure | Inspect Catalog readiness; fix the definition in Cube, not the Recipe. |
+| Symptom | Check |
+|---|---|
+| Unreachable | `/cubejs-api/v1` in the URL, port and network |
+| 401 or 403 | Token expiry and access scope |
+| No metrics | Deployed Cube models and the user's model access |
+| Missing date or variable | Whether Cube defines the required object |
 
-Application login and author-role enforcement are not implemented. Keep Web and API local or on a trusted private network. Cube permissions do not secure Recipe-write endpoints.
+Continue with [Recipes](recipes.md) or [AI tools](mcp.md).

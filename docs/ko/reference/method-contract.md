@@ -1,12 +1,35 @@
 # Method 계약
 
 입력·출력·편집 화면 동작을 선언할 때 참고하는 문서입니다.
-실행 가능한 예제부터 시작하려면 [첫 Method 개발](../guides/methods.md)을 보세요.
+동작 원리는 [Method 이해하기](../guides/methods.md), 구체적인 코드는 [Python 함수 연결 예제](../tutorials/write-your-method)를 보세요.
 
+
+## 일반 Python 함수 등록
+
+일반 함수는 `python_method(function, name=..., version=..., inputs=...)`로 등록합니다.
+`inputs`는 DataFrame을 받는 함수 인자 이름과 `DataInput`을 연결합니다.
+프로젝트의 `method.py`에서는 이 객체를 `METHOD`로 내보냅니다.
+
+| 선언 | 의미 |
+|---|---|
+| `Column(source="measure")` | 지표 |
+| `Column(source="dimension")` | 차원 |
+| `Column(source=["measure", "dimension"])` | 지표와 차원 모두 허용 |
+| `Column(source="dimension", role="entity_key")` | 고객 ID, 주문 ID처럼 한 행을 구분하는 키 |
+| `Column(..., dtype="number")` | 숫자형만 허용 |
+| `Column(..., multiple=True)` | 여러 변수 선택 |
+| `DataInput(..., minimum_rows=10)` | 최소 행 수 |
+
+선언한 열과 이름이 같은 함수 인자에는 조회한 DataFrame의 열 이름을 전달합니다.
+일반 계산 옵션은 함수의 타입과 기본값에서 추출합니다.
+`output="auto"`는 표와 추정값을 구분합니다. `table` 또는 `estimate`로 고정할 수도 있습니다.
+입력과 데이터 조건은 공통 코드가 검사하며, 분석 고유의 검사는 `checks=[검사함수]`로 추가합니다.
+
+등록과 입력 선택의 전체 흐름은 [Python 함수 연결 예제](../tutorials/write-your-method)를 참고하세요.
 
 ## 함수 작성 API와 내부 계약
 
-권장 경로는 `@method(...)`와 typed keyword 인자입니다. `Measure`, `Dimension`, `TimeDimension`, `Entity`, `DateRange`, `Equality`, `list[Filter]`, `AnalysisDesign`을 사용합니다. 역할·일반 파라미터·결과 타입은 signature에서 기존 `MethodManifest`로 변환됩니다. `requires_packages`는 검증할 설치 버전이며 런타임 설치 지시가 아닙니다. 지원하지 않는 annotation은 등록 전에 오류가 납니다.
+여러 조회를 직접 제어하는 고급 경로는 `@method(...)`와 typed keyword 인자입니다. `Measure`, `Dimension`, `TimeDimension`, `Entity`, `DateRange`, `Equality`, `list[Filter]`, `AnalysisDesign`을 사용합니다. 역할·일반 파라미터·결과 타입은 signature에서 기존 `MethodManifest`로 변환됩니다. `requires_packages`는 검증할 설치 버전이며 런타임 설치 지시가 아닙니다. 지원하지 않는 annotation은 등록 전에 오류가 납니다.
 
 - `ctx.aggregate(...)`: provider 집계. 명시적인 top-N 또는 bounded complete extraction.
 - `ctx.entities(...)`: 선언된 primary unit의 완전한 관측. 시간 bucket이 있으면 unit × time key.
@@ -35,7 +58,7 @@ Python과 REST/MCP의 measure/dimension/entity maps는 canonical bindings로 정
 
 기본 완전 추출은 50,000행, 선택 alias 최대 100열과 200만 cell이며 server policy의 더 작은 행 제한이 우선합니다. overflow sentinel을 조회해 잘린 표본을 성공 처리하지 않습니다. 통계 encoding도 최대 100열·200만 cell을 제한합니다. 최대 30개 filter/window, query budget/deadline과 시도 기록이 적용됩니다. 다중 조회의 warehouse snapshot 일치는 보장하지 않습니다.
 
-각 Result는 버전, canonical spec, query attempts/labels, 설치된 요구 라이브러리 버전, Python, 검증·경고를 기록합니다. 일반 class의 자유로운 artifact payload는 별도 독립 테스트가 필요합니다. [실행 가능한 작성 가이드](../guides/methods.md)와 [시나리오](../guides/methods.md)를 먼저 사용하세요.
+각 Result는 버전, canonical spec, query attempts/labels, 설치된 요구 라이브러리 버전, Python, 검증·경고를 기록합니다. 일반 class의 자유로운 artifact payload는 별도 독립 테스트가 필요합니다. [Python 함수 연결 예제](../tutorials/write-your-method)에서 기본 흐름을 확인하세요.
 
 아래 class API는 추가 artifact·선택·복잡한 계약이 필요한 경우의 기존 확장 경로입니다. 단순 Method에서 manifest를 수동 중복 작성할 필요는 없습니다.
 
@@ -49,7 +72,7 @@ Method는 서버에 설치하는 검토된 Python 코드입니다. Manifest는 �
 2. `MethodManifest`에 이름·버전·역할·파라미터·실행 모드·해석 범위·artifact 타입을 선언합니다.
 3. `async run(ctx, bindings, params) -> MethodOutput`을 구현합니다.
 4. `ctx.dataset(DatasetSpec(...))`으로 필요한 열과 grain을 조회합니다.
-5. `methods/__init__.py`의 `register_builtins()`에 구현을 추가합니다. 모듈은 import만으로 자신을 등록하지 않습니다.
+5. `methods/catalog.py`의 `register_builtins()`에 구현을 추가합니다. 모듈은 import만으로 자신을 등록하지 않습니다.
 6. 독립적인 정답·실패 테스트를 추가합니다. 사용자 메시지는 번역 도우미를 사용하고 `i18n/ko.json`에 한국어를 추가합니다.
 
 지표 수식·join·권한은 시맨틱 provider에 둡니다. 원본 쿼리로 실행 context를 우회하지 않습니다.
