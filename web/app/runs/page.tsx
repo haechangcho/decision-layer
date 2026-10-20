@@ -1,4 +1,5 @@
 "use client";
+import { RequestError } from "@/components/request-error";
 import { LoadingState } from "@/components/loading-indicator";
 
 import { useMemo, useState } from "react";
@@ -33,11 +34,11 @@ export default function RunsPage() {
   const count = (value: string) => value === "all" ? data?.length ?? 0 : (data ?? []).filter((run) => run.status === value).length;
 
   return <div className={styles.page}>
-    <div className={styles.libraryHeader}><div><h1>실행 기록</h1><p>저장된 실행 {data?.length ?? 0}개</p></div>
+    <div className={styles.libraryHeader}><div><h1>실행 기록</h1><p>{data ? `저장된 실행 ${data.length}개` : "실행한 입력, 결과와 조회 근거를 확인합니다."}</p></div>
       <button className={styles.refreshButton} onClick={reload} disabled={loading} aria-label="새로고침" title="새로고침"><RefreshCw size={17} /></button></div>
     {deleted && <p role="status">실행 기록을 삭제했습니다.</p>}
-    {error && <div className={styles.error} role="alert">실행 기록을 불러오지 못했습니다. {error.message} <button className="ghost" onClick={reload}>다시 시도</button></div>}
-    {!loading && data?.length === 0 ? <section className={styles.empty}><History size={24} /><h2>아직 실행 기록이 없습니다</h2><p>분석 절차를 실행하면 결과가 여기에 남습니다.</p><div className={styles.emptyActions}><Link href="/recipes">레시피 열기 <ArrowRight size={15} /></Link></div></section> : <section className={styles.libraryList} aria-label="실행 기록 목록">
+    {error && <RequestError title="실행 기록을 불러오지 못했습니다" error={error} retry={reload} />}
+    {error && !data ? null : !loading && data?.length === 0 ? <section className={styles.empty}><History size={24} /><h2>아직 실행 기록이 없습니다</h2><p>분석 절차를 실행하면 결과가 여기에 남습니다.</p><div className={styles.emptyActions}><Link href="/recipes">레시피 열기 <ArrowRight size={15} /></Link></div></section> : <section className={styles.libraryList} aria-label="실행 기록 목록">
       <div className={`${styles.libraryToolbar} ${styles.runToolbar}`}><label className={styles.librarySearch}><Search size={17} /><input aria-label="실행 기록 검색" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="분석 이름 또는 질문 검색" />
         {search && <button type="button" aria-label="검색 지우기" title="검색 지우기" onClick={() => setSearch("")}><X size={15} /></button>}
       </label><select className={styles.originSelect} aria-label="실행 출처" value={origin} onChange={(event) => setOrigin(event.target.value)}>

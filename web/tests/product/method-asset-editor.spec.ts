@@ -37,18 +37,19 @@ function fixture(page:Page, python=false, permission={edit:true,publish:true}) {
   return {ready,name,asset,saves,checked:()=>checked,setDraft:(value:any)=>{draft=value;}};
 }
 async function openEditor(page:Page, python=false) {
+  await page.getByRole("tab",{name:python ? "Python 코드" : "분석 지침",exact:true}).click();
   await page.getByRole("button",{name:python ? "Python 편집":"Skill.md 편집",exact:true}).click();
   const editor=page.getByRole("textbox",{name:python ? "Python 작성 코드":"Skill Markdown 원본",exact:true});
   await expect(editor).toBeVisible();return editor;
 }
 
-test("Skill editing starts above the document, previews Markdown, saves on check and publishes",async({page},info)=>{
+test("Skill editing opens on demand, previews Markdown, saves on check and publishes",async({page},info)=>{
   const f=fixture(page);await f.ready;await page.goto(`/methods/${f.name}`);
+  await expect(page.getByRole("button",{name:"Skill.md 편집",exact:true})).not.toBeVisible();
+  await page.getByRole("tab",{name:"분석 지침",exact:true}).click();
   await expect(page.getByRole("heading",{name:"항목별 조사",exact:true})).toBeVisible();
   await expect(page.getByText("공식 지표",{exact:true})).toHaveCSS("font-weight","700");
   expect(await page.evaluate(()=>Boolean((window as any).hacked))).toBe(false);
-  const editButton=page.getByRole("button",{name:"Skill.md 편집",exact:true});
-  expect((await editButton.boundingBox())!.y).toBeLessThan((await page.getByRole("heading",{name:"항목별 조사",exact:true}).boundingBox())!.y);
   const editor=await openEditor(page);
   await editor.fill(source.replace("1.0.1","1.0.2")+"\n## 새 조사 지침\n기간을 확인합니다.\n");
   await page.getByRole("tab",{name:"미리보기",exact:true}).click();
@@ -62,12 +63,13 @@ test("Skill editing starts above the document, previews Markdown, saves on check
   await expect(page.getByText("구문·등록 검사를 통과했습니다. 실제 데이터·분석 품질은 검사하지 않았습니다.")).toBeVisible();
   await page.getByRole("checkbox").check();
   await page.getByRole("button",{name:"v1.0.2 게시",exact:true}).click();
-  await expect(page.getByText("analysis.drilldown · v1.0.2")).toBeVisible();
+  await expect(page.getByText("analysis.drilldown / v1.0.2")).toBeVisible();
   await page.screenshot({path:info.outputPath("skill-published.png"),fullPage:true});
 });
 
 test("Python uses a code editor, supports keyboard save, preserves drafts and invalidates checks after edits",async({page},info)=>{
   const f=fixture(page,true);await f.ready;await page.goto(`/methods/${f.name}`);
+  await page.getByRole("tab",{name:"Python 코드",exact:true}).click();
   await expect(page.locator(".hljs-keyword").first()).toBeVisible();
   await expect(page.getByText("# unrelated platform source",{exact:false})).not.toBeVisible();
   const editor=await openEditor(page,true);
@@ -84,6 +86,7 @@ test("Python uses a code editor, supports keyboard save, preserves drafts and in
   await page.getByRole("button",{name:"초안 저장",exact:true}).click();
   await expect(page.getByText("서버에 저장된 초안",{exact:true})).toBeVisible();
   await page.reload();
+  await page.getByRole("tab",{name:"Python 코드",exact:true}).click();
   await page.getByRole("button",{name:"편집 이어서",exact:true}).click();
   await expect(page.getByRole("textbox",{name:"Python 작성 코드",exact:true})).toContainText("second edit");
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
@@ -146,6 +149,7 @@ test("a conflicting draft preserves local text and requires an explicit comparis
 
 test("read-only users can inspect content but do not receive an editor",async({page})=>{
   const f=fixture(page,true,{edit:false,publish:false});await f.ready;await page.goto(`/methods/${f.name}`);
+  await page.getByRole("tab",{name:"Python 코드",exact:true}).click();
   await expect(page.getByText("읽기 전용입니다.",{exact:false})).toBeVisible();
   await expect(page.getByRole("button",{name:"Python 편집",exact:true})).toHaveCount(0);
   await expect(page.locator(".hljs-keyword").first()).toBeVisible();
@@ -154,6 +158,9 @@ test("read-only users can inspect content but do not receive an editor",async({p
 test("language refresh keeps an in-progress edit and tab switching preserves its undo state",async({page})=>{
   const f=fixture(page,true);await f.ready;await page.goto(`/methods/${f.name}`);
   const editor=await openEditor(page,true);await editor.fill(pythonCode+"# keep across refresh\n");
+  await page.getByRole("tab",{name:"개요와 입력",exact:true}).click();
+  await page.getByRole("tab",{name:"Python 코드",exact:true}).click();
+  await expect(editor).toContainText("keep across refresh");
   await page.getByLabel("language").selectOption("en");
   await expect(editor).toContainText("keep across refresh");
   await page.getByRole("tab",{name:"미리보기",exact:true}).click();

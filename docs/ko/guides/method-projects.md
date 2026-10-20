@@ -3,52 +3,73 @@
 [예제에서 본 함수](../tutorials/write-your-method)를 프로젝트에 저장하면 관리자 화면과 AI에서도 사용할 수 있습니다.
 같은 프로젝트 파일을 Python, CLI와 서버가 읽습니다.
 
-## 프로젝트와 파일 만들기
+## 프로젝트 만들기
 
 Decision Layer를 [설치한 환경](quickstart.md)에서 실행합니다.
 
 ```bash
 decision-layer init my_team
 cd my_team
-decision-layer new python rank
+python -m pip install -e '.[test]'
 ```
+
+기본 Skill 2개와 Python Method 2개가 수정 가능한 파일로 생성됩니다.
 
 ```text
 my_team/
 ├── decision-layer.yaml
-└── my_team/methods/rank/
-    └── method.py
+├── pyproject.toml
+└── my_team/methods/
+    ├── metric_lookup/SKILL.md
+    ├── drilldown/SKILL.md
+    ├── ols/
+    │   ├── method.py
+    │   └── test_method.py
+    └── matching/
+        ├── method.py
+        └── test_method.py
 ```
 
-`method.py`에 계산 함수와 `METHOD = python_method(...)`를 둡니다.
-CLI가 만든 함수는 `analyze`라는 이름의 순위 예제이며, 내용을 바꿔 사용할 수 있습니다.
-보조 Python 파일은 같은 폴더에 두고 import합니다.
+- `SKILL.md`: AI가 따라야 할 조회와 분석 지침입니다.
+- `method.py`: 계산 함수와 `METHOD = python_method(...)` 등록 코드입니다.
+- `test_method.py`: 정답을 아는 합성 데이터와 잘못된 입력으로 계산을 검사합니다.
+- `pyproject.toml`: 프로젝트에 필요한 패키지를 관리합니다.
 
-분석 지침을 Skill로 등록하려면 다음처럼 파일을 만듭니다.
+OLS는 statsmodels, 매칭은 scikit-learn으로 계산합니다. 결과는 관측된 연관성과 집단 차이이며, 인과관계를 입증하지 않습니다.
 
-```bash
-decision-layer new skill metric_review
-```
-
-생성된 `my_team/methods/metric_review/SKILL.md`에 이름, 버전, 설명과 지침을 작성합니다.
-기존 Method의 실행 순서를 재사용하려면 [Recipe](recipes.md)를 만드세요.
-[완성 프로젝트](https://github.com/haechangcho/decision-layer/tree/main/examples/methods/project)에는 순위 함수, OLS와 Skill이 있습니다.
-
-## 등록 확인과 서버 실행
+## 검사하고 실행하기
 
 ```bash
 decision-layer check
+decision-layer test
 decision-layer list
 decision-layer serve --reload
 ```
 
-- `check`: 등록 코드와 참조를 검사합니다. 데이터 조회와 계산은 실행하지 않습니다.
-- `list`: 이름, 버전, 종류와 원본 파일 경로를 보여줍니다.
-- `serve`: 프로젝트의 Method를 읽어 관리자 화면과 API를 실행합니다.
+| 명령 | 확인할 내용 |
+|---|---|
+| `check` | 파일을 읽고 등록과 참조를 검사합니다. 계산은 실행하지 않습니다. |
+| `test` | OLS와 매칭의 테스트 13개를 실행합니다. Cube나 서버가 필요하지 않습니다. |
+| `list` | 등록한 이름, 버전과 원본 파일 경로를 보여줍니다. |
+| `serve` | 같은 프로젝트로 관리자 화면과 API를 실행합니다. |
+
+기본 이름은 `analysis.metric_lookup`, `analysis.drilldown`, `stats.regression_adjustment`, `stats.binary_matching`입니다.
+새 프로젝트는 이 파일만 기본 목록에 등록합니다. 필요 없는 폴더는 삭제해도 됩니다.
 
 터미널에 표시된 관리자 화면 주소를 엽니다. 기본 주소는 `http://127.0.0.1:8000/ui/`입니다.
-파일을 수정하면 `--reload`가 서버를 다시 시작합니다. 다른 위치에서는
-`decision-layer serve --project /path/to/my_team`으로 프로젝트를 지정합니다.
+파일을 수정하면 `--reload`가 서버를 다시 시작합니다. 계산을 바꾸면 테스트를 실행하고 Method 버전도 올리세요.
+다른 위치에서는 `decision-layer serve --project /path/to/my_team`으로 프로젝트를 지정합니다.
+
+## Method 추가하기
+
+```bash
+decision-layer new python rank
+decision-layer new skill metric_review
+```
+
+각각 `my_team/methods/rank/method.py`와 `my_team/methods/metric_review/SKILL.md`를 만듭니다.
+여러 Method의 실행 순서를 재사용하려면 [Recipe](recipes.md)를 만드세요.
+기본 파일 없이 시작하려면 `decision-layer init my_team --empty`를 사용합니다.
 
 ## 관리자 화면에서 테스트하기
 
@@ -80,3 +101,7 @@ AI는 등록된 Method와 입력 조건을 확인하고 semantic catalog에서 �
 실행 기록은 `.decision-layer/decision_layer.db`, Recipe는 `recipes/`에 저장됩니다.
 노트북, CLI와 서버는 같은 로더를 사용하지만 실행 기록은 각 환경에 따로 남습니다.
 Web에서 발행한 버전은 별도 관리되며 프로젝트 원본 파일을 덮어쓰지 않습니다.
+
+패키지를 업데이트해도 프로젝트 파일은 덮어쓰지 않습니다. 기존 프로젝트에 기본 파일을 자동으로 추가하지도 않습니다.
+처음 설치 흐름을 다시 확인하려면 새 폴더에서 `init`을 실행하세요.
+이전 설정 파일은 기존 기본 Method를 유지하며, 새 설정은 `include_builtin_methods: false`로 프로젝트 파일을 기준으로 등록합니다.

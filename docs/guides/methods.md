@@ -4,6 +4,21 @@ A Method is an analytical capability applied to data. A data scientist registers
 
 A Python Method executes a calculation function. A Skill Method provides analysis guidance for AI. This guide explains the Python function path.
 
+## Starting catalog
+
+The default catalog contains four Methods.
+
+| Type | Method | Purpose |
+|---|---|---|
+| Skill | Metric lookup | Query selected metrics and dates |
+| Skill | Group breakdown | Inspect groups and investigate a selected group |
+| Python | OLS regression | Analyze associations while accounting for other variables |
+| Python | Matching | Compare groups with similar observed covariates |
+
+Select inputs in the console to test a Python Method. Skills are driven by an MCP-connected AI; starting one on the web waits for the AI's queries. Statistical Methods require their dependencies and suitable entity-level data.
+
+The Method detail shows execution records for its exact version. Registration and requirement checks do not execute an analysis. Existing Recipes can still resolve their previously registered Methods.
+
 ## Define the calculation, then select the data
 
 Registration defines **how to calculate**. Execution selects **which data to analyze**.

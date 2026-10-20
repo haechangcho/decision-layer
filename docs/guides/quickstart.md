@@ -74,6 +74,8 @@ decision-layer serve
 Follow [Connect Cube](./cube.md) to configure the server endpoint and credentials.
 Use [Method projects](./method-projects.md) to add your team's Methods and Skills.
 
+New demo and team projects include editable Skill and Python Method files. See [project files and tests](./method-projects.md) to inspect, modify and test them.
+
 ## Reuse with your AI
 
 Follow [MCP setup](./mcp.md) to connect your AI client.

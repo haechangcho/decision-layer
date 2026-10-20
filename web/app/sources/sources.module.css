@@ -14,7 +14,6 @@
 .localConnect>.alert,.localConnect>.success,.localConnect>.testSummary { grid-column: 1 / -1; }
 .testSummary>a { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: var(--accent); font-size: 12px; font-weight: 650; text-decoration: none; }
 .advanced { margin-top: 20px; color: #607168; font-size: 12px; }
-.advanced summary { width: fit-content; cursor: pointer; }
 .advanced[open]>.admin { margin-top: 15px; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .testSummary { flex-wrap: wrap; }
@@ -35,8 +34,6 @@
 .actionHint { margin: 0 0 12px; font-size: 12px; color: var(--muted); line-height: 1.6; }
 .credential { display: flex; align-items: center; gap: 8px; margin: 0 0 20px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .advanced { margin-top: 22px; color: var(--muted); }
-.advanced summary { padding: 8px 0; }
-.advanced[open] summary { margin-bottom: 12px; }
 .success { border: 0; color: var(--dl-data); background: var(--dl-data-soft); }
 .testSummary { color: var(--dl-data); background: var(--bg); border: 1px solid var(--line); padding: 16px; gap: 12px; }
 .testSummary strong { color: var(--text); }
@@ -47,3 +44,5 @@
 .skeleton>div { height: 50px; border-radius: 4px; background: var(--bg); }
 .alert button { display: block; margin-top: 8px; }
 @media (max-width: 620px) { .summary>div { grid-template-columns: 1fr; gap: 4px; }.testSummary button,.testSummary>a { margin-left: 0; }.sectionHeading { align-items: flex-start; }.testSummary>div { flex: 1; } }
+
+.advanced h3 { margin:20px 0 14px; color:var(--text); font-size:13px; font-weight:600; }

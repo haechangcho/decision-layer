@@ -26,6 +26,7 @@ class ProjectConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     config_version: int = Field(default=1, ge=1, le=1)
+    include_builtin_methods: bool = True
 
     @field_validator("name")
     @classmethod
@@ -125,7 +126,9 @@ class Project:
 
     def load(self, registry: MethodRegistry):
         """Validate all entries against a copy, then register them together."""
-        staged = registry.copy()
+        staged = registry.copy(
+            include_builtin_methods=self.config.include_builtin_methods
+        )
         methods, skills, sources = [], [], {}
         for path in self._paths():
             try:
@@ -164,6 +167,5 @@ class Project:
                     raise ProjectError(
                         f"{sources[skill.manifest.name]}: suggested Method {name!r} is not executable"
                     )
-        for method in methods + skills:
-            registry.register(method)
+        registry.replace_from(staged)
         return sources

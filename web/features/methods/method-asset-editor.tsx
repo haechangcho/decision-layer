@@ -198,7 +198,7 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
       <button className={`${styles.button} ${styles.secondary}`} onClick={() => {hydrate(remote);setRemote(null);}}>서버 내용으로 교체</button>
       <button className={styles.textButton} onClick={() => setRemote(null)}>비교 닫기</button>
     </div></div>}
-    {!!info.history.length && !editing && <details className={styles.file}><summary>게시 이력</summary><ul>{info.history.map(item => <li key={item.version}>v{item.version} · {new Date(item.published_at).toLocaleString()}</li>)}</ul></details>}
+    {!!info.history.length && !editing && <section className={styles.file}><h3>게시 이력</h3><ul>{info.history.map(item => <li key={item.version}>v{item.version} · {new Date(item.published_at).toLocaleString()}</li>)}</ul></section>}
     <dialog ref={leaveDialog} className={styles.leaveDialog} aria-labelledby="leave-editor-title" onCancel={() => setDestination(null)}>
       <h2 id="leave-editor-title">작성한 내용을 저장할까요?</h2><p>아직 서버에 저장하지 않은 변경이 있습니다.</p>
       {failure && <p role="alert" className={styles.error}>{failure}</p>}

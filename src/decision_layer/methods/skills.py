@@ -54,7 +54,7 @@ class SkillMethod(Method):
         raise InvalidBinding("Skill text is not executable. Read its guide and run registered tools on a recorded Run.")
 
 
-def load_skill_directory(registry, directory: str | Path):
+def load_skill_directory(registry, directory: str | Path, *, builtin=False):
     """Operator-owned directory only. No HTTP upload or arbitrary request path."""
     root = Path(directory).resolve(strict=True)
     pending = []
@@ -74,7 +74,7 @@ def load_skill_directory(registry, directory: str | Path):
             if method.manifest.implementation != "python" and not method.manifest.agent_executable:
                 raise ValueError("Suggested tools must name executable Python Methods or query-executing Skills")
     for skill in pending:
-        registry.register(skill)
+        registry.register(skill, builtin=builtin)
     return registry
 
 

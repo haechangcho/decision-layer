@@ -1,0 +1,5 @@
+.tabs { display:flex; align-items:center; gap:26px; margin:28px 0 0; border-bottom:1px solid var(--line); overflow-x:auto; scrollbar-width:thin; }
+.tabs button { flex-shrink:0; padding:14px 2px; border:0; border-bottom:2px solid transparent; border-radius:0; background:transparent; color:var(--muted); font-size:13px; font-weight:500; }
+.tabs button[aria-selected="true"] { color:var(--text); font-weight:650; border-bottom-color:var(--text); }
+.tabs button:hover { color:var(--text); }
+@media(max-width:700px) { .tabs { gap:22px; margin-top:22px; } }

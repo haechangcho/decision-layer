@@ -3,6 +3,7 @@
 // Renders any Result by artifact shape, not by Method: tables for row lists, key/value
 // grids for objects. A new Method's output shows up without a new component.
 
+import { InspectorDialog } from "@/components/inspector-dialog";
 import type { Artifact, Result, SemanticObject, Validation } from "@/lib/api";
 import { timeSeriesData } from "@/lib/artifact-data";
 import { isAssociation } from "@/lib/interpretation";
@@ -19,7 +20,7 @@ const labels: Record<string, string> = {
   value: "그룹", metric: "지표 값", count: "건수", share_of_count: "건수 비중 (%)",
   vs_overall: "전체 대비", rank: "순위", current: "분석 기간", comparison: "비교 기간",
   change: "변화", change_pct: "변화율 (%)", period: "기간", before: "이전", after: "이후",
-  selected_among: "비교 대상 그룹", excluded_small: "최소 건수 미만 그룹", drill_path: "드릴다운 경로",
+  query: "조회", selected_among: "비교 대상 그룹", excluded_small: "최소 건수 미만 그룹", drill_path: "드릴다운 경로",
   direction: "정렬 방향", rank_by: "정렬 기준", granularity: "시간 단위",
   difference_from_subject: "대상 값 − 비교 집단 값",
   target: "대상 집단", difference: "차이", raw: "조건 맞춤 전", matched: "조건 맞춤 후",
@@ -129,13 +130,14 @@ function Value({ value, titles, depth = 0 }: { value: unknown; titles: Titles; d
   return <span>{fmt(value, titles)}</span>;
 }
 
-export function ArtifactView({ artifact, titles, expanded = false }: { artifact: Artifact; titles: Titles; expanded?: boolean }) {
+export function ArtifactView({ artifact, titles, expanded = false, showTitle = true }: { artifact: Artifact; titles: Titles; expanded?: boolean; showTitle?: boolean }) {
+  const [fullOpen, setFullOpen] = useState(false);
   if (artifact.type === "estimate" && artifact.data && typeof artifact.data === "object") {
     const data = artifact.data as Record<string, unknown>;
     if (data.raw && data.matched && typeof data.raw === "object" && typeof data.matched === "object") {
       const groupLabel = (value: unknown, fallback: string) => value && typeof value === "object" && typeof (value as Record<string, unknown>).label === "string" ? String((value as Record<string, unknown>).label) : fallback;
       const rows = ["raw", "matched"].map(key => ({ stage: labels[key], ...(data[key] as Record<string, unknown>) }));
-      return <section className="artifact"><h4>{typeof data.metric === "string" ? titles.get(data.metric)?.title ?? "분석 지표" : "비교 결과"}</h4>
+      return <section className="artifact">{showTitle && <h4>{typeof data.metric === "string" ? titles.get(data.metric)?.title ?? "분석 지표" : "비교 결과"}</h4>}
         <DataTable rows={rows} titles={titles} columns={["stage", "target", "comparison", "difference"]} columnLabels={{ stage: "비교 방식", target: groupLabel(data.target, "대상 집단"), comparison: groupLabel(data.comparison, "비교 집단"), difference: "대상 − 비교 집단" }} />
         {Array.isArray(data.conditions) && data.conditions.length > 0 && <p className="result-note">맞춘 조건: {data.conditions.map(item => item.title ?? titles.get(item.member)?.title ?? "항목 이름 확인 필요").join(" · ")}</p>}
       </section>;
@@ -153,7 +155,7 @@ export function ArtifactView({ artifact, titles, expanded = false }: { artifact:
       const unitRef = units[column.slice(0, -6)];
       return [column, typeof unitRef === "string" ? titles.get(unitRef)?.title ?? "건수" : "건수"];
     }));
-    return <section className="artifact"><h4>{metricTitle} · 기간별 값</h4>
+    return <section className="artifact">{showTitle && <h4>{metricTitle} · 기간별 값</h4>}
       {!expanded && rows.length === 1 && typeof rows[0][metric] === "number" && <p className="result-lead">해당 기간 값 <strong>{fmt(rows[0][metric], titles)}</strong></p>}
       {rows.length === 1 && <p className="result-note">기간이 하나뿐이라 증가·감소 추이는 판단할 수 없습니다.</p>}
       {rows.length ? <DataTable rows={rows} titles={titles} columns={columns} columnLabels={columnLabels} /> : <p className="result-note">표시할 기간 데이터가 없습니다.</p>}
@@ -166,15 +168,15 @@ export function ArtifactView({ artifact, titles, expanded = false }: { artifact:
     const displayedRows = populationComparison && isRowList(rows) ? rows.map((row, index) => ({ ...row,
       value: populationLabel(index, row.value) })) : rows;
     if (isRowList(displayedRows)) return <section className="artifact">
-      <h4>{artifact.title || artifactNames[artifact.type] || artifact.type}</h4>
+      {showTitle && <h4>{artifact.title || artifactNames[artifact.type] || artifact.type}</h4>}
       {populationComparison && <div className="result-note"><p><strong>비교 기준</strong> 각 집단 전체에 지표 정의를 적용한 값입니다. 구성원별 값의 단순 평균이 아닙니다.</p><p>비교 집단에는 지정한 조건을 적용하고, 전체 집단에는 그 조건을 적용하지 않습니다. 두 집단 모두 선택한 대상은 제외하며, 공통 필터와 실행 기간은 유지합니다.</p>{data.statistical_judgement === "not_tested" && <p><strong>수치 비교만 수행</strong> 차이의 통계적 유의성이나 원인 관계는 판단하지 않습니다. 표본 건수가 있더라도 이 Method는 유의성을 검정하지 않습니다.</p>}</div>}
       <DataTable rows={displayedRows} titles={titles} columns={["value", "metric", "count", "share_of_count", "difference_from_subject"].filter((key) => key in displayedRows[0])} />
-      {!expanded && <details className="artifact-details"><summary>전체 결과 보기</summary><Value value={data} titles={titles} /></details>}
+      {!expanded && <><button type="button" className="ghost" onClick={() => setFullOpen(true)}>전체 결과 보기</button><InspectorDialog title="전체 분석 결과" open={fullOpen} onClose={() => setFullOpen(false)}><Value value={data} titles={titles} /></InspectorDialog></>}
     </section>;
   }
   return (
     <section className="artifact">
-      <h4>{artifact.title || artifactNames[artifact.type] || artifact.type}</h4>
+      {showTitle && <h4>{artifact.title || artifactNames[artifact.type] || artifact.type}</h4>}
       <Value value={artifact.data} titles={titles} />
     </section>
   );
@@ -193,8 +195,10 @@ export function ValidationList({ items }: { items: Validation[] }) {
   );
 }
 
-export function ResultView({ result, titles, showRunLink = true, showEvidence = true, expanded = false }: { result: Result; titles: Titles; showRunLink?: boolean; showEvidence?: boolean; expanded?: boolean }) {
+export function ResultView({ result, titles, showRunLink = true, showEvidence = true, expanded = false, showPrimaryTitle = true }: { result: Result; titles: Titles; showRunLink?: boolean; showEvidence?: boolean; expanded?: boolean; showPrimaryTitle?: boolean }) {
   const t = useT();
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
+  const [additionalOpen, setAdditionalOpen] = useState(false);
   const statusLabel = { success: "분석 완료", needs_input: "추가 입력 필요", refused: "비교 불가", failed: "실패" }[result.status];
   const breakdown = result.primary?.type === "breakdown_table" && result.primary.data && typeof result.primary.data === "object"
     ? (result.primary.data as Record<string, unknown>) : null;
@@ -218,18 +222,16 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
       )}
       {!expanded && result.warnings.length > 0 && <ul className="warnings">{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
       {!expanded && <ValidationList items={result.validation} />}
-      {result.primary && <ArtifactView artifact={result.primary} titles={titles} expanded={expanded} />}
-      {!expanded && supportingArtifacts.length > 0 && <details className="artifact-details">
-        <summary>추가 분석 결과</summary>
+      {result.primary && <ArtifactView artifact={result.primary} titles={titles} expanded={expanded} showTitle={showPrimaryTitle} />}
+      {!expanded && supportingArtifacts.length > 0 && <><button type="button" className="ghost" onClick={() => setAdditionalOpen(true)}>추가 분석 결과 ({supportingArtifacts.length})</button><InspectorDialog title="추가 분석 결과" open={additionalOpen} onClose={() => setAdditionalOpen(false)}>
         {supportingArtifacts.map((a, i) => <ArtifactView key={i} artifact={a} titles={titles} />)}
-      </details>}
-      {showEvidence && (result.provenance.method || result.provenance.semantic_refs.length || result.provenance.queries.length) ? <details>
-        <summary>실행 근거{result.provenance.queries.length > 0 ? ` · 쿼리 ${result.provenance.queries.length}개` : ""}</summary>
+      </InspectorDialog></>}
+      {showEvidence && (result.provenance.method || result.provenance.semantic_refs.length || result.provenance.queries.length) ? <><button type="button" className="ghost" onClick={() => setEvidenceOpen(true)}>실행 근거{result.provenance.queries.length > 0 ? ` / 쿼리 ${result.provenance.queries.length}개` : ""}</button><InspectorDialog title="실행 근거" open={evidenceOpen} onClose={() => setEvidenceOpen(false)}>
         {result.interpretation && <p className="muted">해석 범위: {isAssociation(result.interpretation) ? t("Association — observational summaries and relationships") : result.interpretation}</p>}
         {result.validation.filter((item) => item.status === "pass").length > 0 && <p className="muted">통과한 검증: {result.validation.filter((item) => item.status === "pass").map((item) => item.validator).join(", ")}</p>}
         <RunSources result={result} titles={titles} />
         <RunQueries result={result} />
-      </details> : null}
+      </InspectorDialog></> : null}
     </div>
   );
 }

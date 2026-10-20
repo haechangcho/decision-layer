@@ -2519,3 +2519,76 @@ arguments, inputs, results and checks; Code structure summarizes current ownersh
 and execution boundaries. Historical migration notes stay in this decisions log,
 not duplicated as a second architecture chronology. Contribution setup/tests link
 to that single code map. This is documentation consolidation, not a contract change.
+
+
+## ADR-115 — A small starting catalog and execution-first console (2026-10-20)
+
+**Accepted.** Default discovery exposes two query-executing Skills
+(analysis.metric_lookup, analysis.drilldown) and two Python Methods
+(stats.regression_adjustment, stats.binary_matching). Trend, peer-comparison and
+advisory guides remain compatibility lookups so installed Recipes and historical
+references resolve. Project Methods still join the catalog normally. This narrows
+ADR-099's default set through the shared registry, not a Web-only filter.
+
+The console groups Methods by Skill and Python. Project context lives in a compact
+navigation disclosure. Loading failures do not appear as successful empty lists.
+Method details lead with execution, then inputs and recorded results; source editing
+opens on demand without unmounting drafts. An execution summary includes only steps
+whose recorded Method reference matches the exact current version. It inspects the
+latest 100 accessible Runs and states that bound; absence is not proof of never
+having executed. Successful execution is not a claim of causal or analytical validity.
+
+Reuse the existing Recipe preview, Run, provenance and Skill continuation contracts.
+No separate test engine, validation badge, or synthetic success status is introduced.
+The existing color palette and access controls are retained.
+
+
+### Console evidence navigation (ADR-115 refinement, 2026-10-20)
+
+Keep analytical results in the main workspace. Inspect queries through a selectable
+activity list; requests, source files and execution-time Skill snapshots open in a
+shared modal inspector. Do not stack nested disclosures above results. Failed and
+interrupted queries remain visible as execution states, and actual query errors
+surface before opening the activity view. Source views use preserved snapshots,
+never current source as a substitute for missing historical evidence.
+
+Method details separate overview/inputs, implementation and execution records.
+Implementation panels remain mounted across tab changes so unsaved editor state
+survives. A one-step Run does not need a graph. Recipe reuse and continuation
+controls follow results; step execution and conclusion writing use explicit actions
+with their existing API contracts. Dialogs retain native focus trapping, Escape and
+focus restoration. These are presentation changes; stored evidence and execution
+policies are unchanged.
+
+The metric catalog starts new procedures with the current metric-lookup Skill.
+It does not preselect compatibility-only query Methods for new procedures.
+
+
+## ADR-116 — User-owned starter definitions and local calculation tests (2026-10-20)
+
+**Accepted.** `init` creates two query-executing Skills and two ordinary Python
+calculations in the project's own methods folders, alongside calculation tests and
+project dependency metadata. `init --empty` omits these files. `demo` uses the same
+scaffold for newly created sample projects. Existing files are never overwritten.
+
+New configurations set `include_builtin_methods: false`. The shared project loader
+removes package defaults from current discovery, validates local entries atomically,
+and retains explicitly pinned historical implementations. Missing local entries do
+not fall back to an identically named package default. Configurations without the
+field retain legacy behavior. Web, CLI, Python and MCP read the same project registry.
+
+Starter IDs remain analysis.metric_lookup, analysis.drilldown,
+stats.regression_adjustment and stats.binary_matching. Local definitions use version
+2.0.0. OLS uses statsmodels; matching uses scikit-learn nearest neighbors with
+replacement, overlap, distance, unique-control and balance refusal checks. Its
+estimand is the observed matched difference for the treated group. These are new
+implementations and contracts, not silent replacements of DoWhy 1.1.0. Previous
+versions remain available for pinned Recipes. Neither calculation establishes causal
+identification or reports uncertainty. The standard stats extra installs the needed
+libraries without the old optional DoWhy runtime's Python/NumPy constraints.
+
+`decision-layer test` runs the project's pytest files with the active interpreter.
+Known synthetic answers and invalid inputs test calculations without requiring a
+semantic server. This does not assert validation on a user's actual data or replace
+Run provenance. Wheel smoke checks cover generated files, tests, CLI/API discovery
+and MCP startup outside the source checkout.

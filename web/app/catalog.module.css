@@ -1,6 +1,6 @@
-.page { max-width: 1360px; margin: 0 auto; padding: 38px 32px 56px; }
+.page { max-width: 1360px; margin: 0 auto; padding: 44px 36px 64px; }
 .heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-.heading h1 { margin: 0; color: var(--text); font-size: 26px; font-weight: 650; }
+.heading h1 { margin: 0; color: var(--text); font-size: 28px; letter-spacing:-.7px; font-weight: 700; }
 .intro { margin: 7px 0 0; color: var(--muted); }
 .sourceLink,.primaryButton,.secondaryButton { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 38px; padding: 0 14px; border-radius: 5px; font-size: 13px; font-weight: 600; text-decoration: none; }
 .sourceLink { border: 1px solid var(--line); color: var(--link); background: #fff; }.sourceLink:hover { background: var(--bg); }

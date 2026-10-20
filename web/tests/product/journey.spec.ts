@@ -21,6 +21,8 @@ const readiness = {
 };
 
 test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("decision-layer.locale", "ko"));
+  await page.route("**/api/methods",route => route.fulfill({json:[{name:"analysis.metric_lookup",version:"1.0.0",implementation:"skill",agent_executable:true,description:"지표 조회",roles:{metric:{kind:"measure",required:true}},parameters:{},outputs:["table"]}]}));
   await page.route("**/api/semantic/catalog", (route) => route.fulfill({ json: { provider: "cube", instance: "local", objects, hierarchies: {}, discovered_at: new Date().toISOString() } }));
   await page.route("**/api/sources/current/readiness", (route) => route.fulfill({ json: readiness }));
   await page.route("**/api/methods/query.*", async (route) => {
@@ -45,11 +47,12 @@ test("root opens Recipes and a catalog metric starts a prefilled Recipe", async 
   await page.getByLabel("지표 검색").fill("");
   await page.getByRole("button", { name: /반품률/ }).click();
   await expect(page.getByText(objects[0].ref, { exact: true })).not.toBeVisible();
-  await page.getByText("기술 정보", { exact: true }).click();
+  await page.getByRole("button", {name:"기술 정보 보기",exact:true}).click();
   await expect(page.getByText(objects[0].ref, { exact: true })).toBeVisible();
+  await page.getByRole("dialog",{name:"지표 기술 정보"}).getByRole("button",{name:"닫기"}).click();
   await expect(page.getByRole("list").getByText("분자 / 분모", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Recipe 만들기" }).click();
-  await expect(page).toHaveURL(/\/recipes\/new\?method=query\.trend&metric=/);
+  await expect(page).toHaveURL(/\/recipes\/new\?method=analysis\.metric_lookup&metric=/);
   await expect(page.getByLabel("분석할 지표", { exact: true })).toHaveValue(objects[0].ref);
 });
 
@@ -62,7 +65,7 @@ test("drafts are separate from the executable analysis library", async ({ page }
   await page.route("**/api/recipes:drafts", route => route.fulfill({ json: [draft] }));
   await page.goto("/recipes");
   await expect(page.getByRole("region", { name: "작성 중인 초안" })).toContainText("반품 분석 초안");
-  await expect(page.getByRole("region", { name: "Recipes" })).not.toContainText("반품 분석 초안");
+  await expect(page.getByRole("region", { name: /Recipes|레시피/ })).not.toContainText("반품 분석 초안");
   await page.getByRole("region", { name: "작성 중인 초안" }).getByRole("link", { name: /반품 분석 초안/ }).click();
   await expect(page).toHaveURL(/\/recipes\/review-draft\/edit$/);
 });
@@ -71,9 +74,9 @@ test("catalog permission errors explain the next step", async ({ page }) => {
   await page.route("**/api/semantic/catalog", (route) => route.fulfill({ status: 401, json: { error: { code: "UNAUTHENTICATED", message: "A Cube user token is required." } } }));
   await page.goto("/catalog");
   await expect(page.getByRole("heading", { name: "카탈로그에 연결할 수 없습니다" })).toBeVisible();
-  await expect(page.getByText("Cube 주소와 사용자 토큰을 확인한 다음 다시 시도해 주세요.")).toBeVisible();
+  await expect(page.getByText("연결 주소와 접근 권한을 확인한 다음 다시 시도해 주세요.")).toBeVisible();
   await page.getByRole("link", { name: "연결 설정 열기" }).click();
-  await expect(page.getByRole("heading", { name: /Cube 연결|Cube connection/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "시맨틱 레이어 연결" })).toBeVisible();
 });
 
 test("workspace token is used by the catalog and kept for this browser session", async ({ page }) => {
@@ -84,21 +87,21 @@ test("workspace token is used by the catalog and kept for this browser session",
     await route.fulfill({ json: { provider: "cube", instance: "local", objects, hierarchies: {}, discovered_at: new Date().toISOString() } });
   });
   await page.goto("/catalog");
-  await page.getByRole("button", { name: /Cube user token required/ }).click();
-  await page.getByLabel("Cube user token").fill("cube-user-token");
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: /Access token required|접근 토큰 필요/ }).click();
+  await page.getByLabel("사용자 접근 토큰").fill("cube-user-token");
+  await page.getByRole("button", { name: "저장" }).click();
   await expect(page.getByRole("heading", { name: "지표 탐색" })).toBeVisible();
   await expect.poll(() => authHeaders).toContain("Bearer cube-user-token");
   await page.reload();
-  await expect(page.getByRole("button", { name: /Using a token/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Using a token|토큰 사용 중/ })).toBeVisible();
   await expect.poll(() => authHeaders.at(-1)).toBe("Bearer cube-user-token");
 });
 
 test("token-free local Cube does not ask for a user token", async ({ page }) => {
   await page.route("**/api/sources/current", route => route.fulfill({ json: { auth_method: "none" } }));
   await page.goto("/catalog");
-  await expect(page.getByRole("button", { name: /Cube user token required/ })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "Cube connection" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Access token required|접근 토큰 필요/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "연결 설정", exact: true })).toBeVisible();
 });
 
 test("legacy design route returns to the product entry and mobile has no overflow", async ({ page }) => {
@@ -141,7 +144,8 @@ test("find a Recipe, run it with its recommended time dimension, and inspect evi
   await expect(page.getByLabel("날짜 기준").locator("option")).toHaveCount(2);
   await page.getByRole("button", { name: "이 Recipe로 분석" }).click();
   await expect(page).toHaveURL(/\/runs\/journey-run$/);
-  await expect(page.getByRole("region", { name: "실행 그래프" }).getByText("매출 추이")).toBeVisible();
+  await expect(page.locator("#run-step-detail").getByRole("heading",{name:"매출 추이"})).toBeVisible();
+  await expect(page.getByRole("region",{name:"실행 그래프"})).toHaveCount(0);
   await page.getByRole("tab", { name: /쿼리/ }).click();
   await expect(page.getByText("SELECT revenue")).toBeVisible();
   expect(requestScope?.time_dimension).toBe("cube://local/ecom_order/created_at");
@@ -165,6 +169,6 @@ test("invalid dates and missing Cube permission show a recovery action", async (
   await page.getByLabel("종료일").fill("2026-10-31");
   await page.getByRole("button", { name: "이 Recipe로 분석" }).click();
   await expect(page.getByRole("alert").getByText("Metric access denied.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Cube 연결 확인" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "연결 확인" })).toBeVisible();
   await expect(page.getByRole("link", { name: "접근 가능한 지표 확인" })).toBeVisible();
 });

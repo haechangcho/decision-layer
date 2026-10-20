@@ -34,17 +34,21 @@ def main(argv=None):
     init = commands.add_parser("init", help="Create a Method project")
     init.add_argument("directory")
     init.add_argument("--name")
+    init.add_argument(
+        "--empty", action="store_true", help="Create a project without starter Methods"
+    )
     new = commands.add_parser("new", help="Add a Python Method or Skill")
     new.add_argument("kind", choices=["python", "skill"])
     new.add_argument("name")
     check = commands.add_parser("check", help="Validate project registration")
+    testing = commands.add_parser("test", help="Run the project calculation tests")
     listing = commands.add_parser(
         "list", help="List Methods and their definition paths"
     )
     serve = commands.add_parser(
         "serve", help="Start the admin UI and API with this project"
     )
-    for cmd in (new, check, listing, serve):
+    for cmd in (new, check, testing, listing, serve):
         cmd.add_argument(
             "--project",
             help="Project directory (default: search current directory and parents)",
@@ -77,16 +81,36 @@ def main(argv=None):
                 cube_port=args.cube_port,
             )
         if args.command == "init":
-            project = init_project(args.directory, args.name)
+            project = init_project(args.directory, args.name, empty=args.empty)
             print(f"Created {project.root / PROJECT_FILE}")
             print(
-                f"Next: cd {project.root}\n  decision-layer new python rank\n  decision-layer check"
+                f"Methods: {project.methods_dir}\nNext: cd {project.root}\n  python -m pip install -e '.[test]'\n  decision-layer check\n  decision-layer test"
             )
             return 0
         project = Project.find(args.project or os.environ.get("DL_PROJECT_DIR"))
         if args.command == "new":
             print(new_method(project, args.kind, args.name))
             return 0
+        if args.command == "test":
+            from importlib.util import find_spec
+
+            if find_spec("pytest") is None:
+                raise ValueError(
+                    "Install project test dependencies: python -m pip install -e '.[test]'"
+                )
+            import subprocess
+
+            return subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    str(project.methods_dir),
+                    "-q",
+                    "--import-mode=importlib",
+                ],
+                cwd=project.root,
+            ).returncode
         if args.command == "serve":
             os.environ["DL_PROJECT_DIR"] = str(project.root)
             os.environ.setdefault(

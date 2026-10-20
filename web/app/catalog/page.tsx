@@ -1,4 +1,5 @@
 "use client";
+import { InspectorDialog } from "@/components/inspector-dialog";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -15,6 +16,7 @@ function getCube(ref: string) {
 }
 
 export default function CatalogPage() {
+  const [technicalOpen, setTechnicalOpen] = useState(false);
   const [metrics, setMetrics] = useState<CatalogMetric[]>([]);
   const [selected, setSelected] = useState<CatalogMetric | null>(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
@@ -64,7 +66,7 @@ export default function CatalogPage() {
   }, {}), [shown]);
 
   function methodHref(metric: CatalogMetric) {
-    const method = metric.checks?.time.status === "ready" ? "query.trend" : "query.drilldown";
+    const method = "analysis.metric_lookup";
     return `/recipes/new?method=${method}&metric=${encodeURIComponent(metric.ref)}`;
   }
 
@@ -102,9 +104,9 @@ export default function CatalogPage() {
         {selected ? <>
           <div className={styles.detailHeader}><span className={styles.largeIcon}><Activity size={20} /></span><span className={styles.kindTag}>{selected.metric_kind ?? "측정값"}</span><button type="button" className={styles.mobileClose} onClick={() => setMobileDetailOpen(false)} aria-label="닫기"><X size={19} /></button></div>
           <h2>{selected.title}</h2><p className={styles.description}>{selected.description || "시맨틱 모델에 설명이 등록되지 않았습니다."}</p>
-          <details className={styles.technicalDetails}><summary>기술 정보</summary><div className={styles.reference}><span>지표 참조</span><code>{selected.ref}</code></div>
+          <button type="button" className="ghost" onClick={() => setTechnicalOpen(true)}>기술 정보 보기</button><InspectorDialog title="지표 기술 정보" open={technicalOpen} onClose={() => setTechnicalOpen(false)}><div className={styles.reference}><span>지표 참조</span><code>{selected.ref}</code></div>
             {selected.ratio_parts?.length ? <div className={styles.reference}><span>분자 / 분모</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
-            {selected.entity && <div className={styles.reference}><span>개별 분석 단위 참조</span><code>{selected.entity}</code></div>}</details>
+            {selected.entity && <div className={styles.reference}><span>개별 분석 단위 참조</span><code>{selected.entity}</code></div>}</InspectorDialog>
           <div className={styles.readinessTitle}><Info size={16} /><strong>모델에서 확인한 정보</strong></div>
           {!selected.checks ? <p className={styles.help}>추가 모델 정보를 불러오지 못했습니다. 분석 가능 여부는 실행할 때 확인합니다.</p> : <ul className={styles.checks}>
             <li><span>시간 차원</span><strong>{selected.checks.time.status === "ready" ? "등록됨" : "확인되지 않음"}</strong></li>

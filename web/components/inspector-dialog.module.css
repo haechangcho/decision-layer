@@ -1,0 +1,9 @@
+.dialog { width:min(900px,calc(100vw - 48px)); max-width:none; max-height:calc(100dvh - 64px); padding:0; border:1px solid var(--line); border-radius:18px; color:var(--text); background:var(--panel); box-shadow:var(--dl-shadow); }
+.dialog::backdrop { background:#0006; }
+.dialog>header { position:sticky; top:0; z-index:1; display:flex; justify-content:space-between; align-items:center; gap:20px; padding:22px 28px; border-bottom:1px solid var(--line); background:var(--panel); }
+.dialog>header span { color:var(--muted); font-size:10px; letter-spacing:1px; }
+.dialog h2 { margin:6px 0 0; font-size:20px; letter-spacing:-.4px; }
+.dialog>header button { display:grid; place-items:center; width:40px; height:40px; padding:0; border-radius:10px; background:var(--hover); color:var(--text); }
+.body { min-width:0; padding:28px; overflow-wrap:anywhere; }
+.body pre { max-width:100%; overflow:auto; padding:18px; border-radius:10px; background:var(--bg); font:12px/1.8 ui-monospace,monospace; }
+@media(max-width:700px) { .dialog { width:calc(100vw - 20px); max-height:calc(100dvh - 20px); border-radius:14px; }.dialog>header { padding:18px; }.body { padding:18px; } }

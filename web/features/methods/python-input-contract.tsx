@@ -7,8 +7,8 @@ export function PythonInputContract({ method }: { method: MethodManifest }) {
     고급 입력 연결을 사용하는 분석입니다. 소스의 집계 정의·기간 검사와 결과 구성을 어댑터가 처리합니다.
     일반 계산을 새로 작성할 때는 <code>python_method</code>와 <code>DataInput</code>으로 시작하세요.
   </p>;
-  return <details className={styles.inputContract}>
-    <summary>함수에 전달되는 데이터 · {tables.map(([name]) => name).join(", ")}</summary>
+  return <section className={styles.inputContract} aria-label="함수에 전달되는 데이터">
+    <h3>함수에 전달되는 데이터</h3>
     <p>실행할 때 Cube 지표·차원과 기간을 연결합니다. 실행기가 조회와 입력 검사를 마친 뒤 함수에 데이터를 전달합니다.</p>
     {tables.map(([name, spec]) => <section key={name}>
       <h3><code>{name}</code> · {spec.format === "dataframe" ? "pandas DataFrame" : "행 목록"}</h3>
@@ -34,5 +34,5 @@ export function PythonInputContract({ method }: { method: MethodManifest }) {
         필터: Run 범위{spec.filters_parameter && ` + ${spec.filters_parameter} 입력`}.</p>
     </section>)}
     <p className={styles.muted}>누락된 연결은 실행 전에 확인해야 합니다. 타입과 반환 데이터 검사는 사업적 의미·원천 데이터 완전성·인과관계를 보장하지 않습니다.</p>
-  </details>;
+  </section>;
 }

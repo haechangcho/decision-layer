@@ -37,9 +37,8 @@
 .error { color: #991b1b; white-space: pre-wrap; overflow-wrap: anywhere; }
 .compare { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin: 16px 0; }
 .file { margin: 16px 0; }
-.file summary { overflow-wrap: anywhere; cursor: pointer; color: #163b68; font-weight: 600; padding: 10px 0; }
 @media(max-width:700px) { .document { padding: 16px; } .heading { align-items: flex-start; } .compare { grid-template-columns: 1fr; } }
-.editorToolbar { position: sticky; top: 58px; z-index: 8; background: #fff; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 16px; box-shadow: 0 3px 12px #17203309; }
+.editorToolbar { position: sticky; top: 76px; z-index: 1; background: #fff; padding: 12px 16px; border: 1px solid #cbd5e1; border-radius: 10px; margin-bottom: 16px; box-shadow: 0 3px 12px #17203309; }
 .heading h2 { margin: 0 0 8px; }
 .heading p { margin: 0; }
 .heading .controls { margin: 0; justify-content: flex-end; }
@@ -73,7 +72,6 @@
 .leaveDialog h2 { margin-top: 0; font-size: 20px; }
 @media(max-width:700px) { .editorToolbar { position: static; flex-wrap: wrap; padding: 12px; } .editorToolbar .controls { width: 100%; justify-content: flex-start; } .tabs button { padding: 10px; gap: 5px; font-size: 12px; } .publishPanel { padding: 14px; } .editorFrame :global(.cm-editor) { font-size: 12px; } .versionBar { align-items: flex-start; } }
 .inputContract { margin: 18px 0; padding: 16px; border: 1px solid var(--border, #dce0e5); border-radius: 8px; }
-.inputContract summary { cursor: pointer; font-weight: 600; }
 .inputContract p { line-height: 1.65; }
 .contractScroll { overflow-x: auto; }
 .contractScroll table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
@@ -96,3 +94,9 @@
 .diffTable .diffAdd { background: #e6f6e9; }
 .diffTable .diffRemove { background: #ffebe9; }
 .diffTable .diffHunk { background: #eaf2fc; color: #1756a9; }
+
+.sourceToolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:16px 0; }
+.originalSource label { display:grid; gap:8px; color:var(--muted); font-size:12px; }
+.originalSource select { padding:10px 12px; background:var(--panel); color:var(--text); }
+.hash { color:var(--muted); overflow-wrap:anywhere; font:11px/1.7 ui-monospace,monospace; }
+.inputContract h3 { margin:0 0 12px; font-size:14px; }

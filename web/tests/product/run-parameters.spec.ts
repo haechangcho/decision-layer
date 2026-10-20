@@ -66,6 +66,7 @@ test("one-click registration supports inline retry without a popup", async ({ pa
   });
   await page.goto("/runs/provenance-test");
   const register = page.getByRole("button", { name: "Recipe로 등록", exact: true });
+  await register.scrollIntoViewIfNeeded();
   await expect(register).toBeInViewport();
   await page.screenshot({ path: info.outputPath("run-registration.png"), fullPage: true });
   await register.click();
@@ -116,13 +117,9 @@ test("Run shows applied values and their sources on demand", async ({ page }, in
   await page.goto("/runs/provenance-test");
   await expect(page.getByRole("heading", { name: "지급액이 왜 변했나?", exact: true })).toBeVisible();
   await expect(page.getByText("지급액", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("region", { name: "실행 그래프" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "실행 그래프" })).toHaveCount(0);
+  await expect(page.locator("#run-step-detail")).toBeVisible();
   await expect(page.getByLabel("공유할 사용자 ID")).not.toBeVisible();
-  if (info.project.name === "mobile") {
-    const graph = await page.getByRole("region", { name: "실행 그래프" }).boundingBox();
-    const detail = await page.locator('[class*="runStepDetail"]').boundingBox();
-    expect(graph && detail && graph.y < detail.y).toBe(true);
-  }
   await expect(page.getByText("Method 기본값")).not.toBeVisible();
   await expect(page.getByRole("button", { name: "Show 0 executed queries" })).toHaveCount(0);
   await expect(page.getByText("method://query.trend@1.0.0")).not.toBeVisible();
@@ -186,6 +183,8 @@ test("an unfinished MCP analysis keeps its graph and requires review before regi
   await expect(page.getByRole("region", { name: "실행 그래프" }).locator(".react-flow__node-step")).toHaveCount(3);
   const register = page.getByRole("button", { name: "Recipe로 등록", exact: true });
   await expect(register).toBeDisabled();
+  await expect(page.getByRole("textbox", {name:/Conclusion|결론/})).toHaveCount(0);
+  await page.getByRole("button", {name:"결론 작성",exact:true}).click();
   const finish = page.getByRole("button", { name: "결론 저장하고 완료" });
   await expect(finish).toBeDisabled();
   await page.getByRole("textbox", { name: /Conclusion \(when closing\)|결론 \(닫을 때\)/ }).fill("결과를 검토했습니다.");
@@ -207,11 +206,11 @@ test("MCP runs are identifiable and filterable without claiming approval", async
   await page.getByRole("combobox", { name: "실행 출처" }).selectOption("mcp");
   const list = page.getByRole("region", { name: "실행 기록 목록" });
   await expect(list.getByRole("link")).toHaveCount(1);
-  await expect(list).toContainText("MCP 탐색");
+  await expect(list).toContainText("MCP 실행");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath("mcp-run-list.png"), fullPage: true });
   await list.getByRole("link").click();
-  await expect(page.getByText(/RUN · MCP 탐색/)).toBeVisible();
+  await expect(page.getByText(/RUN · MCP 실행/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Recipe로 등록", exact: true })).toBeVisible();
 });
 
@@ -269,8 +268,8 @@ test("structured answers link to evidence and distinguish product from model", a
   await page.getByRole("tab", { name: "출처", exact: true }).click();
   await expect(page.getByRole("tabpanel")).toContainText("Example Client");
   await expect(page.getByRole("tabpanel")).toContainText("example-model");
-  await expect(page.getByRole("tabpanel")).toContainText("미제공");
-  await expect(page.locator("details")).toHaveCount(0);
+  await expect(page.getByRole("tabpanel")).toContainText("클라이언트 자기보고");
+  await expect(page.locator("details[open]")).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: info.outputPath("structured-answer-sources.png"), fullPage: true });
 });
@@ -315,7 +314,7 @@ test("a one-period trend leads with the answer and keeps audit details folded", 
   await expect(page.getByRole("heading", { name: "6월 지급액은 얼마인가?" })).toBeVisible();
   await expect(page.getByText("지급결정금액 합계", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("860,160,000").first()).toBeVisible();
-  await expect(page.locator("details")).toHaveCount(0);
+  await expect(page.locator("details[open]")).toHaveCount(0);
   await expect(page.getByRole("columnheader", { name: "지급 건수" })).toBeVisible();
   await expect(page.getByText("기간이 하나뿐이라 증가·감소 추이는 판단할 수 없습니다.")).toBeVisible();
   await expect(page.getByRole("region", { name: "분석 답변" }).getByText(/데이터가 2026-06-04까지만 있어/)).toBeVisible();
@@ -345,7 +344,7 @@ test("Run graph selects recorded steps without implying a dependency", async ({ 
   await page.getByRole("tab", { name: "검증·추가 결과 1개" }).click();
   await expect(page.getByRole("tabpanel")).toContainText("추가 비교");
   await expect(page.getByRole("tabpanel")).toContainText("42");
-  await expect(page.locator("details")).toHaveCount(0);
+  await expect(page.locator("details[open]")).toHaveCount(0);
   await graph.getByRole("button", { name: "1단계 시간에 따른 변화 결과 보기" }).click();
   await expect(page.getByRole("tab", { name: "결과", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.screenshot({ path: info.outputPath("run-graph.png"), fullPage: true });

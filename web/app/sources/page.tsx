@@ -169,10 +169,10 @@ export default function SourcesPage() {
         : auth === "api_secret" ? locked("api_secret") ? <p className={styles.credential}><LockKeyhole size={14} />{t("API secret is configured on the server.")}</p> : <label className={styles.field}><span>{t("Cube API secret")}</span>
             <input type="password" autoComplete="new-password" value={secret} onChange={(e) => { setSecret(e.target.value); invalidateTest(); }} placeholder={selectedConfig?.api_secret_configured ? t("Leave blank to keep the current value") : ""} disabled={busy !== null} />
           </label> : <p className={styles.help}>{t("Local development only. Every user shares the same data access.")}</p>}
-        <details className={styles.advanced}><summary>{t("Additional connection settings")}</summary>
+        <section className={styles.advanced}><h3>{t("Additional connection settings")}</h3>
           <label className={styles.field}><span>{t("Instance")}</span><input value={instance} onChange={e => { setInstance(e.target.value); invalidateTest(); }} disabled={busy !== null || locked("instance")} /><small>{t("Identifies this connection in saved semantic references.")}{locked("instance") && ` · ${prefix}_INSTANCE`}</small></label>
           {auth === "api_secret" && <label className={styles.field}><span>{t("Service groups")}</span><input value={groups} onChange={e => { setGroups(e.target.value); invalidateTest(); }} disabled={busy !== null || locked("service_groups")} /><small>{t("Comma-separated. Use for development/local connections only.")}</small></label>}
-        </details>
+        </section>
       </section>}
 
       <section className={styles.connectionActions} aria-label={t("Connection verification")}>

@@ -1,4 +1,5 @@
 "use client";
+import { RequestError } from "@/components/request-error";
 import { LoadingState } from "@/components/loading-indicator";
 
 import { useMemo, useState } from "react";
@@ -29,12 +30,12 @@ export default function RecipesPage() {
 
   return <div className={styles.page}>
     <div className={styles.libraryHeader}>
-      <div><h1>{t("Recipes")}</h1><p>{t("{count} saved analyses", { count: data?.length ?? 0 })}</p></div>
+      <div><h1>{t("Recipes")}</h1><p>{data ? t("{count} saved analyses", { count: data.length }) : "자주 쓰는 분석 순서를 한곳에서 관리합니다."}</p></div>
       <Link className={styles.createLink} href="/recipes/new"><Plus size={16} />{t("New analysis procedure")}</Link>
     </div>
     {deleted && <p role="status">{deleted}</p>}
-    {error && <div className={styles.error} role="alert">{t("Could not load analyses.")} {error.message} <button className="ghost" onClick={reload}>{t("Retry")}</button></div>}
-    {data && !data.length && !drafts?.length && !loading ? <section className={styles.empty}>
+    {error && <RequestError title="분석 절차를 불러오지 못했습니다" error={error} retry={reload} />}
+    {error && !data ? null : data && !data.length && !drafts?.length && !loading ? <section className={styles.empty}>
       <BookOpen size={24} /><h2>{t("No analysis procedures yet")}</h2>
       <p>{t("Connect a semantic layer and choose a metric to create the first one.")}</p>
       <div className={styles.emptyActions}><Link href="/catalog">{t("Explore metrics")} <ArrowRight size={15} /></Link><Link href="/recipes/new">{t("New analysis procedure")} <ArrowRight size={15} /></Link></div>

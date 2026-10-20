@@ -337,7 +337,7 @@ test("preview an unsaved step, poll a 202 job, and inspect its result", async ({
   expect((submitted?.scope as { date_range: string[] | null }).date_range).toBeNull();
   expect((submitted?.recipe as Recipe).steps[0].params.top_n).toBe(7);
   await expect(page.getByText("일부 그룹만 표시")).toBeVisible();
-  await page.locator("summary").filter({ hasText: /실행 근거/ }).click();
+  await page.getByRole("button", {name:/실행 근거/}).click();
   await expect(page.getByText(/"measures"/)).toBeVisible();
   await page.screenshot({ path: info.outputPath("recipe-preview.png"), fullPage: true });
 });

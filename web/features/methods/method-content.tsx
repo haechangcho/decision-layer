@@ -1,4 +1,6 @@
 "use client";
+import { useState } from "react";
+import { InspectorDialog } from "@/components/inspector-dialog";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
@@ -15,19 +17,18 @@ export function MethodCode({ content, language="python" }: { content: string; la
   return <div className={`${styles.document} ${styles.code}`}><Markdown rehypePlugins={[rehypeHighlight]}>{`${fence}${language}\n${content}\n${fence}`}</Markdown></div>;
 }
 export function SourceEvidence({ source, historical=false }: { source?: MethodSource | null; historical?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [filename, setFilename] = useState("");
   if (!source?.available || !source.files.length) return <p className={styles.muted}>{historical ? "이 Run에는 실행 당시 코드가 기록되지 않았습니다. 현재 코드로 대신 표시하지 않습니다." : "설치된 패키지에서 소스 코드를 읽을 수 없습니다."}</p>;
+  const file = source.files.find(item => item.name === filename) ?? source.files[0];
+  const original = <div className={styles.originalSource}>
+    <label>소스 파일<select aria-label="소스 파일" value={file.name} onChange={event => setFilename(event.target.value)}>{source.files.map(item => <option key={item.name} value={item.name}>{item.name.startsWith("dl_method_assets.") ? "게시한 Python 모듈" : item.name}</option>)}</select></label>
+    <MethodCode content={file.content} /><p className={styles.hash}>SHA-256 {file.sha256}</p>
+  </div>;
   return <div aria-label={historical ? "실행 당시 Python 코드" : "현재 Python 코드"}>
-    <p className={styles.muted}>{historical ? "실행 당시 보존한 코드" : "현재 등록 시 보존한 코드"} · v{source.version} · {source.origin === "managed" ? "관리 UI에서 게시" : "설치된 모듈"}</p>
-    {source.authoring_content && <div aria-label="이 분석의 작성 코드">
-      <p>이 분석에 필요한 함수와 등록 설정만 표시합니다. 조회·검사·기록을 처리하는 공통 실행기는 작성할 필요가 없습니다.</p>
-      <p className={styles.muted}>작성 코드는 공통 Python 형식으로 표시합니다. 실행 원문과 SHA-256은 아래 전체 소스에서 확인하세요.</p>
-      <MethodCode content={source.authoring_content} />
-    </div>}
-    <details className={styles.file}><summary>전체 소스와 실행 근거 보기</summary>
-    <p className={styles.muted}>진입 모듈과 일부 계산 보조 코드를 보존합니다. 외부 라이브러리 내부 전체와 실행 환경을 보존한 것은 아닙니다.</p>
-    {source.files.map((file,index) => <details key={file.name} className={styles.file}>
-      <summary>{index===0 ? "실행 진입 코드" : "계산 보조 코드"} · {file.name.startsWith("dl_method_assets.") ? "게시한 Python 모듈" : file.name}</summary>
-      <MethodCode content={file.content} /><p className={styles.muted}>SHA-256 {file.sha256}</p>
-    </details>)}</details>
+    <div className={styles.sourceToolbar}><p className={styles.muted}>{historical ? "실행 당시 보존한 코드" : "현재 등록 시 보존한 코드"} / v{source.version}</p>
+      {source.authoring_content && <button type="button" className="ghost" onClick={() => setOpen(true)}>원본 파일 보기</button>}</div>
+    {source.authoring_content ? <div aria-label="이 분석의 작성 코드"><MethodCode content={source.authoring_content} /></div> : original}
+    <InspectorDialog title="Python 원본 파일" open={open} onClose={() => setOpen(false)}><p>보존된 진입 모듈과 보조 코드입니다. 외부 라이브러리 전체를 포함하지 않습니다.</p>{original}</InspectorDialog>
   </div>;
 }

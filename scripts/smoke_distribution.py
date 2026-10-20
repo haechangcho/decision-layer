@@ -34,6 +34,18 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
     assert "cubejs/cube:" in (sample.root / "compose.yaml").read_text()
     run("init", "qa_team", cwd=root)
     project = root / "qa_team"
+    for definition in (
+        "metric_lookup/SKILL.md",
+        "drilldown/SKILL.md",
+        "ols/method.py",
+        "matching/method.py",
+    ):
+        assert (project / "qa_team" / "methods" / definition).is_file()
+    print(run("test", cwd=project))
+    initial = json.loads(run("list", "--json", cwd=project))
+    assert len(initial) == 4
+    assert all(item["version"] == "2.0.0" for item in initial)
+    assert all(Path(item["source"]).resolve().is_relative_to(project.resolve()) for item in initial)
     run("new", "python", "rank", cwd=project)
     run("new", "skill", "review", cwd=project)
     print(run("check", cwd=project))

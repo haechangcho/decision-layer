@@ -73,7 +73,7 @@ export function RunSources({ result, titles, author }: { result: Result; titles:
     <section className={s.sourceSection}><h3>사용한 데이터{connections.length > 0 && <small>{connections.join(", ")}</small>}</h3>
     <ul>{result.provenance.semantic_refs.map(ref => {
       const object = titles.get(ref);
-      return <li key={ref}><span>{object ? kinds[object.kind] ?? "참조" : "참조"}</span><div><strong>{object?.title ?? ref}</strong>{object?.description && <small>{object.description}</small>}</div></li>;
+      return <li key={ref}><span>{object ? kinds[object.kind] ?? "참조" : "참조"}</span><div><strong>{object?.title ?? "데이터 이름 확인 필요"}</strong>{object?.description && <small>{object.description}</small>}</div></li>;
     })}</ul>
     {!result.provenance.semantic_refs.length && <p className={s.muted}>기록된 데이터 참조가 없습니다.</p>}
     </section>

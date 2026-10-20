@@ -52,6 +52,7 @@ test("Skill is readable guidance and cannot be mistaken for an executable Recipe
     name: skill.name, version: "1.0.0", sha256: "a".repeat(64), enforcement: "advisory",
     markdown: "Discover the metric. Stop when scope is ambiguous.", suggested_methods: ["query.aggregate"] } }));
   await page.goto("/methods/guide.breakdown");
+  await page.getByRole("tab", { name: "분석 지침", exact: true }).click();
   await expect(page.getByRole("heading", { name: "AI가 참고하는 분석 지침" })).toBeVisible();
   await expect(page.getByText("Discover the metric. Stop when scope is ambiguous.")).toBeVisible();
   await expect(page.getByRole("link", { name: "분석 절차 만들기" })).toHaveCount(0);
@@ -74,7 +75,7 @@ test("ordinary function inputs explain grain and binding separately from calcula
     implementation:"python",version:"1.0.0",permissions:{edit:false,publish:false},content:"def analyze(data):\n    return data",code:null,history:[],
   }}));
   await page.goto(`/methods/${manifest.name}`);
-  await page.getByText("함수에 전달되는 데이터 · data",{exact:true}).click();
+  await expect(page.getByRole("region",{name:"함수에 전달되는 데이터"})).toBeVisible();
   await expect(page.getByText("unit에 연결한 개체 하나",{exact:false})).toBeVisible();
   await expect(page.getByRole("cell",{name:"confounders_0, confounders_1, …",exact:true})).toBeVisible();
   await expect(page.getByText("필터: Run 범위 + population_filters 입력.",{exact:false})).toBeVisible();

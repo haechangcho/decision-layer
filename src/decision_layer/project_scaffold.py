@@ -7,37 +7,59 @@ import re
 from .project import PROJECT_FILE, Project, ProjectConfig, ProjectError
 
 
-def init_project(path: str | Path, name: str | None = None):
+def init_project(path: str | Path, name: str | None = None, *, empty=False):
     root = Path(path).resolve()
     name = name or re.sub(r"\W", "_", root.name).lower()
-    config = ProjectConfig(name=name)
+    config = ProjectConfig(name=name, include_builtin_methods=False)
     if root.exists() and any(root.iterdir()):
         raise ProjectError(f"Directory is not empty: {root}")
     methods = root / name / "methods"
     methods.mkdir(parents=True)
-    (root / PROJECT_FILE).write_text(f"config_version: 1\nname: {config.name}\n")
+    (root / PROJECT_FILE).write_text(
+        f"config_version: 1\nname: {config.name}\ninclude_builtin_methods: false\n"
+    )
     from . import __version__
 
     (root / "pyproject.toml").write_text(
         '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n\n'
         f'[project]\nname = "{name}-methods"\nversion = "0.1.0"\n'
         'requires-python = ">=3.11"\n'
-        f'dependencies = ["decision-layer[stats]=={__version__}"]\n\n'
+        f'dependencies = ["decision-layer[stats,mcp]=={__version__}"]\n\n'
+        '[project.optional-dependencies]\ntest = ["pytest>=8,<10"]\n\n'
         f'[tool.hatch.build.targets.wheel]\npackages = ["{name}"]\n'
     )
     (root / name / "__init__.py").touch()
     (methods / "__init__.py").touch()
     (root / "README.md").write_text(
-        f"# {name}\n\nDefinitions live in `{name}/methods/`.\n\n"
-        "```sh\ndecision-layer new python rank\ndecision-layer new skill investigation\n"
-        "decision-layer check\ndecision-layer list\ndecision-layer serve --reload\n```\n\n"
-        "Use the same Python environment as Decision Layer. Project code is imported at check/startup.\n"
-        "Open the Admin URL printed by serve to inspect Methods and test semantic inputs.\n"
-        "Run history is stored in .decision-layer/decision_layer.db; recipes live in recipes/.\n"
-        "Edit project Methods in their source files. Web publication creates separate versions.\n"
-        "Commit the project to Git; deploy the same files and dependencies and restart the API.\n"
+        f"# {name}\n\n"
+        f"Skill and Python definitions live in `{name}/methods/` files.\n"
+        "Default Method names: analysis.metric_lookup, analysis.drilldown, "
+        "stats.regression_adjustment, stats.binary_matching.\n"
+        "Edit calculations and tests together; increment the Method version when changing behavior.\n\n"
+        "```sh\npython -m pip install -e '.[test]'\n"
+        "decision-layer check\ndecision-layer test\ndecision-layer list\n"
+        "decision-layer serve --reload\n```\n\n"
+        "Tests use synthetic data and need no server or Cube connection.\n"
+        "Actual data execution in the admin UI requires a Cube connection.\n"
+        "CLI source paths and web code refer to the same project files.\n\n"
+        "`decision-layer new python rank` or `decision-layer new skill investigation` to add a definition.\n"
+        "Keep the project in Git. Package upgrades never overwrite project files.\n"
+        "Runs are stored in .decision-layer/decision_layer.db; Recipes in recipes/.\n"
     )
-    (root / ".gitignore").write_text("__pycache__/\n*.pyc\n.venv/\n.decision-layer/\n")
+    if not empty:
+        from importlib.resources import files
+
+        template = files("decision_layer") / "starters" / "methods"
+        for kind in ("metric_lookup", "drilldown", "ols", "matching"):
+            folder = methods / kind
+            folder.mkdir()
+            (folder / "__init__.py").touch()
+            for source in template.joinpath(kind).iterdir():
+                if source.name in {"SKILL.md", "method.py", "test_method.py"}:
+                    (folder / source.name).write_bytes(source.read_bytes())
+    (root / ".gitignore").write_text(
+        "__pycache__/\n*.pyc\n.pytest_cache/\n*.egg-info/\nbuild/\ndist/\n.venv/\n.decision-layer/\n"
+    )
     return Project(root, config)
 
 

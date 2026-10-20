@@ -12,6 +12,10 @@ export function RunAnswer({ run, warnings, onSelect }: { run: Run; warnings: Val
   const original = useRef<HTMLDialogElement>(null);
   const authored = run.conclusion && run.conclusion.source !== "execution" ? run.conclusion : null;
   const findings = authored?.findings ?? run.steps.map((record, index) => ({ text: stepFinding(record), step_indices: [index] }));
+  if (!authored && !run.summary) return <section className={styles.runProgressSummary} aria-label="분석 답변">
+    <p>{run.running ? "분석이 진행 중입니다." : run.steps.length ? "현재까지 실행한 결과입니다. 분석을 마치면 결론을 작성할 수 있습니다." : "아직 실행된 분석 단계가 없습니다."}</p>
+    {warnings.length > 0 && <ValidationList items={warnings} />}
+  </section>;
   return <section className={styles.runAnswer} aria-label="분석 답변">
     <div className={styles.runAnswerHeading}><h2>{authored ? "분석 결론" : run.steps.length ? "단계별 결과 요약" : "분석 상태"}</h2>{authored && <span>{run.conclusion_author?.client_name === "Decision Layer Web" ? "사용자 작성" : run.origin === "mcp" && run.conclusion_author?.client_name ? "AI 작성" : ""}</span>}</div>
     {authored ? <p>{authored.answer}</p> : <p>{run.running ? "분석이 진행 중입니다." : run.steps.length ? "질문에 대한 구조화된 결론은 기록되지 않았습니다. 실행한 단계의 결과를 확인할 수 있습니다." : "아직 실행된 분석 단계가 없습니다."}</p>}

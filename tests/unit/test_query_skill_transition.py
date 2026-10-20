@@ -6,7 +6,8 @@ from tests.support.semantic import RR, AMOUNT, CAT, Q2, ctx
 
 def test_query_skills_replace_default_python_lookup_and_trend():
     names = {m.name for m in registry.manifests()}
-    assert {'analysis.metric_lookup','analysis.trend'} <= names
+    assert names == {'analysis.metric_lookup', 'analysis.drilldown',
+                     'stats.regression_adjustment', 'stats.binary_matching'}
     assert {'query.aggregate','query.trend','stats.period_change','stats.series_diagnostics'}.isdisjoint(names)
     for name in ['query.aggregate','query.trend']:
         assert registry.get(name).manifest.version == '1.0.0'

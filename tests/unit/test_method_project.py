@@ -22,7 +22,7 @@ from examples.methods.authoring.plain_python import practice_session
 
 @pytest.fixture
 def project(tmp_path):
-    project = init_project(tmp_path / "analysis", "project_" + uuid4().hex)
+    project = init_project(tmp_path / "analysis", "project_" + uuid4().hex, empty=True)
     new_method(project, "python", "rank")
     new_method(project, "skill", "review")
     return project

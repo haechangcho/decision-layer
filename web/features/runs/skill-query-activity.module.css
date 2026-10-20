@@ -1,0 +1,21 @@
+.workspace { display:grid; grid-template-columns:240px minmax(0,1fr); min-width:0; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel); }
+.list { padding:10px; border-right:1px solid var(--line); background:var(--bg); }
+.list button { display:flex; align-items:flex-start; gap:10px; width:100%; padding:14px 12px; margin:0 0 4px; border-radius:9px; color:var(--text); background:transparent; text-align:left; }
+.list button[aria-pressed="true"] { background:var(--panel); box-shadow:var(--dl-shadow); }
+.list button:hover { background:var(--hover); }
+.list button>span:last-child { display:grid; gap:6px; min-width:0; }
+.list strong { font-size:12px; font-weight:550; line-height:1.6; overflow-wrap:anywhere; }
+.list small { color:var(--muted); font-size:11px; overflow-wrap:anywhere; }
+.ordinal { color:var(--muted); font-size:11px; line-height:1.8; }
+.inspector { min-width:0; padding:24px; }
+.inspector>header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; margin-bottom:24px; }
+.inspector h3 { font-size:16px; line-height:1.6; margin:10px 0 6px; }
+.inspector header small { color:var(--muted); font-size:11px; }
+.inspector header button { flex-shrink:0; display:flex; align-items:center; gap:6px; }
+.state,.failed { font-size:11px; font-weight:600; color:var(--muted); }.failed { color:var(--bad); }
+.error { padding:16px; border-left:3px solid var(--bad); background:var(--bg); font-size:13px; overflow-wrap:anywhere; }.error small { display:block; margin-top:7px; color:var(--muted); }
+.pending,.empty { color:var(--muted); font-size:13px; }.empty { padding:40px 20px; text-align:center; }.empty h3 { color:var(--text); font-size:16px; }
+.checks { margin-top:24px; border-top:1px solid var(--line); padding-top:16px; }.checks h4 { margin:0 0 14px; font-size:13px; }.checks p { display:flex; gap:14px; font-size:12px; line-height:1.7; }.checks span { flex-shrink:0; color:var(--muted); }
+@media(max-width:1000px) { .workspace { grid-template-columns:1fr; }.list { display:flex; gap:8px; overflow-x:auto; border-right:0; border-bottom:1px solid var(--line); }.list button { flex:0 0 220px; margin:0; }.inspector { padding:20px; } }
+@media(max-width:700px) { .inspector { padding:16px; }.inspector>header { flex-direction:column; } }
+.warnings { margin:20px 0; padding-left:20px; color:var(--warn); font-size:13px; line-height:1.8; }

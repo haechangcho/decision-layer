@@ -31,13 +31,24 @@ class MethodRegistry:
         self._methods: dict[str, Method] = {}
         self._versions: dict[tuple[str, str], Method] = {}
         self._compatibility: set[str] = set()
+        self._builtin_defaults: set[str] = set()
 
-    def copy(self):
+    def copy(self, *, include_builtin_methods=True):
         target = MethodRegistry()
-        target._methods = dict(self._methods)
+        target._methods = {name: method for name, method in self._methods.items()
+                           if include_builtin_methods or name not in self._builtin_defaults
+                           or name in self._compatibility}
         target._versions = dict(self._versions)
         target._compatibility = set(self._compatibility)
+        target._builtin_defaults = set(self._builtin_defaults)
         return target
+
+    def replace_from(self, staged):
+        """Commit an already validated project without partially replacing defaults."""
+        self._methods = dict(staged._methods)
+        self._versions = dict(staged._versions)
+        self._compatibility = set(staged._compatibility)
+        self._builtin_defaults = set(staged._builtin_defaults)
 
     def plannable(self, name, version=None):
         method = self.get(name, version)
@@ -51,7 +62,7 @@ class MethodRegistry:
             raise InvalidBinding("Skill is advisory guidance, not an executable step. Start a Run with guide=name and execute registered Python tools.")
         return method
 
-    def register(self, method: Method, *, compatibility: bool = False, activate: bool = True) -> Method:
+    def register(self, method: Method, *, compatibility: bool = False, activate: bool = True, builtin: bool = False) -> Method:
         Provenance(method=method.ref, semantic_refs=[], queries=[], runtime={})
         self._params(method, {}, partial=True)
         from .source import capture_source
@@ -60,6 +71,10 @@ class MethodRegistry:
         self._versions[(method.manifest.name, method.manifest.version)] = method
         if not activate:
             return method
+        if builtin:
+            self._builtin_defaults.add(method.manifest.name)
+        else:
+            self._builtin_defaults.discard(method.manifest.name)
         self._methods[method.manifest.name] = method
         if compatibility:
             self._compatibility.add(method.manifest.name)

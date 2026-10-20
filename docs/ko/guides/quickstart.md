@@ -70,6 +70,8 @@ decision-layer serve
 [Cube 연결 가이드](./cube.md)에 따라 서버의 연결 주소와 인증을 설정합니다.
 [Method 프로젝트](./method-projects.md)에서 팀의 Method와 Skill을 추가하는 방법을 확인하세요.
 
+새로 만든 데모와 팀 프로젝트에는 기본 Skill과 Python Method 파일이 함께 생성됩니다. [프로젝트 파일과 테스트](./method-projects.md)에서 수정과 검사 방법을 확인하세요.
+
 ## AI로 재사용하기
 
 [MCP 연결 가이드](./mcp.md)를 따라 사용하는 AI 클라이언트에 연결합니다.

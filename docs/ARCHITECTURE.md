@@ -24,7 +24,7 @@ Cube REST is the current product connection. Legacy dbt code remains for compati
 | `runs/` | Execution state, steps, policy, access and storage |
 | `semantic/`, `sources/` | Cube adapter, catalog and connection settings |
 | `api/`, `mcp/` | REST and MCP interfaces to the common execution model |
-| `project.py`, `project_scaffold.py`, `cli.py` | Project loading, scaffolding and CLI |
+| `project.py`, `project_scaffold.py`, `cli.py`, `starters/` | Shared project loading, CLI and editable starter files |
 | `console.py`, `demo/` | Installed admin console and sample launcher |
 | `web/features/` | Method, Recipe and Run screens |
 | `tests/`, `tests/support/` | Product checks and shared test data |
@@ -60,7 +60,7 @@ Ordinary `Column` and `DataInput` declarations compile to the shared manifest an
 
 `methods/function/registration.py` compiles registration, `inputs.py` connects query columns to function inputs, and `execution.py` validates data and calls the function. Calculations receive no provider client or credentials.
 
-Team projects contain `decision-layer.yaml`, `method.py` and `SKILL.md`. Python sessions, CLI and server startup share `project.py`. Legacy module-loading settings remain supported.
+Team projects contain `decision-layer.yaml`, `method.py` and `SKILL.md`. Python sessions, CLI and server startup share `project.py`. New projects generate two Skill files and two self-contained Python calculations with local tests. Their configuration disables built-in defaults; older projects retain the previous catalog. Package updates never rewrite user-owned definitions (ADR-116). Legacy module-loading settings remain supported.
 
 External AI clients drive Skill execution. `runs/skills.py` validates structured Cube queries and records actual requests and results. The pipeline waits for querying and completion before continuing. Reading guidance alone is neither execution nor validation.
 
