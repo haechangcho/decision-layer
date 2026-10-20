@@ -2,9 +2,20 @@
 
 Decision Layer는 Cube의 REST API에서 지표와 차원을 읽고 데이터를 조회합니다. 지표 정의와 조인은 Cube에서 관리합니다.
 
+## 프로젝트 실행하기
+
+[Decision Layer를 설치한 환경](quickstart.md)에서 팀 프로젝트를 만들고 실행합니다.
+데모가 실행 중이라면 `Ctrl+C`로 종료한 뒤 진행하세요.
+
+```bash
+decision-layer init my_team
+cd my_team
+decision-layer serve
+```
+
 ## 연결 정보 입력하기
 
-[설치하고 시작하기](quickstart.md)에 따라 서버를 실행한 뒤 관리자 화면의 **데이터 연결**을 엽니다.
+관리자 화면의 **데이터 연결**을 엽니다.
 
 1. Cube API URL과 인증 방식을 입력합니다.
 2. **연결 테스트**로 접근 여부를 확인하고 저장합니다.

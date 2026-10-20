@@ -2,9 +2,20 @@
 
 Decision Layer reads metrics and dimensions and queries data through Cube's REST API. Cube owns metric definitions and joins.
 
+## Start your project
+
+In the environment where you [installed Decision Layer](quickstart.md), create and start a team project.
+If the demo is running, stop it with `Ctrl+C` first.
+
+```bash
+decision-layer init my_team
+cd my_team
+decision-layer serve
+```
+
 ## Enter the connection
 
-[Install and start](quickstart.md) the server, then open **Sources** in the admin console.
+Open **Sources** in the admin console.
 
 1. Enter the Cube API URL and authentication method.
 2. Test the connection and save it.

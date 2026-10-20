@@ -1,56 +1,36 @@
 ---
 title: Install and start
-description: Install from PyPI, then use the sample or connect your Cube server.
+description: Install, run the sample and connect your AI client.
 ---
 
 # Install and start
 
-Start in an empty working directory with Python 3.11 or later. The package includes the admin Web UI.
+Prepare **Python 3.11 or later** and **a running Docker installation**. Start in an empty working directory.
+
+## 1. Install and run
+
+Run these commands in order:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade --pre 'decision-layer[stats,mcp]'
-```
-
-`stats` includes data and statistical libraries; `mcp` includes the AI connection adapter.
-
-Use `--pre` while Decision Layer is a prerelease. Then choose a starting point.
-
-## Try the sample
-
-Start Docker with Compose v2, then run:
-
-```bash
 decision-layer demo
 ```
 
-The command prepares PostgreSQL and Cube in Docker, then runs the admin UI and API
-from your installed Python package. No company data or AI connection is needed.
-The first start downloads Docker images and can take several minutes.
+This installs the admin UI and analysis libraries, prepares sample data and starts the server.
+The first run may take a few minutes to download the required files.
 
-Open [the admin UI](http://127.0.0.1:8000/ui/recipes). The prepared analysis shows:
+## 2. Explore the UI and files
 
-1. January: select Home as the highest-revenue department and inspect its regions.
-2. Save the procedure as a Recipe.
-3. February: reuse the Recipe and select the new leader, Grocery.
-4. March: ask for a selection when two departments tie for first place.
+Open [the admin UI](http://127.0.0.1:8000/ui/recipes) to explore the prepared revenue analysis.
+Inspect the queried data and results in [Runs](http://127.0.0.1:8000/ui/runs).
 
-Inspect inputs, queries and results in [Runs](http://127.0.0.1:8000/ui/runs).
-This runs registered procedures on synthetic data; it does not generate answers with an AI model.
-
-### Stop and keep your data
-
-Press `Ctrl+C` in the running terminal to stop the server and sample containers.
-Data, Recipes and Runs are kept. Run `decision-layer demo` again to restart.
-
-The project is created **in the directory where you run the command**, alongside your virtual environment.
+Editable Skills and Python Methods are created in your working directory:
 
 ```text
 workspace/
-├── .venv/
 ├── decision-layer.yaml
-├── pyproject.toml
 └── sample_shop/methods/
     ├── metric_lookup/SKILL.md
     ├── drilldown/SKILL.md
@@ -58,50 +38,19 @@ workspace/
     └── matching/method.py
 ```
 
-A directory containing unrelated files gets a `decision-layer-demo/` subdirectory instead.
-Running again inside the generated project reuses its code and data. Startup prints the actual paths.
-Source data remains in the PostgreSQL volume; Runs live in the project's `.decision-layer/runs.db`.
-Older `~/.decision-layer/demo/` projects are preserved. Run the command from that directory to continue an old demo.
+`SKILL.md` contains analysis instructions for AI; `method.py` contains the Python calculation.
+See [Method projects](./method-projects.md) to edit or add definitions.
 
-If startup was interrupted and containers remain running, stop them with:
+## 3. Connect your AI client
 
-```bash
-decision-layer demo stop
-```
+Keep the server running and follow [MCP setup](./mcp.md) to connect your AI client.
+Then try asking:
 
-Choose another directory or available ports if needed. The selected ports are
-reused on later starts. Pass the same `--directory` when stopping a custom sample.
+> Find the highest-revenue department in February 2026 and explain its revenue by region.
 
-```bash
-decision-layer demo --directory ./sample_shop --port 8010 --cube-port 4110
-```
+## Stop and restart
 
-## Connect your Cube server
+Press `Ctrl+C` in the terminal to stop. Code, data and execution history are kept.
+Run `decision-layer demo` from the same project directory to start again.
 
-If you already have Cube, create your team's project:
-
-```bash
-decision-layer init my_team
-cd my_team
-decision-layer serve
-```
-
-Follow [Connect Cube](./cube.md) to configure the server endpoint and credentials.
-Use [Method projects](./method-projects.md) to add your team's Methods and Skills.
-
-New demo and team projects include editable Skill and Python Method files. See [project files and tests](./method-projects.md) to inspect, modify and test them.
-
-## Reuse with your AI
-
-Follow [MCP setup](./mcp.md) to connect your AI client.
-For the default demo, use API URL `http://127.0.0.1:8000` and Web URL
-`http://127.0.0.1:8000/ui`.
-
-> Reuse the saved department investigation for February 2026. Show the leading
-> department, its regional revenue and the evidence.
-
-## Develop Decision Layer
-
-To change product code or the admin UI, follow [Local development](./development.md).
-The original all-Docker sample is available in the
-[repository examples](https://github.com/haechangcho/decision-layer/tree/main/examples/quickstart).
+To analyze your own data, see [Connect Cube](./cube.md).
