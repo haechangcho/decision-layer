@@ -39,7 +39,11 @@ def test_sample_resources_and_rerun_preserve_runs_and_methods(tmp_path):
     compose = yaml.safe_load((root / "compose.yaml").read_text())
     assert set(compose["services"]) == {"postgres", "cube"}
     assert "build" not in compose["services"]["cube"]
-    assert not compose["services"]["postgres"].get("ports")
+    assert compose["services"]["postgres"]["ports"] == ["127.0.0.1::5432"]
+    assert (
+        "journey_postgres:/var/lib/postgresql/data"
+        in compose["services"]["postgres"]["volumes"]
+    )
     assert compose["services"]["cube"]["ports"] == [
         "127.0.0.1:${DL_DEMO_CUBE_PORT:-4100}:4000"
     ]
@@ -58,7 +62,7 @@ def test_unmanaged_directory_and_symlink_are_never_overwritten(tmp_path):
     assert list(root.iterdir()) == [keep]
     root = tmp_path / "managed"
     runtime.prepare(root)
-    seed = root / "seed.sql"
+    seed = root / "journey/calendar.sql"
     seed.unlink()
     seed.symlink_to(keep)
     with pytest.raises(ValueError, match="inside its directory"):
@@ -166,6 +170,7 @@ def test_startup_failure_or_interrupt_stops_only_its_child_and_sample_services(
 
     process = Process()
     monkeypatch.setattr(runtime, "require_docker", lambda: None)
+    monkeypatch.setattr(runtime, "prepare_data", lambda *args: None)
 
     def compose(*args, **kwargs):
         calls.append(("compose", args[2:]))
@@ -391,3 +396,100 @@ def test_default_demo_does_not_reuse_the_old_global_project(tmp_path, monkeypatc
     monkeypatch.chdir(workspace)
     assert runtime.demo_directory() == workspace
     assert runtime.demo_directory(old) == old
+
+
+def test_legacy_demo_keeps_original_dataset_volume_and_semantic_refs(tmp_path):
+    from decision_layer.project_scaffold import init_project
+
+    root = tmp_path / "old"
+    project = init_project(root, "sample_shop")
+    (root / runtime.MARKER).write_text(json.dumps(runtime.OWNER))
+    original = project.methods_dir / "ols/method.py"
+    original.write_text(original.read_text() + "\n# user modification\n")
+    runtime.prepare(root)
+    assert runtime.dataset(root) == "synthetic"
+    config = yaml.safe_load((root / "compose.yaml").read_text())
+    assert (
+        "postgres:/var/lib/postgresql/data" in config["services"]["postgres"]["volumes"]
+    )
+    assert not config["services"]["postgres"].get("ports")
+    assert (root / "cube/model/sales.yml").is_file()
+    assert not (root / "journey").exists()
+    assert runtime.server_environment(root, 4410)["CUBE_INSTANCE"] == "quickstart"
+    runtime.prepare(root)
+    assert original.read_text().endswith("# user modification\n")
+
+
+def test_interrupted_asset_copy_retains_new_dataset_choice(tmp_path, monkeypatch):
+    root = tmp_path / "new"
+    resources = runtime.files
+
+    class Broken:
+        def joinpath(self, path):
+            return self
+
+        def read_bytes(self):
+            raise OSError("disk failure")
+
+    monkeypatch.setattr(runtime, "files", lambda package: Broken())
+    with pytest.raises(OSError, match="disk failure"):
+        runtime.prepare(root)
+    assert runtime.dataset(root) == "complete-journey"
+    monkeypatch.setattr(runtime, "files", resources)
+    runtime.prepare(root)
+    config = yaml.safe_load((root / "compose.yaml").read_text())
+    assert "journey_postgres" in config["volumes"]
+    assert (root / "journey/NOTICE.md").is_file()
+
+
+@pytest.mark.parametrize(
+    "published",
+    ["0.0.0.0:54321", "[::]:54321", "127.0.0.1:123\n127.0.0.1:456", "127.0.0.1:0"],
+)
+def test_importer_refuses_nonlocal_or_ambiguous_database_port(
+    tmp_path, monkeypatch, published
+):
+    runtime.prepare(tmp_path)
+    monkeypatch.setattr(
+        runtime, "compose", lambda *args, **kwargs: SimpleNamespace(stdout=published)
+    )
+    with pytest.raises(ValueError, match="loopback|Ports"):
+        runtime.prepare_data(tmp_path, 4410)
+
+
+def test_source_cache_symlink_is_not_written(tmp_path):
+    from decision_layer.demo.assets.journey.load import source_path
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    cache = tmp_path / "data"
+    cache.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ValueError, match="symlink"):
+        source_path(cache=cache, supplied=tmp_path / "absent.zip")
+    assert list(outside.iterdir()) == []
+
+
+def test_full_import_uses_ignored_cache_and_writes_verified_reference(
+    tmp_path, monkeypatch
+):
+    from decision_layer.demo.assets.journey import load, verify
+
+    runtime.prepare(tmp_path)
+    calls = []
+    monkeypatch.setattr(
+        runtime,
+        "compose",
+        lambda *args, **kwargs: SimpleNamespace(stdout="127.0.0.1:54321\n"),
+    )
+    monkeypatch.setattr(
+        load, "load", lambda *args, **kwargs: calls.append((args, kwargs))
+    )
+    reference = {"households": 2500, "tables": {"transaction_data": 2595732}}
+    monkeypatch.setattr(verify, "verify", lambda database_url: reference)
+    runtime.prepare_data(tmp_path, 4410)
+    assert calls[0][1]["cache"] == tmp_path / ".decision-layer/source"
+    assert calls[0][0][0].endswith("@127.0.0.1:54321/journey")
+    assert (
+        json.loads((tmp_path / ".decision-layer/source-reference.json").read_text())
+        == reference
+    )

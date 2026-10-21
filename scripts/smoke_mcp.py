@@ -50,6 +50,11 @@ async def verify_mcp(api_url=None, web_url=None):
         guide = await call("describe_method", {"name": "analysis.drilldown"})
         assert guide["agent_executable"] and guide["guide"]
         catalog = await call("search_semantic")
+        if any(
+            item["ref"].startswith("cube://journey/") for item in catalog["objects"]
+        ):
+            await verify_journey(call, api_url, web_url)
+            return
         metric = "cube://quickstart/sales/revenue"
         dimension = "cube://quickstart/sales/department"
         assert metric in {item["ref"] for item in catalog["objects"]}
@@ -227,6 +232,141 @@ async def verify_mcp(api_url=None, web_url=None):
         print(
             "PASS: installed MCP discovery, live Cube analysis, conclusion, stored evidence and Web link."
         )
+
+
+async def verify_journey(call, api_url, web_url):
+    """Reuse the current two-Skill Recipe through actual stdio MCP calls."""
+    from decision_layer.demo.replay import METRIC, DEPARTMENT, STORE, DATE
+
+    recipes = await call("list_recipes")
+    recipe = next(item for item in recipes["recipes"] if item["available"])
+    run = await call(
+        "start_run",
+        {
+            "recipe": recipe["name"],
+            "question": "Inspect department and store receipts on the example calendar in February 2001.",
+            "goals": [
+                {
+                    "id": "departments",
+                    "description": "Find the leading department",
+                    "semantic_refs": [METRIC, DEPARTMENT],
+                },
+                {
+                    "id": "stores",
+                    "description": "Read stores within the selected department",
+                    "semantic_refs": [METRIC, STORE],
+                },
+            ],
+            "date_range": ["2001-02-01", "2001-02-28"],
+            "time_dimension": DATE,
+            "recipe_selection": {
+                "reason": "Reuse the demonstrated department-to-store investigation.",
+                "goal_ids": ["departments", "stores"],
+            },
+        },
+    )
+    run_id = run["run_id"]
+    for step_id, dimension, expected_value, amount in [
+        ("departments", DEPARTMENT, "GROCERY", 178255.38),
+        ("stores", STORE, "367", 4411.16),
+    ]:
+        run = await call("get_run", {"run_id": run_id})
+        assert run["active_skill_step"] == step_id, run
+        step = next(s for s in run["steps"] if s["id"] == step_id)
+        query = await call(
+            "run_skill_query",
+            {
+                "run_id": run_id,
+                "step_id": step_id,
+                "query_id": "groups",
+                "purpose": "Read actual receipts by the selected grouping",
+                "spec": {
+                    "grain": "aggregate",
+                    "measures": [METRIC],
+                    "dimensions": [dimension],
+                    "filters": step["params"].get("filters", []),
+                    "time": {
+                        "dimension": DATE,
+                        "date_range": ["2001-02-01", "2001-02-28"],
+                    },
+                    "order": [[METRIC, "desc"], [dimension, "asc"]],
+                    "limit_rows": 1000,
+                },
+            },
+        )
+        while query.get("status") == "running":
+            await call("wait_for_run", {"run_id": run_id})
+            query = await call(
+                "get_skill_query",
+                {"run_id": run_id, "step_id": step_id, "query_id": "groups"},
+            )
+        assert query["status"] == "success", query
+        row = query["result"]["primary"]["data"][0]
+        assert (
+            row[dimension] == expected_value
+            and abs(float(row[METRIC]) - amount) < 0.005
+        )
+        args = {
+            "run_id": run_id,
+            "step_id": step_id,
+            "reason": "Reviewed the recorded query rows.",
+        }
+        if step_id == "departments":
+            args["selection"] = {
+                "query_id": "groups",
+                "row": 0,
+                "dimension": dimension,
+                "reason": "The returned department has the highest receipts.",
+            }
+        await call("finish_skill_step", args)
+    stored = await call(
+        "complete_run",
+        {
+            "run_id": run_id,
+            "conclusion": {
+                "answer": "GROCERY leads February receipts at 178,255.38; store 367 leads within it at 4,411.16.",
+                "findings": [
+                    {
+                        "text": "GROCERY has the highest returned department receipts.",
+                        "step_indices": [0],
+                    },
+                    {
+                        "text": "Store 367 leads within the selected department.",
+                        "step_indices": [1],
+                    },
+                ],
+                "limitations": [
+                    "Artificial example calendar; descriptive receipts, not causal effects or profit."
+                ],
+                "goal_outcomes": [
+                    {
+                        "goal_id": "departments",
+                        "status": "supported",
+                        "step_indices": [0],
+                    },
+                    {"goal_id": "stores", "status": "supported", "step_indices": [1]},
+                ],
+            },
+        },
+    )
+    assert stored["status"] == "completed", stored
+    assert stored["run_url"] == web_url + "/runs/" + run_id
+    import httpx
+
+    async with httpx.AsyncClient(base_url=api_url, trust_env=False) as api:
+        response = await api.get(f"/runs/{run_id}")
+        response.raise_for_status()
+        run = response.json()
+        assert all(s["result"]["provenance"]["queries"] for s in run["steps"])
+        assert run["steps"][1]["step"]["params"]["filters"][0]["values"] == ["GROCERY"]
+        response = await api.get(stored["run_url"])
+        assert (
+            response.status_code == 200
+            and "text/html" in response.headers["content-type"]
+        )
+    print(
+        "PASS: installed MCP, Complete Journey, current Skill Recipe replay, recorded selection filters and Web link."
+    )
 
 
 if __name__ == "__main__":

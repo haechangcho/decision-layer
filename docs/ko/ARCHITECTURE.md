@@ -86,7 +86,7 @@ Recipe는 버전이 있는 YAML이며 Run은 별도 저장소에 실행 당시�
 
 PyPI 패키지는 Python 서버와 빌드된 관리자 화면을 포함합니다. `console.py`가 API와 `/ui`를 함께 제공하고, 프론트엔드 소스는 `web/`에서 관리합니다. 배포 CI가 만든 `src/decision_layer/static/`은 직접 편집하지 않습니다. VitePress 문서 사이트는 별도로 배포합니다.
 
-`decision-layer demo`는 샘플 PostgreSQL과 Cube만 Docker로 실행하고 설치된 서버를 시작합니다. 자체 프로젝트와 컨테이너를 사용하며 회사의 연결 설정을 물려받지 않습니다. 원본 데이터는 PostgreSQL 볼륨, Run은 샘플 프로젝트의 SQLite에 남습니다.
+`decision-layer demo`는 샘플 PostgreSQL과 Cube만 Docker로 실행하고 설치된 서버를 시작합니다. 자체 프로젝트와 컨테이너를 사용하며 회사의 연결 설정을 물려받지 않습니다. 새 데모는 패키지에 포함된 적재기와 Cube 모델로 Complete Journey의 8개 테이블 전체를 적재합니다. 설치된 Python이 로컬 전용 임시 포트로 PostgreSQL에 접속하고, Cube는 읽기 전용 계정을 사용합니다. 원본 파일은 공식 배포처에서 받아 프로젝트에 캐시합니다. 원본 데이터는 PostgreSQL 볼륨, Run은 샘플 프로젝트의 SQLite에 남습니다. 이전 합성 데모는 기존 데이터와 볼륨을 유지합니다(ADR-119).
 
 현재 지원 범위는 로컬과 격리된 데모입니다. 공유 배포는 별도 애플리케이션 인증과 실행 격리가 준비될 때까지 차단합니다. Source 관리는 관리자 키와 승인된 주소를 요구하고, Recipe와 Method 편집 및 게시 권한은 구분합니다.
 

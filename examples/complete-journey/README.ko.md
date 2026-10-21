@@ -1,5 +1,8 @@
 # Complete Journey — 소매 데이터 분석 예제
 
+일반 설치와 전체 데이터 실행은 [설치하고 시작하기](../../docs/ko/guides/quickstart.md)를 따르세요. 아래는 같은 적재기와 Cube 모델을 사용하는 저장소 개발용 Docker 구성입니다.
+
+
 **한국어** · [English](README.md)
 
 Databricks의 [데이터 준비 예제](https://www.databricks.com/notebooks/segment-p13n/sg_01_data_prep.html)에서 사용한 소매점 데이터입니다.
@@ -163,7 +166,7 @@ erDiagram
 
 ### 원본 데이터가 Catalog에 어떻게 보이나요?
 
-Cube는 [`cube/model/cubes/`](cube/model/cubes/)에 7개 모델을 정의합니다.
+Cube는 [`src/decision_layer/demo/assets/journey/cube/model/cubes/`](../../src/decision_layer/demo/assets/journey/cube/model/cubes/)에 8개 모델을 정의합니다.
 두 View는 분석에 쓸 필드들을 묶어서 제공하며 개별 모델의 멤버도 노출됩니다.
 
 | 분석 모델 / View | 원본과 분석 단위 | 사용할 지표·차원 |
@@ -186,7 +189,7 @@ Cube는 [`cube/model/cubes/`](cube/model/cubes/)에 7개 모델을 정의합니�
 이 달력에서 거래 기간은 **2000-01-01 ~ 2001-12-11**입니다.
 구매 기간 질문에는 **Transaction date(거래일)**를 사용하세요. 캠페인 시작·종료일과 쿠폰 사용일은 다른 사건의 날짜입니다.
 Web은 제공자에 추천 기간이 있으면 사용합니다. 가구 분류는 배포자의 코드이며 실제 나이·소득으로 추정하지 않습니다.
-이용·재배포 조건은 [출처 안내](NOTICE.md)를 확인하세요.
+이용·재배포 조건은 [출처 안내](../../src/decision_layer/demo/assets/journey/NOTICE.md)를 확인하세요.
 
 ## MCP로 질문하기
 

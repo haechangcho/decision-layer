@@ -142,6 +142,8 @@ Agent는 다음 두 방식으로 활용할 수 있습니다.
 
 ### 샘플 데이터로 먼저 체험하기
 
+일반 사용자는 [PyPI로 설치하고 시작하기](docs/ko/guides/quickstart.md)를 따르세요. `decision-layer demo`가 Complete Journey 전체 데이터를 준비합니다. 아래는 저장소 개발용 합성 샘플입니다.
+
 **Git과 실행 중인 Docker Compose v2**를 준비한 뒤 실행하세요.
 
 ```bash

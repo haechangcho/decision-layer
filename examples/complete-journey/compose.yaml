@@ -17,7 +17,7 @@ services:
       retries: 30
 
   import:
-    build: {context: ., dockerfile: Dockerfile.import}
+    build: {context: ../.., dockerfile: examples/complete-journey/Dockerfile.import}
     depends_on:
       postgres: {condition: service_healthy}
     environment:

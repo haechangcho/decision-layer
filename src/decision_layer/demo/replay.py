@@ -1,50 +1,78 @@
-"""Exercise the public REST API against the synthetic Cube sample; no LLM required.
+"""Run the editable Skills on Complete Journey through the canonical REST API.
 
-This is an executable product walkthrough, not an AI quality benchmark.
+A scripted client drives the same recorded query/finish calls as an MCP client.
+This does not test AI planning quality.
 """
 
 from __future__ import annotations
-import argparse
-import json
-import time
-from pathlib import Path
-import httpx
 
-BASE = "cube://quickstart/sales/"
-METRIC, DEPARTMENT, REGION, DATE = [
-    BASE + x for x in ("revenue", "department", "region", "sold_at")
-]
-RULE = {
-    "source": "step",
-    "step_id": "departments",
-    "output": "ranked_groups",
-    "select": "first",
-    "project": "path",
+from .client import request, settled
+
+BASE = "cube://journey/"
+METRIC = BASE + "transaction/receipts"
+DEPARTMENT = BASE + "product/department"
+STORE = BASE + "transaction/store"
+DATE = BASE + "transaction/analysis_date"
+FILTERS = "$steps.departments.selections.selected_group.evidence.filters"
+PERIODS = {
+    "january": (["2001-01-01", "2001-01-31"], 193074.59, "367", 5165.34),
+    "february": (["2001-02-01", "2001-02-28"], 178255.38, "367", 4411.16),
 }
 
 
-def request(client, method, path, **kwargs):
-    response = client.request(method, path, **kwargs)
-    if response.is_error:
-        raise RuntimeError(f"{method} {path}: {response.status_code} {response.text}")
-    return response.json()
+def read_groups(client, run, step_id, dimension):
+    record = next(step for step in run["steps"] if step["step"]["id"] == step_id)
+    scope = run["plan"]["scope"]
+    query = request(
+        client,
+        "POST",
+        f"/runs/{run['id']}/steps/{step_id}/queries?wait=60",
+        json={
+            "id": "groups",
+            "purpose": "Read the selected metric by observed group",
+            "spec": {
+                "grain": "aggregate",
+                "measures": [METRIC],
+                "dimensions": [dimension],
+                "time": {"dimension": DATE, "date_range": scope["date_range"]},
+                "filters": record["step"]["params"].get("filters", []),
+                "order": [[METRIC, "desc"], [dimension, "asc"]],
+                "limit_rows": 1000,
+            },
+            "author": {"client_name": "decision-layer-demo"},
+        },
+    )
+    if query.get("status") != "success":
+        # Long-running queries return a Run with HTTP 202. Read its recorded query.
+        run = settled(client, run["id"])
+        record = next(step for step in run["steps"] if step["step"]["id"] == step_id)
+        query = record["skill"]["queries"][-1]
+    if query["status"] != "success":
+        raise RuntimeError(f"Sample query failed: {query.get('error')}")
+    rows = query["result"]["primary"]["data"]
+    if not rows or len(rows) >= 1000:
+        raise RuntimeError("The sample needs a complete, nonempty group ranking.")
+    return rows
 
 
-def settled(client, run_id):
-    deadline = time.monotonic() + 120
-    while time.monotonic() < deadline:
-        run = request(client, "GET", f"/runs/{run_id}")
-        if not run.get("running"):
-            if run.get("error") or run["status"] == "failed":
-                raise RuntimeError(json.dumps(run.get("error") or run))
-            return run
-        time.sleep(0.3)
-    raise TimeoutError(f"Run {run_id} did not finish in 120 seconds")
+def finish_groups(client, run, step_id, dimension, rows, *, select=False):
+    body = {"reason": "Read all returned groups from the recorded Cube query."}
+    if select:
+        if len(rows) > 1 and float(rows[0][METRIC]) == float(rows[1][METRIC]):
+            raise RuntimeError("Sample leaders tie; an explicit selection is required.")
+        body["selection"] = {
+            "query_id": "groups",
+            "row": 0,
+            "dimension": dimension,
+            "reason": "Unique highest retailer receipts among the complete returned groups.",
+        }
+    request(
+        client, "POST", f"/runs/{run['id']}/steps/{step_id}:finish?wait=60", json=body
+    )
+    return settled(client, run["id"])
 
 
 def complete(client, run):
-    rows = run["steps"][0]["result"]["primary"]["data"]["rows"]
-    winner = rows[0]["value"]
     return request(
         client,
         "POST",
@@ -52,44 +80,62 @@ def complete(client, run):
         json={
             "conclusion": {
                 "source": "execution",
-                "answer": f"{winner} has the highest revenue in this sample period. The next step inspects its regions.",
+                "answer": "GROCERY has the highest retailer receipts; store 367 leads within that department for this period.",
                 "findings": [
                     {
-                        "text": f"{winner} leads with {rows[0]['metric']:,.0f} example currency units.",
+                        "text": "Compared department receipts using the registered drilldown Skill.",
                         "step_indices": [0],
                     },
                     {
-                        "text": "The regional breakdown uses the selected department from this run.",
+                        "text": "Queried stores within the department selected from this Run's results.",
                         "step_indices": [1],
                     },
                 ],
                 "limitations": [
-                    "Synthetic tutorial data; descriptive ranking does not establish causes.",
-                    "The source does not declare a sample count for revenue; inspect the recorded warnings.",
+                    "Source DAY values use an artificial calendar starting at 2000-01-01; these are not actual purchase dates.",
+                    "Retailer receipts are not profit. Observed rankings do not establish causes.",
+                    "This walkthrough uses a scripted client, not AI-generated analysis.",
                 ],
             }
         },
     )
 
 
+def check_run(run, department_amount, store, store_amount):
+    assert run["status"] == "completed", run
+    assert len(run["steps"]) == 2
+    a, b = run["steps"]
+    assert a["step"]["method"] == b["step"]["method"] == "analysis.drilldown"
+    assert a["result"]["status"] == b["result"]["status"] == "success"
+    first = a["result"]["primary"]["data"][0]
+    second = b["result"]["primary"]["data"][0]
+    assert (
+        first[DEPARTMENT] == "GROCERY"
+        and abs(float(first[METRIC]) - department_amount) < 0.005
+    )
+    assert second[STORE] == store and abs(float(second[METRIC]) - store_amount) < 0.005
+    assert b["step"]["params"]["filters"] == [
+        {"member": DEPARTMENT, "operator": "equals", "values": ["GROCERY"]}
+    ]
+    assert b["requested_step"]["params"]["filters"] == FILTERS
+    assert a["skill"]["guide"]["sha256"] and b["skill"]["guide"]["sha256"]
+    assert a["result"]["provenance"]["queries"] and b["result"]["provenance"]["queries"]
+
+
 def walkthrough(client, emit=print):
-    scope = lambda dates: {"date_range": dates, "time_dimension": DATE}
+    dates, *expected = PERIODS["january"]
     first = request(
         client,
         "POST",
         "/runs?wait=60",
         json={
-            "question": "Which department leads revenue in January, and how is its revenue split by region?",
-            "scope": scope(["2026-01-01", "2026-01-31"]),
+            "question": "Which department has the highest retailer receipts, and which stores lead within it?",
+            "scope": {"date_range": dates, "time_dimension": DATE},
         },
     )
-    for step_id, params, purpose in [
-        ("departments", {}, "Find the highest-revenue department in this period"),
-        (
-            "regions",
-            {"drill_path": RULE},
-            "Inspect the regions of the department selected above",
-        ),
+    for step_id, dimension, params in [
+        ("departments", DEPARTMENT, {}),
+        ("stores", STORE, {"filters": FILTERS}),
     ]:
         request(
             client,
@@ -97,101 +143,56 @@ def walkthrough(client, emit=print):
             f"/runs/{first['id']}/steps?wait=60",
             json={
                 "id": step_id,
-                "method": "query.drilldown",
-                "purpose": purpose,
-                "bindings": {"metric": METRIC, "dimensions": [DEPARTMENT, REGION]},
+                "method": "analysis.drilldown",
+                "purpose": "Compare departments"
+                if step_id == "departments"
+                else "Inspect stores in the selected department",
+                "bindings": {"metric": METRIC, "dimensions": [dimension]},
                 "params": params,
             },
         )
-        settled(client, first["id"])
-    first = complete(client, settled(client, first["id"]))
-    check_run(first, "Home", 6200, 3720)
-    emit("JANUARY  Home leads: 6,200. Its North region contributes 3,720.")
+        first = settled(client, first["id"])
+        rows = read_groups(client, first, step_id, dimension)
+        first = finish_groups(
+            client, first, step_id, dimension, rows, select=step_id == "departments"
+        )
+    first = complete(client, first)
+    check_run(first, *expected)
+    emit("JANUARY  GROCERY receipts: 193,074.59. Its leading store is 367 (5,165.34).")
     recipe = request(client, "POST", f"/runs/{first['id']}/recipe", json={})
-    assert recipe["status"] == "draft"
-    assert recipe.get("source_question") is None
+    assert recipe["status"] == "draft" and recipe.get("source_question") is None
     recipe = request(
         client,
         "POST",
         f"/recipes/{recipe['name']}/publish",
         json={"base_version": recipe["version"]},
     )
-    assert recipe["steps"][1]["params"]["drill_path"] == RULE
-    assert not recipe.get("default_scope", {}).get("date_range")
-    emit("SAVED    A Recipe that selects the current leader, not the word Home.")
+    assert recipe["steps"][1]["params"]["filters"] == FILTERS
+    emit(
+        "SAVED    A Recipe that selects a department from each Run's own query results."
+    )
+    dates, *expected = PERIODS["february"]
     second = request(
         client,
         "POST",
         "/runs?wait=60",
         json={
             "recipe": recipe["name"],
-            "question": "Reuse the reviewed department investigation for February.",
-            "scope": scope(["2026-02-01", "2026-02-28"]),
+            "question": "Reuse the department investigation for February.",
+            "scope": {"date_range": dates, "time_dimension": DATE},
         },
     )
-    second = complete(client, settled(client, second["id"]))
-    check_run(second, "Grocery", 6720, 4032)
-    emit("FEBRUARY Grocery now leads: 6,720. Its North region contributes 4,032.")
-    # A third month has equal leaders. The same rule must not invent a winner.
-    tied = request(
-        client,
-        "POST",
-        "/runs?wait=60",
-        json={
-            "recipe": recipe["name"],
-            "question": "Reuse the procedure for March, where leaders tie.",
-            "scope": scope(["2026-03-01", "2026-03-31"]),
-        },
-    )
-    tied = settled(client, tied["id"])
-    assert tied["status"] == "open"
-    assert tied["steps"][-1]["result"]["status"] == "needs_input"
-    assert not tied["steps"][-1]["result"]["provenance"]["queries"]
-    # The January evidence remains unchanged after both replays.
+    for step_id, dimension in [("departments", DEPARTMENT), ("stores", STORE)]:
+        second = settled(client, second["id"])
+        assert second["active_skill_step"] == step_id
+        rows = read_groups(client, second, step_id, dimension)
+        second = finish_groups(
+            client, second, step_id, dimension, rows, select=step_id == "departments"
+        )
+    # Recipe execution may already complete the Run after its final Skill.
+    if second["status"] != "completed":
+        second = complete(client, second)
+    check_run(second, *expected)
     assert request(client, "GET", f"/runs/{first['id']}")["steps"] == first["steps"]
-    emit("MARCH    Tie: asks for a selection before querying a regional branch.")
-    return {"january": first, "recipe": recipe, "february": second, "march": tied}
-
-
-def check_run(run, department, amount, north):
-    assert run["status"] == "completed", run
-    assert len(run["steps"]) == 2
-    a, b = run["steps"]
-    assert a["result"]["status"] == b["result"]["status"] == "success"
-    assert a["result"]["primary"]["data"]["rows"][0]["value"] == department
-    assert a["result"]["primary"]["data"]["rows"][0]["metric"] == amount
-    assert b["step"]["params"]["drill_path"] == [
-        {"member": DEPARTMENT, "value": department}
-    ]
-    assert b["requested_step"]["params"]["drill_path"] == RULE
-    assert b["result"]["primary"]["data"]["rows"][0]["metric"] == north
-    assert a["result"]["provenance"]["queries"] and b["result"]["provenance"]["queries"]
-
-
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--api", default="http://127.0.0.1:8000")
-    parser.add_argument("--web", default="http://localhost:3100")
-    parser.add_argument(
-        "--output",
-        type=Path,
-        help="Write the complete synthetic execution evidence as JSON",
-    )
-    args = parser.parse_args()
-    with httpx.Client(base_url=args.api, timeout=150) as client:
-        evidence = walkthrough(client)
-    if args.output:
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(evidence, indent=2) + "\n")
-    for month in ("january", "february", "march"):
-        print(f"{month.title():9} {args.web}/runs/{evidence[month]['id']}")
-    print(
-        "PASS: live Cube queries, saved Recipe, fresh selection, tie handling, immutable prior steps."
-    )
-    print(
-        "Scripted REST walkthrough; no model comparison or multi-user authorization test was performed."
-    )
-
-
-if __name__ == "__main__":
-    main()
+    emit("FEBRUARY GROCERY receipts: 178,255.38. Fresh store query: 367 (4,411.16).")
+    return {"january": first, "recipe": recipe, "february": second}

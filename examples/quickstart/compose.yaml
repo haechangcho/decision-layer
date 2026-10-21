@@ -31,7 +31,7 @@ services:
       CUBEJS_DEV_MODE: 'true'
     volumes:
     - ./cube/model:/cube/conf/model:ro
-    - ../complete-journey/cube/healthcheck.cjs:/cube/conf/healthcheck.cjs:ro
+    - ../../src/decision_layer/demo/assets/cube/healthcheck.cjs:/cube/conf/healthcheck.cjs:ro
     healthcheck:
       test:
       - CMD

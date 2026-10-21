@@ -13,8 +13,8 @@ services:
       CUBEJS_API_SECRET: local-example-secret-change-me-0123456789
       CUBEJS_DEV_MODE: "true"
     volumes:
-      - ./cube/model:/cube/conf/model:ro
-      - ./cube/healthcheck.cjs:/cube/conf/healthcheck.cjs:ro
+      - ../../src/decision_layer/demo/assets/journey/cube/model:/cube/conf/model:ro
+      - ../../src/decision_layer/demo/assets/journey/cube/healthcheck.cjs:/cube/conf/healthcheck.cjs:ro
     ports: ["127.0.0.1:${CUBE_PORT:-4000}:4000"]
     healthcheck:
       test: ["CMD", "node", "/cube/conf/healthcheck.cjs"]

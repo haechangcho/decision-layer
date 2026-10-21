@@ -19,7 +19,9 @@ decision-layer demo
 ```
 
 This installs the admin UI and analysis libraries, prepares sample data and starts the server.
-The first run may take a few minutes to download the required files.
+The sample uses dunnhumby’s **The Complete Journey** retail dataset. It imports **all eight tables** into PostgreSQL, including purchases, products, households and campaigns. The first run downloads about 135 MB and imports the data. Later starts reuse the saved database.
+
+The source uses relative day numbers. The example maps day one to `2000-01-01`; these are artificial dates, not actual purchase years.
 
 ## 2. Explore the UI and files
 
@@ -46,7 +48,7 @@ See [Method projects](./method-projects.md) to edit or add definitions.
 Keep the server running and follow [MCP setup](./mcp.md) to connect your AI client.
 Then try asking:
 
-> Find the highest-revenue department in February 2026 and explain its revenue by region.
+> Using the example calendar, find the department with the highest retailer receipts in February 2001 and show its receipts by store.
 
 ## Stop and restart
 

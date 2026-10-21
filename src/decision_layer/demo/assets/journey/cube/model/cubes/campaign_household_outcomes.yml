@@ -34,6 +34,11 @@ cubes:
     sql: is_targeted
     type: boolean
     title: Campaign targeted
+  - name: targeted
+    sql: CASE WHEN is_targeted THEN 1 ELSE 0 END
+    type: number
+    title: Target-list membership (0/1)
+    description: 1 means listed for this campaign, not confirmed exposure or randomized assignment.
   - name: pre_sales_band
     sql: pre_sales_band
     type: string

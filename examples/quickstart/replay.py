@@ -1,6 +1,6 @@
 """Compatibility entry point for the packaged, canonical sample walkthrough."""
 
-from decision_layer.demo.replay import (
+from decision_layer.demo.legacy_replay import (
     BASE,
     DATE,
     DEPARTMENT,

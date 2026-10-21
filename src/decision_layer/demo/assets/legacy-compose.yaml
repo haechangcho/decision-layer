@@ -1,0 +1,42 @@
+# Only the sample data services run in Docker. The installed package serves Web/API.
+services:
+  postgres:
+    image: postgres:16.4
+    environment:
+      POSTGRES_DB: demo
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: local-demo-only
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U demo -d demo]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  cube:
+    image: cubejs/cube:v1.6.25
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CUBEJS_DB_TYPE: postgres
+      CUBEJS_DB_HOST: postgres
+      CUBEJS_DB_NAME: demo
+      CUBEJS_DB_USER: demo_reader
+      CUBEJS_DB_PASS: local-demo-read-only
+      CUBEJS_API_SECRET: local-quickstart-secret-change-me-0123456789
+      CUBEJS_DEV_MODE: 'true'
+    volumes:
+      - ./cube/model:/cube/conf/model:ro
+      - ./cube/healthcheck.cjs:/cube/conf/healthcheck.cjs:ro
+    ports:
+      - 127.0.0.1:${DL_DEMO_CUBE_PORT:-4100}:4000
+    healthcheck:
+      test: [CMD, node, /cube/conf/healthcheck.cjs]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
+volumes:
+  postgres:

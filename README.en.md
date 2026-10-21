@@ -140,6 +140,8 @@ Start at the level you need:
 
 ### Start with sample data
 
+For normal use, follow [Install from PyPI](docs/guides/quickstart.md). `decision-layer demo` prepares the full Complete Journey dataset. The instructions below run the separate synthetic repository sample.
+
 You need **Git and running Docker with Compose v2**.
 
 ```bash

@@ -44,7 +44,7 @@ def test_campaign_windows_population_and_zero_purchase():
                     ('control','2001-01-31','15','control-pre'),
                     ('future','2001-02-03','500','post-only');
                 """)
-                statement = (Path(__file__).resolve().parents[2] / "examples/complete-journey/campaign_outcomes.sql").read_text()
+                statement = (Path(__file__).resolve().parents[2] / "src/decision_layer/demo/assets/journey/campaign_outcomes.sql").read_text()
                 cursor.execute(statement.replace("journey.", schema + "."))
                 cursor.execute("SELECT campaign_id,household_key,pre_sales_30d,pre_baskets_30d,post_sales_30d,is_targeted,eligible,overlapping_campaigns FROM campaign_household_outcomes WHERE campaign_id='main' ORDER BY household_key")
                 rows = {row[1]: row for row in cursor.fetchall()}

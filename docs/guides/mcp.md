@@ -70,7 +70,7 @@ Save, fully quit Claude Desktop, and reopen it. See the [official local MCP guid
 
 First ask which metrics and analysis methods are available to check the connection. With the sample running, continue with:
 
-> Which department leads revenue in February 2026, and what is its revenue by region? Show the metrics and evidence used.
+> Using the example calendar, which department leads retailer receipts in February 2001, and what are its receipts by store? Show the metrics and query evidence.
 
 AI reads registered methods and the semantic catalog, selects inputs and asks about ambiguous meanings or dates.
 
@@ -85,7 +85,9 @@ Open the returned Run link to inspect results and queries. Save a recurring anal
 | `DL_TOKEN` | Bearer token required for an existing Cube user |
 | `DL_LOCALE` | Method message language; use `ko` for Korean |
 
-The sample contains revenue, departments and regions for January–March 2026. Grocery leads February revenue at 6,720.
+New demos use the full Complete Journey purchase data. In February 2001 on the example calendar, GROCERY leads with retailer receipts of 178,255.38. Receipts are not profit, and the example dates do not represent actual purchase years.
+
+Demos created with earlier versions keep their original synthetic data. Ask your AI client to check the available metrics and periods first.
 
 The sample uses a local test identity. Keep real tokens in private client settings, outside Git.
 

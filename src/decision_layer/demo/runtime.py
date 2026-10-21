@@ -22,7 +22,26 @@ from .replay import walkthrough
 MARKER = ".decision-layer-demo.json"
 OWNER = {"format": 1, "owner": "decision-layer-demo"}
 SECRET = "local-quickstart-secret-change-me-0123456789"
-ASSETS = ("compose.yaml", "seed.sql", "cube/model/sales.yml", "cube/healthcheck.cjs")
+DATASET = "complete-journey"
+DATASET_FILE = ".decision-layer/demo-dataset.json"
+JOURNEY_ASSETS = tuple(
+    "journey/" + str(path.relative_to(Path(__file__).parent / "assets/journey"))
+    for path in sorted((Path(__file__).parent / "assets/journey").rglob("*"))
+    if path.is_file() and path.suffix in {".py", ".sql", ".yml", ".md", ".cjs"}
+)
+ASSETS = ("compose.yaml", *JOURNEY_ASSETS)
+LEGACY_ASSETS = ("seed.sql", "cube/model/sales.yml", "cube/healthcheck.cjs")
+
+
+def dataset(root: Path) -> str:
+    path = root / DATASET_FILE
+    if path.exists():
+        value = json.loads(path.read_text())["dataset"]
+        if value not in {DATASET, "synthetic"}:
+            raise ValueError(f"Unknown demo dataset: {value}")
+        return value
+    # A marked pre-existing demo owns its original volume and semantic refs.
+    return "synthetic" if (root / MARKER).exists() else DATASET
 
 
 def demo_directory(directory=None) -> Path:
@@ -54,6 +73,7 @@ def require_managed(root: Path) -> None:
 
 def prepare(root: Path) -> Project:
     root = root.resolve()
+    selected_dataset = dataset(root)
     if root.exists() and any(entry.name != ".venv" for entry in root.iterdir()):
         require_managed(root)
         project = Project.find(root)
@@ -63,8 +83,29 @@ def prepare(root: Path) -> Project:
     else:
         project = init_project(root, "sample_shop")
         (root / MARKER).write_text(json.dumps(OWNER) + "\n")
+    state = root / ".decision-layer"
+    if state.is_symlink() or not state.resolve().is_relative_to(root):
+        raise ValueError("Sample state must stay inside its directory.")
+    state.mkdir(exist_ok=True)
+    for relative in (
+        DATASET_FILE,
+        ".decision-layer/demo.json",
+        ".decision-layer/evidence.json",
+        ".decision-layer/source-reference.json",
+        ".decision-layer/source",
+        "data",
+    ):
+        path = root / relative
+        if path.is_symlink():
+            raise ValueError(f"Sample path must stay inside its directory: {path}")
     assets = files("decision_layer.demo").joinpath("assets")
-    for relative in ASSETS:
+    selected_assets = (
+        ASSETS if selected_dataset == DATASET else ("compose.yaml", *LEGACY_ASSETS)
+    )
+    # Persist the choice before copying assets so an interrupted first preparation
+    # cannot be mistaken for a legacy project on the next start.
+    (root / DATASET_FILE).write_text(json.dumps({"dataset": selected_dataset}) + "\n")
+    for relative in selected_assets:
         destination = root / relative
         # These paths are managed sample files, never arbitrary user symlink targets.
         if destination.is_symlink() or not destination.resolve().is_relative_to(root):
@@ -72,8 +113,12 @@ def prepare(root: Path) -> Project:
                 f"Sample path must stay inside its directory: {destination}"
             )
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(assets.joinpath(relative).read_bytes())
-    (root / ".decision-layer").mkdir(exist_ok=True)
+        source = (
+            "legacy-compose.yaml"
+            if relative == "compose.yaml" and selected_dataset == "synthetic"
+            else relative
+        )
+        destination.write_bytes(assets.joinpath(source).read_bytes())
     return project
 
 
@@ -97,7 +142,7 @@ def require_docker() -> None:
             )
 
 
-def compose(root: Path, cube_port: int, *args, check=True) -> None:
+def compose(root: Path, cube_port: int, *args, check=True, capture_output=False):
     root = root.resolve()
     project = "decision-layer-demo-" + sha256(str(root).encode()).hexdigest()[:12]
     result = subprocess.run(
@@ -112,11 +157,47 @@ def compose(root: Path, cube_port: int, *args, check=True) -> None:
         ],
         cwd=root,
         env={**os.environ, "DL_DEMO_CUBE_PORT": str(cube_port)},
+        capture_output=capture_output,
+        text=True,
     )
     if check and result.returncode:
         raise ValueError(
             f"Sample services could not {' '.join(args)}. Check Docker and port {cube_port}; use --cube-port to choose another port. Data remains in {root}."
         )
+    return result
+
+
+def prepare_data(root: Path, cube_port: int) -> None:
+    """Load and independently verify the full archive before Cube starts."""
+    from .assets.journey.load import load
+    from .assets.journey.verify import verify
+
+    compose(
+        root, cube_port, "up", "--detach", "--wait", "--wait-timeout", "300", "postgres"
+    )
+    result = compose(root, cube_port, "port", "postgres", "5432", capture_output=True)
+    address, separator, port = result.stdout.strip().rpartition(":")
+    if address != "127.0.0.1" or not separator or not port.isdecimal():
+        raise ValueError(
+            "The sample database must have one loopback-only published port."
+        )
+    _port(int(port))
+    database_url = (
+        f"postgresql://demo_loader:local-example-only@127.0.0.1:{port}/journey"
+    )
+    load(
+        database_url,
+        cache=root / ".decision-layer/source",
+        supplied=root / "data" / "complete-journey.zip",
+    )
+    reference = verify(database_url)
+    (root / ".decision-layer/source-reference.json").write_text(
+        json.dumps(reference, indent=2) + "\n"
+    )
+    print(
+        f"Verified all 8 tables: {reference['households']:,} households, {reference['tables']['transaction_data']:,} transaction lines.",
+        flush=True,
+    )
 
 
 def server_environment(root: Path, cube_port: int) -> dict[str, str]:
@@ -136,7 +217,7 @@ def server_environment(root: Path, cube_port: int) -> dict[str, str]:
             "DL_ALLOW_SERVICE_CREDENTIALS": "true",
             "DL_HTTP_ALLOWED_HOSTS": "localhost,127.0.0.1,::1",
             "CUBE_API_URL": f"http://127.0.0.1:{cube_port}/cubejs-api/v1",
-            "CUBE_INSTANCE": "quickstart",
+            "CUBE_INSTANCE": "journey" if dataset(root) == DATASET else "quickstart",
             "CUBE_AUTH_METHOD": "api_secret",
             "CUBE_API_SECRET": SECRET,
             "DL_LOCALE": os.environ.get("DL_LOCALE", "en"),
@@ -202,11 +283,13 @@ def run_demo(action="start", *, directory=None, port=None, cube_port=None) -> in
         json.dumps({"port": port, "cube_port": cube_port}, indent=2) + "\n"
     )
     print(
-        f"Sample project: {root}\nMethods: {project.methods_dir}\nPreparing PostgreSQL and Cube. First startup downloads Docker images.",
+        f"Sample project: {root}\nMethods: {project.methods_dir}\nPreparing PostgreSQL and Cube. First startup downloads Docker images and sample data.",
         flush=True,
     )
     process = None
     try:
+        if dataset(root) == DATASET:
+            prepare_data(root, cube_port)
         compose(root, cube_port, "up", "--detach", "--wait", "--wait-timeout", "300")
         process = subprocess.Popen(
             [
@@ -227,7 +310,12 @@ def run_demo(action="start", *, directory=None, port=None, cube_port=None) -> in
             base_url=f"http://127.0.0.1:{port}/api", timeout=150, trust_env=False
         ) as client:
             wait_for_api(process, client, root)
-            evidence = walkthrough(client)
+            if dataset(root) == "synthetic":
+                from .legacy_replay import walkthrough as legacy_walkthrough
+
+                evidence = legacy_walkthrough(client)
+            else:
+                evidence = walkthrough(client)
         (root / ".decision-layer" / "evidence.json").write_text(
             json.dumps(evidence, indent=2) + "\n"
         )
@@ -235,13 +323,15 @@ def run_demo(action="start", *, directory=None, port=None, cube_port=None) -> in
             f"\nAdmin: http://127.0.0.1:{port}/ui/recipes\nRuns:  http://127.0.0.1:{port}/ui/runs",
             flush=True,
         )
-        for month in ("january", "february", "march"):
+        for month in (
+            key for key in ("january", "february", "march") if key in evidence
+        ):
             print(
                 f"{month.title()}: http://127.0.0.1:{port}/ui/runs/{evidence[month]['id']}",
                 flush=True,
             )
         print(
-            "\nSynthetic data. Press Ctrl+C to stop the server and sample containers; data and Runs are kept.",
+            "\nPress Ctrl+C to stop the server and sample containers; data and Runs are kept.",
             flush=True,
         )
         return process.wait()

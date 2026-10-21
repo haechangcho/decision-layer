@@ -1,5 +1,8 @@
 # Complete Journey — Retail Analysis Walkthrough
 
+For an installed-package demo with the full dataset, follow [Install and start](../../docs/guides/quickstart.md). The repository Docker setup below reuses the same importer and Cube models.
+
+
 [한국어](README.ko.md) · **English**
 
 The multi-table retail example used by the linked [Databricks data preparation notebook](https://www.databricks.com/notebooks/segment-p13n/sg_01_data_prep.html), loaded into local PostgreSQL. The local sample runs Cube.
@@ -161,7 +164,7 @@ not attributes to attach to every transaction line. `store_id` and `week_no` are
 
 ### From source tables to the Catalog
 
-Cube defines seven models under [`cube/model/cubes/`](cube/model/cubes/).
+Cube defines eight models under [`src/decision_layer/demo/assets/journey/cube/model/cubes/`](../../src/decision_layer/demo/assets/journey/cube/model/cubes/).
 Two views provide convenient analytical field sets; individual models also expose their own members.
 
 | Analytical surface | Source and grain | Metrics and dimensions |
@@ -183,7 +186,7 @@ PostgreSQL `DATE` columns for transactions, redemptions and campaign start/end w
 
 Transactions span **2000-01-01 to 2001-12-11** on this calendar. Use **Transaction date** for purchase-period questions;
 campaign start/end and redemption dates describe different events. Web uses provider period suggestions when available.
-Household classifications are publisher codes, not inferred ages or incomes. See [NOTICE](NOTICE.md) for source terms.
+Household classifications are publisher codes, not inferred ages or incomes. See [NOTICE](../../src/decision_layer/demo/assets/journey/NOTICE.md) for source terms.
 
 ## Ask through MCP
 

@@ -2638,3 +2638,34 @@ container identity. Startup reports the selected project and Method directory.
 Installed-package live-demo QA uses a virtualenv-only workspace and the default
 command path, and asserts that visible files and recorded executions share that
 same root. No separate Web/Python/MCP execution logic is added.
+
+## ADR-119 — Use the full Complete Journey dataset in new installed demos (2026-10-21)
+
+**Accepted.** New `decision-layer demo` projects import all eight tables from the
+pinned official dunnhumby archive. The installed package contains the original
+importer, SQL, source notice and Cube models; the archive is downloaded directly
+from its publisher, checked by SHA-256, cached locally and never included in the
+wheel or repository. No Databricks service, account or notebook code is required.
+
+The repository Complete Journey example and installed demo share those assets.
+Installed Python uses its existing psycopg dependency to import into the demo's
+PostgreSQL through a Docker-assigned loopback port. Only PostgreSQL and Cube run
+in Docker. Import is transactional and source-hash/row-count checked; startup runs
+independent SQL checks before serving the demo. A later start reuses the raw tables.
+The source cache, read-only Cube account, isolated project and retained Run store
+continue the boundaries of ADR-112/118. A failed import cannot expose partial tables.
+
+The walkthrough executes the project's current drilldown Skill, records actual
+queries, publishes a two-step department-to-store Recipe, and reuses it in another
+period. Selection filters come from each Run's returned rows. It does not require
+or claim a changed winner, manufactured tie, AI planning or causal identification.
+Pinned reference amounts come from independently grouping the source CSVs. The
+original relative DAY values remain; dates use the explicitly artificial calendar.
+Numeric 0/1 campaign target-list membership is a Cube-owned field for the existing
+OLS/matching inputs, not evidence of exposure or randomized assignment.
+
+Existing marked demos without a dataset marker retain their synthetic assets,
+volume, semantic references, editable definitions, Recipes and Runs. They use the
+original walkthrough. New projects record their dataset explicitly; restarting or
+upgrading an old project never replaces its data or retargets historical Recipes.
+This supersedes the tiny synthetic default in ADR-112 only for newly created demos.
