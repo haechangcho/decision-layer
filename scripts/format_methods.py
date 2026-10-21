@@ -19,8 +19,8 @@ FILES = [
     "docs/tutorials/methods/write_your_method.en.ipynb",
     "tests/support/methods",
     "scripts/format_methods.py",
-    "examples/methods/project/workshop_project/methods/rank/method.py",
-    "examples/methods/project/workshop_project/methods/ols/method.py",
+    "examples/methods/project/methods/rank/method.py",
+    "examples/methods/project/methods/ols/method.py",
 ]
 
 

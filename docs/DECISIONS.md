@@ -2669,3 +2669,28 @@ volume, semantic references, editable definitions, Recipes and Runs. They use th
 original walkthrough. New projects record their dataset explicitly; restarting or
 upgrading an old project never replaces its data or retargets historical Recipes.
 This supersedes the tiny synthetic default in ADR-112 only for newly created demos.
+
+
+## ADR-120 — Keep editable definitions at the project root (2026-10-21)
+
+**Accepted.** New projects use configuration version 2: `decision-layer.yaml`,
+`methods/` and `recipes/` are siblings. The configured name identifies the project
+and generated Method names; it no longer dictates a nested Python package folder.
+`init`, `new`, local sessions and server startup share the same loader. Per-root
+private import namespaces keep identically named projects separate, support relative
+helper imports, and are recreated before trusted callables are deserialized in
+spawned calculation workers. The provider/credential boundary remains unchanged.
+
+Installed demos use the workspace name instead of a fixed `sample_shop` package.
+Managed Docker configuration and Cube models live in `.decision-layer/demo/`;
+importer Python and SQL stay in the installed distribution. Recipes and Method
+sources stay visible. Docker project identity still derives from the resolved
+workspace root, preserving existing PostgreSQL volumes when file paths move.
+
+Version 1 projects continue to load their original `<name>/methods/` layout. An
+untouched, managed a9 Complete Journey demo can migrate automatically after its
+stock definitions, infrastructure assets and package metadata match. Original
+generated files are retained in `.decision-layer/layout-v1/`; source code is moved
+without rewriting it, and Recipes, data and Run history remain in place. A failed
+move is rolled back. Customized and synthetic projects retain their layout. This
+changes file organization, not semantic references or analytical execution.

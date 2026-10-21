@@ -9,7 +9,7 @@ from decision_layer.methods import Scope
 from examples.methods.authoring.customer_analysis import (
     customer_session,
 )
-from examples.methods.project.workshop_project.methods.ols.method import METHOD
+from examples.methods.project.methods.ols.method import METHOD
 
 
 def inputs():
@@ -99,7 +99,7 @@ async def test_customer_fixture_does_not_answer_unprepared_periods():
 
 async def test_rank_and_ols_share_one_session_and_can_be_rerun():
     from examples.methods.authoring.customer_analysis import practice_session
-    from examples.methods.project.workshop_project.methods.rank.method import (
+    from examples.methods.project.methods.rank.method import (
         METHOD as RANK,
     )
 

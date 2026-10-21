@@ -133,7 +133,7 @@ def main():
                 "ols/method.py",
                 "matching/method.py",
             ):
-                assert (root / "sample_shop" / "methods" / entry).is_file()
+                assert (root / "methods" / entry).is_file()
             with httpx.Client(
                 base_url=f"http://127.0.0.1:{port}", trust_env=False
             ) as client:

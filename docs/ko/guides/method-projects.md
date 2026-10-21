@@ -19,7 +19,8 @@ python -m pip install -e '.[test]'
 my_team/
 ├── decision-layer.yaml
 ├── pyproject.toml
-└── my_team/methods/
+├── recipes/
+└── methods/
     ├── metric_lookup/SKILL.md
     ├── drilldown/SKILL.md
     ├── ols/
@@ -67,7 +68,7 @@ decision-layer new python rank
 decision-layer new skill metric_review
 ```
 
-각각 `my_team/methods/rank/method.py`와 `my_team/methods/metric_review/SKILL.md`를 만듭니다.
+각각 `methods/rank/method.py`와 `methods/metric_review/SKILL.md`를 만듭니다.
 여러 Method의 실행 순서를 재사용하려면 [Recipe](recipes.md)를 만드세요.
 기본 파일 없이 시작하려면 `decision-layer init my_team --empty`를 사용합니다.
 

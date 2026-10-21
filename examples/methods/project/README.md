@@ -1,6 +1,6 @@
 # A complete Method project
 
-Python and Skill definitions share `workshop_project/methods/`:
+Python and Skill definitions share `methods/`:
 
 - `rank/method.py`: `workshop_project.rank`, a fixed-column ranking function.
 - `ols/method.py`: `workshop_project.ols`, an ordinary OLS function taking column names.

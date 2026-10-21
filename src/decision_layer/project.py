@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 import importlib
+from importlib.machinery import ModuleSpec
 import keyword
 from pathlib import Path
 import sys
+from types import ModuleType
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 import yaml
@@ -16,6 +19,32 @@ from .methods.registry import InvalidBinding, MethodRegistry
 from .methods.skills import SkillMethod
 
 PROJECT_FILE = "decision-layer.yaml"
+_IMPORT_ROOTS: set[str] = set()
+
+
+def project_import_roots():
+    """Trusted flat projects needed to restore callable imports in a worker."""
+    return tuple(sorted(_IMPORT_ROOTS))
+
+
+def _project_namespace(root):
+    return "_dl_project_" + sha256(str(root).encode()).hexdigest()[:24]
+
+
+def prepare_project_imports(roots):
+    """Give each project its own package without requiring a matching folder."""
+    for value in roots:
+        root = Path(value).resolve()
+        name = _project_namespace(root)
+        if name not in sys.modules:
+            package = ModuleType(name)
+            package.__path__ = [str(root)]
+            package.__package__ = name
+            package.__spec__ = ModuleSpec(name, loader=None, is_package=True)
+            sys.modules[name] = package
+        elif list(getattr(sys.modules[name], "__path__", [])) != [str(root)]:
+            raise ProjectError("Project import namespace points to another directory")
+        _IMPORT_ROOTS.add(str(root))
 
 
 class ProjectError(ValueError):
@@ -25,14 +54,16 @@ class ProjectError(ValueError):
 class ProjectConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
-    config_version: int = Field(default=1, ge=1, le=1)
+    config_version: int = Field(default=1, ge=1, le=2)
     include_builtin_methods: bool = True
 
     @field_validator("name")
     @classmethod
-    def valid_package(cls, value):
+    def valid_name(cls, value):
         if keyword.iskeyword(value) or value == "decision_layer":
-            raise ValueError("Choose a project name that is a distinct Python package")
+            raise ValueError(
+                "Choose a project name other than a Python keyword or decision_layer"
+            )
         return value
 
 
@@ -43,6 +74,8 @@ class Project:
 
     @property
     def methods_dir(self):
+        if self.config.config_version == 2:
+            return self.root / "methods"
         return self.root / self.config.name / "methods"
 
     @classmethod
@@ -101,16 +134,24 @@ class Project:
             raise ProjectError(
                 f"Python definition directories must be identifiers: {path}"
             )
-        if str(self.root) not in sys.path:
-            sys.path.insert(0, str(self.root))
         importlib.invalidate_caches()
-        package = importlib.import_module(self.config.name)
-        package_paths = {Path(p).resolve() for p in getattr(package, "__path__", [])}
-        if self.root / self.config.name not in package_paths:
-            raise ProjectError(
-                f"Package {self.config.name!r} is already imported from another project; use a distinct name or restart Python"
-            )
-        module = importlib.import_module(".".join(parts))
+        if self.config.config_version == 2:
+            prepare_project_imports([self.root])
+            namespace = _project_namespace(self.root)
+            module_name = ".".join([namespace, *parts])
+        else:
+            if str(self.root) not in sys.path:
+                sys.path.insert(0, str(self.root))
+            package = importlib.import_module(self.config.name)
+            package_paths = {
+                Path(p).resolve() for p in getattr(package, "__path__", [])
+            }
+            if self.root / self.config.name not in package_paths:
+                raise ProjectError(
+                    f"Package {self.config.name!r} is already imported from another project; use a distinct name or restart Python"
+                )
+            module_name = ".".join(parts)
+        module = importlib.import_module(module_name)
         if Path(module.__file__).resolve() != path.resolve():
             raise ProjectError(f"Module resolves to another file: {path}")
         method = getattr(module, "METHOD", None)

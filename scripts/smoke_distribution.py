@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 import decision_layer
-from decision_layer.demo.runtime import ASSETS, prepare
+from decision_layer.demo.runtime import ASSETS, compose_file, prepare
 
 
 assert (
@@ -32,12 +32,12 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
     assert "--cube-port" in run("demo", "--help", cwd=root)
     sample = prepare(root / "sample")
     assert all((sample.root / name).is_file() for name in ASSETS)
-    assert "cubejs/cube:" in (sample.root / "compose.yaml").read_text()
-    # Reproduce upgrading a demo created before editable starters existed.
+    assert "cubejs/cube:" in compose_file(sample.root).read_text()
+    # Recover missing generated starters while preserving execution history.
     for kind in ("metric_lookup", "drilldown", "ols", "matching"):
         shutil.rmtree(sample.methods_dir / kind)
     (sample.root / "decision-layer.yaml").write_text(
-        "config_version: 1\nname: sample_shop\n"
+        f"config_version: 2\nname: {sample.config.name}\n"
     )
     saved_run = sample.root / ".decision-layer" / "preserved-run.txt"
     saved_run.write_text("keep execution evidence")
@@ -56,7 +56,7 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
         "ols/method.py",
         "matching/method.py",
     ):
-        assert (project / "qa_team" / "methods" / definition).is_file()
+        assert (project / "methods" / definition).is_file()
     print(run("test", cwd=project))
     initial = json.loads(run("list", "--json", cwd=project))
     assert len(initial) == 4
@@ -76,7 +76,7 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
             "-c",
             """
 import pandas as pd
-from qa_team.methods.rank.method import analyze
+from methods.rank.method import analyze
 from decision_layer.console import create_console
 from decision_layer.settings import Settings
 from fastapi.testclient import TestClient

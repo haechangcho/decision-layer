@@ -7,16 +7,23 @@ import re
 from .project import PROJECT_FILE, Project, ProjectConfig, ProjectError
 
 
+def default_project_name(root: Path):
+    name = re.sub(r"[^a-z0-9_]", "_", root.name.lower()).strip("_") or "analysis"
+    if name[0].isdigit() or keyword.iskeyword(name) or name == "decision_layer":
+        name = "project_" + name
+    return name
+
+
 def init_project(path: str | Path, name: str | None = None, *, empty=False):
     root = Path(path).resolve()
-    name = name or re.sub(r"\W", "_", root.name).lower()
-    config = ProjectConfig(name=name, include_builtin_methods=False)
+    name = name or default_project_name(root)
+    config = ProjectConfig(name=name, config_version=2, include_builtin_methods=False)
     if root.exists() and any(entry.name != ".venv" for entry in root.iterdir()):
         raise ProjectError(f"Directory is not empty: {root}")
-    methods = root / name / "methods"
+    methods = root / "methods"
     methods.mkdir(parents=True)
     (root / PROJECT_FILE).write_text(
-        f"config_version: 1\nname: {config.name}\ninclude_builtin_methods: false\n"
+        f"config_version: 2\nname: {config.name}\ninclude_builtin_methods: false\n"
     )
     from . import __version__
 
@@ -26,13 +33,13 @@ def init_project(path: str | Path, name: str | None = None, *, empty=False):
         'requires-python = ">=3.11"\n'
         f'dependencies = ["decision-layer[stats,mcp]=={__version__}"]\n\n'
         '[project.optional-dependencies]\ntest = ["pytest>=8,<10"]\n\n'
-        f'[tool.hatch.build.targets.wheel]\npackages = ["{name}"]\n'
+        '[tool.hatch.build.targets.wheel]\npackages = ["methods"]\n'
     )
-    (root / name / "__init__.py").touch()
     (methods / "__init__.py").touch()
+    (root / "recipes").mkdir()
     (root / "README.md").write_text(
         f"# {name}\n\n"
-        f"Skill and Python definitions live in `{name}/methods/` files.\n"
+        "Edit Skills and Python calculations in `methods/`. Reusable procedures live in `recipes/`.\n"
         "Default Method names: analysis.metric_lookup, analysis.drilldown, "
         "stats.regression_adjustment, stats.binary_matching.\n"
         "Edit calculations and tests together; increment the Method version when changing behavior.\n\n"

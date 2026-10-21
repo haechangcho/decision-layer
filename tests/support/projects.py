@@ -1,0 +1,21 @@
+"""Build the pre-v2 on-disk layout for compatibility checks."""
+
+from decision_layer.project import Project
+from decision_layer.project_scaffold import init_project
+
+
+def legacy_project(root, name="sample_shop", *, empty=False):
+    project = init_project(root, name, empty=empty)
+    package = project.root / name
+    package.mkdir()
+    (package / "__init__.py").touch()
+    project.methods_dir.rename(package / "methods")
+    config = project.root / "decision-layer.yaml"
+    config.write_text(
+        config.read_text().replace("config_version: 2", "config_version: 1")
+    )
+    metadata = project.root / "pyproject.toml"
+    metadata.write_text(
+        metadata.read_text().replace('packages = ["methods"]', f'packages = ["{name}"]')
+    )
+    return Project.find(project.root)

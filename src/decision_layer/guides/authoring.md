@@ -10,7 +10,7 @@ Before writing code, use list_methods / describe_method. Read get_method_guide("
 ## Ordinary Python
 
 Create a project with `decision-layer init my_team`. It includes editable metric/drilldown Skills and OLS/matching Python files with tests. Install `python -m pip install -e '.[test]'` and run `decision-layer test` for known synthetic answers, without Cube. Add your own definitions with `decision-layer new python rank` or `decision-layer new skill metric_review` inside it. Python entries live in
-`my_team/methods/rank/method.py` and export `METHOD`; Skill entries use `SKILL.md` in
+`methods/rank/method.py` and export `METHOD`; Skill entries use `SKILL.md` in
 their own definition folders. `decision-layer check` validates registration and
 `decision-layer list` reports source paths. `serve` loads that same project into the
 API. Local Python uses `session.load_project(path)` and `session.list_methods()`.

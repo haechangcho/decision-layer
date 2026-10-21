@@ -60,7 +60,7 @@ Result → Run 저장 → 화면과 AI에 반환
 
 `methods/function/registration.py`는 등록 정보를 만들고, `inputs.py`는 조회한 열을 함수 입력에 연결하며, `execution.py`는 데이터를 검사하고 함수를 호출합니다. 함수에는 provider나 인증 정보를 전달하지 않습니다.
 
-팀 프로젝트는 `decision-layer.yaml`과 `method.py`, `SKILL.md`로 구성합니다. Python 세션, CLI와 서버가 `project.py`의 같은 로더를 사용합니다. 설치 모듈을 추가하는 이전 설정도 호환 지원합니다.
+팀 프로젝트의 루트에는 `decision-layer.yaml`, `methods/`, `recipes/`를 둡니다. 설정 버전 2에서는 프로젝트 이름과 Python 파일 경로를 분리합니다. 프로젝트마다 독립된 import 공간을 사용하며 서버의 계산 프로세스도 이를 복원한 뒤 함수를 읽습니다. 설정 버전 1의 기존 폴더 구조도 계속 지원합니다(ADR-120). Python 세션, CLI와 서버가 `project.py`의 같은 로더를 사용합니다. 설치 모듈을 추가하는 이전 설정도 호환 지원합니다.
 
 Skill 실행은 외부 AI 클라이언트가 이끕니다. `runs/skills.py`가 구조화된 Cube 쿼리를 검사하고 실제 요청과 결과를 기록합니다. 파이프라인은 AI의 조회와 완료를 기다린 뒤 이어집니다. 지침을 읽는 것만으로 실행이나 검증을 통과한 것으로 취급하지 않습니다.
 

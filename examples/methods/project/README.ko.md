@@ -1,6 +1,6 @@
 # 완성 Method 프로젝트
 
-`workshop_project/methods/`에 Python과 Skill을 함께 둡니다.
+`methods/`에 Python과 Skill을 함께 둡니다.
 
 - `rank/method.py`: `workshop_project.rank`, 고정 컬럼으로 순위 계산
 - `ols/method.py`: `workshop_project.ols`, 컬럼 이름을 인자로 받는 OLS

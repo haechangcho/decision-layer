@@ -31,8 +31,8 @@ from tests.support.methods.cases import (
     FEB,
     DATE as TIME,
 )
-from examples.methods.project.workshop_project.methods.rank.method import METHOD as RANK
-from examples.methods.project.workshop_project.methods.ols.method import METHOD as OLS
+from examples.methods.project.methods.rank.method import METHOD as RANK
+from examples.methods.project.methods.ols.method import METHOD as OLS
 
 # Also loaded by the real server worker in the integration test below.
 METHODS = [RANK, OLS]

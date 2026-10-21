@@ -33,7 +33,8 @@ Editable Skills and Python Methods are created in your working directory:
 ```text
 workspace/
 ├── decision-layer.yaml
-└── sample_shop/methods/
+├── recipes/
+└── methods/
     ├── metric_lookup/SKILL.md
     ├── drilldown/SKILL.md
     ├── ols/method.py
@@ -41,6 +42,7 @@ workspace/
 ```
 
 `SKILL.md` contains analysis instructions for AI; `method.py` contains the Python calculation.
+Recipes live in `recipes/`; demo services and execution history stay in `.decision-layer/`.
 See [Method projects](./method-projects.md) to edit or add definitions.
 
 ## 3. Connect your AI client

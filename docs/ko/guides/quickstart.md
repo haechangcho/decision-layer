@@ -33,7 +33,8 @@ decision-layer demo
 ```text
 작업 폴더/
 ├── decision-layer.yaml
-└── sample_shop/methods/
+├── recipes/
+└── methods/
     ├── metric_lookup/SKILL.md
     ├── drilldown/SKILL.md
     ├── ols/method.py
@@ -41,6 +42,7 @@ decision-layer demo
 ```
 
 `SKILL.md`는 AI가 따를 분석 지침이고, `method.py`는 계산할 Python 코드입니다.
+Recipe는 `recipes/`에, 샘플 환경과 실행 기록은 `.decision-layer/`에 보관합니다.
 수정하거나 추가하는 방법은 [Method 프로젝트](./method-projects.md)에서 확인하세요.
 
 ## 3. AI 연결하기

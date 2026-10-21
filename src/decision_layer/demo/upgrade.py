@@ -76,7 +76,13 @@ def upgrade_empty_demo(project: Project) -> Project:
                     staged.methods_dir / kind, destination, dirs_exist_ok=True
                 )
             if metadata_path in originals:
-                metadata_path.write_bytes((staged.root / "pyproject.toml").read_bytes())
+                content = (staged.root / "pyproject.toml").read_text()
+                if project.config.config_version == 1:
+                    content = content.replace(
+                        'packages = ["methods"]',
+                        f'packages = ["{project.config.name}"]',
+                    )
+                metadata_path.write_text(content)
             new_config = Path(folder) / PROJECT_FILE
             new_config.write_text(
                 yaml.safe_dump(
@@ -91,3 +97,143 @@ def upgrade_empty_demo(project: Project) -> Project:
                 shutil.rmtree(path)
             raise
     return Project.find(project.root)
+
+
+def upgrade_stock_layout(project, assets, asset_pairs):
+    """Flatten an untouched a9 demo; custom projects keep their original layout."""
+    import copy
+    import json
+    from importlib.resources import files
+    from ..project_scaffold import default_project_name
+
+    root = project.root
+    backup = root / ".decision-layer/layout-v1"
+    package = root / project.config.name
+    config_path = root / PROJECT_FILE
+    if (
+        project.config.config_version != 1
+        or project.config.name != "sample_shop"
+        or project.config.include_builtin_methods is not False
+        or backup.exists()
+        or (root / "methods").exists()
+    ):
+        return project
+    marker = root / ".decision-layer/demo-dataset.json"
+    if (
+        not marker.is_file()
+        or json.loads(marker.read_text()).get("dataset") != "complete-journey"
+    ):
+        return project
+    if (
+        not package.is_dir()
+        or package.is_symlink()
+        or not (package / "__init__.py").is_file()
+        or any(
+            p.name not in {"methods", "__init__.py", "__pycache__"}
+            for p in package.iterdir()
+        )
+        or (package / "__init__.py").read_bytes() != b""
+    ):
+        return project
+    expected = {"__init__.py": b""}
+    templates = files("decision_layer") / "starters/methods"
+    for kind in ("metric_lookup", "drilldown", "ols", "matching"):
+        expected[kind + "/__init__.py"] = b""
+        for entry in templates.joinpath(kind).iterdir():
+            if entry.name in {"SKILL.md", "method.py", "test_method.py"}:
+                expected[kind + "/" + entry.name] = entry.read_bytes()
+    found = {}
+    for path in project.methods_dir.rglob("*"):
+        if path.is_symlink():
+            return project
+        if path.is_file() and "__pycache__" not in path.parts:
+            found[path.relative_to(project.methods_dir).as_posix()] = path.read_bytes()
+    if found != expected:
+        return project
+    for relative, source in asset_pairs:
+        path = root / relative
+        if (
+            path.is_symlink()
+            or not path.is_file()
+            or path.read_bytes() != assets.joinpath(source).read_bytes()
+        ):
+            return project
+    asset_paths = {relative for relative, source in asset_pairs}
+    for path in (root / "journey").rglob("*"):
+        if path.is_symlink() or (
+            path.is_file()
+            and "__pycache__" not in path.parts
+            and path.relative_to(root).as_posix() not in asset_paths
+        ):
+            return project
+    metadata_path = root / "pyproject.toml"
+    if metadata_path.is_symlink() or not metadata_path.is_file():
+        return project
+    previous_metadata = tomllib.loads(metadata_path.read_text())
+    dependencies = previous_metadata.get("project", {}).get("dependencies", [])
+    if len(dependencies) != 1 or not re.fullmatch(
+        r"decision-layer\[stats,mcp\]==[A-Za-z0-9.]+", dependencies[0]
+    ):
+        return project
+    moved = []
+    with tempfile.TemporaryDirectory(
+        prefix=".layout-upgrade-", dir=root / ".decision-layer"
+    ) as folder:
+        staged = init_project(Path(folder) / "project", default_project_name(root))
+        expected_metadata = copy.deepcopy(
+            tomllib.loads((staged.root / "pyproject.toml").read_text())
+        )
+        expected_metadata["project"].update(
+            name=project.config.name + "-methods", dependencies=dependencies
+        )
+        expected_metadata["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] = [
+            project.config.name
+        ]
+        if previous_metadata != expected_metadata:
+            return project
+        new_readme = (staged.root / "README.md").read_text()
+        old_readme = new_readme.replace(
+            "# " + staged.config.name + "\n", "# " + project.config.name + "\n", 1
+        ).replace(
+            "Edit Skills and Python calculations in `methods/`. Reusable procedures live in `recipes/`.\n",
+            f"Skill and Python definitions live in `{project.config.name}/methods/` files.\n",
+        )
+        readme = root / "README.md"
+        replace_readme = (
+            readme.is_file()
+            and not readme.is_symlink()
+            and readme.read_text() == old_readme
+        )
+        backup.mkdir()
+
+        def move(source, destination):
+            source.replace(destination)
+            moved.append((source, destination))
+
+        try:
+            move(project.methods_dir, root / "methods")
+            move(package, backup / "package")
+            for path in (
+                root / "compose.yaml",
+                root / "journey",
+                config_path,
+                metadata_path,
+            ):
+                move(path, backup / path.name)
+            for path in (config_path, metadata_path):
+                path.write_bytes((staged.root / path.name).read_bytes())
+            if replace_readme:
+                move(readme, backup / "README.md")
+                readme.write_text(new_readme)
+        except Exception:
+            for source, destination in reversed(moved):
+                if source.is_file():
+                    source.unlink()
+                destination.replace(source)
+            backup.rmdir()
+            raise
+    print(
+        "Project layout updated: methods/. Previous generated files are kept in .decision-layer/layout-v1/.",
+        flush=True,
+    )
+    return Project.find(root)

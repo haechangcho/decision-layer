@@ -11,6 +11,7 @@ import yaml
 
 from decision_layer.cli import main
 from decision_layer.demo import runtime
+from tests.support.projects import legacy_project
 
 
 def test_cli_demo_does_not_require_a_repository_or_project(monkeypatch, tmp_path):
@@ -28,7 +29,7 @@ def test_cli_demo_does_not_require_a_repository_or_project(monkeypatch, tmp_path
 def test_sample_resources_and_rerun_preserve_runs_and_methods(tmp_path):
     root = tmp_path / "sample"
     project = runtime.prepare(root)
-    assert project.config.name == "sample_shop"
+    assert project.config.name == "sample"
     state = root / ".decision-layer" / "runs.db"
     state.write_bytes(b"keep execution history")
     custom = project.methods_dir / "my_method.py"
@@ -36,7 +37,7 @@ def test_sample_resources_and_rerun_preserve_runs_and_methods(tmp_path):
     runtime.prepare(root)
     assert state.read_bytes() == b"keep execution history"
     assert custom.read_text() == "keep my function"
-    compose = yaml.safe_load((root / "compose.yaml").read_text())
+    compose = yaml.safe_load(runtime.compose_file(root).read_text())
     assert set(compose["services"]) == {"postgres", "cube"}
     assert "build" not in compose["services"]["cube"]
     assert compose["services"]["postgres"]["ports"] == ["127.0.0.1::5432"]
@@ -62,7 +63,7 @@ def test_unmanaged_directory_and_symlink_are_never_overwritten(tmp_path):
     assert list(root.iterdir()) == [keep]
     root = tmp_path / "managed"
     runtime.prepare(root)
-    seed = root / "journey/calendar.sql"
+    seed = root / runtime.DEMO_DIR / "cube/healthcheck.cjs"
     seed.unlink()
     seed.symlink_to(keep)
     with pytest.raises(ValueError, match="inside its directory"):
@@ -77,7 +78,7 @@ def test_normal_directory_aliases_use_one_sample_root(tmp_path):
     alias.symlink_to(actual, target_is_directory=True)
     project = runtime.prepare(alias / "sample")
     assert project.root == actual / "sample"
-    assert (project.root / "compose.yaml").is_file()
+    assert runtime.compose_file(project.root).is_file()
 
 
 def test_demo_environment_excludes_real_source_credentials_and_project(
@@ -225,7 +226,7 @@ def test_invalid_ports_do_not_start_services(monkeypatch, tmp_path, port, cube_p
 def legacy_demo(root):
     from decision_layer.project_scaffold import init_project
 
-    project = init_project(root, "sample_shop", empty=True)
+    project = legacy_project(root, empty=True)
     (root / runtime.MARKER).write_text(json.dumps(runtime.OWNER))
     (root / "decision-layer.yaml").write_text("config_version: 1\nname: sample_shop\n")
     metadata = root / "pyproject.toml"
@@ -254,11 +255,11 @@ def test_old_empty_demo_gains_editable_methods_once_and_preserves_history(tmp_pa
 
     root = tmp_path / "sample"
     old = legacy_demo(root)
-    (root / ".decision-layer").mkdir()
+    (root / ".decision-layer").mkdir(exist_ok=True)
     history = root / ".decision-layer" / "runs.db"
     history.write_bytes(b"keep recorded runs")
     recipes = root / "recipes"
-    recipes.mkdir()
+    recipes.mkdir(exist_ok=True)
     (recipes / "mine.yaml").write_text("keep recipe")
     project = runtime.prepare(root)
     assert project.config.include_builtin_methods is False
@@ -361,7 +362,7 @@ def test_default_demo_is_created_in_current_workspace_and_keeps_venv(
     assert runtime.demo_directory() == workspace
     project = runtime.prepare(runtime.demo_directory())
     assert (workspace / "decision-layer.yaml").is_file()
-    assert project.methods_dir == workspace / "sample_shop" / "methods"
+    assert project.methods_dir == workspace / "methods"
     for entry in [
         "metric_lookup/SKILL.md",
         "drilldown/SKILL.md",
@@ -402,13 +403,13 @@ def test_legacy_demo_keeps_original_dataset_volume_and_semantic_refs(tmp_path):
     from decision_layer.project_scaffold import init_project
 
     root = tmp_path / "old"
-    project = init_project(root, "sample_shop")
+    project = legacy_project(root)
     (root / runtime.MARKER).write_text(json.dumps(runtime.OWNER))
     original = project.methods_dir / "ols/method.py"
     original.write_text(original.read_text() + "\n# user modification\n")
     runtime.prepare(root)
     assert runtime.dataset(root) == "synthetic"
-    config = yaml.safe_load((root / "compose.yaml").read_text())
+    config = yaml.safe_load(runtime.compose_file(root).read_text())
     assert (
         "postgres:/var/lib/postgresql/data" in config["services"]["postgres"]["volumes"]
     )
@@ -437,9 +438,9 @@ def test_interrupted_asset_copy_retains_new_dataset_choice(tmp_path, monkeypatch
     assert runtime.dataset(root) == "complete-journey"
     monkeypatch.setattr(runtime, "files", resources)
     runtime.prepare(root)
-    config = yaml.safe_load((root / "compose.yaml").read_text())
+    config = yaml.safe_load(runtime.compose_file(root).read_text())
     assert "journey_postgres" in config["volumes"]
-    assert (root / "journey/NOTICE.md").is_file()
+    assert (root / runtime.DEMO_DIR / "NOTICE.md").is_file()
 
 
 @pytest.mark.parametrize(
@@ -493,3 +494,74 @@ def test_full_import_uses_ignored_cache_and_writes_verified_reference(
         json.loads((tmp_path / ".decision-layer/source-reference.json").read_text())
         == reference
     )
+
+
+def stock_journey_demo(root):
+    project = legacy_project(root)
+    (root / runtime.MARKER).write_text(json.dumps(runtime.OWNER))
+    state = root / ".decision-layer"
+    state.mkdir()
+    (root / runtime.DATASET_FILE).write_text(json.dumps({"dataset": runtime.DATASET}))
+    assets = files("decision_layer.demo") / "assets"
+    for relative, source in runtime._asset_pairs(project, runtime.DATASET):
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(assets.joinpath(source).read_bytes())
+    readme = root / "README.md"
+    readme.write_text(
+        readme.read_text().replace(
+            "Edit Skills and Python calculations in `methods/`. Reusable procedures live in `recipes/`.\n",
+            "Skill and Python definitions live in `sample_shop/methods/` files.\n",
+        )
+    )
+    return project
+
+
+def test_stock_journey_layout_upgrade_preserves_source_and_history(tmp_path):
+    root = tmp_path / "dl"
+    old = stock_journey_demo(root)
+    source = (old.methods_dir / "ols/method.py").read_bytes()
+    (root / ".decision-layer/runs.db").write_bytes(b"recorded runs")
+    (root / "recipes/mine.yaml").write_bytes(b"recorded recipe")
+    project = runtime.prepare(root)
+    assert project.config.config_version == 2 and project.config.name == "dl"
+    assert (project.methods_dir / "ols/method.py").read_bytes() == source
+    assert (root / ".decision-layer/runs.db").read_bytes() == b"recorded runs"
+    assert (root / "recipes/mine.yaml").read_bytes() == b"recorded recipe"
+    assert (root / ".decision-layer/layout-v1/decision-layer.yaml").is_file()
+    assert not any(
+        (root / path).exists() for path in ("sample_shop", "compose.yaml", "journey")
+    )
+    assert not list((root / runtime.DEMO_DIR).rglob("*.py"))
+    assert runtime.compose_file(root) == root / runtime.DEMO_DIR / "compose.yaml"
+    assert runtime.prepare(root).methods_dir == project.methods_dir
+
+
+def test_custom_journey_method_keeps_legacy_layout(tmp_path):
+    old = stock_journey_demo(tmp_path / "dl")
+    method = old.methods_dir / "ols/method.py"
+    method.write_text(method.read_text() + "\n# custom calculation\n")
+    current = runtime.prepare(old.root)
+    assert current.config.config_version == 1
+    assert method.read_text().endswith("# custom calculation\n")
+    assert not (old.root / ".decision-layer/layout-v1").exists()
+
+
+def test_layout_upgrade_rolls_back_a_failed_move(tmp_path, monkeypatch):
+    old = stock_journey_demo(tmp_path / "dl")
+    config = (old.root / "decision-layer.yaml").read_bytes()
+    replace = Path.replace
+
+    def fail_on_config(path, destination):
+        if path == old.root / "decision-layer.yaml":
+            raise OSError("disk failure")
+        return replace(path, destination)
+
+    monkeypatch.setattr(Path, "replace", fail_on_config)
+    with pytest.raises(OSError, match="disk failure"):
+        runtime.prepare(old.root)
+    assert (old.methods_dir / "ols/method.py").is_file()
+    assert (old.root / "decision-layer.yaml").read_bytes() == config
+    assert (old.root / "journey/load.py").is_file()
+    assert not (old.root / "methods").exists()
+    assert not (old.root / ".decision-layer/layout-v1").exists()

@@ -19,7 +19,8 @@ Two Skills and two Python Methods are created as editable project files:
 my_team/
 ├── decision-layer.yaml
 ├── pyproject.toml
-└── my_team/methods/
+├── recipes/
+└── methods/
     ├── metric_lookup/SKILL.md
     ├── drilldown/SKILL.md
     ├── ols/
@@ -67,7 +68,7 @@ decision-layer new python rank
 decision-layer new skill metric_review
 ```
 
-These create `my_team/methods/rank/method.py` and `my_team/methods/metric_review/SKILL.md`.
+These create `methods/rank/method.py` and `methods/metric_review/SKILL.md`.
 Use a [Recipe](recipes.md) to reuse a sequence of existing Methods.
 Start without defaults with `decision-layer init my_team --empty`.
 

@@ -223,7 +223,9 @@ def test_cli_serve_selects_the_project_for_the_same_api_factory(
     monkeypatch.setattr(
         uvicorn, "run", lambda app, **kwargs: captured.update(app=app, **kwargs)
     )
-    assert main(["serve", "--api-only", "--project", str(project.root), "--reload"]) == 0
+    assert (
+        main(["serve", "--api-only", "--project", str(project.root), "--reload"]) == 0
+    )
     assert Settings().project_dir == str(project.root)
     assert Settings().database_url == (
         database_url
@@ -231,3 +233,48 @@ def test_cli_serve_selects_the_project_for_the_same_api_factory(
     )
     assert captured["app"] == "decision_layer.api.app:app"
     assert "*.md" in captured["reload_includes"]
+
+
+def test_flat_projects_with_the_same_name_keep_imports_separate(tmp_path):
+    methods = []
+    for folder, value in (("one", 17), ("two", 29)):
+        project = init_project(tmp_path / folder, "same_team", empty=True)
+        assert project.methods_dir == project.root / "methods"
+        assert (project.root / "recipes").is_dir()
+        assert not (project.root / "same_team").exists()
+        path = new_method(project, "python", "rank")
+        (path.parent / "helper.py").write_text(f"VALUE = {value}\n")
+        path.write_text(
+            path.read_text()
+            .replace(
+                "def analyze(data, descending=True):",
+                "from .helper import VALUE\n\ndef analyze(data, descending=True):",
+            )
+            .replace(
+                'return data.assign(rank=data["value"].rank(method="min", ascending=not descending))',
+                "return data.assign(rank=VALUE)",
+            )
+        )
+        registry = MethodRegistry()
+        project.load(registry)
+        methods.append(registry.get("same_team.rank"))
+    import pandas as pd
+
+    frame = pd.DataFrame({"value": [1], "group": ["A"]})
+    assert [method.fn(frame)["rank"].iloc[0] for method in methods] == [17, 29]
+
+
+async def test_legacy_project_still_loads_and_runs(tmp_path):
+    from tests.support.projects import legacy_project
+
+    project = legacy_project(tmp_path / "old", "legacy_" + uuid4().hex, empty=True)
+    new_method(project, "python", "rank")
+    session = await practice_session()
+    session.load_project(project.root)
+    trial = await session.run(
+        project.config.name + ".rank",
+        value=METRIC,
+        group=DIMENSION,
+        scope=Scope(DATES, DATE),
+    )
+    assert [row["rank"] for row in trial.result.primary.data] == [1, 2, 2]

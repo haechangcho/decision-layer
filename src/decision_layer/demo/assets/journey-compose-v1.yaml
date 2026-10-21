@@ -1,0 +1,42 @@
+# Installed Python serves Web/API and imports all eight source tables.
+services:
+  postgres:
+    image: postgres:16.4
+    environment:
+      POSTGRES_DB: journey
+      POSTGRES_USER: demo_loader
+      POSTGRES_PASSWORD: local-example-only
+    volumes:
+      - journey_postgres:/var/lib/postgresql/data
+    # An ephemeral loopback port lets the installed importer reach only this DB.
+    ports: ["127.0.0.1::5432"]
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U demo_loader -d journey]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  cube:
+    image: cubejs/cube:v1.6.25
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CUBEJS_DB_TYPE: postgres
+      CUBEJS_DB_HOST: postgres
+      CUBEJS_DB_NAME: journey
+      CUBEJS_DB_USER: journey_reader
+      CUBEJS_DB_PASS: local-read-only
+      CUBEJS_API_SECRET: local-quickstart-secret-change-me-0123456789
+      CUBEJS_DEV_MODE: 'true'
+    volumes:
+      - ./journey/cube/model:/cube/conf/model:ro
+      - ./journey/cube/healthcheck.cjs:/cube/conf/healthcheck.cjs:ro
+    ports: ["127.0.0.1:${DL_DEMO_CUBE_PORT:-4100}:4000"]
+    healthcheck:
+      test: [CMD, node, /cube/conf/healthcheck.cjs]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+      start_period: 20s
+volumes:
+  journey_postgres:

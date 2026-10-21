@@ -64,7 +64,9 @@ def test_failed_project_load_preserves_registry(project):
 
 
 def test_legacy_config_keeps_package_defaults(tmp_path):
-    project = init_project(tmp_path / "legacy", "legacy_" + uuid4().hex, empty=True)
+    from tests.support.projects import legacy_project
+
+    project = legacy_project(tmp_path / "legacy", "legacy_" + uuid4().hex, empty=True)
     (project.root / PROJECT_FILE).write_text(f"name: {project.config.name}\n")
     target = registry.copy()
     Project.find(project.root).load(target)

@@ -40,7 +40,7 @@ create a new Method when existing capabilities and a Recipe are sufficient.
 Analysts reuse Recipes and inspect results. Senior analysts encode procedures.
 Method contributors use ordinary Python modules, pytest and optional Jupyter/VS Code.
 New team definitions use one Method project: Python method.py entries and Skill
-SKILL.md entries share a methods directory. Scaffold, check, list, local loading
+SKILL.md entries share a root-level `methods/` directory, alongside `recipes/` and `decision-layer.yaml`. The project name does not require a second nested source directory (ADR-120). Scaffold, check, list, local loading
 and API startup share project discovery (ADR-106).
 Ordinary Python functions register through separate DataInput declarations; advanced typed
 functions remain supported. Input maps reference governed objects.

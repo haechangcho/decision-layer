@@ -29,8 +29,48 @@ JOURNEY_ASSETS = tuple(
     for path in sorted((Path(__file__).parent / "assets/journey").rglob("*"))
     if path.is_file() and path.suffix in {".py", ".sql", ".yml", ".md", ".cjs"}
 )
-ASSETS = ("compose.yaml", *JOURNEY_ASSETS)
+DEMO_DIR = ".decision-layer/demo"
+ASSETS = (
+    f"{DEMO_DIR}/compose.yaml",
+    f"{DEMO_DIR}/NOTICE.md",
+    *(
+        f"{DEMO_DIR}/{path.removeprefix('journey/')}"
+        for path in JOURNEY_ASSETS
+        if path.startswith("journey/cube/")
+    ),
+)
 LEGACY_ASSETS = ("seed.sql", "cube/model/sales.yml", "cube/healthcheck.cjs")
+
+
+def compose_file(root: Path) -> Path:
+    managed = root / DEMO_DIR / "compose.yaml"
+    return managed if managed.is_file() else root / "compose.yaml"
+
+
+def _asset_pairs(project, selected_dataset):
+    if project.config.config_version == 1:
+        if selected_dataset == DATASET:
+            return [
+                ("compose.yaml", "journey-compose-v1.yaml"),
+                *((path, path) for path in JOURNEY_ASSETS),
+            ]
+        return [
+            ("compose.yaml", "legacy-compose.yaml"),
+            *((path, path) for path in LEGACY_ASSETS),
+        ]
+    if selected_dataset == DATASET:
+        return [
+            (ASSETS[0], "compose.yaml"),
+            (ASSETS[1], "journey/NOTICE.md"),
+            *(
+                (path, "journey/" + path.removeprefix(DEMO_DIR + "/"))
+                for path in ASSETS[2:]
+            ),
+        ]
+    return [
+        (f"{DEMO_DIR}/compose.yaml", "legacy-compose.yaml"),
+        *((f"{DEMO_DIR}/{path}", path) for path in LEGACY_ASSETS),
+    ]
 
 
 def dataset(root: Path) -> str:
@@ -81,7 +121,7 @@ def prepare(root: Path) -> Project:
 
         project = upgrade_empty_demo(project)
     else:
-        project = init_project(root, "sample_shop")
+        project = init_project(root)
         (root / MARKER).write_text(json.dumps(OWNER) + "\n")
     state = root / ".decision-layer"
     if state.is_symlink() or not state.resolve().is_relative_to(root):
@@ -99,13 +139,15 @@ def prepare(root: Path) -> Project:
         if path.is_symlink():
             raise ValueError(f"Sample path must stay inside its directory: {path}")
     assets = files("decision_layer.demo").joinpath("assets")
-    selected_assets = (
-        ASSETS if selected_dataset == DATASET else ("compose.yaml", *LEGACY_ASSETS)
+    from .upgrade import upgrade_stock_layout
+
+    project = upgrade_stock_layout(
+        project, assets, _asset_pairs(project, selected_dataset)
     )
     # Persist the choice before copying assets so an interrupted first preparation
     # cannot be mistaken for a legacy project on the next start.
     (root / DATASET_FILE).write_text(json.dumps({"dataset": selected_dataset}) + "\n")
-    for relative in selected_assets:
+    for relative, source in _asset_pairs(project, selected_dataset):
         destination = root / relative
         # These paths are managed sample files, never arbitrary user symlink targets.
         if destination.is_symlink() or not destination.resolve().is_relative_to(root):
@@ -113,11 +155,6 @@ def prepare(root: Path) -> Project:
                 f"Sample path must stay inside its directory: {destination}"
             )
         destination.parent.mkdir(parents=True, exist_ok=True)
-        source = (
-            "legacy-compose.yaml"
-            if relative == "compose.yaml" and selected_dataset == "synthetic"
-            else relative
-        )
         destination.write_bytes(assets.joinpath(source).read_bytes())
     return project
 
@@ -152,7 +189,9 @@ def compose(root: Path, cube_port: int, *args, check=True, capture_output=False)
             "--project-name",
             project,
             "--file",
-            str(root / "compose.yaml"),
+            str(compose_file(root)),
+            "--project-directory",
+            str(compose_file(root).parent),
             *args,
         ],
         cwd=root,
