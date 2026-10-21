@@ -14,7 +14,7 @@ Run these commands in order:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --upgrade --pre 'decision-layer[stats,mcp]'
+pip install --pre 'decision-layer[stats,mcp]'
 decision-layer demo
 ```
 

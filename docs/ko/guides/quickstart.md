@@ -14,7 +14,7 @@ description: 설치하고 샘플을 실행한 뒤 AI를 연결합니다.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --upgrade --pre 'decision-layer[stats,mcp]'
+pip install --pre 'decision-layer[stats,mcp]'
 decision-layer demo
 ```
 

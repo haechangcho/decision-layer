@@ -2612,8 +2612,9 @@ source data and custom definitions are untouched. Explicitly configured projects
 and previously removed starter files are never repopulated. Pinned historical
 Method implementations remain available through the existing registry.
 
-Startup prints the actual Method directory. The installation guide uses --upgrade
-so the same command installs a fresh environment and updates an existing one.
+Startup prints the actual Method directory. The initial guide used --upgrade
+for both installation and updates. The fresh-install quickstart now omits that
+flag; existing installations must explicitly upgrade to receive this migration.
 This is a bounded managed-demo migration, not general project synchronization.
 
 
