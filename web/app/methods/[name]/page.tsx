@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useState } from "react";
 import { WorkspaceTabs } from "@/components/workspace-tabs";
@@ -18,38 +19,39 @@ import { methodTitle } from "@/lib/method-name";
 import styles from "../../library.module.css";
 
 export default function MethodPage() {
+  const t = useT();
   const [view, setView] = useState("overview");
   const { name } = useParams<{ name: string }>();
   const { data: method, error, reload } = useApi<MethodManifest>(`/methods/${name}`);
   const skill = method?.implementation === "skill";
   return <div className={styles.page}>
-    <Link className={styles.back} href="/methods"><ArrowLeft size={15} />분석 방법</Link>
-    {error && <RequestError title="분석 방법을 불러오지 못했습니다" error={error} retry={reload} />}
+    <Link className={styles.back} href="/methods"><ArrowLeft size={15} />{t("Methods")}</Link>
+    {error && <RequestError title={t("Could not load the Method")} error={error} retry={reload} />}
     {!method ? !error && <LoadingState /> : <>
       <div className={styles.heading}><div>
         <p className={styles.eyebrow}>{skill ? "SKILL" : "PYTHON"}</p>
-        <h1>{methodTitle(method)}</h1>
+        <h1>{methodTitle(method, t)}</h1>
         <p className={styles.methodId}>{method.name} / v{method.version}</p>
         <p className={styles.intro}>{method.description}</p>
       </div></div>
-      <WorkspaceTabs id="method" label="Method 정보" value={view} onChange={setView} items={[
-        {value:"overview",label:"개요와 입력"}, {value:"implementation",label:skill ? "분석 지침" : "Python 코드"}, {value:"executions",label:"실행 기록"}
+      <WorkspaceTabs id="method" label={t("Method information")} value={view} onChange={setView} items={[
+        {value:"overview",label:t("Overview and inputs")}, {value:"implementation",label:skill ? t("Analysis instructions") : t("Python code")}, {value:"executions",label:t("Runs")}
       ]} />
       <div id="method-panel-overview" role="tabpanel" aria-labelledby="method-tab-overview" hidden={view !== "overview"}>
-      {(!skill || method.agent_executable) && <section className={styles.methodPanel} aria-label="Method 테스트">
-        <h2>{skill ? "AI와 실행하기" : "실제 데이터로 테스트"}</h2>
-        <p>{skill ? "MCP로 연결한 AI에게 이 방법으로 분석을 요청하세요. AI가 실행한 쿼리와 응답을 기록합니다." : "지표와 기간을 선택해 실행한 뒤, 결과와 검사 내용을 확인하세요. 테스트는 실행 기록에 남습니다."}</p>
-        <Link className={styles.primary} href={`/recipes/new?method=${encodeURIComponent(name)}`}>{skill ? "분석 절차 만들기" : "입력 선택하고 테스트"}</Link>
-        {skill && <p>웹에서 절차를 시작하면 연결된 AI의 실행을 기다립니다.</p>}
+      {(!skill || method.agent_executable) && <section className={styles.methodPanel} aria-label={t("Test Method")}>
+        <h2>{skill ? t("Run with AI") : t("Test with real data")}</h2>
+        <p>{skill ? t("Ask your connected AI to use this Method. Its queries and responses are recorded.") : t("Choose metrics and dates, then inspect results and checks. Tests are saved as Runs.")}</p>
+        <Link className={styles.primary} href={`/recipes/new?method=${encodeURIComponent(name)}`}>{skill ? t("Create analysis procedure") : t("Choose inputs and test")}</Link>
+        {skill && <p>{t("Starting this procedure waits for the connected AI to execute it.")}</p>}
       </section>}
       {!skill && <section className={styles.methodPanel}>
-        <h2>입력 조건</h2>
+        <h2>{t("Inputs")}</h2>
         {!Object.keys(method.data_inputs ?? {}).length && <dl className={styles.meta}>{Object.entries(method.roles).map(([key, role]) => <div className={styles.metaRow} key={key}>
-          <dt>{role.label || key}{role.required ? " *" : ""}</dt><dd>{role.description || (role.accepted_kinds ?? [role.kind]).join(" / ")}{role.multiple ? " (여러 개 선택)" : ""}</dd>
+          <dt>{role.label || key}{role.required ? " *" : ""}</dt><dd>{role.description || (role.accepted_kinds ?? [role.kind]).join(" / ")}{role.multiple ? t("(select multiple)") : ""}</dd>
         </div>)}</dl>}
         <MethodAvailability key={`availability:${name}`} name={decodeURIComponent(name)} />
         <PythonInputContract method={method} />
-        {!!Object.keys(method.parameters).length && <section className={styles.methodOptions}><h3>계산 옵션</h3><div><dl className={styles.meta}>
+        {!!Object.keys(method.parameters).length && <section className={styles.methodOptions}><h3>{t("Calculation options")}</h3><div><dl className={styles.meta}>
           {Object.entries(method.parameters).map(([key, parameter]) => <div className={styles.metaRow} key={key}><dt>{parameter.label || key}</dt><dd>{parameter.description || parameter.type}{parameter.default != null ? ` (${JSON.stringify(parameter.default)})` : ""}</dd></div>)}
         </dl></div></section>}
       </section>}
@@ -65,13 +67,14 @@ export default function MethodPage() {
 }
 
 function SkillGuide({ name }: { name: string }) {
+  const t = useT();
   const { data: guide, error, reload } = useApi<MethodGuide>(`/methods/${name}/guide`);
-  if (error) return <RequestError title="지침을 불러오지 못했습니다" error={error} retry={reload} />;
+  if (error) return <RequestError title={t("Could not load the instructions")} error={error} retry={reload} />;
   if (!guide) return <LoadingState />;
-  return <section aria-label="Skill 지침">
-    <h2>AI가 참고하는 분석 지침</h2>
+  return <section aria-label={t("Skill instructions")}>
+    <h2>{t("Analysis instructions for AI")}</h2>
     <MethodMarkdown content={guide.markdown} />
-    {!!guide.suggested_methods.length && <><h3>사용하는 실행 도구</h3><ul>{guide.suggested_methods.map(tool => <li key={tool}><Link href={`/methods/${encodeURIComponent(tool)}`}>{tool}</Link></li>)}</ul></>}
+    {!!guide.suggested_methods.length && <><h3>{t("Execution tools")}</h3><ul>{guide.suggested_methods.map(tool => <li key={tool}><Link href={`/methods/${encodeURIComponent(tool)}`}>{tool}</Link></li>)}</ul></>}
     <p className={styles.contentHash}>v{guide.version} / SHA-256 {guide.sha256}</p>
   </section>;
 }

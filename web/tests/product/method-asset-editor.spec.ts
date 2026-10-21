@@ -162,11 +162,12 @@ test("language refresh keeps an in-progress edit and tab switching preserves its
   await page.getByRole("tab",{name:"Python 코드",exact:true}).click();
   await expect(editor).toContainText("keep across refresh");
   await page.getByLabel("language").selectOption("en");
-  await expect(editor).toContainText("keep across refresh");
-  await page.getByRole("tab",{name:"미리보기",exact:true}).click();
-  await page.getByRole("tab",{name:"편집",exact:true}).click();
-  await expect(editor).toContainText("keep across refresh");
-  await expect(page.getByText("저장하지 않은 변경",{exact:true})).toBeVisible();
+  const englishEditor=page.getByRole("textbox",{name:"Authorable Python code",exact:true});
+  await expect(englishEditor).toContainText("keep across refresh");
+  await page.getByRole("tab",{name:"Preview",exact:true}).click();
+  await page.getByRole("tab",{name:"Edit",exact:true}).click();
+  await expect(englishEditor).toContainText("keep across refresh");
+  await expect(page.getByText("Unsaved changes",{exact:true})).toBeVisible();
 });
 
 test("failed registration leaves source editable and cannot enable publication",async({page})=>{

@@ -30,6 +30,7 @@ import { isSourcePurpose, stepFinding, stepPurpose } from "@/lib/run-story";
 import styles from "../../library.module.css";
 
 export default function RunPage() {
+  const t = useT();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: run, error, reload } = useApi<Run>(`/runs/${id}`);
@@ -52,7 +53,7 @@ export default function RunPage() {
     return () => clearTimeout(t);
   }, [run, reload]);
 
-  if (error) return <div className={styles.page}><p className={styles.error} role="alert">{error.message}</p><Link className={styles.back} href="/runs"><ArrowLeft size={15} />실행 기록</Link></div>;
+  if (error) return <div className={styles.page}><p className={styles.error} role="alert">{error.message}</p><Link className={styles.back} href="/runs"><ArrowLeft size={15} />{t("Runs")}</Link></div>;
   if (!run) return <div className={styles.page}><LoadingState /></div>;
   const recipe = run.recipe_snapshot;
   const current = open ?? run.steps.length - 1;
@@ -69,12 +70,12 @@ export default function RunPage() {
   async function registerRecipe() {
     setRegistering(true); setRegisterError("");
     try { setRegistered(await api<Recipe>(`/runs/${id}/recipe`, { body: {} })); }
-    catch (cause) { setRegisterError(cause instanceof Error ? cause.message : "Recipe를 등록하지 못했습니다."); }
+    catch (cause) { setRegisterError(cause instanceof Error ? cause.message : t("Could not register the Recipe.")); }
     finally { setRegistering(false); }
   }
 
   const scope = run.plan.scope;
-  const timeTitle = scope.time_dimension ? byRef.get(scope.time_dimension)?.title ?? "날짜 기준 이름 확인 필요" : null;
+  const timeTitle = scope.time_dimension ? byRef.get(scope.time_dimension)?.title ?? t("Date dimension name needs checking") : null;
   const metricRefs = [...new Set(run.steps.flatMap((record) => {
     const metric = record.step.bindings.metric;
     return typeof metric === "string" && /^[a-z][a-z0-9_-]*:\/\//.test(metric) ? [metric] : [];
@@ -82,7 +83,7 @@ export default function RunPage() {
   if (recipe?.semantic_scope.primary_metric && !metricRefs.includes(recipe.semantic_scope.primary_metric)) metricRefs.unshift(recipe.semantic_scope.primary_metric);
   const pendingMetric = run.pending_execution?.step?.bindings.metric;
   if (typeof pendingMetric === "string" && !pendingMetric.startsWith("$") && !metricRefs.includes(pendingMetric)) metricRefs.push(pendingMetric);
-  const metricNames = metricRefs.map((ref) => byRef.get(ref)?.title ?? "지표 이름 확인 필요");
+  const metricNames = metricRefs.map((ref) => byRef.get(ref)?.title ?? t("Metric name needs checking"));
   const canContinue = mine && !run.preview && !run.active_skill_step && !run.needs_input && run.status === "open" && !run.running && !!manifests && (recipe?.mode !== "pipeline" || !!run.recipe_invocation?.completed);
   const canConclude = mine && !run.preview && !run.active_skill_step && run.status === "open" && !run.running &&
     ((!run.needs_input && run.steps.length > 0) || (!!run.goals?.length && !run.steps.length));
@@ -92,67 +93,68 @@ export default function RunPage() {
   const warnings = [...new Map([...run.validation, ...run.steps.flatMap((step) => step.result.validation)]
     .filter((item) => item.status !== "pass").map((item) => [`${item.code}:${item.message}`, item])).values()];
   return <div className={`${styles.page} ${styles.runPage}`}>
-    <Link className={styles.back} href="/runs"><ArrowLeft size={15} />실행 기록</Link>
-    <header className={styles.runOverview} aria-label="질문과 실행 정보">
-    <div className={styles.heading}><div><p className={styles.eyebrow}>{run.preview ? "미리보기" : "RUN"} · {runOriginLabel(run.origin)} · {new Date(run.created_at).toLocaleString()}</p><h1>{run.plan.question || recipe?.description || recipe?.name || (metricNames[0] ? `${metricNames[0]} 분석` : "분석 결과")}</h1></div><div className={styles.runHeaderActions}><span className={`${styles.badge} ${run.status === "failed" || (stopped && !run.active_skill_step) ? styles.badgeFailed : run.status === "open" ? styles.badgeOpen : ""}`}>{run.status === "completed" ? "완료" : run.active_skill_step ? "AI 실행 대기" : run.status === "failed" ? "실패" : stopped ? lastStatus === "needs_input" ? "입력 필요" : "중단" : run.running ? "진행 중" : run.steps.length ? "결론 대기" : "대기 중"}</span>{mine && <RunDelete run={run} onDeleted={() => router.push("/runs")} />}</div></div>
-    <p className={styles.runScope}><strong>{metricNames.join(" · ") || "지표 선택 전"}</strong><span>{periodLabel(run)}</span>{timeTitle && <span>{timeTitle} 기준</span>}{run.scope_resolution?.source && <span>{({ caller: "호출자 선택", conversation: "대화에서 이어받음", ai_proposal: "AI 제안", recipe_default: "Recipe 기본 기간", organization_default: "조직 기본 기간", unspecified: "아직 선택하지 않음" } as Record<string, string>)[run.scope_resolution.source] || "선택 출처 미확인"}</span>}</p>
+    <Link className={styles.back} href="/runs"><ArrowLeft size={15} />{t("Runs")}</Link>
+    <header className={styles.runOverview} aria-label={t("Question and run details")}>
+    <div className={styles.heading}><div><p className={styles.eyebrow}>{run.preview ? t("Preview") : "RUN"} · {runOriginLabel(run.origin, t)} · {new Date(run.created_at).toLocaleString()}</p><h1>{run.plan.question || recipe?.description || recipe?.name || (metricNames[0] ? t("{metric} analysis", { metric: metricNames[0] }) : t("Analysis result"))}</h1></div><div className={styles.runHeaderActions}><span className={`${styles.badge} ${run.status === "failed" || (stopped && !run.active_skill_step) ? styles.badgeFailed : run.status === "open" ? styles.badgeOpen : ""}`}>{run.status === "completed" ? t("Done") : run.active_skill_step ? t("Waiting for AI") : run.status === "failed" ? t("Failed") : stopped ? lastStatus === "needs_input" ? t("Input needed") : t("Stopped") : run.running ? t("In progress") : run.steps.length ? t("Awaiting conclusion") : t("Waiting")}</span>{mine && <RunDelete run={run} onDeleted={() => router.push("/runs")} />}</div></div>
+    <p className={styles.runScope}><strong>{metricNames.join(" · ") || t("No metric chosen yet")}</strong><span>{periodLabel(run, t)}</span>{timeTitle && <span>{timeTitle}  {t("Date basis")}</span>}{run.scope_resolution?.source && <span>{({ caller: t("Chosen by the caller"), conversation: t("Carried over from the conversation"), ai_proposal: t("Proposed by AI"), recipe_default: t("Recipe default period"), organization_default: t("Organization default period"), unspecified: t("Not chosen yet") } as Record<string, string>)[run.scope_resolution.source] || t("Choice origin unknown")}</span>}</p>
     <RunProcedure run={run} />
     </header>
-    {!!run.method_guides?.length && <div className={styles.runReferenceLinks}>{run.method_guides.map((guide,index) => <button type="button" key={guide.name} className="ghost" onClick={() => setReferenceGuide(index)}>참고 지침 / {guide.name}</button>)}</div>}
-    <InspectorDialog title="참고한 Skill 지침" open={referenceGuide !== null} onClose={() => setReferenceGuide(null)}>{referenceGuide !== null && run.method_guides?.[referenceGuide] && <><p>v{run.method_guides[referenceGuide].version}</p><MethodMarkdown content={run.method_guides[referenceGuide].markdown} /><p className={styles.contentHash}>SHA-256 {run.method_guides[referenceGuide].sha256}</p></>}</InspectorDialog>
+    {!!run.method_guides?.length && <div className={styles.runReferenceLinks}>{run.method_guides.map((guide,index) => <button type="button" key={guide.name} className="ghost" onClick={() => setReferenceGuide(index)}>{t("Reference instructions /")} {guide.name}</button>)}</div>}
+    <InspectorDialog title={t("Referenced Skill instructions")} open={referenceGuide !== null} onClose={() => setReferenceGuide(null)}>{referenceGuide !== null && run.method_guides?.[referenceGuide] && <><p>v{run.method_guides[referenceGuide].version}</p><MethodMarkdown content={run.method_guides[referenceGuide].markdown} /><p className={styles.contentHash}>SHA-256 {run.method_guides[referenceGuide].sha256}</p></>}</InspectorDialog>
     {mine && run.needs_input && <RunPeriodInput key={`${run.id}:${run.scope_revision}`} run={run} objects={objects} onDone={() => reload()} />}
-    {run.active_skill_step && !run.running && <p className={styles.runNotice} role="status">Skill 단계에서 AI 실행을 기다립니다. Claude·Codex에서 이 Run을 이어서 실행하면 쿼리와 결과가 아래에 기록됩니다.</p>}
-    {run.running && <p className={styles.runNotice} role="status">분석 중 · {run.running.method ? methodName(run.running.method) : run.running.kind} · {new Date(run.running.started_at).toLocaleTimeString()} 시작</p>}
-    {run.error && <p className={styles.error} role="alert">{run.error.message} · 오류 코드 {run.error.code}</p>}
+    {run.active_skill_step && !run.running && <p className={styles.runNotice} role="status">{t("This Skill step is waiting for AI. Continue the Run in Claude or Codex to record queries and results here.")}</p>}
+    {run.running && <p className={styles.runNotice} role="status">{t("Running /")} {run.running.method ? methodName(run.running.method, t) : run.running.kind} · {new Date(run.running.started_at).toLocaleTimeString()}  {t("Started")}</p>}
+    {run.error && <p className={styles.error} role="alert">{run.error.message}  {t("/ Error code")} {run.error.code}</p>}
     {(!run.needs_input || run.steps.length > 0) && <><RunAnswer run={run} warnings={warnings} onSelect={index => { setOpen(index); setTab("result"); document.getElementById("run-step-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
     <RunRemediations run={run} mine={mine} objects={objects} onDone={() => { reload(); reloadCatalog(); }} />
     {run.steps.length > 1 && <RunGraph run={run} titles={byRef} selected={current} onSelect={index => { setOpen(index); setTab("result"); }} />}</>}
-    {selectedStep ? <section id="run-step-detail" className={styles.runStepDetail}><span>{current + 1} / {run.steps.length}단계</span><h2>{methodName(selectedStep.step.method)}</h2><p className={styles.runPurpose}><span>분석 목적</span>{stepPurpose(selectedStep.step, run)}</p>
-      {isSourcePurpose(selectedStep.step, run) && selectedStep.step.purpose && <div className={styles.runPurposeContext}><p><strong>이번 실행 기간</strong> {periodLabel(run)}</p><p><strong>등록 당시 단계 설명</strong> {selectedStep.step.purpose}</p><span>이 설명은 원래 분석에서 가져왔습니다. 실제 적용 범위는 이번 실행 기간과 사용한 설정에서 확인하세요.</span></div>}
-      {selectedStep.skill && <div className={styles.executionStrip} aria-label="Skill 실행 상태"><span>{selectedStep.skill.status === "awaiting_agent" ? "AI 실행 대기" : selectedStep.skill.status === "refused" ? "분석 중단" : "조회 단계 완료"}</span><span>기록된 조회 {selectedStep.skill.queries.length}개</span>
-        {selectedStep.skill.queries.some(query => query.error || query.status === "interrupted") && <button type="button" onClick={() => setTab("queries")}>실패한 조회 확인</button>}
+    {selectedStep ? <section id="run-step-detail" className={styles.runStepDetail}><span>{t("{current} / {total} steps", { current: current + 1, total: run.steps.length })}</span><h2>{methodName(selectedStep.step.method, t)}</h2><p className={styles.runPurpose}><span>{t("Analysis purpose")}</span>{stepPurpose(selectedStep.step, t, run)}</p>
+      {isSourcePurpose(selectedStep.step, run) && selectedStep.step.purpose && <div className={styles.runPurposeContext}><p><strong>{t("Period for this run")}</strong> {periodLabel(run, t)}</p><p><strong>{t("Step description when registered")}</strong> {selectedStep.step.purpose}</p><span>{t("This description comes from the original analysis. Check the actual scope in this run's period and the settings used.")}</span></div>}
+      {selectedStep.skill && <div className={styles.executionStrip} aria-label={t("Skill execution status")}><span>{selectedStep.skill.status === "awaiting_agent" ? t("Waiting for AI") : selectedStep.skill.status === "refused" ? t("Analysis stopped") : t("Query step complete")}</span><span>{t("Recorded queries")} {selectedStep.skill.queries.length}</span>
+        {selectedStep.skill.queries.some(query => query.error || query.status === "interrupted") && <button type="button" onClick={() => setTab("queries")}>{t("Inspect failed queries")}</button>}
       </div>}
       {selectedStep.skill && tab !== "queries" && selectedStep.skill.queries.some(query => query.error) && <p role="alert" className={styles.runQueryFailure}>{selectedStep.skill.queries.find(query => query.error)?.error?.message}</p>}
-      <WorkspaceTabs id="run" label="분석 단계 정보" value={tab} onChange={setTab} items={([
-        ['result', '결과'], ...(additional.length || selectedStep.result.validation.length || selectedStep.result.warnings.length ? [['additional', additional.length ? `검증·추가 결과 ${additional.length}개` : '실행 검증']] : []),
-        ['settings', '사용한 설정'], ['queries', `쿼리 ${selectedStep.skill ? selectedStep.skill.queries.length : selectedStep.result.provenance.queries.length}개`], ['sources', '출처']
+      <WorkspaceTabs id="run" label={t("Analysis step details")} value={tab} onChange={setTab} items={([
+        ['result', t("Result")], ...(additional.length || selectedStep.result.validation.length || selectedStep.result.warnings.length ? [['additional', additional.length ? t("Checks and additional results ({count})", { count: additional.length }) : t("Run validation")]] : []),
+        ['settings', t("Settings used")], ['queries', t("{n} queries", { n: selectedStep.skill ? selectedStep.skill.queries.length : selectedStep.result.provenance.queries.length })], ['sources', t("Sources")]
       ]).map(([value,label]) => ({value,label}))} />
       <div id={`run-panel-${tab}`} role="tabpanel" aria-labelledby={`run-tab-${tab}`} className={styles.runTabPanel}>
-        {tab === "result" && <>{!selectedStep.result.primary?.title || selectedStep.result.primary.title !== stepFinding(selectedStep) ? <strong className={styles.runFinding}>{stepFinding(selectedStep)}</strong> : null}<RunResultChart artifact={selectedStep.result.primary} />
-          <ResultView result={selectedStep.skill && selectedStep.result.primary ? { ...selectedStep.result, primary: { ...selectedStep.result.primary, title: "조회 결과" } } : selectedStep.result} titles={byRef} showRunLink={false} showEvidence={false} expanded /></>}
-        {tab === "settings" && <><RunSettings record={selectedStep} titles={byRef} manifest={manifests?.find(m => m.name === selectedStep.step.method)} /><div className={styles.runTechnical}><h3>공통 분석 범위</h3><dl><div><dt>분석 기간</dt><dd>{scope.date_range?.join(" ~ ") || "전체 기간"}</dd></div><div><dt>날짜 기준</dt><dd>{timeTitle || "지정 안 함"}</dd></div></dl></div>{scope.filters?.length ? <div className={styles.runFilterSummary}><strong>공통 필터</strong><p>{readableValue(scope.filters, byRef)}</p></div> : null}</>}
+        {tab === "result" && <>{!selectedStep.result.primary?.title || selectedStep.result.primary.title !== stepFinding(selectedStep, t) ? <strong className={styles.runFinding}>{stepFinding(selectedStep, t)}</strong> : null}<RunResultChart artifact={selectedStep.result.primary} />
+          <ResultView result={selectedStep.skill && selectedStep.result.primary ? { ...selectedStep.result, primary: { ...selectedStep.result.primary, title: t("Query results") } } : selectedStep.result} titles={byRef} showRunLink={false} showEvidence={false} expanded /></>}
+        {tab === "settings" && <><RunSettings record={selectedStep} titles={byRef} manifest={manifests?.find(m => m.name === selectedStep.step.method)} /><div className={styles.runTechnical}><h3>{t("Shared analysis scope")}</h3><dl><div><dt>{t("Analysis period")}</dt><dd>{scope.date_range?.join(" ~ ") || t("All periods")}</dd></div><div><dt>{t("Date basis")}</dt><dd>{timeTitle || t("Not set")}</dd></div></dl></div>{scope.filters?.length ? <div className={styles.runFilterSummary}><strong>{t("Shared filters")}</strong><p>{readableValue(scope.filters, byRef, t)}</p></div> : null}</>}
         {tab === "queries" && (selectedStep.skill ? <SkillQueryActivity key={current} skill={selectedStep.skill} titles={byRef} /> : <RunQueries result={selectedStep.result} />)}
-        {tab === "additional" && <><section className={styles.runChecks}><h3>실행 검증</h3>{selectedStep.result.validation.length ? <ul>{selectedStep.result.validation.map((item, index) => <li key={index}><span>{item.status === "pass" ? "통과" : item.status === "warning" ? "주의" : "미충족"}</span><p>{item.message}</p></li>)}</ul> : <p>기록된 검증 항목이 없습니다.</p>}</section>{selectedStep.result.warnings.length > 0 && <section className={styles.runChecks}><h3>해석 시 참고</h3><ul>{selectedStep.result.warnings.map((warning, index) => <li key={index}><p>{warning}</p></li>)}</ul></section>}{additional.map((artifact, index) => <ArtifactView key={index} artifact={artifact} titles={byRef} expanded />)}</>}
-        {tab === "sources" && <><RunProcedure run={run} detailed /><div className={styles.runSourceActions}><button type="button" className="ghost" onClick={() => setSnapshotOpen(true)}>{selectedStep.skill ? "실행 당시 지침 보기" : "실행 당시 Python 코드"}</button></div><RunSources result={selectedStep.result} titles={byRef} author={selectedStep.author} />{run.author && JSON.stringify(run.author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.author} label="분석을 시작한 제품" />}{run.conclusion_author && JSON.stringify(run.conclusion_author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.conclusion_author} label="결론 작성 제품·모델" />}<div className={styles.runTechnical}><dl><div><dt>실행 ID</dt><dd>{run.id}</dd></div><div><dt>시작 시각</dt><dd>{new Date(run.created_at).toLocaleString()}</dd></div></dl></div></>}
+        {tab === "additional" && <><section className={styles.runChecks}><h3>{t("Run validation")}</h3>{selectedStep.result.validation.length ? <ul>{selectedStep.result.validation.map((item, index) => <li key={index}><span>{item.status === "pass" ? t("Passed") : item.status === "warning" ? t("Caution") : t("Not met")}</span><p>{item.message}</p></li>)}</ul> : <p>{t("No validation checks were recorded.")}</p>}</section>{selectedStep.result.warnings.length > 0 && <section className={styles.runChecks}><h3>{t("Notes for interpretation")}</h3><ul>{selectedStep.result.warnings.map((warning, index) => <li key={index}><p>{warning}</p></li>)}</ul></section>}{additional.map((artifact, index) => <ArtifactView key={index} artifact={artifact} titles={byRef} expanded />)}</>}
+        {tab === "sources" && <><RunProcedure run={run} detailed /><div className={styles.runSourceActions}><button type="button" className="ghost" onClick={() => setSnapshotOpen(true)}>{selectedStep.skill ? t("View execution-time instructions") : t("Execution-time Python code")}</button></div><RunSources result={selectedStep.result} titles={byRef} author={selectedStep.author} />{run.author && JSON.stringify(run.author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.author} label={t("Product that started the analysis")} />}{run.conclusion_author && JSON.stringify(run.conclusion_author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.conclusion_author} label={t("Product and model that wrote the conclusion")} />}<div className={styles.runTechnical}><dl><div><dt>{t("Run ID")}</dt><dd>{run.id}</dd></div><div><dt>{t("Started at")}</dt><dd>{new Date(run.created_at).toLocaleString()}</dd></div></dl></div></>}
       </div>
-    </section> : !run.needs_input && <div className={styles.placeholder}><History size={20} />아직 실행된 분석 단계가 없습니다.</div>}
-    <InspectorDialog title={selectedStep?.skill ? "실행 당시 Skill 지침" : "실행 당시 Python 코드"} open={snapshotOpen} onClose={() => setSnapshotOpen(false)}>
-      {selectedStep?.skill ? <><p>v{selectedStep.skill.guide.version} / 실행 시 저장한 지침</p><MethodMarkdown content={selectedStep.skill.guide.markdown} /><p className={styles.contentHash}>SHA-256 {selectedStep.skill.guide.sha256}</p></> : <SourceEvidence source={selectedStep?.code} historical />}
+    </section> : !run.needs_input && <div className={styles.placeholder}><History size={20} />{t("No analysis steps have run yet.")}</div>}
+    <InspectorDialog title={selectedStep?.skill ? t("Execution-time Skill instructions") : t("Execution-time Python code")} open={snapshotOpen} onClose={() => setSnapshotOpen(false)}>
+      {selectedStep?.skill ? <><p>v{selectedStep.skill.guide.version}  {t("/ instructions saved at execution")}</p><MethodMarkdown content={selectedStep.skill.guide.markdown} /><p className={styles.contentHash}>SHA-256 {selectedStep.skill.guide.sha256}</p></> : <SourceEvidence source={selectedStep?.code} historical />}
     </InspectorDialog>
     <RunGoals run={run} mine={mine} onSelect={index => { setOpen(index); setTab("result"); }} />
-    {(canContinue || canConclude) && manifests && <section className={styles.continueActions} aria-label="분석 이어가기"><div><h3>다음 작업</h3><p>분석을 이어가거나, 확인한 결과를 결론으로 남기세요.</p></div><div>
-      {canContinue && <button type="button" className="ghost" onClick={() => setContinueMode("step")}>분석 단계 추가</button>}
-      {canConclude && <button type="button" onClick={() => setContinueMode("conclusion")}>결론 작성</button>}</div>
-      <InspectorDialog title={continueMode === "step" ? "다음 분석 단계" : "분석 결론 작성"} open={continueMode !== null} onClose={() => setContinueMode(null)}><NextStep key={`${run.id}:${run.steps.length}`} run={run} allowSteps={canContinue} mode={continueMode ?? "step"} manifests={manifests} objects={objects} onDone={() => { setContinueMode(null); setOpen(null); reload(); }} /></InspectorDialog>
+    {(canContinue || canConclude) && manifests && <section className={styles.continueActions} aria-label={t("Continue analysis")}><div><h3>{t("Next action")}</h3><p>{t("Continue the analysis or write a conclusion from the results.")}</p></div><div>
+      {canContinue && <button type="button" className="ghost" onClick={() => setContinueMode("step")}>{t("Add analysis step")}</button>}
+      {canConclude && <button type="button" onClick={() => setContinueMode("conclusion")}>{t("Write conclusion")}</button>}</div>
+      <InspectorDialog title={continueMode === "step" ? t("Next analysis step") : t("Write an analysis conclusion")} open={continueMode !== null} onClose={() => setContinueMode(null)}><NextStep key={`${run.id}:${run.steps.length}`} run={run} allowSteps={canContinue} mode={continueMode ?? "step"} manifests={manifests} objects={objects} onDone={() => { setContinueMode(null); setOpen(null); reload(); }} /></InspectorDialog>
     </section>}
-    {!run.preview && showRegistration && reusableSteps.length > 0 && <section className={styles.runRecipeDecision} aria-label="Recipe 등록">
-      <div><h2>{registered ? (registered.status === "published" ? "이미 게시된 Recipe입니다" : "Recipe 초안을 저장했습니다") : hasAdditionalAnalysis ? "추가 분석을 포함해 새 Recipe로 저장" : "이 분석 절차를 Recipe로 저장"}</h2><p>{registered ? (registered.status === "published" ? "게시된 절차를 새 기간에 다시 실행할 수 있습니다." : "입력 조건과 공개할 내용을 검토하고 게시하면 다시 실행할 수 있습니다.") : hasAdditionalAnalysis ? "기존 Recipe는 유지하고, 이번 분석 절차를 별도로 저장합니다." : `${run.steps.length}단계 · 분석 대상은 실행할 때마다 앞 단계 결과에서 다시 선택합니다.`}</p></div>
-      <div className={styles.runDraftActions}>{registered ? <Link className={styles.runPrimary} href={`/recipes/${encodeURIComponent(registered.name)}${registered.status === "published" ? "" : "/edit"}`}><Check size={16} />{registered.status === "published" ? "Recipe 보기" : "Recipe 초안 검토"}</Link>
-        : <button type="button" className={styles.runPrimary} disabled={!canRegister || registering} onClick={registerRecipe}>{registering ? <LoaderCircle className={styles.spinning} size={16} /> : <BookPlus size={16} />}{registering ? "등록 중…" : "Recipe로 등록"}</button>}
-        <Link className={styles.runEditLink} href={`/recipes/new?${candidateParams.toString()}`}><SlidersHorizontal size={14} />편집해서 저장</Link></div>
-      {rejectedCalculations > 0 && !registered && <p className={styles.runActionNote}>검증을 통과하지 못한 계산 {rejectedCalculations}개도 절차로 저장합니다. 설정과 검증 기준은 유지되며, 재실행에서 기준을 충족하지 못하면 중단합니다. 보조 비교로 자동 전환하지 않습니다.</p>}
-      {!canRegister && !registered && <p className={styles.runActionNote}>{canConclude ? "분석 결론을 저장하면 등록할 수 있습니다. 입력 부족이나 계산 전 거부 단계가 있다면 편집해서 저장하세요." : "완료된 분석은 바로 등록할 수 있습니다. 입력 부족이나 계산 전 거부 단계는 편집해서 저장에서 제외하거나 수정하세요."}</p>}
+    {!run.preview && showRegistration && reusableSteps.length > 0 && <section className={styles.runRecipeDecision} aria-label={t("Register Recipe")}>
+      <div><h2>{registered ? (registered.status === "published" ? t("This Recipe is already published") : t("Recipe draft saved")) : hasAdditionalAnalysis ? t("Save as a new Recipe including the additional analysis") : t("Save this analysis procedure as a Recipe")}</h2><p>{registered ? (registered.status === "published" ? t("Run the published procedure again for a new period.") : t("Review the inputs and content, then publish to reuse this procedure.")) : hasAdditionalAnalysis ? t("The existing Recipe is kept; this analysis procedure is saved separately.") : t("{count} steps · subjects are selected again from preceding results on every run.", { count: run.steps.length })}</p></div>
+      <div className={styles.runDraftActions}>{registered ? <Link className={styles.runPrimary} href={`/recipes/${encodeURIComponent(registered.name)}${registered.status === "published" ? "" : "/edit"}`}><Check size={16} />{registered.status === "published" ? t("View Recipe") : t("Review Recipe draft")}</Link>
+        : <button type="button" className={styles.runPrimary} disabled={!canRegister || registering} onClick={registerRecipe}>{registering ? <LoaderCircle className={styles.spinning} size={16} /> : <BookPlus size={16} />}{registering ? t("Registering…") : t("Register as Recipe")}</button>}
+        <Link className={styles.runEditLink} href={`/recipes/new?${candidateParams.toString()}`}><SlidersHorizontal size={14} />{t("Edit and save")}</Link></div>
+      {rejectedCalculations > 0 && !registered && <p className={styles.runActionNote}>{t("Calculations that did not pass validation")} {rejectedCalculations}{t("are also saved in the procedure. Settings and checks are retained. A rerun stops if they fail; it does not switch to an alternative comparison.")}</p>}
+      {!canRegister && !registered && <p className={styles.runActionNote}>{canConclude ? t("Save the analysis conclusion to register it. If steps lack input or were refused before calculating, use Edit and save.") : t("Completed analyses can be registered right away. Exclude or fix steps that lack input or were refused before calculating with Edit and save.")}</p>}
       {registerError && <p className={styles.inlineError} role="alert">{registerError}</p>}
     </section>}
-    {((recipe && !run.preview && !run.running) || canShare) && <footer className={styles.runFooterActions} aria-label="실행 기록 작업">
-      {recipe && !run.preview && !run.running && <Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}`}>{stopped || run.status === "failed" ? "Recipe 조건을 바꿔 다시 실행" : "Recipe 보기"}</Link>}
-      {canShare && <button type="button" className={styles.secondaryLink} onClick={() => shareDialog.current?.showModal()}><Share2 size={15} />공유 설정</button>}
+    {((recipe && !run.preview && !run.running) || canShare) && <footer className={styles.runFooterActions} aria-label={t("Run actions")}>
+      {recipe && !run.preview && !run.running && <Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}`}>{stopped || run.status === "failed" ? t("Change Recipe conditions and run again") : t("View Recipe")}</Link>}
+      {canShare && <button type="button" className={styles.secondaryLink} onClick={() => shareDialog.current?.showModal()}><Share2 size={15} />{t("Sharing settings")}</button>}
     </footer>}
-    {canShare && <dialog ref={shareDialog} className={styles.runDialog} aria-label="공유 설정"><header><h2>실행 기록 공유</h2><button type="button" aria-label="닫기" title="닫기" onClick={() => shareDialog.current?.close()}><X size={18} /></button></header><Share run={run} onDone={() => { reload(); shareDialog.current?.close(); }} /></dialog>}
+    {canShare && <dialog ref={shareDialog} className={styles.runDialog} aria-label={t("Sharing settings")}><header><h2>{t("Share run")}</h2><button type="button" aria-label={t("Close")} title={t("Close")} onClick={() => shareDialog.current?.close()}><X size={18} /></button></header><Share run={run} onDone={() => { reload(); shareDialog.current?.close(); }} /></dialog>}
   </div>;
 }
 
 function Share({ run, onDone }: { run: Run; onDone: () => void }) {
+  const t = useT();
   const [text, setText] = useState(run.shared_with.join(", "));
   const [err, setErr] = useState<string | null>(null);
   async function save(e: React.FormEvent) {
@@ -164,10 +166,10 @@ function Share({ run, onDone }: { run: Run; onDone: () => void }) {
   }
   return (
     <form onSubmit={save} className={styles.shareForm}>
-      <label htmlFor="run-share-subjects">공유할 사용자 ID</label>
-      <input id="run-share-subjects" value={text} onChange={(e) => setText(e.target.value)} placeholder="예: analyst@company.com" />
-      <button type="submit" className="ghost">공유 설정 저장</button>
-      <span className="hint">연결된 지표에 접근 권한이 있는 사용자만 이 기록을 열 수 있습니다.</span>
+      <label htmlFor="run-share-subjects">{t("User IDs to share with")}</label>
+      <input id="run-share-subjects" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("e.g. {example}", { example: "analyst@company.com" })} />
+      <button type="submit" className="ghost">{t("Save sharing settings")}</button>
+      <span className="hint">{t("Only users with access to the connected metrics can open this run.")}</span>
       {err && <span className={styles.inlineError}>{err}</span>}
     </form>
   );
@@ -215,7 +217,7 @@ function NextStep({ run, allowSteps, mode, manifests, objects, onDone }: {
     setBusy(true); setErr(null);
     try {
       await api(`/runs/${run.id}:complete`, { body: { author: { client_name: "Decision Layer Web", client_source: "client_reported" }, conclusion: { answer: summary,
-        findings: run.steps.map((record, index) => ({ text: stepFinding(record), step_indices: [index] })), limitations: [], goal_outcomes: outcomes } } });
+        findings: run.steps.map((record, index) => ({ text: stepFinding(record, t), step_indices: [index] })), limitations: [], goal_outcomes: outcomes } } });
       onDone();
     } catch (x) {
       setErr((x as Error).message);
@@ -224,22 +226,22 @@ function NextStep({ run, allowSteps, mode, manifests, objects, onDone }: {
 
   return (
     <form onSubmit={step} className={styles.nextStep}>
-      {allowSteps && mode === "step" && <><h3>다음 분석 단계</h3>
+      {allowSteps && mode === "step" && <><h3>{t("Next analysis step")}</h3>
       {(run.goals?.length || 0) > 1 && <label className="field"><span className="label">{t("Question to address")}</span><select value={goalId} onChange={event => setGoalId(event.target.value)}>{run.goals?.map(goal => <option key={goal.id} value={goal.id}>{goal.description}</option>)}</select></label>}
       {recipe?.instructions && <p className="hint pre">{recipe.instructions}</p>}
       <label className="field"><span className="label">Method</span>
         <select value={method} onChange={(e) => { setMethod(e.target.value); setBindings({}); setParams({}); }}>
-          {allowed.map((m) => <option key={m} value={m}>{methodName(m)}</option>)}
+          {allowed.map((m) => <option key={m} value={m}>{methodName(m, t)}</option>)}
         </select>
       </label>
       {manifest && <MethodInputs manifest={manifest} objects={objects} bindings={bindings} params={params}
         onBindings={setBindings} onParams={setParams} restrictMeasures={scopeMetrics} />}
-      <label className="field"><span className="label">이 단계로 확인할 내용</span><input value={purpose} onChange={event => setPurpose(event.target.value)} maxLength={240} required={run.origin === "mcp"} /></label>
+      <label className="field"><span className="label">{t("What this step checks")}</span><input value={purpose} onChange={event => setPurpose(event.target.value)} maxLength={240} required={run.origin === "mcp"} /></label>
       <button type="submit" disabled={busy || (run.origin === "mcp" && !purpose.trim())}>{busy ? t("Running…") : t("Run step")}</button></>}
       {mode === "conclusion" && <><label className="field"><span className="label">{t("Conclusion (when closing)")}</span>
         <textarea rows={2} value={summary} onChange={(e) => setSummary(e.target.value)} /></label>
       {!!run.goals?.length && run.goals.map((goal, index) => <div key={goal.id}><label className="field"><span className="label">{goal.description}</span><select value={outcomes[index]?.status || "inconclusive"} onChange={event => setOutcomes(items => items.map((item, i) => i === index ? { ...item, status: event.target.value as typeof item.status } : item))}>{["supported", "needs_input", "unsupported", "blocked", "inconclusive"].map(status => <option key={status} value={status}>{t(({ supported: "Evidence recorded", needs_input: "Input needed", unsupported: "Not supported", blocked: "Execution blocked", inconclusive: "Unable to judge" } as Record<string, string>)[status])}</option>)}</select></label>{outcomes[index]?.status !== "supported" && <label className="field"><span className="label">{t("Reason this part is unresolved")}</span><input value={outcomes[index]?.reason || ""} onChange={event => setOutcomes(items => items.map((item, i) => i === index ? { ...item, reason: event.target.value } : item))} /></label>}</div>)}
-      <button type="button" className={styles.closeButton} disabled={busy || !summary.trim() || (!run.steps.length && !run.goals?.length)} onClick={complete}>결론 저장하고 완료</button></>}
+      <button type="button" className={styles.closeButton} disabled={busy || !summary.trim() || (!run.steps.length && !run.goals?.length)} onClick={complete}>{t("Save conclusion and complete")}</button></>}
       {err && <p className={styles.inlineError} role="alert">{err}</p>}
     </form>
   );

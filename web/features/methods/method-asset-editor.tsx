@@ -1,4 +1,6 @@
 "use client";
+import { useT } from "@/lib/i18n";
+
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -8,8 +10,9 @@ import { useApi } from "@/lib/hooks";
 import { MethodCode, MethodMarkdown, SourceEvidence } from "@/features/methods/method-content";
 import { SourceDiff } from "@/features/methods/source-diff";
 import styles from "@/features/methods/method-content.module.css";
+function EditorLoading() { const t = useT(); return <p role="status">{t("Loading editor…")}</p>; }
 const SourceEditor = dynamic(() => import("@/features/methods/source-editor").then(module => module.SourceEditor),
-  { ssr:false, loading:() => <p role="status">편집기를 준비하고 있습니다…</p> });
+  { ssr:false, loading: EditorLoading });
 
 type Draft = { revision:string; version:string; content:string; validation?:{ status:string; message?:string } | null };
 type Asset = { version:string; implementation:string; content?:string | null; code?:MethodSource | null;
@@ -21,6 +24,7 @@ const bodyOnly = (text:string) => text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/,
 const same = (a:TextState,b:TextState) => a.content===b.content && a.version===b.version;
 
 export function MethodAssetEditor({ name, onPublished, children }: { name:string; onPublished:() => void; children?:ReactNode }) {
+  const t = useT();
   const { data:info, error, reload } = useApi<Asset>(`/methods/${name}/source`);
   const [editing,setEditing]=useState(false), [text,setText]=useState<TextState>({content:"",version:""});
   const [baseline,setBaseline]=useState<TextState>({content:"",version:""}), [baseVersion,setBaseVersion]=useState("");
@@ -78,9 +82,9 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
       const result=await api<{content:string;changed:boolean}>(`/methods/${name}/source:format`,{body:{content:original}});
       if (result.changed) {
         change(result.content);setFormatUndo(original);
-        setMessage("코드 형식을 정리했습니다. 변경 비교에서 확인한 뒤 초안을 저장하세요.");
-      } else setMessage("이미 공통 Python 형식입니다.");
-    } catch(error) {setFailure(error instanceof Error ? error.message : "코드를 정리하지 못했습니다.");}
+        setMessage(t("Code formatted. Review the diff, then save the draft."));
+      } else setMessage(t("The code already uses the shared Python format."));
+    } catch(error) {setFailure(error instanceof Error ? error.message : t("Could not format the code."));}
     finally {pending.current=false;setBusy(null);}
   }
   async function save():Promise<Draft> {
@@ -95,7 +99,7 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
     pending.current=true;setBusy(kind);setFailure("");setMessage("");
     try {
       if (kind==="save") {
-        await save();setMessage("초안을 저장했습니다. 실행에는 아직 반영되지 않았습니다.");
+        await save();setMessage(t("Draft saved. Execution still uses the published version."));
       } else if (kind==="check") {
         const saved=needsSave ? await save() : draft!;
         const result=await api<Draft>(`/methods/${name}/draft:check`,{body:{revision:saved.revision,reviewed}});
@@ -106,10 +110,10 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
         // Fetch the exact new base before reopening; no stale revision/version is reused.
         try { hydrate(await api<Asset>(`/methods/${name}/source`)); }
         catch {setBaseline(text);setDraft(null);setReviewed(false);initialized.current="";}
-        setEditing(false);reload();onPublished();setMessage(`v${text.version}을 게시했습니다. 고정된 Recipe와 과거 Run은 기존 버전을 유지합니다.`);
+        setEditing(false);reload();onPublished();setMessage(t("Published v{version}. Pinned Recipes and historical Runs keep their existing version.", { version: text.version }));
       }
       return true;
-    } catch(error) { setFailure(error instanceof Error ? error.message : "변경을 저장하지 못했습니다.");return false; }
+    } catch(error) { setFailure(error instanceof Error ? error.message : t("Could not save the changes."));return false; }
     finally { pending.current=false;setBusy(null); }
   }
   function leave() { navigating.current=true;location.assign(destination!); }
@@ -118,41 +122,41 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
   }
   async function inspectRemote() {
     try { setRemote(await api<Asset>(`/methods/${name}/source`)); }
-    catch(error) {setFailure(error instanceof Error ? error.message : "서버 상태를 확인하지 못했습니다.");}
+    catch(error) {setFailure(error instanceof Error ? error.message : t("Could not check the server state."));}
   }
   function keepLocalAgainstRemote() {
     if (!remote) return;
     const version=nextVersion(remote.version);
     setBaseVersion(remote.version);setDraft(remote.draft || null);
     setText(current => ({version,content:skill ? current.content.replace(/^version:.*$/m,`version: ${version}`) : current.content}));
-    setReviewed(false);setRemote(null);setFailure("");setMessage("내 변경을 유지했습니다. 다시 검사하고 저장하면 확인한 서버 초안을 대체합니다.");reload();
+    setReviewed(false);setRemote(null);setFailure("");setMessage(t("Your changes were kept. Check and save again to replace the server draft you reviewed."));reload();
   }
-  if (error instanceof ApiError && error.status === 401 && !info) return <section className={styles.panel}>{children}<p>서버의 코드 보기와 편집에는 연결 인증이 필요합니다. 프로젝트 Method는 로컬 method.py 파일에서도 확인하고 수정할 수 있습니다.</p><Link href="/sources">연결 설정 확인</Link></section>;
-  if (error && !info) return <section className={styles.panel}>{children}<p role="alert">편집 정보를 가져오지 못했습니다: {error.message}</p><button onClick={reload}>다시 시도</button></section>;
-  if (!info) return <section className={styles.panel}>{children}<p role="status">편집 권한을 불러오고 있습니다…</p></section>;
-  const status=busy ? ({save:"저장 중…",check:"구문·등록 검사 중…",publish:"게시 중…",format:"코드 정리 중…"}[busy])
-    : dirty ? "저장하지 않은 변경" : checked ? "등록 검사 통과 · 게시 전" : draft ? "서버에 저장된 초안" : "게시된 버전";
-  return <section id="method-editor" className={styles.panel} aria-label="분석 자산 코드와 편집" aria-busy={!!busy}>
+  if (error instanceof ApiError && error.status === 401 && !info) return <section className={styles.panel}>{children}<p>{t("Authenticate to view or edit server code. You can also view and edit project Methods in local method.py files.")}</p><Link href="/sources">{t("Check connection settings")}</Link></section>;
+  if (error && !info) return <section className={styles.panel}>{children}<p role="alert">{t("Could not load editing information:")} {error.message}</p><button onClick={reload}>{t("Retry")}</button></section>;
+  if (!info) return <section className={styles.panel}>{children}<p role="status">{t("Loading editing permissions…")}</p></section>;
+  const status=busy ? ({save:t("Saving…"),check:t("Checking syntax and registration…"),publish:t("Publishing…"),format:t("Formatting code…")}[busy])
+    : dirty ? t("Unsaved changes") : checked ? t("Registration checked / not published") : draft ? t("Draft saved on server") : t("Published version");
+  return <section id="method-editor" className={styles.panel} aria-label={t("Analysis source and editing")} aria-busy={!!busy}>
     <div className={`${styles.heading} ${editing ? styles.editorToolbar : ""}`}>
-      <div><h2>{skill ? "Skill.md" : "Python 작성 코드"}</h2>
-        <p className={styles.muted}><span className={dirty ? styles.unsaved : styles.badge}>{status}</span> · 게시 v{info.version}{editing && ` → 초안 v${text.version}`}{savedAt && ` · ${savedAt} 저장`}</p></div>
+      <div><h2>{skill ? "Skill.md" : t("Authorable Python code")}</h2>
+        <p className={styles.muted}><span className={dirty ? styles.unsaved : styles.badge}>{status}</span>  {t("/ Published v")}{info.version}{editing && t(" → Draft v{version}", { version: text.version })}{savedAt && t(" · Saved {time}", { time: savedAt })}</p></div>
       {info.permissions.edit && info.content && <div className={styles.controls}>
-        {editing && <button className={`${styles.button} ${styles.secondary}`} disabled={!!busy || !needsSave || !validVersion} onClick={() => action("save")}><Save size={15}/>초안 저장</button>}
-        <button className={`${styles.button} ${styles.secondary}`} disabled={!!busy} onClick={() => {setEditing(!editing);setView("edit");}}><Pencil size={15}/>{editing ? "읽기로 돌아가기" : draft || dirty ? "편집 이어서" : skill ? "Skill.md 편집" : "Python 편집"}</button>
+        {editing && <button className={`${styles.button} ${styles.secondary}`} disabled={!!busy || !needsSave || !validVersion} onClick={() => action("save")}><Save size={15}/>{t("Save draft")}</button>}
+        <button className={`${styles.button} ${styles.secondary}`} disabled={!!busy} onClick={() => {setEditing(!editing);setView("edit");}}><Pencil size={15}/>{editing ? t("Back to reading") : draft || dirty ? t("Continue editing") : skill ? t("Edit SKILL.md") : t("Edit Python")}</button>
       </div>}
     </div>
     {!editing && <>{skill ? children || <MethodMarkdown content={bodyOnly(info.content || "")} /> : <SourceEvidence source={info.code} />}
-      {dirty && <p className={styles.notice}>작성 중인 내용은 이 화면에 유지됩니다. 편집을 이어서 초안으로 저장하세요.</p>}
-      {draft && <p className={styles.notice}>v{draft.version} 초안이 저장되어 있습니다. 게시 전까지 실행에는 반영되지 않습니다.</p>}</>}
-    {!info.permissions.edit && <p className={styles.muted}>읽기 전용입니다. 운영자가 UI 편집을 활성화하고 Method 편집 권한을 부여하면 수정할 수 있습니다.</p>}
+      {dirty && <p className={styles.notice}>{t("Your edits remain in this view. Continue editing and save a draft.")}</p>}
+      {draft && <p className={styles.notice}>v{draft.version}  {t("A draft is saved. Execution changes only after publication.")}</p>}</>}
+    {!info.permissions.edit && <p className={styles.muted}>{t("Read-only. An operator can enable UI editing and grant Method editing permission.")}</p>}
     {editing && <div className={styles.workspace}>
-      <div className={styles.versionBar}><label className={styles.versionField}>게시할 새 버전<input aria-label="게시 버전" value={text.version} disabled={!!busy} aria-invalid={!validVersion}
+      <div className={styles.versionBar}><label className={styles.versionField}>{t("New version to publish")}<input aria-label={t("Published version")} value={text.version} disabled={!!busy} aria-invalid={!validVersion}
         onChange={event => change(skill ? text.content.replace(/^version:.*$/m,`version: ${event.target.value}`) : text.content,event.target.value)} /></label>
-        <p className={styles.muted}>내용을 수정하고 검사한 뒤 게시합니다. 초안 저장만으로 실행이 바뀌지 않습니다.</p></div>
-      {!validVersion && <p role="alert" className={styles.error}>버전은 1.0.1 형식으로 입력하세요.</p>}
-      {stale && <div role="alert" className={styles.notice}>게시된 버전이 변경되었습니다. 작성 내용은 유지됩니다. <button className={styles.textButton} onClick={inspectRemote}>서버 상태 확인</button></div>}
-      <div className={styles.tabs} role="tablist" aria-label="편집 보기">
-        {([['edit','편집',Code2],['preview','미리보기',Eye],['compare','변경 비교',GitCompareArrows]] as const).map(([key,label,Icon]) =>
+        <p className={styles.muted}>{t("Edit, check and publish. Saving a draft alone does not change execution.")}</p></div>
+      {!validVersion && <p role="alert" className={styles.error}>{t("Enter a version such as 1.0.1.")}</p>}
+      {stale && <div role="alert" className={styles.notice}>{t("The published version changed. Your edits are preserved.")} <button className={styles.textButton} onClick={inspectRemote}>{t("Check server state")}</button></div>}
+      <div className={styles.tabs} role="tablist" aria-label={t("Editor view")}>
+        {([['edit',t("Edit"),Code2],['preview',t("Preview"),Eye],['compare',t("Compare changes"),GitCompareArrows]] as const).map(([key,label,Icon]) =>
           <button key={key} type="button" role="tab" id={`asset-tab-${key}`} aria-selected={view===key} tabIndex={view===key ? 0 : -1} aria-controls="asset-editor-panel" onClick={() => setView(key)}
             onKeyDown={event => {
               const views:View[]=["edit","preview","compare"];
@@ -162,10 +166,10 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
       </div>
       <div id="asset-editor-panel" role="tabpanel" aria-labelledby={`asset-tab-${view}`}>
         <div hidden={view!=="edit"} className={styles.editorFrame}>
-          <div className={styles.fileBar}><code>{skill ? "SKILL.md" : `${name}.py`}</code><span>UTF-8 · {text.content.split("\n").length}줄</span>
+          <div className={styles.fileBar}><code>{skill ? "SKILL.md" : `${name}.py`}</code><span>UTF-8 · {text.content.split("\n").length}{t("lines")}</span>
             {!skill && <div className={styles.formatControls}>
-              {formatUndo !== null && <button type="button" className={styles.textButton} disabled={!!busy} onClick={() => change(formatUndo)}><Undo2 size={14}/>정리 되돌리기</button>}
-              <button type="button" className={styles.formatButton} disabled={!!busy || !text.content.trim()} onClick={formatCode}><AlignLeft size={14}/>{busy==="format" ? "정리 중…" : "코드 정리"}</button>
+              {formatUndo !== null && <button type="button" className={styles.textButton} disabled={!!busy} onClick={() => change(formatUndo)}><Undo2 size={14}/>{t("Undo formatting")}</button>}
+              <button type="button" className={styles.formatButton} disabled={!!busy || !text.content.trim()} onClick={formatCode}><AlignLeft size={14}/>{busy==="format" ? t("Formatting…") : t("Format code")}</button>
             </div>}
           </div>
           <SourceEditor value={text.content} language={skill ? "markdown" : "python"} onChange={value => change(value)} onSave={() => action("save")} onFormat={skill ? undefined : formatCode} readOnly={busy==="publish" || busy==="format"} />
@@ -173,38 +177,38 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
         {view==="preview" && <div className={styles.preview}>{skill ? <MethodMarkdown content={bodyOnly(text.content)} /> : <MethodCode content={text.content} />}</div>}
         {view==="compare" && <SourceDiff before={info.content || ""} after={text.content} baseVersion={baseVersion} version={text.version} />}
       </div>
-      <p id="source-editor-help" className={styles.muted}>⌘ / Ctrl+S 저장 · ⌘ / Ctrl+F 찾기·바꾸기 · ⌘ / Ctrl+] 들여쓰기{!skill && " · Shift+Alt+F 코드 정리 (Ruff · 88열 · 공백 4칸)"} · Tab 다음 컨트롤</p>
+      <p id="source-editor-help" className={styles.muted}>{t("⌘ / Ctrl+S save / ⌘ / Ctrl+F find and replace / ⌘ / Ctrl+] indent")}{!skill && t("/ Shift+Alt+F format (Ruff / 88 columns / 4 spaces)")}  {t("/ Tab next control")}</p>
       <div className={styles.publishPanel}>
         <label className={styles.review}><input type="checkbox" checked={reviewed} disabled={!!busy} onChange={event => setReviewed(event.target.checked)}/>
-          {skill ? "변경한 지침과 입력 조건을 검토했습니다." : "코드를 검토했으며, 서버 권한으로 실행할 수 있는 신뢰한 코드임을 확인했습니다."}</label>
-        {!skill && <p className={styles.muted}>Python 등록 검사는 코드를 실행합니다. 분석 정확성 검사나 보안 sandbox는 아닙니다.</p>}
+          {skill ? t("I reviewed the changed instructions and input requirements.") : t("I reviewed the code and trust it to run with server permissions.")}</label>
+        {!skill && <p className={styles.muted}>{t("Python registration checks execute code. They do not verify analytical accuracy or provide a security sandbox.")}</p>}
         <div className={styles.controls}>
-          <button className={`${styles.button} ${styles.secondary}`} disabled={!!busy || stale || !validVersion || !text.content.trim() || !skill && (!reviewed || !info.permissions.publish)} onClick={() => action("check")}><Check size={15}/>{busy==="check" ? "검사 중…" : "구문·등록 검사"}</button>
-          <button className={styles.button} disabled={!!busy || stale || !checked || !reviewed || !info.permissions.publish} onClick={() => action("publish")}><Upload size={15}/>{busy==="publish" ? "게시 중…" : `v${text.version} 게시`}</button>
+          <button className={`${styles.button} ${styles.secondary}`} disabled={!!busy || stale || !validVersion || !text.content.trim() || !skill && (!reviewed || !info.permissions.publish)} onClick={() => action("check")}><Check size={15}/>{busy==="check" ? t("Checking…") : t("Check syntax and registration")}</button>
+          <button className={styles.button} disabled={!!busy || stale || !checked || !reviewed || !info.permissions.publish} onClick={() => action("publish")}><Upload size={15}/>{busy==="publish" ? t("Publishing…") : t("Publish v{version}", { version: text.version })}</button>
         </div>
-        {!checked && <p className={styles.muted}>{!skill && !reviewed ? "코드 검토를 확인하면 등록 검사를 실행할 수 있습니다." : "검사할 때 초안을 먼저 저장합니다. 검사 통과 후 게시할 수 있습니다."}</p>}
-        {!info.permissions.publish && <p className={styles.notice}>초안 편집 권한만 있습니다. {skill ? "게시는" : "Python 등록 검사·게시는"} Method 게시 권한이 있는 운영자에게 요청하세요.</p>}
+        {!checked && <p className={styles.muted}>{!skill && !reviewed ? t("Confirm the code review to run registration checks.") : t("Checking first saves the draft. Publish after checks pass.")}</p>}
+        {!info.permissions.publish && <p className={styles.notice}>{t("You only have draft editing permission.")} {t(skill ? "Publication requires an operator with Method publishing permission." : "Python registration checks and publication require an operator with Method publishing permission.")}</p>}
         {draft?.validation && !needsSave && <p className={draft.validation.status==="pass" ? styles.success : styles.error} role={draft.validation.status==="fail" ? "alert" : "status"}>
-          {draft.validation.status==="pass" ? "구문·등록 검사를 통과했습니다. 실제 데이터·분석 품질은 검사하지 않았습니다." : draft.validation.message}</p>}
+          {draft.validation.status==="pass" ? t("Syntax and registration checks passed. Real data and analytical quality were not checked.") : draft.validation.message}</p>}
       </div>
     </div>}
     {message && <p className={styles.success} role="status">{message}</p>}
-    {failure && <div className={styles.notice} role="alert"><p>{failure}</p><p>작성 내용은 유지됩니다. 충돌한 경우 서버 초안을 확인한 뒤 다시 저장하세요.</p><button className={styles.textButton} onClick={inspectRemote}>서버 상태 확인</button></div>}
-    {remote && <div className={styles.notice} aria-label="서버 초안과 내 변경 비교"><h3>서버 초안과 내 변경</h3><div className={styles.compare}>
-      <div><h3>서버 v{remote.draft?.version || remote.version}</h3><MethodCode content={remote.draft?.content || remote.content || ""} language={skill ? "markdown" : "python"}/></div>
-      <div><h3>내 변경 v{text.version}</h3><MethodCode content={text.content} language={skill ? "markdown" : "python"}/></div>
-    </div><p>내 변경을 유지하면 다음 저장 시 확인한 서버 초안을 대체합니다. 자동으로 덮어쓰지 않습니다.</p><div className={styles.controls}>
-      <button className={styles.button} onClick={keepLocalAgainstRemote}>내 변경을 유지하고 기준 갱신</button>
-      <button className={`${styles.button} ${styles.secondary}`} onClick={() => {hydrate(remote);setRemote(null);}}>서버 내용으로 교체</button>
-      <button className={styles.textButton} onClick={() => setRemote(null)}>비교 닫기</button>
+    {failure && <div className={styles.notice} role="alert"><p>{failure}</p><p>{t("Your edits are kept. If there is a conflict, inspect the server draft before saving again.")}</p><button className={styles.textButton} onClick={inspectRemote}>{t("Check server state")}</button></div>}
+    {remote && <div className={styles.notice} aria-label={t("Compare the server draft with your changes")}><h3>{t("Server draft and your changes")}</h3><div className={styles.compare}>
+      <div><h3>{t("Server v")}{remote.draft?.version || remote.version}</h3><MethodCode content={remote.draft?.content || remote.content || ""} language={skill ? "markdown" : "python"}/></div>
+      <div><h3>{t("Your changes v")}{text.version}</h3><MethodCode content={text.content} language={skill ? "markdown" : "python"}/></div>
+    </div><p>{t("Keeping your changes replaces the reviewed server draft on your next save. Nothing is overwritten automatically.")}</p><div className={styles.controls}>
+      <button className={styles.button} onClick={keepLocalAgainstRemote}>{t("Keep your changes and update baseline")}</button>
+      <button className={`${styles.button} ${styles.secondary}`} onClick={() => {hydrate(remote);setRemote(null);}}>{t("Replace with server content")}</button>
+      <button className={styles.textButton} onClick={() => setRemote(null)}>{t("Close comparison")}</button>
     </div></div>}
-    {!!info.history.length && !editing && <section className={styles.file}><h3>게시 이력</h3><ul>{info.history.map(item => <li key={item.version}>v{item.version} · {new Date(item.published_at).toLocaleString()}</li>)}</ul></section>}
+    {!!info.history.length && !editing && <section className={styles.file}><h3>{t("Publication history")}</h3><ul>{info.history.map(item => <li key={item.version}>v{item.version} · {new Date(item.published_at).toLocaleString()}</li>)}</ul></section>}
     <dialog ref={leaveDialog} className={styles.leaveDialog} aria-labelledby="leave-editor-title" onCancel={() => setDestination(null)}>
-      <h2 id="leave-editor-title">작성한 내용을 저장할까요?</h2><p>아직 서버에 저장하지 않은 변경이 있습니다.</p>
+      <h2 id="leave-editor-title">{t("Save your changes?")}</h2><p>{t("Some changes have not been saved to the server.")}</p>
       {failure && <p role="alert" className={styles.error}>{failure}</p>}
-      <div className={styles.controls}><button className={styles.button} disabled={!!busy} onClick={saveAndLeave}>저장하고 이동</button>
-        <button className={`${styles.button} ${styles.secondary}`} onClick={() => {setDestination(null);leaveDialog.current?.close();}}>계속 편집</button>
-        <button className={styles.textButton} onClick={leave}>저장하지 않고 이동</button></div>
+      <div className={styles.controls}><button className={styles.button} disabled={!!busy} onClick={saveAndLeave}>{t("Save and leave")}</button>
+        <button className={`${styles.button} ${styles.secondary}`} onClick={() => {setDestination(null);leaveDialog.current?.close();}}>{t("Keep editing")}</button>
+        <button className={styles.textButton} onClick={leave}>{t("Leave without saving")}</button></div>
     </dialog>
   </section>;
 }

@@ -17,17 +17,18 @@ function RecipeReviews({ run }: { run: Run }) {
 }
 
 export function RunProcedure({ run, detailed = false }: { run: Run; detailed?: boolean }) {
+  const t = useT();
   const ref = run.plan.recipe;
-  if (!ref) return <><span className={styles.direct} title="등록된 Recipe를 사용하지 않고 Method를 선택한 분석"><Compass size={13} aria-hidden="true" />{detailed ? "탐색 분석" : "탐색"}</span>{detailed && <RecipeReviews run={run} />}</>;
+  if (!ref) return <><span className={styles.direct} title={t("Analysis that chose Methods without a registered Recipe")}><Compass size={13} aria-hidden="true" />{t(detailed ? "Exploratory analysis" : "Exploratory")}</span>{detailed && <RecipeReviews run={run} />}</>;
   const identity = ref.replace(/^recipe:\/\//, "");
   const separator = identity.lastIndexOf("@");
   const name = run.recipe_snapshot?.name ?? (separator < 0 ? identity : identity.slice(0, separator));
   const version = separator < 0 ? run.recipe_snapshot?.version : identity.slice(separator + 1);
-  const label = run.preview ? "Recipe 미리보기" : "Recipe로 실행";
-  if (!detailed) return <span className={styles.summary} aria-label={`${label}: ${name}${version ? `, 버전 ${version}` : ""}`} title={`${name}${version ? ` (v${version})` : ""}`}><span className={styles.recipeBadge}><BookOpen size={12} aria-hidden="true" />{run.preview ? "미리보기" : "Recipe"}</span><span className={styles.name}>{name}</span></span>;
-  return <><div className={styles.detail} aria-label="사용한 분석 절차">
+  const label = t(run.preview ? "Recipe preview" : "Run with Recipe");
+  if (!detailed) return <span className={styles.summary} aria-label={`${label}: ${name}${version ? `, ${t("version {version}", { version })}` : ""}`} title={`${name}${version ? ` (v${version})` : ""}`}><span className={styles.recipeBadge}><BookOpen size={12} aria-hidden="true" />{run.preview ? t("Preview") : "Recipe"}</span><span className={styles.name}>{name}</span></span>;
+  return <><div className={styles.detail} aria-label={t("Analysis procedure used")}>
     <span className={styles.label}><BookOpen size={15} aria-hidden="true" />{label}</span>
     <Link href={`/recipes/${encodeURIComponent(name)}`}>{name}<ArrowUpRight size={14} aria-hidden="true" /></Link>
-    {version && <span className={styles.version}>실행 당시 버전 {version}</span>}
+    {version && <span className={styles.version}>{t("Version at run time {version}", { version })}</span>}
   </div><RecipeReviews run={run} /></>;
 }

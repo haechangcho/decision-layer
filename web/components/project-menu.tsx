@@ -1,4 +1,5 @@
 "use client";
+import { useT } from "@/lib/i18n";
 
 import { useEffect, useRef } from "react";
 import Link from "next/link";
@@ -7,6 +8,7 @@ import { useApi } from "@/lib/hooks";
 
 /** Console context belongs in navigation, not in every page's content. */
 export function ProjectMenu() {
+  const t = useT();
   const { data } = useApi<{ name: string; path: string }>("/project");
   const menu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -28,11 +30,11 @@ export function ProjectMenu() {
   }, []);
   if (!data) return null;
   return <details className="app-project" ref={menu}>
-    <summary aria-label={`프로젝트 ${data.name}`}><FolderOpen size={15} /><span>{data.name}</span><ChevronDown size={14} /></summary>
+    <summary aria-label={t("Project {name}", { name: data.name })}><FolderOpen size={15} /><span>{data.name}</span><ChevronDown size={14} /></summary>
     <div className="app-project-popover">
-      <small>현재 프로젝트</small><strong>{data.name}</strong>
-      {data.path && <><small>파일 위치</small><code>{data.path}</code></>}
-      <Link href="/sources" onClick={() => { if (menu.current) menu.current.open = false; }}>연결 설정 열기</Link>
+      <small>{t("Current project")}</small><strong>{data.name}</strong>
+      {data.path && <><small>{t("File location")}</small><code>{data.path}</code></>}
+      <Link href="/sources" onClick={() => { if (menu.current) menu.current.open = false; }}>{t("Open connection settings")}</Link>
     </div>
   </details>;
 }

@@ -35,6 +35,7 @@ jobs:
         with: {node-version: "22", cache: npm, cache-dependency-path: web/package-lock.json}
       - run: npm ci
       - run: npm run typecheck
+      - run: npm run check:i18n
       - run: npm run build
 
   docs:

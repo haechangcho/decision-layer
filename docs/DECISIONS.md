@@ -568,6 +568,8 @@ Unit-level Methods (CEM unit path, OLS) and pipelines can take tens of seconds a
 
 User-facing text in `src/` — error and validation messages, warnings, artifact titles, Method manifests, MCP instructions and tool descriptions — is written in English and wrapped as `_("… {placeholder} …", placeholder=value)`. Translations live in `src/decision_layer/i18n/<locale>.json`, keyed by the English text with the same placeholders. The API picks the language per request from `Accept-Language` (default `DL_LOCALE`, else `en`) and carries it into background jobs; manifests are translated when served; the MCP server uses `DL_LOCALE`. Messages are rendered when produced, so a stored run keeps the language it ran in. `tests/unit/test_i18n.py` fails on Hangul in code, missing or unused catalog entries, placeholder mismatches, and locals named `_` (which would shadow the translation function).
 
+The web UI follows the same rule: text in `web/` is English and goes through `useT()` (or a `t` passed to helpers in `web/lib`), with translations in `web/lib/i18n.tsx` keyed by the English text. The selected language is sent as `Accept-Language`, so server messages and manifests match the UI. `npm run check:i18n` checks shared pages and the packaged console for Hangul in code, missing literal/conditional msgids, duplicate catalog keys and placeholder mismatches. Locale changes update document language and new UI labels without rewriting saved Runs, user-authored code or Skill content.
+
 ---
 
 ## ADR-032 — Period-change judgements stay on the server; `compare` folds into `trend`

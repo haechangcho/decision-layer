@@ -1,11 +1,12 @@
 import type { Run } from "./api";
+import type { Translate } from "./i18n";
 
-export function runOriginLabel(origin: Run["origin"]): string {
-  return {
-    mcp: "MCP 실행",
-    web: "웹 실행",
-    api: "API 실행",
-    python: "Python 실행",
-    unknown: "출처 미기록",
-  }[origin ?? "unknown"];
+export function runOriginLabel(origin: Run["origin"], t: Translate): string {
+  return t({
+    mcp: "MCP run",
+    web: "Web run",
+    api: "API run",
+    python: "Python run",
+    unknown: "Origin not recorded",
+  }[origin ?? "unknown"]);
 }

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -p 5210",
     "typecheck": "tsc --noEmit",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "test:e2e": "playwright test",
     "test:design": "npm run test:e2e",
     "build:console": "vite build"

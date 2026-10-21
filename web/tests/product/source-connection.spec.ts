@@ -6,6 +6,10 @@ const base = {
   admin_configured: false, admin_required: true, editable: false, encryption_configured: false,
 };
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("decision-layer.locale", "en"));
+});
+
 // 1. Connection fixed by environment variables: status only, no edit form, no admin key.
 test("env-managed connection shows status and a test button only", async ({ page }, info) => {
   page.on("pageerror", error => console.error(error.message));

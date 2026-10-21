@@ -1,3 +1,5 @@
+
+import type { Translate } from "@/lib/i18n";
 /** Recipe editor values and selectors, independent of React rendering. */
 import { ApiError, type Recipe, type RoleSpec, type SemanticObject } from "@/lib/api";
 
@@ -11,12 +13,12 @@ export const previewDates = (): [string, string] => {
   const date = (value: Date) => `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
   return [date(start), date(today)];
 };
-export const explainError = (error: unknown) => {
+export const explainError = (error: unknown, t: Translate) => {
   if (error instanceof ApiError && error.details && typeof error.details === "object" && "field" in error.details) {
     const field = (error.details as { field?: unknown }).field;
     if (typeof field === "string") return `${field}: ${error.message}`;
   }
-  return error instanceof Error ? error.message : "Recipe를 저장하지 못했습니다.";
+  return error instanceof Error ? error.message : t("Could not save the Recipe.");
 };
 export type FieldError = { field: string; message: string };
 export function validationField(error: unknown): FieldError | null {
@@ -42,7 +44,7 @@ export function roleObjects(role: RoleSpec, objects: SemanticObject[]) {
 }
 
 export const roleLabels: Record<string, string> = {
-  metric: "분석 지표", related: "함께 볼 지표", dimensions: "나눠 볼 순서", conditions: "비교 조건",
-  treatment: "비교 대상", treatment_measure: "비교 기준 지표", entity: "분석 단위",
+  metric: "Analysis metric", related: "Related metrics", dimensions: "Breakdown order", conditions: "Comparison conditions",
+  treatment: "Comparison subject", treatment_measure: "Comparison basis metric", entity: "Analysis unit",
 };
-export const parameterLabel = (name: string) => ({ subject: "비교 대상", peers: "동료 집단 조건", drill_path: "분석 범위", granularity: "시간 단위", vs_previous: "직전 같은 길이와 비교", top_n: "표시할 그룹 수", min_count: "최소 그룹 건수", rank_by: "정렬 기준" } as Record<string, string>)[name] || name;
+export const parameterLabel = (name: string, t: Translate) => ({ subject: t("Comparison subject"), peers: t("Peer group conditions"), drill_path: t("Analysis scope"), granularity: t("Time unit"), vs_previous: t("Compare with the previous period of equal length"), top_n: t("Groups to show"), min_count: t("Minimum group count"), rank_by: t("Ranked by") } as Record<string, string>)[name] || name;

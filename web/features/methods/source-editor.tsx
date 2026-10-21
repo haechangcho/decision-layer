@@ -1,4 +1,6 @@
 "use client";
+import { useT } from "@/lib/i18n";
+
 import { useMemo } from "react";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
@@ -9,7 +11,8 @@ import { yamlFrontmatter } from "@codemirror/lang-yaml";
 export function SourceEditor({ value, language, onChange, onSave, onFormat, readOnly=false }: {
   value: string; language: "python" | "markdown"; onChange: (value: string) => void; onSave: () => void; onFormat?:() => void; readOnly?:boolean;
 }) {
-  const label = language === "markdown" ? "Skill Markdown 원본" : "Python 작성 코드";
+  const t = useT();
+  const label = language === "markdown" ? t("Original Skill Markdown") : t("Authorable Python code");
   const extensions = useMemo(() => [language === "python" ? python() : yamlFrontmatter({content:markdown()}),
     indentUnit.of("    "),
     EditorView.contentAttributes.of({ "aria-label": label, "aria-describedby": "source-editor-help" }),

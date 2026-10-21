@@ -48,7 +48,7 @@ export function Nav({ context }: { context?: ReactNode }) {
         </form>
       ) : source?.auth_method === "token" ? <button className="app-credentials" onClick={() => setEditing(true)} title={token ? t("Using a token") : t("Access token required")}><ShieldCheck size={15} />{token ? t("Using a token") : t("Access token required")}</button> : null}
       <select className="app-locale" value={locale} onChange={(e) => setLocale(e.target.value as Locale)} aria-label="language">
-        {LOCALES.map((l) => <option key={l} value={l}>{l === "ko" ? "한국어" : "English"}</option>)}
+        {LOCALES.map((l) => <option key={l} value={l}>{l === "ko" ? t("Korean") : "English"}</option>)}
       </select>
     </header>
     <aside id="app-sidebar" className={`app-sidebar${collapsed ? " app-sidebar-collapsed" : ""}`}>
