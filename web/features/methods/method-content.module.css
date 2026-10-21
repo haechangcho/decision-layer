@@ -71,7 +71,7 @@
 .leaveDialog::backdrop { background: #17203366; }
 .leaveDialog h2 { margin-top: 0; font-size: 20px; }
 @media(max-width:700px) { .editorToolbar { position: static; flex-wrap: wrap; padding: 12px; } .editorToolbar .controls { width: 100%; justify-content: flex-start; } .tabs button { padding: 10px; gap: 5px; font-size: 12px; } .publishPanel { padding: 14px; } .editorFrame :global(.cm-editor) { font-size: 12px; } .versionBar { align-items: flex-start; } }
-.inputContract { margin: 18px 0; padding: 16px; border: 1px solid var(--border, #dce0e5); border-radius: 8px; }
+.inputContract { margin: 0; min-width: 0; }
 .inputContract p { line-height: 1.65; }
 .contractScroll { overflow-x: auto; }
 .contractScroll table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
@@ -100,3 +100,16 @@
 .originalSource select { padding:10px 12px; background:var(--panel); color:var(--text); }
 .hash { color:var(--muted); overflow-wrap:anywhere; font:11px/1.7 ui-monospace,monospace; }
 .inputContract h3 { margin:0 0 12px; font-size:14px; }
+
+.inputIntro { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+.inputDataset + .inputDataset { margin-top: 28px; }
+.inputSummary { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
+.inputList { margin: 0; }
+.inputRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(130px, .6fr); gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--border); }
+.inputRow dt { display: grid; gap: 6px; font-size: 14px; font-weight: 600; }
+.inputRow dt code { font-size: 12px; font-weight: 400; color: var(--muted); overflow-wrap: anywhere; }
+.inputRow dd { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; color: var(--muted); font-size: 13px; align-content: center; }
+.codeFiles { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.codeFiles button { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--muted); font: 12px ui-monospace, monospace; cursor: pointer; }
+.codeFiles button[aria-pressed="true"] { color: var(--text); border-color: var(--text); }
+@media(max-width:600px) { .inputRow { grid-template-columns: minmax(0,1fr); gap: 10px; } }

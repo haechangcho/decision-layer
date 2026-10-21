@@ -1,40 +1,12 @@
 """Calculate numeric OLS with one row per observational unit."""
 
-import numpy as np
 import statsmodels.api as sm
 from decision_layer.methods import Column, DataInput, python_method
-
-
-def check_data(data, outcome="outcome", treatment="treatment", confounders=None):
-    """Check unique units, finite values and an identifiable regression design."""
-    if data["entity_id"].isna().any() or data["entity_id"].duplicated().any():
-        raise ValueError("Entity IDs must be present and unique.")
-    confounders = (
-        confounders
-        if confounders is not None
-        else [name for name in data if name.startswith("confounders_")]
-    )
-    columns = [outcome, treatment, *confounders]
-    if len(set(columns)) != len(columns):
-        raise ValueError("Analysis variables must use distinct columns.")
-    if not np.isfinite(data[columns].to_numpy(dtype=float)).all():
-        raise ValueError("Analysis variables must be finite and non-null.")
-    if data[outcome].nunique() < 2:
-        raise ValueError("The outcome must vary.")
-    predictors = [name for name in columns if name != outcome]
-    design = sm.add_constant(data[predictors], has_constant="add")
-    if len(data) <= design.shape[1]:
-        raise ValueError(
-            "The number of rows must exceed the number of regression coefficients."
-        )
-    if np.linalg.matrix_rank(design) < design.shape[1]:
-        raise ValueError(
-            "Predictors are linearly dependent. Review the selected variables."
-        )
+from .checks import check_data
 
 
 def ols(data, outcome, treatment, confounders):
-    """Estimate the outcome association with treatment, adjusting for covariates."""
+    """Compare an outcome with one variable, accounting for the other variables."""
     check_data(data, outcome, treatment, confounders)
     design = sm.add_constant(data[[treatment, *confounders]], has_constant="add")
     fit = sm.OLS(data[outcome], design, missing="raise").fit()
@@ -51,16 +23,29 @@ def ols(data, outcome, treatment, confounders):
 METHOD = python_method(
     ols,
     name="stats.regression_adjustment",
-    version="2.0.0",
+    version="2.1.0",
     label="OLS regression",
     inputs={
         "data": DataInput(
             columns={
-                "entity_id": Column(source="dimension", role="entity_key"),
-                "outcome": Column(source="measure", dtype="number"),
-                "treatment": Column(source=["measure", "dimension"], dtype="number"),
+                "entity_id": Column(
+                    source="dimension",
+                    role="entity_key",
+                    description="ID for each observation",
+                ),
+                "outcome": Column(
+                    source="measure", dtype="number", description="Value to compare"
+                ),
+                "treatment": Column(
+                    source=["measure", "dimension"],
+                    dtype="number",
+                    description="Variable to examine",
+                ),
                 "confounders": Column(
-                    source=["measure", "dimension"], dtype="number", multiple=True
+                    source=["measure", "dimension"],
+                    dtype="number",
+                    multiple=True,
+                    description="Other variables to account for",
                 ),
             },
             minimum_rows=60,

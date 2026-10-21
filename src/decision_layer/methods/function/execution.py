@@ -7,12 +7,13 @@ or credentials are passed into calculation functions.
 from __future__ import annotations
 
 import math
+import inspect
 from ...core.models import ValidationResult
 from ..base import MethodOutput
 from ..output import Estimate, Table
 
 
-def run_checks(checks, arguments, *, option_checks=False):
+def run_checks(checks, arguments, *, option_checks=False, column_args=None):
     """Stop at the first failed check; programming errors still propagate."""
     code = "PYTHON_OPTION_CHECK" if option_checks else "PYTHON_CHECK"
     passed_message = (
@@ -29,7 +30,17 @@ def run_checks(checks, arguments, *, option_checks=False):
     validation = []
     for check in checks:
         try:
-            returned = check(**arguments)
+            inputs = dict(arguments)
+            if column_args:
+                parameters = inspect.signature(check).parameters
+                inputs.update(
+                    {
+                        name: value
+                        for name, value in column_args.items()
+                        if name in parameters
+                    }
+                )
+            returned = check(**inputs)
             if returned is not None and returned is not True and returned is not False:
                 raise TypeError(type_error)
             passed = returned is not False
@@ -184,7 +195,7 @@ def _execute_python(
     data, column_args, validation = prepare_inputs(rows_by_name, inputs, resolved)
     if any(item.status == "fail" for item in validation):
         return MethodOutput(validation=validation)
-    validation.extend(run_checks(checks, data))
+    validation.extend(run_checks(checks, data, column_args=column_args))
     if any(item.status == "fail" for item in validation):
         return MethodOutput(validation=validation)
     value = fn(**data, **column_args, **options)

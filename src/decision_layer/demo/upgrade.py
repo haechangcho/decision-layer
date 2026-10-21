@@ -103,7 +103,6 @@ def upgrade_stock_layout(project, assets, asset_pairs):
     """Flatten an untouched a9 demo; custom projects keep their original layout."""
     import copy
     import json
-    from importlib.resources import files
     from ..project_scaffold import default_project_name
 
     root = project.root
@@ -135,19 +134,17 @@ def upgrade_stock_layout(project, assets, asset_pairs):
         or (package / "__init__.py").read_bytes() != b""
     ):
         return project
-    expected = {"__init__.py": b""}
-    templates = files("decision_layer") / "starters/methods"
-    for kind in ("metric_lookup", "drilldown", "ols", "matching"):
-        expected[kind + "/__init__.py"] = b""
-        for entry in templates.joinpath(kind).iterdir():
-            if entry.name in {"SKILL.md", "method.py", "test_method.py"}:
-                expected[kind + "/" + entry.name] = entry.read_bytes()
+    from hashlib import sha256
+
+    expected = json.loads(assets.joinpath("layout-v1-starters.json").read_text())
     found = {}
     for path in project.methods_dir.rglob("*"):
         if path.is_symlink():
             return project
         if path.is_file() and "__pycache__" not in path.parts:
-            found[path.relative_to(project.methods_dir).as_posix()] = path.read_bytes()
+            found[path.relative_to(project.methods_dir).as_posix()] = sha256(
+                path.read_bytes()
+            ).hexdigest()
     if found != expected:
         return project
     for relative, source in asset_pairs:

@@ -32,7 +32,7 @@ export default function MethodPage() {
         <p className={styles.eyebrow}>{skill ? "SKILL" : "PYTHON"}</p>
         <h1>{methodTitle(method, t)}</h1>
         <p className={styles.methodId}>{method.name} / v{method.version}</p>
-        <p className={styles.intro}>{method.description}</p>
+        <p className={styles.intro}>{t(method.description)}</p>
       </div></div>
       <WorkspaceTabs id="method" label={t("Method information")} value={view} onChange={setView} items={[
         {value:"overview",label:t("Overview and inputs")}, {value:"implementation",label:skill ? t("Analysis instructions") : t("Python code")}, {value:"executions",label:t("Runs")}
@@ -45,15 +45,15 @@ export default function MethodPage() {
         {skill && <p>{t("Starting this procedure waits for the connected AI to execute it.")}</p>}
       </section>}
       {!skill && <section className={styles.methodPanel}>
-        <h2>{t("Inputs")}</h2>
+        <h2>{t("Required data")}</h2>
         {!Object.keys(method.data_inputs ?? {}).length && <dl className={styles.meta}>{Object.entries(method.roles).map(([key, role]) => <div className={styles.metaRow} key={key}>
           <dt>{role.label || key}{role.required ? " *" : ""}</dt><dd>{role.description || (role.accepted_kinds ?? [role.kind]).join(" / ")}{role.multiple ? t("(select multiple)") : ""}</dd>
         </div>)}</dl>}
-        <MethodAvailability key={`availability:${name}`} name={decodeURIComponent(name)} />
         <PythonInputContract method={method} />
         {!!Object.keys(method.parameters).length && <section className={styles.methodOptions}><h3>{t("Calculation options")}</h3><div><dl className={styles.meta}>
           {Object.entries(method.parameters).map(([key, parameter]) => <div className={styles.metaRow} key={key}><dt>{parameter.label || key}</dt><dd>{parameter.description || parameter.type}{parameter.default != null ? ` (${JSON.stringify(parameter.default)})` : ""}</dd></div>)}
         </dl></div></section>}
+        <div className={styles.methodConnectionCheck}><MethodAvailability key={`availability:${name}`} name={decodeURIComponent(name)} /></div>
       </section>}
       </div>
       <div id="method-panel-implementation" role="tabpanel" aria-labelledby="method-tab-implementation" hidden={view !== "implementation"}>

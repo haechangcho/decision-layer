@@ -25,9 +25,11 @@ my_team/
     ├── drilldown/SKILL.md
     ├── ols/
     │   ├── method.py
+    │   ├── checks.py
     │   └── test_method.py
     └── matching/
         ├── method.py
+        ├── checks.py
         └── test_method.py
 ```
 
@@ -71,6 +73,14 @@ decision-layer new skill metric_review
 These create `methods/rank/method.py` and `methods/metric_review/SKILL.md`.
 Use a [Recipe](recipes.md) to reuse a sequence of existing Methods.
 Start without defaults with `decision-layer init my_team --empty`.
+
+## Keep Skills about analysis
+
+Write the investigation steps and decision rules in `SKILL.md`: break revenue down
+by department, select a department (ask when tied), then inspect its stores.
+The product supplies shared instructions for semantic discovery, dates, filters,
+tool calls and evidence recording. Authors do not need to repeat tool names or
+execution identifiers in each procedure.
 
 ## Test in the admin UI
 

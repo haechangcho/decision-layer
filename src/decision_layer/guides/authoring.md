@@ -83,30 +83,32 @@ suggested_methods: [analysis.metric_lookup]
 ```
 Then describe when to use it, required user decisions, existing tools, stop conditions and interpretation limits. Do not copy Cube definitions. `describe_method` returns the guide. Start with `start_analysis(..., guide="team.metric_review")`; the Run snapshots its version, hash and text. Execute registered tools with run_step; only those results are evidence. The guide's recommendations are not automatically enforced or replayed. Use a Recipe for deterministic replay.
 
-## Query-executing Skill stage
-For drilldown and peer queries start with analysis.drilldown or analysis.peer_comparison.
-A reviewed Markdown asset can declare query_execution: true, typed roles and parameters.
-Its manifest then has agent_executable=true. No private Python wrapper is necessary.
-Use it in a Recipe or run_step; AGENT_EXECUTION_REQUIRED means the client must act:
-1. Read the active step's snapshotted guide and resolved inputs.
-2. Call run_skill_query with a unique ID, purpose and aggregate DatasetSpec. Use bound
-   metrics, discovered dimensions, explicit Run dates, inherited filters and a bounded
-   limit_rows (at most 1000). Comparison dates must match the declared comparison input.
-3. Inspect the actual Result, errors and warnings. Query replies show up to 25 rows;
-   read more with get_skill_query using next_offset. Selection indices are absolute
-   query row indices (page offset plus row index). Run summaries omit duplicate tables. Rejected queries remain in the log;
-   correct a request under a new ID. A reused ID cannot change its request.
-4. Call finish_skill_step with a reason and optional selection of a successful query's
-   real row/dimension. Never submit invented rows or statistics. Refuse when evidence
-   is inadequate. Completion resumes the next Recipe step.
+## Write the analysis procedure
 
-selected_group is an agent selection, not a validated anomaly or ranking. Use its
-condition for a subject and evidence.filters for a downstream population; the latter
-preserves exclusions and range filters. Python DataInput(filters_parameter="population_filters")
-can consume those filters without changing the ordinary function signature. Skill
-completion certifies no analytical capabilities. Advisory-only Skills still cannot
-be Recipe stages. A Web-started Skill waits for an external agent; there is no hidden
-server LLM. Old query.drilldown/query.peer_comparison remain compatibility implementations.
+A query-executing Skill declares `query_execution: true` with its required roles
+and parameters. Write the body as an analyst would explain the procedure:
+
+1. Break down revenue by product department.
+2. Choose the highest-revenue department. Ask the user when first place is tied.
+3. Continue by store within the selected department.
+4. Explain the observed values and any missing data; do not claim a cause.
+
+Do not copy tool calls, Run/step IDs, pagination or filter propagation into each
+Skill. The product automatically supplies and snapshots the shared `analysis-core`
+guide beside the individual procedure when a Skill starts. The client AI uses it
+to discover semantic objects, execute scoped queries, inspect evidence and complete
+the step. Read it with `get_method_guide("analysis-core")` when developing a client.
+The server still enforces access, scope, query limits and evidence references.
+Reading either guide alone is not validation. No server LLM runs in the background.
+
+## Calculation checks
+
+Keep the calculation and its registration in `method.py`. Put longer data and
+analysis checks in `checks.py` and reference them using `checks=[check_data]`.
+A check can receive its DataFrame and named column arguments, just like the
+calculation. Existing DataFrame-only checks continue to work. The server records
+failed checks and stops before calculation. Test both successful and invalid data
+in `test_method.py`; importing a check does not replace executing it.
 
 ## Operate owned assets
 Deploy the reviewed project and dependencies and set `DL_PROJECT_DIR` to the directory

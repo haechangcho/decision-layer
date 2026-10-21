@@ -60,7 +60,7 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
     print(run("test", cwd=project))
     initial = json.loads(run("list", "--json", cwd=project))
     assert len(initial) == 4
-    assert all(item["version"] == "2.0.0" for item in initial)
+    assert all(item["version"] == "2.1.0" for item in initial)
     assert all(
         Path(item["source"]).resolve().is_relative_to(project.resolve())
         for item in initial

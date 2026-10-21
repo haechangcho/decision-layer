@@ -78,12 +78,20 @@ def load_skill_directory(registry, directory: str | Path, *, builtin=False):
     return registry
 
 
+def core_skill_guide():
+    """Shared tool protocol, snapshotted separately from the analysis procedure."""
+    from importlib.resources import files
+    text = (files("decision_layer") / "guides" / "analysis-core.md").read_text(encoding="utf-8")
+    return MethodGuide(name="analysis-core", version="1.0.0",
+        sha256=sha256(text.encode()).hexdigest(), markdown=text)
+
+
 def get_authoring_guide(name: str) -> dict:
     # Fixed names; callers cannot read arbitrary repository files.
     from importlib.resources import files
-    if name not in ("authoring", "cube-query"):
+    if name not in ("authoring", "cube-query", "analysis-core"):
         from .registry import InvalidBinding
-        raise InvalidBinding("Unknown guide", available=["authoring", "cube-query"])
+        raise InvalidBinding("Unknown guide", available=["authoring", "cube-query", "analysis-core"])
     content = (files("decision_layer") / "guides" / f"{name}.md").read_text(encoding="utf-8")
     from .. import __version__
     return {"name": name, "package_version": __version__, "sha256": sha256(content.encode()).hexdigest(),

@@ -36,7 +36,7 @@ def test_default_project_owns_all_discovered_definitions(project):
     assert {m.name for m in target.manifests()} == EXPECTED
     for name in EXPECTED:
         method = target.get(name)
-        assert method.manifest.version == "2.0.0"
+        assert method.manifest.version == "2.1.0"
         assert Path(method.definition_path).is_relative_to(project.methods_dir)
         assert Path(method.definition_path).is_file()
         # Legacy pinned Recipes retain their exact implementation and contract.
@@ -132,7 +132,7 @@ async def test_starter_executes_through_mcp_rest_and_spawned_worker(
         methods = (await server.list_methods())["methods"]
         assert {item["name"] for item in methods} == EXPECTED
         manifest = await server.describe_method(method)
-        assert manifest["version"] == "2.0.0"
+        assert manifest["version"] == "2.1.0"
         assert "entity_id" in manifest["roles"]
         run = client.post(
             "/runs",
@@ -159,7 +159,9 @@ async def test_starter_executes_through_mcp_rest_and_spawned_worker(
         assert saved["result"]["primary"]["data"]["value"] == pytest.approx(2)
         assert saved["result"]["primary"]["data"]["causal_claim"] == "not_established"
         assert saved["code"]["available"]
-        assert saved["result"]["provenance"]["method"].endswith("@2.0.0")
+        helpers = [file for file in saved["code"]["files"] if file["name"].endswith(".checks")]
+        assert helpers and "def check_data(" in helpers[0]["content"]
+        assert saved["result"]["provenance"]["method"].endswith("@2.1.0")
         assert len(provider.calls) == 1
 
 
@@ -173,3 +175,15 @@ def test_init_uses_a_folder_containing_only_a_virtual_environment(tmp_path):
     project = init_project(tmp_path, "local_team")
     assert (project.methods_dir / "ols" / "method.py").is_file()
     assert marker.read_text() == "keep environment"
+
+
+async def test_managed_registration_can_resolve_project_check_helpers(project, tmp_path):
+    from decision_layer.methods.assets import MethodAssets, DraftRequest
+    from decision_layer.methods.source import capture_source
+    target = configured_registry(Settings(project_dir=str(project.root)))
+    name = "stats.regression_adjustment"
+    source = capture_source(target.get(name))
+    assets = MethodAssets(tmp_path / "assets", target)
+    draft = assets.save(name, DraftRequest(base_version="2.1.0", version="2.2.0", content=source.editor_content), "test")
+    checked = await assets.check(name, draft["revision"])
+    assert checked["validation"]["status"] == "pass", checked

@@ -30,7 +30,9 @@ Methods as primitives where data and assumptions support them.
 | Validator | A reusable check on data, execution or analytical assumptions |
 
 A Python Method can request multiple datasets and combine them. A query-executing
-Skill guides an AI through recorded, scoped Cube queries in a Run step. Advisory-only
+Skill guides an AI through recorded, scoped Cube queries in a Run step. Its body
+contains the analytical procedure; a shared product guide supplies the tool protocol
+and is snapshotted with each execution (ADR-121). Advisory-only
 Skills remain reference material. Reading prose never verifies its claims. A Recipe selects and
 configures Methods according to an organization's investigation procedure. Do not
 create a new Method when existing capabilities and a Recipe are sufficient.

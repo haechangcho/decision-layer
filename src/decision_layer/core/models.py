@@ -653,6 +653,7 @@ class SkillQueryRecord(BaseModel):
 class SkillExecution(BaseModel):
     manifest: MethodManifest
     guide: MethodGuide
+    core_guide: MethodGuide | None = None
     status: Literal["awaiting_agent", "completed", "refused"] = "awaiting_agent"
     queries: list[SkillQueryRecord] = Field(default_factory=list)
     completion_reason: str | None = None

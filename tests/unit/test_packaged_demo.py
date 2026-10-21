@@ -276,7 +276,7 @@ def test_old_empty_demo_gains_editable_methods_once_and_preserves_history(tmp_pa
     assert metadata["project"]["optional-dependencies"]["test"]
     target = configured_registry(Settings(project_dir=str(root)))
     assert len(target.manifests()) == 4
-    assert all(item.version == "2.0.0" for item in target.manifests())
+    assert all(item.version == "2.1.0" for item in target.manifests())
     assert target.get("stats.regression_adjustment", "1.1.0")
     source = project.methods_dir / "ols" / "method.py"
     source.write_text(source.read_text() + "\n# my change\n")

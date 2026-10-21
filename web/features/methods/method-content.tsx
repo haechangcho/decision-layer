@@ -25,6 +25,7 @@ export function SourceEvidence({ source, historical=false }: { source?: MethodSo
   const [open, setOpen] = useState(false);
   const [filename, setFilename] = useState("");
   if (!source?.available || !source.files.length) return <p className={styles.muted}>{historical ? t("This Run has no execution-time source snapshot. Current source is not shown in its place.") : t("Cannot read source code from the installed package.")}</p>;
+  const projectFiles = source.files.length > 1 && source.files[0].name.endsWith(".method");
   const file = source.files.find(item => item.name === filename) ?? source.files[0];
   const original = <div className={styles.originalSource}>
     <label>{t("Source file")}<select aria-label={t("Source file")} value={file.name} onChange={event => setFilename(event.target.value)}>{source.files.map(item => <option key={item.name} value={item.name}>{item.name.startsWith("dl_method_assets.") ? t("Published Python module") : item.name}</option>)}</select></label>
@@ -33,7 +34,8 @@ export function SourceEvidence({ source, historical=false }: { source?: MethodSo
   return <div aria-label={historical ? t("Execution-time Python code") : t("Current Python code")}>
     <div className={styles.sourceToolbar}><p className={styles.muted}>{historical ? t("Source saved at execution") : t("Source saved at registration")} / v{source.version}</p>
       {source.authoring_content && <button type="button" className="ghost" onClick={() => setOpen(true)}>{t("View original file")}</button>}</div>
-    {source.authoring_content ? <div aria-label={t("Authorable analysis code")}><MethodCode content={source.authoring_content} /></div> : original}
+    {projectFiles && <div className={styles.codeFiles} role="group" aria-label={t("Code files")}>{source.files.map(item => <button type="button" key={item.name} aria-pressed={item.name === file.name} onClick={() => setFilename(item.name)}>{item.name.split(".").at(-1)}.py</button>)}</div>}
+    {projectFiles ? <MethodCode content={file.content} /> : source.authoring_content ? <div aria-label={t("Authorable analysis code")}><MethodCode content={source.authoring_content} /></div> : original}
     <InspectorDialog title={t("Original Python file")} open={open} onClose={() => setOpen(false)}><p>{t("Preserved entry module and helper code. External libraries are not included in full.")}</p>{original}</InspectorDialog>
   </div>;
 }

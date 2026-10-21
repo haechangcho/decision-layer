@@ -131,3 +131,28 @@ async def test_skill_query_api_is_canonical_and_attributes_mcp_author(provider, 
         assert query.json()['author']['client_name']=='test-agent'
         finished=client.post(f"/runs/{run['id']}/steps/split:finish",json={'reason':'Observed groups'})
         assert finished.status_code==200 and finished.json()['steps'][0]['result']['status']=='success'
+
+
+async def test_shared_protocol_is_snapshotted_and_delivered_with_each_skill(tmp_path, monkeypatch):
+    from hashlib import sha256
+    from decision_layer.core.models import SkillExecution
+    from decision_layer.methods import skills
+    from decision_layer.mcp.presentation import _compact_run
+
+    e = engine(tmp_path)
+    run = await start(e)
+    core = run.steps[0].skill.core_guide
+    assert core.name == "analysis-core" and core.version == "1.0.0"
+    assert core.sha256 == sha256(core.markdown.encode()).hexdigest()
+    assert "run_skill_query" in core.markdown and "inherited" in core.markdown
+    assert run.steps[0].result.needs_input["core_guide"]["sha256"] == core.sha256
+    reply = _compact_run(run.model_dump(mode="json"))
+    assert reply["steps"][0]["skill"]["core_guide"]["markdown"] == core.markdown
+    assert "core_guide" not in reply["steps"][0]["result"]["needs_input"]
+
+    monkeypatch.setattr(skills, "core_skill_guide", lambda: core.model_copy(update={"markdown": "new protocol"}))
+    stored = await e.store.get(run.id)
+    assert stored.steps[0].skill.core_guide.markdown == core.markdown
+    old = stored.steps[0].skill.model_dump(exclude={"core_guide"})
+    assert SkillExecution.model_validate(old).core_guide is None
+    e.jobs.shutdown()

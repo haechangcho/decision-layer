@@ -147,7 +147,10 @@ def capture_source(method):
                 continue
             target = inspect.getmodule(item)
             name = getattr(target, '__name__', '')
-            if name in seen or not name.startswith('decision_layer.methods.') or name.rsplit('.',1)[-1] in {'python','authoring','calculation'}:
+            target_file = inspect.getsourcefile(target) if target else None
+            local_helper = target_file and (Path(target_file).resolve().parent == Path(inspect.getsourcefile(module)).resolve().parent
+                or name.startswith("_dl_project_"))
+            if name in seen or not (name.startswith('decision_layer.methods.') or local_helper) or name.rsplit('.',1)[-1] in {'python','authoring','calculation'}:
                 continue
             seen.add(name)
             helper = source_file(target)

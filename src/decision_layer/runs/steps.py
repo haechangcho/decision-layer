@@ -138,7 +138,10 @@ async def execute_step(
         for key, spec in method.manifest.parameters.items():
             if spec.type == "drill_path":
                 path_filters(ctx, resolved.params.get(key) or [])
+        from ..methods.skills import core_skill_guide
+
         skill = SkillExecution(
+            core_guide=core_skill_guide(),
             guide=method.guide.model_copy(deep=True),
             manifest=method.manifest.model_copy(deep=True),
         )
@@ -151,6 +154,7 @@ async def execute_step(
                 "next_tool": "run_skill_query",
                 "step_id": step.id,
                 "guide": skill.guide.model_dump(mode="json"),
+                "core_guide": skill.core_guide.model_dump(mode="json"),
                 "bindings": resolved.bindings,
                 "params": resolved.params,
             },

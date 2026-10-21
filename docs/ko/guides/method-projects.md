@@ -25,14 +25,17 @@ my_team/
     ├── drilldown/SKILL.md
     ├── ols/
     │   ├── method.py
+    │   ├── checks.py
     │   └── test_method.py
     └── matching/
         ├── method.py
+        ├── checks.py
         └── test_method.py
 ```
 
 - `SKILL.md`: AI가 따라야 할 조회와 분석 지침입니다.
 - `method.py`: 계산 함수와 `METHOD = python_method(...)` 등록 코드입니다.
+- `checks.py`: 계산 전에 확인할 데이터와 분석 조건입니다.
 - `test_method.py`: 정답을 아는 합성 데이터와 잘못된 입력으로 계산을 검사합니다.
 - `pyproject.toml`: 프로젝트에 필요한 패키지를 관리합니다.
 
@@ -71,6 +74,22 @@ decision-layer new skill metric_review
 각각 `methods/rank/method.py`와 `methods/metric_review/SKILL.md`를 만듭니다.
 여러 Method의 실행 순서를 재사용하려면 [Recipe](recipes.md)를 만드세요.
 기본 파일 없이 시작하려면 `decision-layer init my_team --empty`를 사용합니다.
+
+## Skill에는 분석 절차만 적기
+
+`SKILL.md` 본문에는 분석 순서와 판단 기준을 적습니다.
+
+```markdown
+# 매출을 항목별로 살펴보기
+
+1. 상품 부문별 매출을 조회합니다.
+2. 매출이 가장 큰 부문을 선택합니다. 공동 1위라면 사용자에게 확인합니다.
+3. 선택한 부문의 매출을 매장별로 살펴봅니다.
+4. 조회한 값과 확인하지 못한 내용을 구분해 설명합니다.
+```
+
+데이터 탐색, 기간과 필터 확인, 도구 호출과 결과 기록은 공통 지침을 통해 AI에 전달합니다.
+각 Skill에 도구 이름이나 실행 ID를 반복해서 적을 필요가 없습니다.
 
 ## 관리자 화면에서 테스트하기
 

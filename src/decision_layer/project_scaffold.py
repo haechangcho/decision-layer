@@ -62,7 +62,12 @@ def init_project(path: str | Path, name: str | None = None, *, empty=False):
             folder.mkdir()
             (folder / "__init__.py").touch()
             for source in template.joinpath(kind).iterdir():
-                if source.name in {"SKILL.md", "method.py", "test_method.py"}:
+                if source.name in {
+                    "SKILL.md",
+                    "method.py",
+                    "checks.py",
+                    "test_method.py",
+                }:
                     (folder / source.name).write_bytes(source.read_bytes())
     (root / ".gitignore").write_text(
         "__pycache__/\n*.pyc\n.pytest_cache/\n*.egg-info/\nbuild/\ndist/\n.venv/\n.decision-layer/\n"

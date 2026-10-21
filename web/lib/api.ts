@@ -31,6 +31,7 @@ export interface SemanticCatalog {
 }
 
 export interface RoleSpec {
+  data_type?: string | null;
   accepted_kinds?: Kind[] | null;
   label?: string;
   default_binding?: "primary_metric" | "preferred_dimensions" | "unit_count" | null;
@@ -159,6 +160,7 @@ export interface MethodSource {
 
 export interface SkillExecution {
   guide: MethodGuide;
+  core_guide?: MethodGuide | null;
   status: "awaiting_agent" | "completed" | "refused";
   completion_reason?: string | null;
   queries: { id: string; purpose: string; spec: unknown; status: "running" | "success" | "failed" | "interrupted";

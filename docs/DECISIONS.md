@@ -2694,3 +2694,23 @@ generated files are retained in `.decision-layer/layout-v1/`; source code is mov
 without rewriting it, and Recipes, data and Run history remain in place. A failed
 move is rolled back. Customized and synthetic projects retain their layout. This
 changes file organization, not semantic references or analytical execution.
+
+
+## ADR-121 — Separate analysis procedures from the shared tool protocol (2026-10-21)
+
+**Accepted.** A query-executing Skill describes analytical steps, decisions and
+limitations. Product-owned `analysis-core` guidance owns discovery, binding/scope
+confirmation, inherited conditions, query submission, paging, evidence references
+and completion. Each Skill execution snapshots both guides separately with hashes
+and versions. REST and MCP deliver the active shared guide automatically; completed
+MCP summaries omit its body. Older Run records without this snapshot remain valid.
+Both guides are advisory. Existing server access, scope, budget and evidence checks
+remain authoritative and cannot be weakened by either text.
+
+Editable starter Skills and Python Methods advance to 2.1.0. Calculations and
+registration stay in method.py; longer assumption and quality checks live in
+checks.py and remain executed, tested and captured with the source snapshot.
+Registered checks may request resolved column-name arguments explicitly, while
+DataFrame-only checks retain their existing call contract. The input overview
+shows required analytical inputs and constraints; generated DataFrame aliases
+remain available in code and Run evidence. Historical sources are not rewritten.

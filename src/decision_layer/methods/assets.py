@@ -154,10 +154,11 @@ class MethodAssets:
                 module = None
             else:
                 module = self._module(value)
+                from ..project import project_import_roots
                 env = {k:v for k,v in os.environ.items() if k in {'PATH','LANG','LC_ALL','TMPDIR','TMP','TEMP','MPLCONFIGDIR'}}
                 env['PYTHONPATH'] = os.pathsep.join(dict.fromkeys([str(self.root),*sys.path]))
                 process = await asyncio.create_subprocess_exec(sys.executable, '-m', 'decision_layer.methods.asset_worker',
-                    module, name, value['version'], stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=env)
+                    module, name, value['version'], json.dumps(project_import_roots()), stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, env=env)
                 try:
                     stdout, stderr = await asyncio.wait_for(process.communicate(), 15)
                 except asyncio.TimeoutError:

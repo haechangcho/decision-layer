@@ -76,6 +76,9 @@ def _compact_skill(skill: dict | None) -> dict | None:
         for key, value in skill["guide"].items()
         if key != "markdown" or active
     }
+    if skill.get("core_guide"):
+        out["core_guide"] = {key: value for key, value in skill["core_guide"].items()
+                             if key != "markdown" or active}
     if active:
         out["manifest"] = deepcopy(skill["manifest"])
     out["queries"] = [
@@ -118,7 +121,8 @@ def _skill_result_summary(result: dict) -> dict:
     if isinstance(out.get("needs_input"), dict):
         out["needs_input"].pop(
             "guide", None
-        )  # Active frozen guide is included once under step.skill.
+        )  # Active frozen guides are included once under step.skill.
+        out["needs_input"].pop("core_guide", None)
     return out
 
 
@@ -217,7 +221,7 @@ def _compact_run(run: dict) -> dict:
             "tools": ["run_skill_query", "finish_skill_step"],
             "run_id": run["id"],
             "step_id": run["active_skill_step"],
-            "note": "The agent must read the step Skill and execute queries; this is not a request for the user to operate tools.",
+            "note": "The agent must read core_guide for tool protocol and guide for the analysis procedure, then execute queries; this is not a request for the user to operate tools.",
         }
     elif run.get("needs_input"):
         out["next"] = {
