@@ -34,11 +34,13 @@ If implementation reality conflicts with them, do not silently diverge. Explain 
    - Analytical procedures, methods, validation, execution, provenance, and reusable analyst workflows belong to Decision Layer.
 
 3. **Method != Recipe.**
-   - A Method is an atomic analytical capability such as drill-down, OLS, CEM, or DiD.
+   - A Python Method is an executable analytical capability such as drill-down, OLS, CEM, or DiD.
+   - A Skill Method is versioned Markdown. Query-executing Skills can form agent-driven Recipe steps with recorded Cube queries (ADR-098); reading prose never counts as validation.
    - A Recipe is reusable procedural knowledge describing how an analyst investigates a recurring business question.
 
 4. **Prefer typed executable specifications over free-form instructions.**
-   - Free-form context may supplement a Recipe, but must not override semantic definitions or core validation.
+   - Skill guidance may direct an AI, but must not override semantic definitions or core validation.
+   - Prefer ordinary Python functions with separate DataInput registration for new calculations; use advanced contracts when source control requires them.
 
 5. **Cube is the first-class semantic provider for MVP.**
    - Build one excellent integration before broad provider coverage.

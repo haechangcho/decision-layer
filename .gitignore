@@ -9,6 +9,8 @@ __pycache__/
 *.pem
 *.key
 /docs/internal/
+/docs/PRD.md
+/docs/prd-evidence/
 /docs/MVP_PLAN.md
 /docs/REFERENCES.md
 /docs/GETTING_STARTED.md
