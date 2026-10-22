@@ -8,8 +8,8 @@ these instructions into each SKILL.md. These instructions grant no permissions.
 
 - Read the active step's bindings and parameters, the Run period and shared filters.
   Keep inherited population and filter conditions in every relevant query.
-- Use search_semantic to discover missing metrics, dimensions and time dimensions.
-  Read their definitions and types. Never invent fields, formulas or joins, or
+- Read get_semantic_catalog to see all available metrics, dimensions and dates.
+  Choose inputs by their definitions and types, without guessing a model name. Never invent fields, formulas or joins, or
   silently substitute another metric. Ask when the requested meaning is ambiguous.
 - Query only bound metrics (or their provider-declared count measures). If the
   question needs another metric, resolve its binding before running the step.

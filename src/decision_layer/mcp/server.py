@@ -141,38 +141,9 @@ async def _call(method: str, path: str, **kwargs: Any) -> Any:
     return body
 
 
-@mcp.tool(description=_(DOCS["search_semantic"]))
-async def search_semantic(query: str | None = None, kind: str | None = None) -> dict:
-    cat = await _call("GET", "/semantic/catalog")
-    if "error" in cat:
-        return cat
-    q = (query or "").lower()
-    items = []
-    for o in cat["objects"]:
-        if kind and o["kind"] != kind:
-            continue
-        text = f"{o['ref']} {o['title']} {o.get('description') or ''}".lower()
-        if q and not all(t in text for t in q.split()):
-            continue
-        item = {"ref": o["ref"], "kind": o["kind"], "title": o["title"]}
-        if o.get("metric_kind"):
-            item["metric_kind"] = o["metric_kind"]
-        if o.get("ratio_parts"):
-            item["ratio_parts"] = o["ratio_parts"]
-        for field in ("dimension_refs", "time_dimension", "count_measure", "entity"):
-            if o.get(field):
-                item[field] = o[field]
-        if o.get("description"):
-            item["description"] = o["description"][:160]
-        hints = {
-            key: value
-            for key, value in (o.get("metadata") or {}).items()
-            if key in ("suggestedDateRange", "calendarType")
-        }
-        if hints:
-            item["metadata"] = hints
-        items.append(item)
-    return {"count": len(items), "objects": items}
+@mcp.tool(description=_(DOCS["get_semantic_catalog"]))
+async def get_semantic_catalog() -> dict:
+    return await _call("GET", "/semantic/catalog")
 
 
 @mcp.tool(description=_(DOCS["list_methods"]))

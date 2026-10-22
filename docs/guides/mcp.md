@@ -72,7 +72,15 @@ First ask which metrics and analysis methods are available to check the connecti
 
 > Using the example calendar, which department leads retailer receipts in February 2001, and what are its receipts by store? Show the metrics and query evidence.
 
-AI reads registered methods and the semantic catalog, selects inputs and asks about ambiguous meanings or dates.
+AI follows this flow:
+
+1. Read `list_methods` and `describe_method` to choose a procedure and understand its inputs.
+2. Call `get_semantic_catalog()` to read all available definitions and select metrics and dimensions.
+3. Execute with `start_analysis` and `run_step`, or reuse a suitable Recipe, then explain the recorded results.
+
+The catalog contains definitions from Cube `/meta`, not data rows. No search term or prior knowledge of internal Cube names is needed. AI asks about ambiguous meanings or dates; actual rows are queried when the analysis executes.
+
+See the [Python function example](../tutorials/write-your-method.md) for calls and responses.
 
 Open the returned Run link to inspect results and queries. Save a recurring analysis as a [Recipe](recipes.md).
 

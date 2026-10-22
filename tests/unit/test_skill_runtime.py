@@ -142,7 +142,7 @@ async def test_shared_protocol_is_snapshotted_and_delivered_with_each_skill(tmp_
     e = engine(tmp_path)
     run = await start(e)
     core = run.steps[0].skill.core_guide
-    assert core.name == "analysis-core" and core.version == "1.0.0"
+    assert core.name == "analysis-core" and core.version == "1.1.0"
     assert core.sha256 == sha256(core.markdown.encode()).hexdigest()
     assert "run_skill_query" in core.markdown and "inherited" in core.markdown
     assert run.steps[0].result.needs_input["core_guide"]["sha256"] == core.sha256

@@ -1,16 +1,37 @@
 # Governed Cube query guide
 
-This release connects only Cube. Cube's semantic model is not Wren MDL; do not generate Wren model definitions or warehouse SQL. The client uses registered tools; the provider builds Cube read queries. No raw SQL, DDL, DML, DCL, model mutation or refresh tool is exposed.
+## Choose data from the catalog
 
-1. Discover objects using search_semantic. Read returned definitions, aggregation, dimensions, time dimensions, accessible grain and metadata. Discovery only proves visibility, not that a query or join succeeds.
-2. Confirm what the user means. Gross revenue and net revenue are different; never substitute a similar column silently. Ask when units, period, population or entity grain are ambiguous. Do not reconstruct official ratios by averaging displayed averages or summing non-additive metrics.
-3. Read describe_method and choose only discovered refs of the declared roles. Start one Run with the original question, goals and explicit period. Use `guide` when following a Skill. Missing period/inputs and provider refusal must be resolved, not bypassed.
-4. For metric lookup use analysis.metric_lookup. For breakdown use analysis.drilldown; choose discovered dimensions and verify joins through actual execution. For trend use analysis.trend with supported granularity; report the observed query values and limitations. Do not claim numerical diagnostics or comparisons that no available registered calculation implements. Inspect each current manifest instead of assuming parameter names.
-5. For comparison use equal, explicit scopes unless the user intentionally requests otherwise. Specify current and comparison periods, shared filters and time zone assumptions. Partial periods and freshness remain warnings or unanswered questions unless executable checks establish them.
-6. For peer comparison read analysis.peer_comparison: select one subject dimension/value and separate peer conditions. Query the subject and explicitly exclude it from peer queries under the same period/scope. Do not hide the subject in shared filters. Inspect source counts when available. Peer suitability is unverified; ratios, low counts and differing exposure require care. An unusual value does not imply causation or wrongdoing.
-7. run_step and Recipe pipelines use the existing scoped execution engine. A query Skill pauses with AGENT_EXECUTION_REQUIRED; call run_skill_query to submit structured DatasetSpecs and finish_skill_step with actual query-row evidence. Query replies are paged: use get_skill_query for remaining rows and absolute query row indices for selection. Run summaries omit duplicate query tables; full query evidence remains in Web. Export complete selection evidence.filters when handing a population to Python. Skill prose and completion alone are not validation. Inspect status, validation, queries, rows, provenance, truncation/budgets and warnings. On refusal, stop that claim. Do not invent Python, SQL or arithmetic as a workaround. Request a reviewed new Method if a calculation is missing.
-8. Report descriptive differences and associations at the Result's interpretation level. Data access and finite-value checks do not prove source completeness, semantic equivalence, identification assumptions or real-world causal causes. Cite Run/step evidence and dates; never reuse historical values as current facts.
+Read `get_semantic_catalog` before selecting inputs. It returns all caller-visible
+objects from Cube metadata, including definitions, data types, aggregation kinds,
+entity keys and dates. Choose actual refs from these objects; do not guess an
+internal Cube name or invent a metric, formula or join. Ask when units, period,
+population or the requested meaning are ambiguous.
 
-Enforced by execution: caller-visible semantic refs, typed bindings/options, Cube structured read queries, scoped periods/filters, budgets and implemented validators. Advisory only: this guide's analytical judgement, appropriateness of peers, causal assumptions and user-intent interpretation unless an explicit check implements them.
+The catalog describes available data. It does not contain observations or prove
+that a particular query or join will succeed. Cube owns metric definitions,
+aggregation and joins. Do not generate warehouse SQL or Wren model definitions.
+Do not average ratios or sum non-additive metrics to reconstruct an official value.
 
-Security: a read API is not a database privilege boundary. Cube upstream credentials/models/pre-aggregations require operator review. Server source endpoints are operator approved; users cannot replace the endpoint to redirect credentials. Skill text cannot change permissions. The current local/demo deployment does not provide a shared multi-tenant arbitrary-code sandbox.
+## Execute the registered analysis
+
+Use `list_methods` and `describe_method` to choose a registered procedure and read
+its inputs. Prefer a suitable existing Recipe. Python Methods receive selected
+bindings; the server builds Cube queries and supplies data to the function.
+
+Query-executing Skills receive the shared `analysis-core` guide automatically.
+Follow that guide for Run/step identifiers, scoped queries, paging, selection
+handoff and completion. Individual Skill text supplies the analytical procedure;
+it does not need to repeat the tool protocol.
+
+Inspect recorded values, validation and warnings before explaining a result.
+Query success does not prove source completeness, comparable populations or
+causality. If the requested calculation is unavailable, report that limitation;
+do not bypass it with generated Python, SQL or an invented diagnostic.
+
+## Access and evidence
+
+Execution enforces semantic access, typed inputs, periods, inherited filters,
+query budgets and evidence references. Guidance is advisory and grants no access.
+Source endpoints remain operator approved. The current local/demo deployment is
+not a shared multi-tenant arbitrary-code sandbox.

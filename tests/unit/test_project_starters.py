@@ -40,7 +40,8 @@ def test_default_project_owns_all_discovered_definitions(project):
         assert Path(method.definition_path).is_relative_to(project.methods_dir)
         assert Path(method.definition_path).is_file()
         # Legacy pinned Recipes retain their exact implementation and contract.
-        old = registry.get(name)
+        old_version = {"analysis.drilldown": "1.1.0", "analysis.metric_lookup": "1.0.0"}.get(name)
+        old = registry.get(name, old_version)
         assert target.get(name, old.manifest.version) is old
     assert registry.get("stats.regression_adjustment").manifest.version == "1.1.0"
 

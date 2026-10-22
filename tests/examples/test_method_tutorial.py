@@ -103,6 +103,18 @@ async def test_notebook_mcp_example_executes_with_the_mcp_run_contract(
 
         monkeypatch.setattr(server, "_call", call)
         monkeypatch.setattr(server, "METHODS", set())
+        method, catalog = await namespace["inspect_with_mcp"](NotebookClient())
+        assert method["name"] == "my_team.ols"
+        assert catalog == http.get("/semantic/catalog").json()
+        assert len(catalog["objects"]) == 9
+        assert {item["ref"].split("/")[3] for item in catalog["objects"]} == {"sales", "customers"}
+        assert all(item["data_type"] for item in catalog["objects"])
+        # Every displayed catalog object and field must come from the real handler.
+        import re
+        excerpt = json.loads(re.search(r"```json\n(.*?)\n```", sources["mcp-semantic-response"], re.S)[1])
+        assert [item["ref"] for item in excerpt["objects"]] == [item["ref"] for item in catalog["objects"]]
+        for item, actual in zip(excerpt["objects"], catalog["objects"]):
+            assert all(actual[key] == value for key, value in item.items())
         result = await namespace["run_ols_with_mcp"](NotebookClient())
         assert result.structured_content["status"] == "success"
         assert result.structured_content["primary"]["data"]["value"] == pytest.approx(

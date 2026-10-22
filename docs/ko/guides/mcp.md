@@ -72,7 +72,15 @@ which decision-layer-mcp
 
 > 예제 달력 기준 2001년 2월 매출이 가장 큰 상품 부문과 해당 부문의 매장별 매출을 알려줘. 사용한 지표와 조회 근거도 보여줘.
 
-AI는 등록된 분석 방법과 semantic catalog를 확인하고, 필요한 입력을 선택합니다. 의미나 기간이 모호하면 사용자에게 묻습니다.
+AI는 다음 순서로 입력을 확인하고 분석합니다.
+
+1. `list_methods`와 `describe_method`로 분석 방법과 필요한 입력을 확인합니다.
+2. `get_semantic_catalog()`로 전체 지표와 차원의 정의를 읽고 입력을 선택합니다.
+3. `start_analysis`와 `run_step`으로 분석하고, 기록된 결과를 설명합니다. 적합한 Recipe가 있으면 재사용합니다.
+
+Catalog는 Cube의 `/meta`에서 가져온 정의입니다. 검색어나 내부 Cube 이름을 미리 알 필요가 없습니다. 의미나 기간이 모호하면 사용자에게 묻습니다. 실제 데이터는 분석을 실행할 때 조회합니다.
+
+[Python 함수 연결 예제](../tutorials/write-your-method.md)에서 호출과 응답을 볼 수 있습니다.
 
 분석 후 반환한 Run 링크에서 결과와 쿼리를 확인할 수 있습니다. 반복할 분석이라면 [Recipe로 저장](recipes.md)해 재사용합니다.
 

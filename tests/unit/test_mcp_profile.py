@@ -35,8 +35,8 @@ def test_defaults_expose_everything(monkeypatch):
     asyncio.run(client.aclose())
     names = {t.name for t in asyncio.run(s.mcp.list_tools())}
     assert {"start_run", "start_analysis", "run_step", "complete_run"} <= names
-    assert {"list_methods", "describe_method"} <= names
-    assert "find_methods" not in names
+    assert {"list_methods", "describe_method", "get_semantic_catalog"} <= names
+    assert {"find_methods", "search_semantic"}.isdisjoint(names)
     assert "run_method" not in names
     assert "list_methods" in s.INSTRUCTIONS and "simple arithmetic" in s.INSTRUCTIONS    # relaxed by default (ADR-032)
     assert "verbatim" in s.INSTRUCTIONS and "Do not shorten" in s.INSTRUCTIONS
@@ -136,17 +136,37 @@ def test_selection_sources_are_executable_templates_not_copied_winners(monkeypat
         "source": "step", "step_id": "groups", "output": "ranked_groups", "select": "first", "project": "condition"}
 
 
-def test_semantic_search_forwards_provider_date_hints_without_domain_assumptions(monkeypatch):
+def test_catalog_keeps_full_definitions_without_search_or_projection(monkeypatch):
     s = load(monkeypatch)
+    catalog = {"provider": "cube", "instance": "production", "objects": [
+        {"ref": "cube://production/manufacturing/inspection_date", "kind": "time_dimension",
+         "data_type": "time", "title": "Inspection date", "description": "Definition " * 30,
+         "metadata": {"suggestedDateRange": ["2025-01-01", "2025-06-30"],
+                      "calendarType": "mapped", "unit": "calendar day"}},
+        {"ref": "cube://production/sales/revenue", "kind": "measure", "data_type": "number",
+         "title": "Revenue", "metric_kind": "additive"},
+    ], "hierarchies": {"cube://production/sales/geography": ["cube://production/sales/region"]}}
 
-    async def fake_call(_method, _path, **kwargs):
-        return {"objects": [{"ref": "cube://production/manufacturing/inspection_date", "kind": "time_dimension",
-            "title": "Inspection date", "metadata": {"suggestedDateRange": ["2025-01-01", "2025-06-30"],
-                                                     "calendarType": "mapped", "unrelated": "not forwarded"}}]}
+    async def fake_call(method, path, **kwargs):
+        assert (method, path, kwargs) == ("GET", "/semantic/catalog", {})
+        return catalog
 
     monkeypatch.setattr(s, "_call", fake_call)
-    result = asyncio.run(s.search_semantic(kind="time_dimension"))
-    assert result["objects"][0]["metadata"] == {"suggestedDateRange": ["2025-01-01", "2025-06-30"], "calendarType": "mapped"}
+    assert asyncio.run(s.get_semantic_catalog()) == catalog
+    tool = next(tool for tool in asyncio.run(s.mcp.list_tools()) if tool.name == "get_semantic_catalog")
+    assert not tool.input_schema.get("properties")
+    assert not hasattr(s, "search_semantic")
+
+
+def test_catalog_preserves_source_authorization_failure(monkeypatch):
+    s = load(monkeypatch)
+    error = {"error": {"code": "UNAUTHENTICATED", "message": "A Cube user token is required."}}
+
+    async def call(method, path, **kwargs):
+        return error
+
+    monkeypatch.setattr(s, "_call", call)
+    assert asyncio.run(s.get_semantic_catalog()) == error
 
 
 def test_recipe_free_analysis_starts_one_open_run(monkeypatch):

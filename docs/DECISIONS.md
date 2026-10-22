@@ -2753,3 +2753,40 @@ goals, result capabilities and interpretation contracts remain execution evidenc
 this change does not remove them or alter historical Run records. Listing does not
 need a working semantic connection and never claims a listed Method can execute.
 Revisit search when catalog size creates a demonstrated selection problem.
+
+## ADR-124 — Read the semantic catalog before choosing inputs (2026-10-22)
+
+**Accepted.** Replace MCP `search_semantic(query, kind)` with the argument-free
+`get_semantic_catalog`. It forwards the canonical caller-visible
+`GET /semantic/catalog` response, the same contract used by Web and Python's
+catalog. No second field projection, description truncation, substring matching,
+ranking or search configuration sits between the catalog and the AI. Cube `/meta`
+remains the source of definitions, with the existing per-credential cache. Actual
+rows are requested only when a registered analysis executes.
+
+AI reads definitions, types, keys and dates, selects existing refs and asks about
+ambiguous meaning. The introductory notebook reads the complete example catalog,
+including both customer and sales objects; it no longer assumes that AI knows the
+internal `customers` model name. No search alias, embedding dependency, index,
+threshold or paging abstraction is introduced. Revisit retrieval only when a
+measured catalog-size problem warrants it. MCP clients must refresh their tools.
+
+The simplification audit also found two independent default Skill bodies: the
+packaged registry still contained the older verbose tool protocol while projects
+received the simpler starter procedures. The registry now loads the same two
+starter SKILL.md assets as new projects (version 2.1.0). Previous builtin versions
+remain frozen and explicitly resolvable; historical snapshots and user-owned files
+are not rewritten. Shared `analysis-core` advances to 1.1.0 for catalog discovery.
+The Cube guide focuses on semantic responsibilities and refers to that protocol
+instead of duplicating step/paging/completion instructions.
+
+Unused local SemanticCatalog search/relations/require helpers are removed too;
+they had no product callers. Catalog objects and get(ref) remain available for
+ordinary Python inspection. The removed relations helper did not validate joins;
+provider-declared dimension_refs remain metadata, and actual execution validates
+queries. REST object resolution remains a direct provider operation, and pinned
+compatibility implementations remain available for saved Recipes.
+
+Execution validation, access, budgets, recorded evidence and Run/Recipe contracts
+remain authoritative. This supersedes earlier semantic-search tool
+references in historical guides; current shared protocol governs tool discovery.

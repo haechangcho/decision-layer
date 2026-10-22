@@ -33,12 +33,13 @@ async def verify_mcp(api_url=None, web_url=None):
         assert {
             "list_methods",
             "describe_method",
+            "get_semantic_catalog",
             "find_recipes",
             "start_run",
             "complete_run",
             "run_skill_query",
         } <= names
-        assert "find_methods" not in names
+        assert {"find_methods", "search_semantic"}.isdisjoint(names)
         if not api_url:
             print("PASS: installed MCP initialization and tool discovery.")
             return
@@ -50,7 +51,7 @@ async def verify_mcp(api_url=None, web_url=None):
         assert "analysis.drilldown" in {item["name"] for item in methods["methods"]}
         guide = await call("describe_method", {"name": "analysis.drilldown"})
         assert guide["agent_executable"] and guide["guide"]
-        catalog = await call("search_semantic")
+        catalog = await call("get_semantic_catalog")
         if any(
             item["ref"].startswith("cube://journey/") for item in catalog["objects"]
         ):

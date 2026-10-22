@@ -59,6 +59,10 @@ semantic inputs, create procedures and inspect recorded execution.
 Method selection uses the registered list and each Method's description and input contract.
 There is no separate candidate-filtering service; execution checks dependencies, provider support and actual bindings (ADR-123).
 
+AI reads the full caller-visible semantic catalog through `get_semantic_catalog`,
+then selects inputs by their definitions and types. The current product has no
+separate semantic search or index (ADR-124).
+
 AI clients select registered Methods/Recipes and existing semantic objects. They may
 plan and narrate, but generated analytical Python or SQL is not the normal execution
 path. Developer code runs as reviewed installed implementations or trusted local trials.
@@ -108,6 +112,8 @@ Method authoring exposes ordinary typed Python arguments and native statistical-
 ## Default MVP Methods
 
 Offer two query-executing Skills: analysis.metric_lookup and analysis.drilldown.
+The registry and new projects load the same starter Skill files; shared tool
+protocol lives in analysis-core (ADR-124).
 Trend, peer comparison and advisory-only guides remain compatibility lookups, not
 new discovery choices (ADR-115). Shared Cube tools execute their
 queries. Period-change and series-diagnostic calculations are compatibility-only

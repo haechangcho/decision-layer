@@ -201,3 +201,25 @@ async def test_optional_method_can_be_enabled_with_existing_registration():
         == 3
     )
     assert not session.provider.calls
+
+
+def test_current_skills_share_project_starters_and_keep_pinned_versions():
+    from importlib.resources import files
+    from decision_layer.methods import MethodRegistry
+    from decision_layer.methods.skills import SkillMethod
+
+    target = register_builtins(MethodRegistry())
+    for directory, name, pinned_version in [
+        ("metric_lookup", "analysis.metric_lookup", "1.0.0"),
+        ("drilldown", "analysis.drilldown", "1.1.0"),
+    ]:
+        path = files("decision_layer") / "starters" / "methods" / directory / "SKILL.md"
+        starter = SkillMethod.from_file(path)
+        current = target.get(name)
+        assert current.manifest.version == "2.1.0"
+        assert current.source_text == starter.source_text
+        assert current.guide.sha256 == starter.guide.sha256
+        assert "run_skill_query" not in current.guide.markdown
+        pinned = target.get(name, pinned_version)
+        assert pinned.manifest.version == pinned_version
+        assert "run_skill_query" in pinned.guide.markdown

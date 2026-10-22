@@ -17,6 +17,9 @@ def register_builtins(target: MethodRegistry) -> MethodRegistry:
     from importlib.resources import files
     from .skills import load_skill_directory
 
+    for name in ("metric_lookup", "drilldown"):
+        path = files("decision_layer") / "starters" / "methods" / name / "SKILL.md"
+        target.register(SkillMethod.from_file(path), builtin=True)
     load_skill_directory(target, files("decision_layer") / "guides" / "methods", builtin=True)
     # Keep a small executable starting catalog across CLI, REST, Web and MCP.
     # Existing explicit references still resolve through the compatibility catalog.

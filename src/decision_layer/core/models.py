@@ -59,26 +59,6 @@ class SemanticCatalog(BaseModel):
     def get(self, ref: str) -> SemanticObject | None:
         return next((o for o in self.objects if o.ref == ref), None)
 
-    def require(self, ref: str, *, kind: str | None = None) -> SemanticObject:
-        from .errors import UnknownSemanticObject
-        obj = self.get(ref)
-        if obj is None or not obj.public or (kind is not None and obj.kind != kind):
-            raise UnknownSemanticObject("Semantic object is unavailable or has a different kind", ref=ref)
-        return obj.model_copy(deep=True)
-
-    def search(self, *, kind: str | None = None, text: str = "", compatible_with: str | None = None):
-        if compatible_with:
-            self.require(compatible_with)
-        query = text.casefold()
-        return [obj.model_copy(deep=True) for obj in self.objects if obj.public
-                and (kind is None or obj.kind == ("measure" if kind == "metric" else kind))
-                and query in f"{obj.title} {obj.ref} {obj.description or ''}".casefold()]
-
-    def relations(self, metric: str):
-        obj = self.require(metric, kind="measure")
-        return [{"object": candidate, "compatibility": "declared" if candidate.ref in obj.dimension_refs else "unknown"}
-                for candidate in self.search() if candidate.kind in ("dimension", "time_dimension")]
-
 
 # ── Dataset planning ────────────────────────────────────────────────────────
 

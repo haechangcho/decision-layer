@@ -82,7 +82,7 @@ def core_skill_guide():
     """Shared tool protocol, snapshotted separately from the analysis procedure."""
     from importlib.resources import files
     text = (files("decision_layer") / "guides" / "analysis-core.md").read_text(encoding="utf-8")
-    return MethodGuide(name="analysis-core", version="1.0.0",
+    return MethodGuide(name="analysis-core", version="1.1.0",
         sha256=sha256(text.encode()).hexdigest(), markdown=text)
 
 

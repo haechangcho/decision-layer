@@ -119,15 +119,6 @@ async def test_missing_dependency_refuses_before_queries():
     assert "Optional dependency" in result.warnings[0]
 
 
-async def test_catalog_unknown_relations_do_not_claim_compatibility():
-    session = await MethodSession.fixture(fixture_provider())
-    assert session.catalog.search(kind="metric", text="Revenue")[0].ref == METRIC
-    assert session.catalog.require(DIMENSION).kind == "dimension"
-    assert all(item["compatibility"] == "declared" for item in session.catalog.relations(METRIC))
-    session.catalog.objects[0].dimension_refs = []
-    assert all(item["compatibility"] == "unknown" for item in session.catalog.relations(METRIC))
-
-
 def test_typed_outputs_reject_malformed_payloads():
     with pytest.raises(ValueError):
         Table([1])

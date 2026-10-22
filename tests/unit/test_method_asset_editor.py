@@ -16,8 +16,8 @@ def app(tmp_path, provider, enabled=True):
 
 def skill_source(client):
     value=client.get('/methods/analysis.drilldown/source').json()
-    content=value['content'].replace('version: 1.1.0','version: 1.1.1')+'\n검토한 새 한국어 지침입니다.\n'
-    return {'base_version':'1.1.0','version':'1.1.1','content':content,'revision':None}
+    content=value['content'].replace('version: 2.1.0','version: 2.1.1')+'\n검토한 새 한국어 지침입니다.\n'
+    return {'base_version':'2.1.0','version':'2.1.1','content':content,'revision':None}
 
 
 def test_skill_draft_conflict_review_publication_restart_and_old_versions(tmp_path,provider):
@@ -25,7 +25,7 @@ def test_skill_draft_conflict_review_publication_restart_and_old_versions(tmp_pa
     with TestClient(application) as client:
         req=skill_source(client)
         draft=client.put('/methods/analysis.drilldown/draft',json=req).json()
-        assert client.get('/methods/analysis.drilldown').json()['version']=='1.1.0'
+        assert client.get('/methods/analysis.drilldown').json()['version']=='2.1.0'
         assert client.put('/methods/analysis.drilldown/draft',json=req).status_code==409
         args={'revision':draft['revision'],'reviewed':True}
         assert client.post('/methods/analysis.drilldown/draft:publish',json=args).status_code==400
@@ -34,7 +34,7 @@ def test_skill_draft_conflict_review_publication_restart_and_old_versions(tmp_pa
         assert not check.json()['validation']['analytical_quality_verified']
         assert client.post('/methods/analysis.drilldown/draft:publish',json={**args,'reviewed':False}).status_code==400
         assert client.post('/methods/analysis.drilldown/draft:publish',json=args).status_code==200
-        assert client.get('/methods/analysis.drilldown').json()['version']=='1.1.1'
+        assert client.get('/methods/analysis.drilldown').json()['version']=='2.1.1'
         # Old pinned Recipe still resolves; active Skill snapshots survive publication.
         run=client.post('/runs',json={'question':'Old pinned Skill','scope':{'date_range':list(Q3),'time_dimension':DT}}).json()
         result=client.post(f"/runs/{run['id']}/steps",json={'method':'analysis.drilldown','method_version':'1.0.1','bindings':{'metric':RR}})
@@ -42,7 +42,7 @@ def test_skill_draft_conflict_review_publication_restart_and_old_versions(tmp_pa
         recorded=client.get(f"/runs/{run['id']}").json()['steps'][0]
         assert recorded['skill']['guide']['version']=='1.0.1'
     with TestClient(app(tmp_path,provider)) as client:
-        assert client.get('/methods/analysis.drilldown').json()['version']=='1.1.1'
+        assert client.get('/methods/analysis.drilldown').json()['version']=='2.1.1'
         assert client.get('/methods/analysis.drilldown/source').json()['draft'] is None
         assert len(client.get('/methods/analysis.drilldown/source').json()['history'])==1
 

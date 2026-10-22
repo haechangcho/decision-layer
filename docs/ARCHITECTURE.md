@@ -11,6 +11,10 @@ Use this page to find execution responsibilities and code locations. See [Develo
 | Recipe | A reusable procedure using existing Methods and semantic references |
 | Run | Executed inputs, versions, queries, validation and results |
 
+MCP `get_semantic_catalog()` forwards the same caller-visible `GET /semantic/catalog`
+response as Web. Cube `/meta` supplies definitions; AI selects refs from the full
+catalog. There is no separate search, field projection or index (ADR-124).
+
 Cube REST is the current product connection. Legacy dbt code remains for compatibility tests, not as a new connection option.
 
 ## Code map
@@ -62,7 +66,9 @@ Ordinary `Column` and `DataInput` declarations compile to the shared manifest an
 
 `methods/function/registration.py` compiles registration, `inputs.py` connects query columns to function inputs, and `execution.py` validates data and calls the function. Calculations receive no provider client or credentials.
 
-Team projects place `decision-layer.yaml`, `methods/` and `recipes/` at the root. Version 2 configuration separates the project name from Python source paths. Each project has a private import namespace, restored before loading its calculation in a spawned server worker. Version 1 projects keep their original package layout (ADR-120). Python sessions, CLI and server startup share `project.py`. New projects generate two Skill files and two ordinary Python calculations with separate checks and local tests. Their configuration disables built-in defaults; older projects retain the previous catalog. Package updates never rewrite user-owned definitions (ADR-116). Legacy module-loading settings remain supported.
+Team projects place `decision-layer.yaml`, `methods/` and `recipes/` at the root. Version 2 configuration separates the project name from Python source paths. Each project has a private import namespace, restored before loading its calculation in a spawned server worker. Version 1 projects keep their original package layout (ADR-120). Python sessions, CLI and server startup share `project.py`. The builtin registry
+uses the same two starter Skill files as new projects, keeping one current
+procedure definition (ADR-124). New projects generate two Skill files and two ordinary Python calculations with separate checks and local tests. Their configuration disables built-in defaults; older projects retain the previous catalog. Package updates never rewrite user-owned definitions (ADR-116). Legacy module-loading settings remain supported.
 
 External AI clients drive Skill execution. `runs/skills.py` validates structured Cube queries and records actual requests and results. Each Skill execution snapshots both the shared `analysis-core` tool protocol and its individual analytical procedure; active REST/MCP responses deliver both automatically (ADR-121). The pipeline waits for querying and completion before continuing. Reading guidance alone is neither execution nor validation.
 
