@@ -40,6 +40,28 @@ my_team/
 
 OLS uses statsmodels; matching uses scikit-learn. Results describe observed associations and group differences, without establishing causality.
 
+## checks.py is optional
+
+The default OLS and matching examples put longer checks in `checks.py`. Short checks can stay in `method.py`.
+
+The filename does not trigger execution. Import the function in `method.py`:
+
+```python
+from .checks import check_data
+```
+
+Connect it through `checks=[check_data]` in `python_method`. Execution then follows:
+
+**Query data → check the input contract → run registered checks → call the calculation**
+
+- Input contract checks cover required columns, row count, numeric values and row identity.
+- Registered checks cover analysis conditions such as the regression design. They receive the same DataFrame and the column-name arguments declared by the check.
+- A check that raises `ValueError` or returns `False` stops execution before calculation and records its result.
+
+Other functions in `checks.py` do not run automatically. They run only if registered in `checks` or called by the calculation.
+
+The default `ols` and `matching` functions also call `check_data` internally to protect direct Python calls. That check therefore runs twice through the product. The [Python function example](../tutorials/write-your-method) separates checking from calculation and shows both direct calls and Method execution.
+
 ## Check and serve
 
 ```bash

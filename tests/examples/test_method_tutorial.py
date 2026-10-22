@@ -26,6 +26,8 @@ async def test_introductory_notebook_from_tutorial_directory(language, monkeypat
     )
     result = namespace["ols_trial"].result
     assert result.status == "success"
+    assert namespace["my_ols"].checks == (namespace["check_ols"],)
+    assert any(check.code == "PYTHON_CHECK" and check.status == "pass" for check in result.validation)
     assert result.primary.data["value"] == pytest.approx(50)
     assert result.primary.data["n_observations"] == 200
     assert result.primary.data["r_squared"] == pytest.approx(
