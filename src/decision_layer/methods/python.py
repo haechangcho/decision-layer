@@ -134,6 +134,9 @@ def python_method(
     Column declarations matching function arguments inject resolved column names.
     Legacy DataInput.column_args remains supported. Clients select semantic refs,
     never raw columns. role="entity_key" declares the key in ordinary bindings.
+    Output defaults to auto: numbers and dicts with a numeric "value" become
+    estimates; DataFrames, row lists and other dicts become tables. Use output
+    to override automatic adaptation.
     """
     return PythonMethod(
         fn,

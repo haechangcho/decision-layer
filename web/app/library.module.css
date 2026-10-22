@@ -329,5 +329,3 @@
 .runQueryFailure { padding:14px 18px; border-left:3px solid var(--bad); background:var(--bg); color:var(--bad); font-size:13px; overflow-wrap:anywhere; }
 .runProgressSummary { margin:20px 0 28px; color:var(--muted); font-size:13px; line-height:1.7; }.runProgressSummary>p { margin:0; }
 .runPage .runRecipeDecision { margin-top:32px; padding-block:22px; }.runRecipeDecision h2 { font-size:14px; }
-
-.methodConnectionCheck { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }

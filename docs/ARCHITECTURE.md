@@ -56,6 +56,8 @@ Result → Run storage → Web and AI
 
 ## Method registration and execution
 
+Methods are listed and described directly from the registry. AI reads their descriptions and input contracts; the execution path validates dependencies, provider support and selected inputs. There is no separate Method candidate endpoint or pre-execution availability screen (ADR-123).
+
 Ordinary `Column` and `DataInput` declarations compile to the shared manifest and input contract. Web, REST and MCP consume that manifest; new Methods do not require separate screens or execution rules.
 
 `methods/function/registration.py` compiles registration, `inputs.py` connects query columns to function inputs, and `execution.py` validates data and calls the function. Calculations receive no provider client or credentials.

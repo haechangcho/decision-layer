@@ -199,22 +199,6 @@ async def list_methods() -> dict:
     }
 
 
-@mcp.tool(
-    description=_(
-        "Inspect Method candidates using existing goals, visible semantic inputs and execution requirements. This does not select a Method or verify question relevance."
-    )
-)
-async def find_methods(goal: AnalysisGoal | None = None) -> dict:
-    return await _call(
-        "POST",
-        "/methods:search",
-        json={
-            "goal": goal.model_dump(mode="json") if goal else None,
-            "names": sorted(METHODS) if METHODS else None,
-        },
-    )
-
-
 @mcp.tool(description=_(DOCS["describe_method"]))
 async def describe_method(name: str) -> dict:
     if not allowed(name):

@@ -73,6 +73,8 @@ async def test_ols_uses_entity_and_injects_column_list():
         scope=Scope(FEB, TIME),
     )
     assert trial.result.status == "success"
+    assert OLS.output == "auto"
+    assert trial.result.primary.type == "estimate"
     assert trial.result.primary.data["value"] == pytest.approx(50)
     assert trial.result.primary.data["coefficients"]["confounders_0"] == pytest.approx(
         3
@@ -288,6 +290,7 @@ async def test_entity_ols_through_mcp_rest_and_worker(tmp_path, monkeypatch):
         )
         assert result["status"] == "success"
         saved = client.get(f"/runs/{run['id']}").json()
+        assert saved["steps"][0]["result"]["primary"]["type"] == "estimate"
         assert saved["steps"][0]["result"]["primary"]["data"]["value"] == pytest.approx(
             50
         )

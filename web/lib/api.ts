@@ -322,17 +322,3 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
   }
   return body as T;
 }
-
-
-export interface MethodSearchReport {
-  status: "candidates" | "no_available_candidate";
-  candidates: { manifest: MethodManifest; input_candidates: Record<string, string[]>;
-    required_inputs: string[]; conditional_capabilities: Record<string, string[]>;
-    description_available: boolean }[];
-  excluded: { name: string; reasons: { code: string; input?: string; value?: string;
-    values?: string[]; message?: string }[] }[];
-  capabilities: Record<string, string[]>;
-  unknown_capabilities: string[];
-  semantic_meaning_verified: false;
-  guidance: string;
-}

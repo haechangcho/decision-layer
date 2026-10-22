@@ -108,13 +108,6 @@ class MethodSession:
         names = project.load(self.registry)
         return [self.registry.get(name).manifest.model_copy(deep=True) for name in names]
 
-    def find_methods(self, *, goal=None, names=None) -> dict:
-        """Inspect registered candidates using this session's visible catalog."""
-        from .methods.discovery import MethodSearchRequest, find_methods
-        request = MethodSearchRequest(goal=goal, names=names)
-        return find_methods(self.registry, ExecutionContext(
-            self.provider, self._credentials, self.catalog), request)
-
     async def run(self, method: str | Method, *, scope: Scope,
                   bindings: dict[str, Any] | None = None, params: dict[str, Any] | None = None,
                   measures=None, dimensions=None, entity=None, filters=None, **inputs) -> MethodTrial:

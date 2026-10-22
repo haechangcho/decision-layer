@@ -60,6 +60,5 @@ METHOD = python_method(
             minimum_rows=10,
         )
     },
-    output="estimate",
     requires_packages={"statsmodels": ">=0.14,<0.16"},
 )

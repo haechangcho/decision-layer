@@ -20,7 +20,7 @@ method = python_method(
 | 첫 번째 인자 | 실행할 Python 함수 |
 | `name`, `version` | Method 이름과 버전. 필수 |
 | `inputs` | 데이터를 받을 함수 인자와 `DataInput`의 연결. 필수 |
-| `output` | 반환 형태. 기본 `"auto"`, 또는 `"table"`, `"estimate"` |
+| `output` | 선택 사항. 기본은 자동 판별. `"table"`, `"estimate"`로 직접 지정 가능 |
 | `requires_packages` | 필요한 패키지와 버전 범위. 예: `{"statsmodels": ">=0.14,<0.16"}` |
 | `checks` | 조회한 데이터의 추가 검사 함수 목록 |
 | `option_checks` | 데이터 조회 전에 실행할 계산 옵션 검사 함수 목록 |
@@ -75,10 +75,12 @@ inputs={
 |---|---|
 | DataFrame, 행 dict 목록 | 기본 설정에서 표로 변환 |
 | 숫자 | 기본 설정에서 추정값으로 변환 |
-| dict | 기본 설정에서는 한 행의 표 |
-| `{"value": 숫자, ...}` | `output="estimate"`로 지정하면 추정값과 상세 정보로 변환 |
+| `{"value": 숫자, ...}` | 기본 설정에서 `value`는 대표 추정값, 나머지는 상세 정보 |
+| 그 외 dict | 기본 설정에서 한 행의 표 |
 
-`output="table"`과 `output="estimate"`는 반환 형태를 고정합니다. 다른 형태가 나오면 오류가 납니다. 지원하지 않는 외부 라이브러리의 결과 객체는 함수 안에서 변환하거나 `adapt`를 사용합니다.
+보통은 `output`을 생략합니다. 숫자형 `value`가 있어도 표로 처리하려면 `output="table"`을 지정합니다. `True`, 문자열, `None`은 숫자형 `value`로 보지 않으며, 결측값이나 무한대가 포함된 숫자 결과는 거절합니다.
+
+`output="table"`과 `output="estimate"`는 자동 판별보다 우선합니다. 지정한 형태로 변환할 수 없으면 오류가 납니다. 지원하지 않는 외부 라이브러리의 결과 객체는 함수 안에서 변환하거나 `adapt`를 사용합니다.
 
 ## 검사와 오류
 
@@ -95,7 +97,6 @@ inputs={
 |---|---|
 | `session.register(method)` | 현재 세션에 Method 추가 |
 | `session.list_methods()` | 등록된 manifest 목록 확인 |
-| `session.find_methods(...)` | 입력 조건을 포함해 Method 검색 |
 | `await session.run(name, bindings=..., params=..., scope=...)` | 로컬 실행과 결과 확인 |
 
 `bindings`는 실제 semantic 식별자, `params`는 계산 옵션입니다. `Scope(date_range=(시작일, 종료일), time_dimension=날짜_식별자)`로 기간을 지정합니다.

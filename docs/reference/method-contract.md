@@ -20,7 +20,7 @@ method = python_method(
 | First argument | Python function to execute |
 | `name`, `version` | Required Method name and version |
 | `inputs` | Required mapping from data arguments to `DataInput` |
-| `output` | Result shape: default `"auto"`, or `"table"`, `"estimate"` |
+| `output` | Optional. Infer the shape by default, or select `"table"` or `"estimate"` |
 | `requires_packages` | Required package versions, such as `{"statsmodels": ">=0.14,<0.16"}` |
 | `checks` | Additional data checks |
 | `option_checks` | Option checks executed before querying |
@@ -75,10 +75,12 @@ Function arguments matching declared columns receive DataFrame column names. Mul
 |---|---|
 | DataFrame or list of row dicts | Table with default settings |
 | Number | Estimate with default settings |
-| Dict | One-row table with default settings |
-| `{"value": number, ...}` | Estimate with details when `output="estimate"` |
+| `{"value": number, ...}` | Estimate by default: `value` is the primary estimate; other fields are details |
+| Other dict | One-row table with default settings |
 
-`output="table"` and `output="estimate"` require the selected shape; mismatches raise an error. Convert unsupported external-library objects inside the function or through `adapt`.
+Usually, omit `output`. Use `output="table"` to keep a dict with a numeric `value` as a table. Booleans, strings and `None` do not count as numeric values. Non-finite numeric results are rejected.
+
+Explicit `output="table"` and `output="estimate"` take precedence over inference. Values that cannot be converted to the selected shape raise an error. Convert unsupported external-library objects inside the function or through `adapt`.
 
 ## Checks and errors
 
@@ -95,7 +97,6 @@ Decision Layer checks required inputs, types and declared data conditions. Each 
 |---|---|
 | `session.register(method)` | Add a Method to the session |
 | `session.list_methods()` | List registered manifests |
-| `session.find_methods(...)` | Search Methods and their input requirements |
 | `await session.run(name, bindings=..., params=..., scope=...)` | Execute locally and inspect the result |
 
 `bindings` selects semantic references; `params` supplies calculation options. Use `Scope(date_range=(start, end), time_dimension=date_reference)` for dates.

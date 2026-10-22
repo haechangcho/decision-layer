@@ -38,6 +38,7 @@ async def verify_mcp(api_url=None, web_url=None):
             "complete_run",
             "run_skill_query",
         } <= names
+        assert "find_methods" not in names
         if not api_url:
             print("PASS: installed MCP initialization and tool discovery.")
             return

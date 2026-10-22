@@ -2714,3 +2714,42 @@ Registered checks may request resolved column-name arguments explicitly, while
 DataFrame-only checks retain their existing call contract. The input overview
 shows required analytical inputs and constraints; generated DataFrame aliases
 remain available in code and Run evidence. Historical sources are not rewritten.
+
+## ADR-122 — Infer estimates from ordinary numeric-value dictionaries (2026-10-22)
+
+**Accepted.** Ordinary Python Methods default to `output="auto"`. DataFrames and
+lists of row dictionaries become tables. Numbers and dictionaries with a numeric
+`value` become estimates; the other dictionary fields remain estimate details.
+Other dictionaries become one-row tables. Boolean, string and null values do not
+trigger estimate inference. Existing finite-number and JSON serialization checks
+still apply to the primary value and details.
+
+This revises ADR-108's requirement to explicitly mark dictionary estimates.
+`output="table"` and `output="estimate"` remain optional overrides. An auto-adapted
+numeric-value dictionary changes shape after this runtime upgrade; authors who
+require its previous table shape must explicitly select `output="table"`.
+Existing explicit outputs and stored Run results remain unchanged. All interfaces
+use the same calculation adapter; no new artifact type or storage schema is added.
+
+## ADR-123 — Select Methods from their registered descriptions (2026-10-22)
+
+**Accepted.** Supersedes ADR-087's separate candidate-filtering service. The current
+catalog is small and its goal/capability/interpretation filtering does not search
+natural-language relevance. Packages, provider support and bindings are already
+validated by the canonical execution path. Maintaining a second availability view
+adds authoring and maintenance cost without making execution authoritative.
+
+Remove the MethodSearchRequest/candidate report, discovery module, local
+find_methods, REST POST /methods:search, MCP find_methods, and Web requirement-check
+component. List and describe installed Methods directly from the registry. AI uses
+descriptions and input contracts to choose a registered implementation; unsupported
+questions must still be reported rather than filled with generated analytical code.
+MCP clients must refresh their tool list and use list_methods / describe_method.
+No compatibility alias retains the removed filtering implementation.
+
+Execution still validates semantic visibility, roles, types, required packages,
+provider capabilities, periods, query budgets, data and custom checks. Recipe/Run
+goals, result capabilities and interpretation contracts remain execution evidence;
+this change does not remove them or alter historical Run records. Listing does not
+need a working semantic connection and never claims a listed Method can execute.
+Revisit search when catalog size creates a demonstrated selection problem.

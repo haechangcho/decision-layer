@@ -34,9 +34,6 @@ async def test_scaffold_lists_and_runs_through_local_registry(project):
     name = project.config.name + ".rank"
     assert {m.name for m in loaded} == {name, project.config.name + ".review"}
     assert name in {m.name for m in session.list_methods()}
-    assert (
-        session.find_methods(names=[name])["candidates"][0]["manifest"]["name"] == name
-    )
     trial = await session.run(
         name, value=METRIC, group=DIMENSION, scope=Scope(DATES, DATE)
     )

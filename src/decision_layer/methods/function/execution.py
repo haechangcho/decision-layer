@@ -168,7 +168,12 @@ def prepare_inputs(rows_by_name, inputs, resolved=None):
 def adapt_result(value, output):
     if isinstance(value, (Table, Estimate)):
         result = value
-    elif output == "estimate":
+    elif output == "estimate" or (
+        output == "auto"
+        and isinstance(value, dict)
+        and isinstance(value.get("value"), (int, float))
+        and not isinstance(value["value"], bool)
+    ):
         result = (
             Estimate(value["value"], details=value)
             if isinstance(value, dict)

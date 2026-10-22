@@ -8,7 +8,6 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { MethodAssetEditor } from "@/features/methods/method-asset-editor";
 import { MethodMarkdown } from "@/features/methods/method-content";
-import { MethodAvailability } from "@/components/method-availability";
 import { PythonInputContract } from "@/features/methods/python-input-contract";
 import { MethodExecutions } from "@/features/methods/method-executions";
 import { LoadingState } from "@/components/loading-indicator";
@@ -53,7 +52,6 @@ export default function MethodPage() {
         {!!Object.keys(method.parameters).length && <section className={styles.methodOptions}><h3>{t("Calculation options")}</h3><div><dl className={styles.meta}>
           {Object.entries(method.parameters).map(([key, parameter]) => <div className={styles.metaRow} key={key}><dt>{parameter.label || key}</dt><dd>{parameter.description || parameter.type}{parameter.default != null ? ` (${JSON.stringify(parameter.default)})` : ""}</dd></div>)}
         </dl></div></section>}
-        <div className={styles.methodConnectionCheck}><MethodAvailability key={`availability:${name}`} name={decodeURIComponent(name)} /></div>
       </section>}
       </div>
       <div id="method-panel-implementation" role="tabpanel" aria-labelledby="method-tab-implementation" hidden={view !== "implementation"}>
