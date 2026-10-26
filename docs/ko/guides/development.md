@@ -48,10 +48,6 @@ npm run docs:test
 npm run docs:build
 ```
 
-노트북과 완성 프로젝트는 `tests/examples/`, 공통 입력과 실패 사례는 `tests/support/`에서 검증합니다.
-선택적 통계 의존성이 필요한 검사는 패키지가 없으면 건너뜁니다. 통계 CI는
-`tests/requirements-statistics.txt` 환경에서 별도로 실행합니다.
-
 화면 변경은 개발 서버를 켠 상태에서 확인합니다.
 
 ```bash
@@ -60,10 +56,8 @@ npx playwright install chromium
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5210 npm run test:e2e
 ```
 
-기본 화면 검사는 API 응답을 대체합니다. 실제 Cube 연결 검증은
-[Complete Journey 예제](https://github.com/haechangcho/decision-layer/tree/main/examples/complete-journey)의 안내를 따르세요.
-설치 패키지 검사는 `scripts/smoke_distribution.py`, 실제 설치형 데모 검사는
-`scripts/smoke_demo.py`가 담당하며 CI에서도 실행합니다.
+화면 테스트는 API 응답을 대체합니다. 실제 데이터 연결은
+[Complete Journey 예제](https://github.com/haechangcho/decision-layer/tree/main/examples/complete-journey)로 검증하세요.
 
 ## 변경 제출하기
 

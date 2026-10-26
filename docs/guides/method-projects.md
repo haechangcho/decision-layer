@@ -1,7 +1,6 @@
 # Register in a project
 
-Save [the example function](../tutorials/write-your-method) in a project to use it through the admin UI and AI.
-Python, CLI commands and the server read the same project files.
+Save your function and registration code in a project to use them through the admin UI and AI.
 
 ## Create a project
 
@@ -13,7 +12,7 @@ cd my_team
 python -m pip install -e '.[test]'
 ```
 
-Two Skills and two Python Methods are created as editable project files:
+Two editable Skills and two Python Methods are created:
 
 ```text
 my_team/
@@ -33,36 +32,14 @@ my_team/
         └── test_method.py
 ```
 
-- `SKILL.md` contains instructions for AI queries and analysis.
-- `method.py` contains the calculation and `METHOD = python_method(...)` registration.
-- `test_method.py` checks known synthetic answers and invalid inputs.
-- `pyproject.toml` declares project dependencies.
+- `SKILL.md`: analysis instructions for AI
+- `method.py`: calculation and `METHOD = python_method(...)` registration
+- `checks.py`: optional checks before calculation
+- `test_method.py`: tests for the calculation and checks
 
-OLS uses statsmodels; matching uses scikit-learn. Results describe observed associations and group differences, without establishing causality.
+See [the Python Method example](../tutorials/write-your-method) for function and registration code.
 
-## checks.py is optional
-
-The default OLS and matching examples put longer checks in `checks.py`. Short checks can stay in `method.py`.
-
-The filename does not trigger execution. Import the function in `method.py`:
-
-```python
-from .checks import check_data
-```
-
-Connect it through `checks=[check_data]` in `python_method`. Execution then follows:
-
-**Query data → check the input contract → run registered checks → call the calculation**
-
-- Input contract checks cover required columns, row count, numeric values and row identity.
-- Registered checks cover analysis conditions such as the regression design. They receive the same DataFrame and the column-name arguments declared by the check.
-- A check that raises `ValueError` or returns `False` stops execution before calculation and records its result.
-
-Other functions in `checks.py` do not run automatically. They run only if registered in `checks` or called by the calculation.
-
-The default `ols` and `matching` functions also call `check_data` internally to protect direct Python calls. That check therefore runs twice through the product. The [Python function example](../tutorials/write-your-method) separates checking from calculation and shows both direct calls and Method execution.
-
-## Check and serve
+## Edit and test
 
 ```bash
 decision-layer check
@@ -71,19 +48,13 @@ decision-layer list
 decision-layer serve --reload
 ```
 
-| Command | Purpose |
-|---|---|
-| `check` | Validate registration and references, without querying or calculating. |
-| `test` | Run 13 OLS and matching tests, without Cube or a server. |
-| `list` | Show names, versions and source paths. |
-| `serve` | Start the admin UI and API with the same project. |
+- `check`: validate registration and references without executing analysis
+- `test`: run project tests; the starter calculation tests need no Cube
+- `list`: show registered Methods and file paths
+- `serve --reload`: start the admin UI and reload when files change
 
-The default names are `analysis.metric_lookup`, `analysis.drilldown`, `stats.regression_adjustment` and `stats.binary_matching`.
-New projects discover these local files. Remove a definition folder if it is not needed.
-
-Open the printed admin URL, normally `http://127.0.0.1:8000/ui/`.
-`--reload` restarts the server when files change. Run the tests and increment the Method version when changing a calculation.
-From another directory, use `decision-layer serve --project /path/to/my_team`.
+[Connect Cube](cube.md), then choose **Methods → Choose inputs and test**.
+Run tests and increment the Method version when changing a calculation.
 
 ## Add a Method
 
@@ -93,50 +64,51 @@ decision-layer new skill metric_review
 ```
 
 These create `methods/rank/method.py` and `methods/metric_review/SKILL.md`.
-Use a [Recipe](recipes.md) to reuse a sequence of existing Methods.
-Start without defaults with `decision-layer init my_team --empty`.
+Use `decision-layer init my_team --empty` to start without defaults.
 
-## Keep Skills about analysis
+## Register checks
 
-Write the investigation steps and decision rules in `SKILL.md`: break revenue down
-by department, select a department (ask when tied), then inspect its stores.
-The product supplies shared instructions for semantic discovery, dates, filters,
-tool calls and evidence recording. Authors do not need to repeat tool names or
-execution identifiers in each procedure.
+Checks are optional. Keep short checks in `method.py`, or move longer ones to `checks.py`.
 
-## Test in the admin UI
+```python
+from .checks import check_data
 
-[Connect Cube](cube.md), then:
+METHOD = python_method(
+    ols,
+    name="my_team.ols",
+    version="1.0.0",
+    inputs={"data": DataInput(columns={...})},
+    checks=[check_data],
+)
+```
 
-1. Select your registered Method under **Methods**.
-2. Choose metrics, dimensions and dates under **Choose inputs and test**.
-3. Inspect results and validation, then open **Runs** for queries and input evidence.
+Execution follows **query data → check input requirements → run registered checks → calculate**.
+A check that raises `ValueError` or returns `False` stops the calculation and records the reason.
+See [Method API](../reference/method-contract.md#checks-and-errors) for details.
 
-Notebook example data and local results are not uploaded automatically. The server
-queries the configured Cube source.
+## Write a Skill
+
+Put analysis steps and decision rules in `SKILL.md`:
+
+```markdown
+# Inspect revenue by department
+
+1. Query revenue by department.
+2. Select the highest-revenue department. Ask the user if tied.
+3. Inspect that department's revenue by store.
+4. Explain the results and what remains unknown.
+```
+
+The product supplies shared tool and recording instructions; do not repeat them in each Skill.
 
 ## Use through AI
 
-Follow [MCP setup](mcp.md) to connect to the same API. The default server uses:
+Keep the server running and [connect MCP](mcp.md). AI can discover and execute the project's Methods.
 
-```text
-DL_API_URL=http://127.0.0.1:8000
-DL_WEB_URL=http://127.0.0.1:8000/ui
-```
+## Manage with your team
 
-AI inspects registered Methods and input contracts, then selects data from the
-semantic catalog. The server records execution inputs, results and queries in a Run.
+Keep project files in Git. Package upgrades preserve your files.
+Start the server with `decision-layer serve --project /path/to/my_team` to select the project.
 
-## Share with your team
-
-Keep project files in your team's Git repository. Deploy reviewed files and Python
-dependencies to the server, set `DL_PROJECT_DIR` and restart to load the project.
-
-Runs are stored in `.decision-layer/decision_layer.db` and Recipes in `recipes/`.
-Notebook, CLI and server share the loader but retain their own execution history.
-Web-published versions are managed separately and do not overwrite project source.
-
-Package upgrades never overwrite project files or add defaults to ordinary existing projects.
-An older empty managed demo gains starter files when `demo` runs again.
-Use a new directory to repeat first-install QA. Older configurations retain their built-in catalog;
-new configurations set `include_builtin_methods: false` to discover local project definitions instead.
+Recipes live in `recipes/`; Runs are stored in `.decision-layer/decision_layer.db`.
+Local notebook results are not automatically stored on the server.

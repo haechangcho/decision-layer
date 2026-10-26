@@ -47,11 +47,6 @@ npm run docs:test
 npm run docs:build
 ```
 
-`tests/examples/` checks the retained notebook and complete project.
-`tests/support/` owns shared inputs and known-answer cases. Optional statistical
-tests skip when their dependencies are missing; statistical CI installs the
-stack in `tests/requirements-statistics.txt`.
-
 For screen changes, start the development server, then:
 
 ```bash
@@ -60,10 +55,8 @@ npx playwright install chromium
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:5210 npm run test:e2e
 ```
 
-Default browser checks mock API responses. Follow the
-[Complete Journey example](https://github.com/haechangcho/decision-layer/tree/main/examples/complete-journey)
-for live Cube integration. `scripts/smoke_distribution.py` checks an installed
-package, and `scripts/smoke_demo.py` checks the installed Docker sample. CI runs both.
+Browser tests mock API responses. For live data integration, use the
+[Complete Journey example](https://github.com/haechangcho/decision-layer/tree/main/examples/complete-journey).
 
 ## Submit your change
 

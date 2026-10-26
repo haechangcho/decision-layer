@@ -1,16 +1,7 @@
 # Connect AI tools
 
-Connect MCP so AI can discover and execute registered Methods and Recipes. Start the [Decision Layer server](quickstart.md) first.
-
-The adapter runs on your computer and calls the Decision Layer API. Use a client that supports local stdio MCP servers.
-
-Keep the server terminal running. Use another terminal with the same virtual environment activated for the commands below.
-
-## Prepare the connection
-
-The MCP adapter is installed with Decision Layer. Activate the virtual environment used for installation.
-
-The connection commands below use the installed executable's path automatically. Match the API and Web URLs to your server's ports.
+Keep the [Decision Layer server](quickstart.md) running. Open another terminal and activate the virtual environment used for installation.
+Connect one of the clients below.
 
 ## Codex
 
@@ -19,8 +10,6 @@ codex mcp add decision-layer --env DL_API_URL=http://127.0.0.1:8000 --env DL_WEB
 codex mcp list
 ```
 
-[Codex MCP](https://developers.openai.com/codex/mcp)
-
 ## Claude Code
 
 ```bash
@@ -28,23 +17,15 @@ claude mcp add --scope user --env DL_API_URL=http://127.0.0.1:8000 --env DL_WEB_
 claude mcp list
 ```
 
-[Claude Code MCP](https://code.claude.com/docs/en/mcp)
-
 ## Claude Desktop
 
-Open **Settings → Developer → Edit Config** in the desktop app. On macOS, the file is:
-
-```text
-~/Library/Application Support/Claude/claude_desktop_config.json
-```
-
-Find the executable path first:
+Open **Settings → Developer → Edit Config**. First, find the executable:
 
 ```bash
 which decision-layer-mcp
 ```
 
-Replace `command` in the JSON below with that path, then add `decision-layer` alongside existing `mcpServers` entries.
+Replace `command` with that path and add the entry to your existing `mcpServers`:
 
 ```json
 {
@@ -60,46 +41,35 @@ Replace `command` in the JSON below with that path, then add `decision-layer` al
 }
 ```
 
-Save, fully quit Claude Desktop, and reopen it. See the [official local MCP guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers) for details.
+Save, fully quit the app and reopen it.
 
-## Ask and inspect the result
+## Ask a question
 
-First ask which metrics and analysis methods are available to check the connection. With the sample running, continue with:
+Check the connection:
 
-> Using the example calendar, which department leads retailer receipts in February 2001, and what are its receipts by store? Show the metrics and query evidence.
+> Show the available metrics and analysis methods.
 
-AI follows this flow:
+Then try the sample:
 
-1. Read `list_methods` and `describe_method` to choose a procedure and understand its inputs.
-2. Call `get_semantic_catalog()` to read all available definitions and select metrics and dimensions.
-3. Execute with `start_analysis` and `run_step`, or reuse a suitable Recipe, then explain the recorded results.
+> For February 2001 in the sample, find the department with the highest retailer receipts and show its receipts by store.
 
-The catalog contains definitions from Cube `/meta`, not data rows. No search term or prior knowledge of internal Cube names is needed. AI asks about ambiguous meanings or dates; actual rows are queried when the analysis executes.
-
-See the [Python function example](../tutorials/write-your-method.md) for calls and responses.
-
-Open the returned Run link to inspect results and queries. Save a recurring analysis as a [Recipe](recipes.md).
+AI selects a Method and data; Decision Layer queries and calculates. Open the Run link in the answer to inspect results and queries.
+See [the Python Method example](../tutorials/write-your-method.md) for tool requests and responses.
 
 ## Connection settings
 
+If you changed the server port, update `DL_API_URL` and `DL_WEB_URL`.
+
 | Variable | Purpose |
 |---|---|
-| `DL_API_URL` | Decision Layer API URL |
-| `DL_WEB_URL` | Admin console URL for result links |
-| `DL_TOKEN` | Bearer token required for an existing Cube user |
-| `DL_LOCALE` | Method message language; use `ko` for Korean |
-
-New demos use the full Complete Journey purchase data. In February 2001 on the example calendar, GROCERY leads with retailer receipts of 178,255.38. Receipts are not profit, and the example dates do not represent actual purchase years.
-
-Demos created with earlier versions keep their original synthetic data. Ask your AI client to check the available metrics and periods first.
-
-The sample uses a local test identity. Keep real tokens in private client settings, outside Git.
+| `DL_API_URL` | API URL |
+| `DL_WEB_URL` | Admin UI URL for result links |
+| `DL_TOKEN` | Cube user authentication token |
+| `DL_LOCALE` | Message language; use `ko` for Korean |
 
 ## Troubleshoot
 
-- **`ENOENT` or executable missing**: activate the environment where you installed the adapter and check `which decision-layer-mcp`. To replace an incorrect Claude Code registration, run `claude mcp remove --scope user decision-layer`, then repeat the connection command above.
-- **Connection refused**: check that the server is running and `DL_API_URL` uses its port.
-- **Access error or missing metrics**: check token and source permissions in [Connect Cube](cube.md).
-- **No tools**: restart the client or MCP session.
-
-Running the adapter directly in a terminal may wait for input. The MCP client supplies protocol requests.
+- **`ENOENT`**: activate the virtual environment and check `which decision-layer-mcp`. Remove an incorrect Claude Code registration with `claude mcp remove --scope user decision-layer`, then reconnect.
+- **API connection failed**: check that the server is running and the port matches.
+- **Access error**: check authentication in [Connect Cube](cube.md).
+- **No tools**: restart the AI client.

@@ -1,11 +1,10 @@
 # Connect Cube
 
-Decision Layer reads metrics and dimensions and queries data through Cube's REST API. Cube owns metric definitions and joins.
+Connect Cube to analyze your organization's metrics and data.
 
-## Start your project
+## Start a project
 
-In the environment where you [installed Decision Layer](quickstart.md), create and start a team project.
-If the demo is running, stop it with `Ctrl+C` first.
+Stop the demo with `Ctrl+C` if it is running, then:
 
 ```bash
 decision-layer init my_team
@@ -13,35 +12,28 @@ cd my_team
 decision-layer serve
 ```
 
-## Enter the connection
+## Connect
 
-Open **Sources** in the admin console.
+Open **Sources** in the admin UI.
 
-1. Enter the Cube API URL and authentication method.
+1. Enter the Cube API URL and credentials.
 2. Test the connection and save it.
-3. Check that the required metrics and dimensions appear in **Metrics**.
+3. Check the metrics and dimensions under **Metrics**.
 
 | Cube location | Example API URL |
 |---|---|
-| Same computer | `http://127.0.0.1:4000/cubejs-api/v1` |
+| Your computer | `http://127.0.0.1:4000/cubejs-api/v1` |
 | Remote server | `https://your-cube.example/cubejs-api/v1` |
-| Decision Layer runs inside Docker | `http://host.docker.internal:4000/cubejs-api/v1` |
+| Decision Layer runs in Docker | `http://host.docker.internal:4000/cubejs-api/v1` |
 
-The address must be reachable from the Decision Layer server. Inside a container, `localhost` refers to that container.
-
-## Authentication
-
-For an existing deployment, use a user token issued by that Cube environment. API-secret authentication and sample credentials are for local testing.
-
-Saved credentials are encrypted; environment settings take precedence. See [.env.example](https://github.com/haechangcho/decision-layer/blob/main/.env.example) for connection administration settings.
+The URL must be reachable from the Decision Layer server.
+Use a Cube user token for an existing deployment or a development API secret for local testing.
+See [.env.example](https://github.com/haechangcho/decision-layer/blob/main/.env.example) for server authentication settings.
 
 ## Troubleshoot
 
-| Symptom | Check |
-|---|---|
-| Unreachable | `/cubejs-api/v1` in the URL, port and network |
-| 401 or 403 | Token expiry and access scope |
-| No metrics | Deployed Cube models and the user's model access |
-| Missing date or variable | Whether Cube defines the required object |
+- **Unreachable**: check `/cubejs-api/v1`, the port and network.
+- **401 or 403**: check token expiry and permissions.
+- **Missing metric or variable**: check Cube model definitions and access.
 
-Continue with [Recipes](recipes.md) or [AI tools](mcp.md).
+Continue by [creating a Recipe](recipes.md) or [connecting an AI client](mcp.md).

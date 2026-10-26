@@ -1,16 +1,7 @@
 # AI 도구 연결
 
-AI가 등록된 Method와 Recipe를 찾고 실행하도록 MCP를 연결합니다. 먼저 [Decision Layer 서버](quickstart.md)를 실행해 두세요.
-
-MCP 어댑터는 내 컴퓨터에서 실행되고 Decision Layer API에 요청합니다. 로컬 stdio를 지원하는 클라이언트에서 사용할 수 있습니다.
-
-서버를 실행한 터미널은 켜두세요. 아래 설치와 연결 명령은 새 터미널에서 같은 가상환경을 활성화한 뒤 실행합니다.
-
-## 연결 준비
-
-MCP 어댑터는 Decision Layer와 함께 설치됩니다. 설치할 때 사용한 가상환경을 활성화하세요.
-
-아래 연결 명령은 설치된 실행 파일의 경로를 자동으로 사용합니다. 서버의 포트를 바꿨다면 API와 Web 주소도 맞춥니다.
+[Decision Layer 서버](quickstart.md)를 켜 두고, 새 터미널에서 설치에 사용한 가상환경을 활성화하세요.
+사용하는 AI 도구 하나를 선택해 연결합니다.
 
 ## Codex
 
@@ -19,8 +10,6 @@ codex mcp add decision-layer --env DL_API_URL=http://127.0.0.1:8000 --env DL_WEB
 codex mcp list
 ```
 
-[Codex MCP](https://developers.openai.com/codex/mcp)
-
 ## Claude Code
 
 ```bash
@@ -28,23 +17,16 @@ claude mcp add --scope user --env DL_API_URL=http://127.0.0.1:8000 --env DL_WEB_
 claude mcp list
 ```
 
-[Claude Code MCP](https://code.claude.com/docs/en/mcp)
-
 ## Claude Desktop
 
-앱의 **Settings → Developer → Edit Config**에서 설정 파일을 엽니다. macOS에서는 다음 위치에 있습니다.
-
-```text
-~/Library/Application Support/Claude/claude_desktop_config.json
-```
-
-먼저 실행 파일의 경로를 확인합니다.
+**Settings → Developer → Edit Config**에서 설정 파일을 엽니다.
+먼저 실행 파일 경로를 확인하세요.
 
 ```bash
 which decision-layer-mcp
 ```
 
-아래 JSON의 `command`를 출력된 경로로 바꾸고, 기존 `mcpServers` 항목을 유지하면서 `decision-layer`를 추가합니다.
+아래 `command`를 출력된 경로로 바꾸고, 기존 `mcpServers`에 추가합니다.
 
 ```json
 {
@@ -60,46 +42,36 @@ which decision-layer-mcp
 }
 ```
 
-저장한 뒤 Claude Desktop을 완전히 종료하고 다시 엽니다. 자세한 설정은 [공식 로컬 MCP 가이드](https://modelcontextprotocol.io/docs/develop/connect-local-servers)를 참고하세요.
+저장 후 앱을 완전히 종료하고 다시 엽니다.
 
-## 질문하고 결과 확인하기
+## 질문하기
 
-먼저 “사용할 수 있는 지표와 분석 방법을 보여줘”라고 질문해 연결을 확인합니다. 샘플 서버에서는 이어서 다음 질문을 할 수 있습니다.
+먼저 연결을 확인합니다.
 
-> 예제 달력 기준 2001년 2월 매출이 가장 큰 상품 부문과 해당 부문의 매장별 매출을 알려줘. 사용한 지표와 조회 근거도 보여줘.
+> 사용할 수 있는 지표와 분석 방법을 보여줘.
 
-AI는 다음 순서로 입력을 확인하고 분석합니다.
+샘플 서버에서는 다음처럼 요청해 보세요.
 
-1. `list_methods`와 `describe_method`로 분석 방법과 필요한 입력을 확인합니다.
-2. `get_semantic_catalog()`로 전체 지표와 차원의 정의를 읽고 입력을 선택합니다.
-3. `start_analysis`와 `run_step`으로 분석하고, 기록된 결과를 설명합니다. 적합한 Recipe가 있으면 재사용합니다.
+> 샘플의 2001년 2월 매출이 가장 큰 상품 부문과 해당 부문의 매장별 매출을 알려줘.
 
-Catalog는 Cube의 `/meta`에서 가져온 정의입니다. 검색어나 내부 Cube 이름을 미리 알 필요가 없습니다. 의미나 기간이 모호하면 사용자에게 묻습니다. 실제 데이터는 분석을 실행할 때 조회합니다.
-
-[Python Method 만들기](../tutorials/write-your-method.md)에서 호출과 응답을 볼 수 있습니다.
-
-분석 후 반환한 Run 링크에서 결과와 쿼리를 확인할 수 있습니다. 반복할 분석이라면 [Recipe로 저장](recipes.md)해 재사용합니다.
+AI가 Method와 데이터를 선택하고, Decision Layer가 조회와 계산을 수행합니다.
+답변의 Run 링크에서 결과와 쿼리를 확인하세요.
+호출과 응답은 [Python Method 만들기](../tutorials/write-your-method.md)에서 살펴볼 수 있습니다.
 
 ## 연결 설정
 
+서버 포트를 바꿨다면 `DL_API_URL`과 `DL_WEB_URL`도 맞추세요.
+
 | 환경변수 | 용도 |
 |---|---|
-| `DL_API_URL` | Decision Layer API 주소 |
+| `DL_API_URL` | API 주소 |
 | `DL_WEB_URL` | 결과 링크에 사용할 관리자 화면 주소 |
-| `DL_TOKEN` | 기존 Cube 사용자에게 필요한 bearer token |
-| `DL_LOCALE` | Method 메시지 언어. 한국어는 `ko` |
-
-새 데모는 Complete Journey의 전체 구매 데이터를 사용합니다. 예제 달력의 2001년 2월에는 GROCERY 부문의 수취액이 178,255.38로 가장 큽니다. 수취액은 이익이 아니며, 예제 날짜는 실제 구매 연도를 뜻하지 않습니다.
-
-이전 버전에서 만든 데모는 기존 합성 데이터를 유지합니다. AI에게 먼저 사용 가능한 지표와 기간을 확인하도록 요청하세요.
-
-샘플 서버는 로컬 테스트용 인증을 사용합니다. 실제 연결의 토큰은 클라이언트의 비공개 설정에 보관하고 Git에 올리지 않습니다.
+| `DL_TOKEN` | Cube 사용자 인증 토큰 |
+| `DL_LOCALE` | 메시지 언어. 한국어는 `ko` |
 
 ## 연결되지 않을 때
 
-- **`ENOENT` 또는 실행 파일을 찾지 못함**: 설치한 가상환경을 활성화하고 `which decision-layer-mcp`로 경로를 확인합니다. Claude Code에 잘못 등록했다면 `claude mcp remove --scope user decision-layer`로 삭제한 뒤 위 연결 명령을 다시 실행합니다.
-- **API에 연결되지 않음**: 서버 실행 상태와 `DL_API_URL`의 포트를 확인합니다.
-- **권한 오류나 지표 누락**: [Cube 연결](cube.md)의 토큰과 접근 권한을 확인합니다.
-- **도구가 보이지 않음**: 클라이언트나 MCP 세션을 다시 시작합니다.
-
-어댑터를 터미널에서 직접 실행하면 입력을 기다릴 수 있습니다. 실제 요청은 MCP 클라이언트가 전달합니다.
+- **`ENOENT`**: 가상환경을 활성화하고 `which decision-layer-mcp`로 경로를 확인합니다. Claude Code의 잘못된 등록은 `claude mcp remove --scope user decision-layer`로 삭제한 뒤 다시 연결하세요.
+- **API 연결 실패**: 서버 실행 상태와 포트를 확인합니다.
+- **권한 오류**: [Cube 연결](cube.md)의 인증 설정을 확인합니다.
+- **도구가 보이지 않음**: AI 클라이언트를 다시 시작합니다.

@@ -1,6 +1,6 @@
 # Method API
 
-함수를 등록할 때 필요한 인자와 옵션을 찾아보는 문서입니다. 전체 흐름은 [Python 함수 연결 예제](../tutorials/write-your-method)에서 볼 수 있습니다.
+함수를 등록할 때 필요한 인자와 옵션을 찾아보는 문서입니다. 전체 흐름은 [Python Method 만들기](../tutorials/write-your-method)에서 볼 수 있습니다.
 
 ## `python_method`
 
