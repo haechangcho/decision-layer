@@ -42,7 +42,10 @@ export default defineConfig({
     'PRODUCT_CONTEXT.md', 'DECISIONS.md', 'PRD.md',
     'PRODUCT_UX_IMPLEMENTATION_PLAN.ko.md', 'PRODUCT_UX_MILESTONES.ko.md',
     'SOURCE_CONNECTION_DESIGN.ko.md', 'internal/**', 'design/**', 'research/**',
-    'assets/README.md'
+    'assets/README.md',
+    'launch/**', 'guides/dbt.md', 'ko/guides/dbt.md',
+    'guides/evaluation.md', 'ko/guides/evaluation.md',
+    'guides/benchmark-pilot.md', 'guides/contribute-examples.md'
   ],
   themeConfig: {
     siteTitle: 'Decision Layer',
