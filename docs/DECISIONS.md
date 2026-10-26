@@ -2790,3 +2790,26 @@ compatibility implementations remain available for saved Recipes.
 Execution validation, access, budgets, recorded evidence and Run/Recipe contracts
 remain authoritative. This supersedes earlier semantic-search tool
 references in historical guides; current shared protocol governs tool discovery.
+
+## ADR-125 — Install the standard product with one package (2026-10-26)
+
+**Accepted.** `pip install decision-layer` installs the API, packaged admin console,
+MCP adapter and the pandas/statsmodels/scikit-learn stack needed by the default
+Methods. These are the normal onboarding path, not optional product modes. The
+`stats` and `mcp` extra names remain empty compatibility aliases for existing
+commands and project pins. Development, DoWhy and EconML remain optional extras.
+Existing dependency ranges and analytical execution contracts do not change.
+
+New projects depend on plain `decision-layer==<installed version>`. Legacy demo
+recognition retains the old extra spellings; upgrades do not rewrite user-owned
+project dependencies. Docker installs the statistical native runtime for its
+base image. Release and packaged-demo CI install the wheel without extras or
+`--pre`, then exercise generated calculations, the console and MCP from outside
+the checkout. Actual Docker demo/Cube checks remain required.
+
+Public first-install guides use `pip install decision-layer`, with no second MCP
+installation. The release remains alpha; this does not claim production stability.
+Because PyPI currently has no stable release of this package, pip resolves its
+prerelease without `--pre`; verify that public resolution after publishing each
+release. Once a stable release exists, ordinary pip follows stable releases and
+preview testing may explicitly request a version or `--pre`.

@@ -40,6 +40,8 @@ create a new Method when existing capabilities and a Recipe are sufficient.
 ## Users and development experience
 
 Analysts reuse Recipes and inspect results. Senior analysts encode procedures.
+The standard product installs with `pip install decision-layer`, including the
+admin console, statistical Methods and MCP adapter (ADR-125).
 Method contributors use ordinary Python modules, pytest and optional Jupyter/VS Code.
 New team definitions use one Method project: Python method.py entries and Skill
 SKILL.md entries share a root-level `methods/` directory, alongside `recipes/` and `decision-layer.yaml`. The project name does not require a second nested source directory (ADR-120). Scaffold, check, list, local loading

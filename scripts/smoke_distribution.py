@@ -8,6 +8,7 @@ import subprocess
 import shutil
 import sys
 import tempfile
+import tomllib
 
 import decision_layer
 from decision_layer.demo.runtime import ASSETS, compose_file, prepare
@@ -50,6 +51,10 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
     assert saved_run.read_text() == "keep execution evidence"
     run("init", "qa_team", cwd=root)
     project = root / "qa_team"
+    metadata = tomllib.loads((project / "pyproject.toml").read_text())
+    assert metadata["project"]["dependencies"] == [
+        f"decision-layer=={importlib.metadata.version('decision-layer')}"
+    ]
     for definition in (
         "metric_lookup/SKILL.md",
         "drilldown/SKILL.md",

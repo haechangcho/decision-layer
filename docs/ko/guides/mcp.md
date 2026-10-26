@@ -6,13 +6,9 @@ MCP 어댑터는 내 컴퓨터에서 실행되고 Decision Layer API에 요청�
 
 서버를 실행한 터미널은 켜두세요. 아래 설치와 연결 명령은 새 터미널에서 같은 가상환경을 활성화한 뒤 실행합니다.
 
-## 어댑터 설치
+## 연결 준비
 
-Decision Layer를 설치한 가상환경에서 실행합니다.
-
-```bash
-pip install --pre 'decision-layer[mcp]'
-```
+MCP 어댑터는 Decision Layer와 함께 설치됩니다. 설치할 때 사용한 가상환경을 활성화하세요.
 
 아래 연결 명령은 설치된 실행 파일의 경로를 자동으로 사용합니다. 서버의 포트를 바꿨다면 API와 Web 주소도 맞춥니다.
 
@@ -80,7 +76,7 @@ AI는 다음 순서로 입력을 확인하고 분석합니다.
 
 Catalog는 Cube의 `/meta`에서 가져온 정의입니다. 검색어나 내부 Cube 이름을 미리 알 필요가 없습니다. 의미나 기간이 모호하면 사용자에게 묻습니다. 실제 데이터는 분석을 실행할 때 조회합니다.
 
-[Python 함수 연결 예제](../tutorials/write-your-method.md)에서 호출과 응답을 볼 수 있습니다.
+[Python Method 만들기](../tutorials/write-your-method.md)에서 호출과 응답을 볼 수 있습니다.
 
 분석 후 반환한 Run 링크에서 결과와 쿼리를 확인할 수 있습니다. 반복할 분석이라면 [Recipe로 저장](recipes.md)해 재사용합니다.
 

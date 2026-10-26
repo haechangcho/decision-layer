@@ -92,7 +92,9 @@ Background jobs run in-process; recovery records interrupted work. This is not a
 
 ## Packaging and access boundaries
 
-The PyPI package contains the Python server and built admin console. `console.py` serves API routes and `/ui`; editable frontend source lives in `web/`. Release CI generates `src/decision_layer/static/`, which is not edited directly. VitePress documentation deploys separately.
+The default PyPI install contains the Python server, built admin console, MCP
+adapter and standard pandas/statsmodels/scikit-learn dependencies. No product
+extras are needed for the demo or AI connection (ADR-125). `console.py` serves API routes and `/ui`; editable frontend source lives in `web/`. Release CI generates `src/decision_layer/static/`, which is not edited directly. VitePress documentation deploys separately.
 
 `decision-layer demo` creates a visible project in the current empty/virtualenv-only workspace (or a safe child directory if populated), then starts sample PostgreSQL and Cube in Docker and launches the installed server. Subsequent commands inside that project select the same root (ADR-118). Docker configuration and Cube models live under `.decision-layer/demo/`; import scripts remain inside the installed package. Its own project and containers do not inherit organization source settings. New demos import all eight Complete Journey source tables with the packaged importer and Cube models. Installed Python imports through an ephemeral loopback PostgreSQL port; Cube uses a read-only account. The archive is downloaded from its publisher and cached in the project. Source data remains in a PostgreSQL volume; Runs use the sample project's SQLite database. Existing synthetic demos keep their dataset and volume (ADR-119).
 

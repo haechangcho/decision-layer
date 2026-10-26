@@ -14,11 +14,11 @@ description: 설치하고 샘플을 실행한 뒤 AI를 연결합니다.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --pre 'decision-layer[stats,mcp]'
+pip install decision-layer
 decision-layer demo
 ```
 
-관리자 화면과 분석 라이브러리를 설치하고, 샘플 데이터를 준비해 서버를 실행합니다.
+관리자 화면, 통계 분석 라이브러리와 MCP 어댑터가 함께 설치됩니다. `demo`는 샘플 데이터를 준비하고 서버를 실행합니다.
 샘플은 dunnhumby의 **The Complete Journey** 소매 데이터입니다. 구매 내역, 상품, 가구, 캠페인 등 **8개 테이블 전체**를 PostgreSQL에 적재합니다. 첫 실행에는 약 135 MB의 원본 파일 다운로드와 적재 시간이 걸립니다. 이후에는 저장된 DB를 재사용합니다.
 
 원본은 날짜 대신 일수를 제공하므로, 예제에서는 첫날을 `2000-01-01`로 정한 달력을 사용합니다. 실제 구매 연도는 아닙니다.

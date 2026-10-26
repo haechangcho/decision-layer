@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from decision_layer import __version__
 from decision_layer.project import Project
 from decision_layer.project_scaffold import init_project
 
@@ -26,6 +27,8 @@ def legacy_project(root, name="sample_shop", *, empty=False):
     )
     metadata = project.root / "pyproject.toml"
     metadata.write_text(
-        metadata.read_text().replace('packages = ["methods"]', f'packages = ["{name}"]')
+        metadata.read_text().replace('packages = ["methods"]', f'packages = ["{name}"]').replace(
+            f"decision-layer=={__version__}", f"decision-layer[stats,mcp]=={__version__}"
+        )
     )
     return Project.find(project.root)

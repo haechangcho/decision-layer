@@ -32,7 +32,7 @@ services:
       context: ../..
       dockerfile: Dockerfile
       args:
-        DL_PYTHON_EXTRAS: ${DL_PYTHON_EXTRAS:-stats,dowhy}
+        DL_PYTHON_EXTRAS: ${DL_PYTHON_EXTRAS:-dowhy}
     depends_on:
       import: {condition: service_completed_successfully}
     environment:

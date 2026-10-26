@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "decision-layer"
-version = "0.1.0a12"
+version = "0.1.0a13"
 description = "Governed analysis methods, recipes and runs on top of a semantic layer (Cube first)"
 readme = "README.md"
 license = "Apache-2.0"
@@ -24,15 +24,20 @@ dependencies = [
     "pyyaml>=6.0",
     "psycopg[binary]>=3.2",
     "numpy>=1.26",
+    "pandas>=2.2,<3",
+    "statsmodels>=0.14,<0.16",
+    "scikit-learn>=1.6,<2",
+    "mcp>=2.2,<3",
     "packaging>=24",
     "cryptography>=44,<47",
     "ruff==0.12.3",
 ]
 
 [project.optional-dependencies]
-mcp = ["mcp>=2.2,<3"]
-dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21", "mcp>=2.2,<3"]
-stats = ["pandas>=2.2,<3", "statsmodels>=0.14,<0.16", "scikit-learn>=1.6,<2"]
+# Compatibility names: statistics and MCP are now installed by default.
+mcp = []
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "respx>=0.21"]
+stats = []
 dowhy = ["dowhy==0.13", "numpy>=1.26,<2", "pandas>=2.2,<3", "scikit-learn>=1.2,<1.7"]
 econml = ["econml==0.16.0", "numpy>=1.26,<2", "pandas>=2.2,<3"]
 

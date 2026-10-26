@@ -81,7 +81,7 @@ The sample describes rankings, not causal explanations of revenue changes.
 ## Ask your AI
 
 The scripted demo does not use an LLM. To try natural-language planning, install
-`.[mcp]` in a local Python 3.11+ environment as described in the
+`.` in a local Python 3.11+ environment as described in the
 [MCP guide](../../docs/guides/mcp.md). Point the adapter at API port **8100** and
 set `DL_WEB_URL=http://localhost:3100`. For a stdio client's configuration:
 

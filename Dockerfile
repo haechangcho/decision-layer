@@ -4,8 +4,8 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 ARG DL_PYTHON_EXTRAS=""
 
-# Native runtime needed only by optional statistical libraries.
-RUN if [ -n "$DL_PYTHON_EXTRAS" ]; then apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*; fi
+# Native runtime for the bundled statistical libraries.
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
 
 # dependencies first so code edits don't bust the layer cache
 COPY pyproject.toml README.md LICENSE ./

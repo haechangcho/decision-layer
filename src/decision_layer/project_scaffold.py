@@ -31,7 +31,7 @@ def init_project(path: str | Path, name: str | None = None, *, empty=False):
         '[build-system]\nrequires = ["hatchling"]\nbuild-backend = "hatchling.build"\n\n'
         f'[project]\nname = "{name}-methods"\nversion = "0.1.0"\n'
         'requires-python = ">=3.11"\n'
-        f'dependencies = ["decision-layer[stats,mcp]=={__version__}"]\n\n'
+        f'dependencies = ["decision-layer=={__version__}"]\n\n'
         '[project.optional-dependencies]\ntest = ["pytest>=8,<10"]\n\n'
         '[tool.hatch.build.targets.wheel]\npackages = ["methods"]\n'
     )

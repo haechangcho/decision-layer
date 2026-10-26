@@ -52,7 +52,7 @@ async def test_server_compute_result_is_returned():
     assert (await ctx.compute(_answer))["value"] == 7
 
 
-@pytest.mark.skipif(not HAS_STATS, reason="Install stats extra")
+@pytest.mark.skipif(not HAS_STATS, reason="Install Decision Layer")
 @pytest.mark.parametrize("problem", ["duplicate", "missing", "singular"])
 async def test_regression_bad_observations_refuse(problem):
     scenario = next(item for item in scenarios() if item.name == "ols")
@@ -72,7 +72,7 @@ async def test_regression_bad_observations_refuse(problem):
     assert trial.result.status == "refused" and trial.result.provides == []
 
 
-@pytest.mark.skipif(not HAS_STATS, reason="Install stats extra")
+@pytest.mark.skipif(not HAS_STATS, reason="Install Decision Layer")
 async def test_per_unit_measure_covariate_is_query_measure_not_dimension():
     scenario = next(item for item in scenarios() if item.name == "ols")
     query = scenario.queries[0]
@@ -89,7 +89,7 @@ async def test_per_unit_measure_covariate_is_query_measure_not_dimension():
     provider.assert_consumed()
 
 
-@pytest.mark.skipif(not HAS_STATS, reason="Install stats extra")
+@pytest.mark.skipif(not HAS_STATS, reason="Install Decision Layer")
 @pytest.mark.parametrize("problem", ["duplicate", "missing_period", "changing_group", "overlap"])
 async def test_panel_bad_observations_refuse(problem):
     scenario = next(item for item in scenarios() if item.name == "did")
@@ -124,7 +124,7 @@ async def test_unknown_analysis_design_refuses_before_dataset_request():
     assert trial.result.status == "refused" and not provider.calls
 
 
-@pytest.mark.skipif(not HAS_STATS, reason="Install stats extra")
+@pytest.mark.skipif(not HAS_STATS, reason="Install Decision Layer")
 async def test_boolean_native_panel_groups_work():
     scenario = next(item for item in scenarios() if item.name == "did")
     query = scenario.queries[0]
@@ -174,7 +174,7 @@ async def test_authored_recipe_preview_uses_the_same_query_and_result():
     provider.assert_consumed()
 
 
-@pytest.mark.skipif(not HAS_STATS, reason="Install stats extra")
+@pytest.mark.skipif(not HAS_STATS, reason="Install Decision Layer")
 def test_high_cardinality_covariates_refuse_before_encoding():
     import pandas as pd
     from decision_layer.methods.statistics import fit_ols
@@ -254,7 +254,7 @@ def test_current_statistical_signatures_do_not_require_design_or_seed():
     assert set(two_period_contrast.manifest.parameters) == {"windows", "granularity"}
 
 
-@pytest.mark.skipif(not HAS_STATS, reason="Install stats extra")
+@pytest.mark.skipif(not HAS_STATS, reason="Install Decision Layer")
 async def test_legacy_panel_contract_still_executes_its_original_version():
     scenario = next(item for item in scenarios() if item.name == "did")
     scenario.method = "stats.did"
@@ -275,7 +275,7 @@ async def test_legacy_panel_contract_still_executes_its_original_version():
     session.close()
 
 
-@pytest.mark.skipif(not HAS_STATS, reason="Install stats extra")
+@pytest.mark.skipif(not HAS_STATS, reason="Install Decision Layer")
 async def test_two_period_contrast_rejects_three_periods_instead_of_guessing():
     scenario = next(item for item in scenarios() if item.name == "did")
     query = scenario.queries[0]

@@ -6,13 +6,9 @@ The adapter runs on your computer and calls the Decision Layer API. Use a client
 
 Keep the server terminal running. Use another terminal with the same virtual environment activated for the commands below.
 
-## Install the adapter
+## Prepare the connection
 
-In the virtual environment where Decision Layer is installed:
-
-```bash
-pip install --pre 'decision-layer[mcp]'
-```
+The MCP adapter is installed with Decision Layer. Activate the virtual environment used for installation.
 
 The connection commands below use the installed executable's path automatically. Match the API and Web URLs to your server's ports.
 

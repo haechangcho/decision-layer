@@ -38,14 +38,16 @@ async def test_introductory_notebook_from_tutorial_directory(language, monkeypat
     assert result.primary.data["r_squared"] == pytest.approx(
         namespace["direct_ols"]["r_squared"]
     )
-    assert result.primary.data["causal_claim"] == "not_established"
+    assert result.primary.data["coefficients"]["treatment"] == pytest.approx(50)
 
 
 async def test_notebook_mcp_example_executes_with_the_mcp_run_contract(
     tmp_path, monkeypatch
 ):
-    """The executable example must pass actual MCP-origin goals and step validation."""
+    """Displayed tool requests must pass actual MCP-origin goals and step validation."""
+    import ast
     import json
+    import re
     from types import SimpleNamespace
 
     from fastapi.testclient import TestClient
@@ -103,19 +105,28 @@ async def test_notebook_mcp_example_executes_with_the_mcp_run_contract(
 
         monkeypatch.setattr(server, "_call", call)
         monkeypatch.setattr(server, "METHODS", set())
-        method, catalog = await namespace["inspect_with_mcp"](NotebookClient())
+        request_scope = {"client": NotebookClient()}
+        responses = []
+        for cell_id in ("mcp-list-response", "mcp-describe-response", "mcp-semantic-response"):
+            request = re.search(r"```python\n(.*?)\n```", sources[cell_id], re.S)[1]
+            response = await eval(compile(request, cell_id, "eval", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT), request_scope)
+            responses.append(response.structured_content)
+        listed, method, catalog = responses
+        assert "my_team.ols" in {item["name"] for item in listed["methods"]}
         assert method["name"] == "my_team.ols"
         assert catalog == http.get("/semantic/catalog").json()
         assert len(catalog["objects"]) == 9
         assert {item["ref"].split("/")[3] for item in catalog["objects"]} == {"sales", "customers"}
         assert all(item["data_type"] for item in catalog["objects"])
         # Every displayed catalog object and field must come from the real handler.
-        import re
         excerpt = json.loads(re.search(r"```json\n(.*?)\n```", sources["mcp-semantic-response"], re.S)[1])
         assert [item["ref"] for item in excerpt["objects"]] == [item["ref"] for item in catalog["objects"]]
         for item, actual in zip(excerpt["objects"], catalog["objects"]):
             assert all(actual[key] == value for key, value in item.items())
-        result = await namespace["run_ols_with_mcp"](NotebookClient())
+        for cell_id in ("mcp-execution-intro", "mcp-run-example"):
+            request = re.search(r"```python\n(.*?)\n```", sources[cell_id], re.S)[1]
+            await eval(compile(request, cell_id, "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT), request_scope)
+        result = request_scope["step_result"]
         assert result.structured_content["status"] == "success"
         assert result.structured_content["primary"]["data"]["value"] == pytest.approx(
             50

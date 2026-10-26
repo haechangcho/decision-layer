@@ -14,11 +14,11 @@ Run these commands in order:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --pre 'decision-layer[stats,mcp]'
+pip install decision-layer
 decision-layer demo
 ```
 
-This installs the admin UI and analysis libraries, prepares sample data and starts the server.
+The package includes the admin UI, statistical libraries and MCP adapter. `demo` prepares sample data and starts the server.
 The sample uses dunnhumby’s **The Complete Journey** retail dataset. It imports **all eight tables** into PostgreSQL, including purchases, products, households and campaigns. The first run downloads about 135 MB and imports the data. Later starts reuse the saved database.
 
 The source uses relative day numbers. The example maps day one to `2000-01-01`; these are artificial dates, not actual purchase years.

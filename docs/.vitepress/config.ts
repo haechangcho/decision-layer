@@ -20,7 +20,7 @@ function sidebar(locale: '' | 'ko') {
     ] },
     { text: ko ? 'Method 확장하기' : 'Extend Methods', items: [
       item('Understand Methods', 'Method 이해하기', '/guides/methods'),
-      item('Connect a Python function', 'Python 함수 연결 예제', '/tutorials/write-your-method'),
+      item('Connect a Python function', 'Python Method 만들기', '/tutorials/write-your-method'),
       item('Register in a project', '프로젝트에 등록하기', '/guides/method-projects'),
       item('Method API', 'Method API', '/reference/method-contract')
     ] },
