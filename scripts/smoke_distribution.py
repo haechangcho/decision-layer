@@ -65,7 +65,14 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
     print(run("test", cwd=project))
     initial = json.loads(run("list", "--json", cwd=project))
     assert len(initial) == 4
-    assert all(item["version"] == "2.1.0" for item in initial)
+    assert all(
+        item["version"] == ("2.2.0" if item["implementation"] == "skill" else "2.1.0")
+        for item in initial
+    )
+    for directory in ("metric_lookup", "drilldown"):
+        content = (project / "methods" / directory / "SKILL.md").read_text()
+        assert "version: 2.2.0" in content
+        assert "\nroles:" not in content and "\nparameters:" not in content
     assert all(
         Path(item["source"]).resolve().is_relative_to(project.resolve())
         for item in initial
@@ -75,6 +82,8 @@ with tempfile.TemporaryDirectory(prefix="decision-layer-install-") as folder:
     print(run("check", cwd=project))
     methods = json.loads(run("list", "--json", cwd=project))
     assert {"qa_team.rank", "qa_team.review"} <= {item["name"] for item in methods}
+    run("new", "recipe", "review", "--metric", "cube://qa/sales/revenue", cwd=project)
+    print(run("check", cwd=project))
     subprocess.run(
         [
             sys.executable,
@@ -88,11 +97,24 @@ from fastapi.testclient import TestClient
 from pathlib import Path
 result = analyze(pd.DataFrame({'group': ['A', 'B', 'C'], 'value': [30, 20, 20]}))
 assert result['rank'].tolist() == [1.0, 2.0, 2.0]
-with TestClient(create_console(Settings(project_dir=str(Path.cwd()), database_url='memory')), base_url='http://localhost') as client:
+with TestClient(create_console(Settings(project_dir=str(Path.cwd()), database_url='memory',
+        allow_service_credentials=True, cube_api_secret='distribution-qa-secret-at-least-32-characters')),
+        base_url='http://localhost') as client:
     assert client.get('/ui/methods/qa_team.rank').status_code == 200
     assert 'text/html' in client.get('/ui/').headers['content-type']
     response = client.get('/api/methods/qa_team.rank')
     assert response.status_code == 200, response.text
+    response = client.get('/api/methods/analysis.drilldown/source')
+    assert response.status_code == 200, response.text
+    skill = response.json()
+    assert skill['version'] == '2.2.0'
+    assert 'roles:' not in skill['content']
+    import re
+    html = client.get('/ui/methods/analysis.drilldown').text
+    bundle_path = re.search(r'<script[^>]+src="([^"]+)"', html)[1]
+    bundle = client.get(bundle_path).text
+    assert 'skillSource' in bundle, 'The packaged UI must show the original SKILL.md'
+    assert "Edit the project's SKILL.md file." in bundle
 print('Installed CLI, calculation and API discovery passed')
 """,
         ],

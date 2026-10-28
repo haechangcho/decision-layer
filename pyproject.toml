@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "decision-layer"
-version = "0.1.0a13"
+version = "0.1.0a14"
 description = "Governed analysis methods, recipes and runs on top of a semantic layer (Cube first)"
 readme = "README.md"
 license = "Apache-2.0"
