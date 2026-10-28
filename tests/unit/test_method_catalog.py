@@ -216,7 +216,9 @@ def test_current_skills_share_project_starters_and_keep_pinned_versions():
         path = files("decision_layer") / "starters" / "methods" / directory / "SKILL.md"
         starter = SkillMethod.from_file(path)
         current = target.get(name)
-        assert current.manifest.version == "2.1.0"
+        assert current.manifest.version == "2.2.0"
+        assert "roles:" not in current.source_text
+        assert target.get(name, "2.1.0").manifest.version == "2.1.0"
         assert current.source_text == starter.source_text
         assert current.guide.sha256 == starter.guide.sha256
         assert "run_skill_query" not in current.guide.markdown

@@ -48,10 +48,14 @@ test("waiting Skill refreshes recorded failures without offering premature compl
 test("query-executing Skill can be selected for a Recipe while its prose remains advisory", async ({ page }) => {
   await page.route("**/api/methods/analysis.drilldown", route => route.fulfill({ json: manifest }));
   await page.route("**/api/methods/analysis.drilldown/guide", route => route.fulfill({ json: guide }));
+  const content = `---\nname: ${guide.name}\nversion: ${guide.version}\ndescription: Inspect metric groups\nquery_execution: true\n---\n${guide.markdown}`;
+  await page.route("**/api/methods/analysis.drilldown/source", route => route.fulfill({json:{
+    implementation:"skill",version:guide.version,content,permissions:{edit:false,publish:false},history:[],
+  }}));
   await page.goto("/methods/analysis.drilldown");
   await expect(page.getByRole("link", { name: "분석 절차 만들기" })).toBeVisible();
   await page.getByRole("tab",{name:"분석 지침",exact:true}).click();
-  await expect(page.getByText(guide.markdown)).toBeVisible();
+  await expect(page.getByLabel("Skill Markdown 원본")).toHaveText(content);
 });
 
 test("query inspection preserves errors, results and snapshot evidence without stacked disclosures", async ({ page }) => {

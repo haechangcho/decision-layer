@@ -39,7 +39,7 @@ export function RunDelete({ run, onDeleted, compact = false }: { run: Run; onDel
       onCancel={event => { if (busy) event.preventDefault(); }}>
       <h2 id={id}>{t("Delete this run?")}</h2>
       <p className={s.name}>{label}</p>
-      <p id={`${id}-description`}>{t("Its results, queries and validation records are deleted too. Registered Recipes are kept.")}</p>
+      <p id={`${id}-description`}>{t("Results, queries and checks will be deleted. Recipes are kept.")}</p>
       {error && <p className={s.error} role="alert">{error}</p>}
       <div className={s.actions}><button type="button" disabled={busy} onClick={close} autoFocus>{t("Cancel")}</button>
         <button type="button" className={s.danger} disabled={busy} onClick={remove}>{busy ? <LoaderCircle size={16} /> : <Trash2 size={16} />}{t(busy ? "Deleting…" : "Delete record")}</button></div>

@@ -13,7 +13,7 @@ from .core.errors import DecisionLayerError
 
 
 # Re-export the existing Python entry points as well as the CLI commands.
-from .project_scaffold import init_project, new_method
+from .project_scaffold import init_project, new_method, new_recipe
 
 
 def project_registry(project):
@@ -37,9 +37,11 @@ def main(argv=None):
     init.add_argument(
         "--empty", action="store_true", help="Create a project without starter Methods"
     )
-    new = commands.add_parser("new", help="Add a Python Method or Skill")
-    new.add_argument("kind", choices=["python", "skill"])
+    new = commands.add_parser("new", help="Add a Python Method, Skill or Recipe")
+    new.add_argument("kind", choices=["python", "skill", "recipe"])
     new.add_argument("name")
+    new.add_argument("--metric", help="Recipe primary metric (canonical semantic reference)")
+    new.add_argument("--method", help="First Recipe Method (default: analysis.metric_lookup)")
     check = commands.add_parser("check", help="Validate project registration")
     testing = commands.add_parser("test", help="Run the project calculation tests")
     listing = commands.add_parser(
@@ -90,7 +92,15 @@ def main(argv=None):
             return 0
         project = Project.find(args.project or os.environ.get("DL_PROJECT_DIR"))
         if args.command == "new":
-            print(new_method(project, args.kind, args.name))
+            if args.kind == "recipe":
+                if not args.metric:
+                    raise ValueError("new recipe requires --metric with a reference from the semantic catalog")
+                print(new_recipe(project, args.name, args.metric,
+                    args.method or "analysis.metric_lookup", project_registry(project)))
+            else:
+                if args.metric or args.method:
+                    raise ValueError("--metric and --method apply only to new recipe")
+                print(new_method(project, args.kind, args.name))
             return 0
         if args.command == "test":
             from importlib.util import find_spec
@@ -164,8 +174,12 @@ def main(argv=None):
                 }
             )
         if args.command == "check":
+            from .recipes.loader import RecipeStore
+            recipes = RecipeStore(project.root / "recipes", "cube", "local", registry=registry)
+            # Loading validates draft and published files without querying data.
             print(
-                f"Valid: {project.root / PROJECT_FILE} ({len(entries)} registered Methods)"
+                f"Valid: {project.root / PROJECT_FILE} ({len(entries)} registered Methods; "
+                f"{len(recipes.list())} published Recipes, {len(recipes.list_drafts())} drafts)"
             )
             print(
                 "Registration checked; no semantic query or analytical calculation executed."

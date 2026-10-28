@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const guide={name:"analysis.drilldown",version:"1.0.1",sha256:"a".repeat(64),markdown:"# 항목별 조사\n\n1. **공식 지표**를 확인합니다.\n2. `run_skill_query`로 조회합니다.\n\n<script>window.hacked=true</script>",suggested_methods:[]};
 const manifest={name:guide.name,version:guide.version,kind:"query",implementation:"skill",agent_executable:true,description:"한국어 조사",roles:{},parameters:{},outputs:[]};
-const source="---\nname: analysis.drilldown\nversion: 1.0.1\ndescription: 한국어 조사\nquery_execution: true\n---\n# 항목별 조사\n";
+const source=`---\nname: analysis.drilldown\nversion: 1.0.1\ndescription: 한국어 조사\nquery_execution: true\n---\n${guide.markdown}\n`;
 const pythonCode="def calculate(data):\n    return data * 2\n";
 test.beforeEach(async({page}) => {
   await page.addInitScript(() => localStorage.setItem("decision-layer.locale","ko"));
@@ -43,12 +43,26 @@ async function openEditor(page:Page, python=false) {
   await expect(editor).toBeVisible();return editor;
 }
 
+test("read-only Skill shows the complete file without entering publication editing", async ({page}, info) => {
+  const f = fixture(page, false, {edit:false, publish:false});
+  await f.ready;
+  await page.goto(`/methods/${f.name}`);
+  await page.getByRole("tab", {name:"분석 지침", exact:true}).click();
+  await expect(page.getByLabel("Skill Markdown 원본")).toHaveText(source);
+  await expect(page.getByText("SKILL.md 전체 파일 보기", {exact:true})).toHaveCount(0);
+  await expect(page.getByRole("heading", {name:"항목별 조사", exact:true})).toHaveCount(0);
+  await expect(page.getByRole("button", {name:"Skill.md 편집", exact:true})).toHaveCount(0);
+  await expect(page.getByText("읽기 전용입니다. 프로젝트의 SKILL.md를 수정하세요.", {exact:true})).toBeVisible();
+  await page.screenshot({path:info.outputPath("skill-full-file.png"), fullPage:true});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
 test("Skill editing opens on demand, previews Markdown, saves on check and publishes",async({page},info)=>{
   const f=fixture(page);await f.ready;await page.goto(`/methods/${f.name}`);
   await expect(page.getByRole("button",{name:"Skill.md 편집",exact:true})).not.toBeVisible();
   await page.getByRole("tab",{name:"분석 지침",exact:true}).click();
-  await expect(page.getByRole("heading",{name:"항목별 조사",exact:true})).toBeVisible();
-  await expect(page.getByText("공식 지표",{exact:true})).toHaveCSS("font-weight","700");
+  await expect(page.getByLabel("Skill Markdown 원본")).toHaveText(source);
+  await expect(page.getByRole("heading",{name:"항목별 조사",exact:true})).toHaveCount(0);
   expect(await page.evaluate(()=>Boolean((window as any).hacked))).toBe(false);
   const editor=await openEditor(page);
   await editor.fill(source.replace("1.0.1","1.0.2")+"\n## 새 조사 지침\n기간을 확인합니다.\n");
@@ -60,7 +74,7 @@ test("Skill editing opens on demand, previews Markdown, saves on check and publi
   await page.getByRole("tab",{name:"편집",exact:true}).click();
   await page.getByRole("button",{name:"구문·등록 검사",exact:true}).click();
   expect(f.saves).toHaveLength(1);expect(f.saves[0].content).toContain("새 조사 지침");
-  await expect(page.getByText("구문·등록 검사를 통과했습니다. 실제 데이터·분석 품질은 검사하지 않았습니다.")).toBeVisible();
+  await expect(page.getByText("구문·등록 검사 통과. 데이터와 분석 품질은 별도 확인이 필요합니다.")).toBeVisible();
   await page.getByRole("checkbox").check();
   await page.getByRole("button",{name:"v1.0.2 게시",exact:true}).click();
   await expect(page.getByText("analysis.drilldown / v1.0.2")).toBeVisible();
@@ -97,7 +111,7 @@ test("unsaved edits survive read mode and navigation can be cancelled or saved",
   const f=fixture(page);await f.ready;await page.route("**/api/methods",r=>r.fulfill({json:[]}));await page.goto(`/methods/${f.name}`);
   const editor=await openEditor(page);await editor.fill(source.replace("1.0.1","1.0.2")+"\n내가 작성한 변경\n");
   await page.getByRole("button",{name:"읽기로 돌아가기",exact:true}).click();
-  await expect(page.getByText("작성 중인 내용은 이 화면에 유지됩니다. 편집을 이어서 초안으로 저장하세요.")).toBeVisible();
+  await expect(page.getByText("미저장 변경이 남아 있습니다. 편집을 이어서 저장하세요.")).toBeVisible();
   await page.getByRole("button",{name:"편집 이어서",exact:true}).click();
   await expect(page.getByRole("textbox",{name:"Skill Markdown 원본",exact:true})).toContainText("내가 작성한 변경");
   await page.getByRole("link",{name:"분석 방법",exact:true}).last().click();

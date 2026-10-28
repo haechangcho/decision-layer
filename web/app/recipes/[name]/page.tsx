@@ -110,18 +110,18 @@ export default function RecipePage() {
   return <div className={styles.page}>
     <Link className={styles.back} href="/recipes"><ArrowLeft size={15} />{t("Recipe list")}</Link>
     <div className={styles.heading}><div><p className={styles.eyebrow}>{t("Analysis procedure")} · v{recipe.version}</p><h1>{recipe.description || recipe.name}</h1></div><div className={styles.recipeActions}><Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}/edit`}>{t("Edit Recipe")} <ArrowRight size={15} /></Link><RecipeDelete recipe={recipe} onDeleted={() => router.push("/recipes")} /></div></div>
-    {recipe.mode === "investigation" && <p className={styles.runNotice}>{t("This Recipe is an exploratory procedure that picks the next step from each result. In Claude or Codex, use it by naming the Recipe {name}. On the web, choose each step below.", { name: recipe.name })}</p>}
+    {recipe.mode === "investigation" && <p className={styles.runNotice}>{t("Choose each next step below, or ask Claude or Codex to use Recipe {name}.", { name: recipe.name })}</p>}
     <div className={styles.recipeRunGrid}>
       <section className={styles.recipeRunPanel}>
         <h2>{t("Analysis conditions")}</h2>
         <dl className={styles.meta}><div className={styles.metaRow}><dt>{t("Primary metric")}</dt><dd>{metric}</dd></div></dl>
         <RecipeRuntimeInputs specs={recipe.inputs ?? {}} values={inputs} onChange={setInputs} objects={objects} />
-        {needsTime && timeDimensions.length === 0 && <p className={styles.error} role="alert">{t("No date dimension linked to this metric was found. Check the time dimensions in the semantic model or")} <Link href="/catalog">{t("choose another metric.")}</Link></p>}
+        {needsTime && timeDimensions.length === 0 && <p className={styles.error} role="alert">{t("No date linked to this metric. Check the semantic model or")} <Link href="/catalog">{t("choose another metric.")}</Link></p>}
         {!needsTime && policy?.allow_all && <label className="check"><input type="checkbox" checked={allDates} onChange={event => { setAllDates(event.target.checked); if (!event.target.checked && !dates[0]) chooseDates(recommendedPeriod ?? datePreset("month")); }} />{t("All periods")}</label>}
         {!useAllDates && timeDimensions.length > 0 && <label className={styles.runField}>{t("Date dimension")}
           <select aria-label={t("Date dimension")} value={selectedTime} onChange={(event) => setTimeDimension(event.target.value)}><option value="">{t("Choose a date dimension")}</option>{timeDimensions.map((object) => <option key={object.ref} value={object.ref}>{object.title}</option>)}</select>
         </label>}
-        {needsTime && timeDimensions.length > 1 && recommendedTime === 0 && <p className="hint">{t("The connected metadata cannot identify the relevant date, so choose one.")}</p>}
+        {needsTime && timeDimensions.length > 1 && recommendedTime === 0 && <p className="hint">{t("Choose a date dimension; the model has no default.")}</p>}
         {!useAllDates && (timeDimensions.length > 0 || needsTime) && <><div className={styles.fieldHeading}><label htmlFor="run-start">{t("Analysis period")}</label><CalendarDays size={15} /></div>
         <div className={styles.datePresets} role="group" aria-label={t("Quick period choices")}>
           {recommendedPeriod && <button type="button" onClick={() => chooseDates(recommendedPeriod)}>{t("Suggested period")}</button>}
@@ -149,7 +149,7 @@ export default function RecipePage() {
         <p>{recipe.routing.objective || (recipe.routing.use_for.length ? recipe.routing.use_for.join(" · ") :
           recipe.origin_runs?.length ? recipe.steps.map(step => methodName(step.method, t)).join(" → ") : recipe.description)}</p>
         {!!recipe.origin_runs?.length && <div className={styles.runContext}><strong>{t("Original question")}</strong><p>{recipe.source_question || recipe.description}</p></div>}
-        <div className={styles.runContext}><strong>{t("Conditions for this run")}</strong><p>{t("Runs with the period chosen above. Comparison periods or conditions fixed in a step still apply.")}</p></div>
+        <div className={styles.runContext}><strong>{t("Conditions for this run")}</strong><p>{t("Uses these dates. Fixed step comparisons and conditions still apply.")}</p></div>
         {recipe.routing.do_not_use_for.length > 0 && <div className={styles.runContext}><strong>{t("Questions that need another procedure")}</strong><p>{recipe.routing.do_not_use_for.join(" · ")}</p></div>}
         <Link href="/runs">{t("View recent runs")} <ArrowRight size={14} /></Link>
       </aside>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Handle, Position, useNodesInitialized, useReactFlow, type NodeProps } from "@xyflow/react";
+import { Handle, Position, useNodesInitialized, useReactFlow, useStore, type NodeProps } from "@xyflow/react";
 import { GitBranch, Workflow } from "lucide-react";
 import s from "@/components/analysis-canvas.module.css";
 
@@ -20,8 +20,10 @@ export const nodeTypes = { recipe: RecipeNode };
 export function FitRecipe({ count }: { count: number }) {
   const initialized = useNodesInitialized();
   const { fitView } = useReactFlow();
+  const width = useStore(state => state.width);
+  const height = useStore(state => state.height);
   useEffect(() => {
-    if (initialized) void fitView({ padding: 0.18, duration: 200 });
-  }, [initialized, count, fitView]);
+    if (initialized && width && height) void fitView({ padding: 0.18, duration: 200 });
+  }, [initialized, count, fitView, width, height]);
   return null;
 }

@@ -22,7 +22,7 @@ export function PythonInputContract({ method }: { method: MethodManifest }) {
   }
 
   return <div className={styles.inputContract}>
-    <p className={styles.inputIntro}>{t("Choose the data to use in this analysis. Dates and filters are selected when you run it.")}</p>
+    <p className={styles.inputIntro}>{t("Choose analysis inputs. Set dates and filters at run time.")}</p>
     {tables.map(([name, spec]) => {
       const roles: Record<string, Role> = {
         ...Object.fromEntries(spec.measures.map(key => [key, method.roles[key]])),

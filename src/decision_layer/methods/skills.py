@@ -31,13 +31,32 @@ class SkillMethod(Method):
         if not match or not match[2].strip():
             raise ValueError("Skill needs YAML frontmatter and non-empty Markdown")
         header = SkillHeader.model_validate(yaml.safe_load(match[1]))
+        # Query Skills share execution inputs. Authors only need to write the
+        # procedure; explicit declarations (including {}) keep their contract.
+        roles = header.roles
+        parameters = header.parameters
+        if header.query_execution:
+            if "roles" not in header.model_fields_set:
+                roles = {
+                    "metric": RoleSpec(kind="measure", default_binding="primary_metric"),
+                    "related": RoleSpec(kind="measure", multiple=True, required=False),
+                    "dimensions": RoleSpec(kind="dimension", multiple=True, required=False,
+                        default_binding="preferred_dimensions",
+                        description="Suggested dimensions for the agent, not an enforced query order."),
+                }
+            if "parameters" not in header.model_fields_set:
+                parameters = {
+                    "filters": ParamSpec(type="filters", default=[]),
+                    "population": ParamSpec(type="drill_path", default=[], meaning="comparison_population"),
+                    "comparison": ParamSpec(type="date_range"),
+                }
         self.source_text = text
         self.guide = MethodGuide(name=header.name, version=header.version,
             sha256=sha256(text.encode()).hexdigest(), markdown=match[2].strip(),
             suggested_methods=header.suggested_methods)
         self.manifest = MethodManifest(name=header.name, version=header.version,
             description=header.description, implementation="skill", execution="agent_guided",
-            kind="query", interpretation="association", roles=header.roles, parameters=header.parameters,
+            kind="query", interpretation="association", roles=roles, parameters=parameters,
             agent_executable=header.query_execution, requires_period=header.query_execution,
             requires_capabilities=["aggregate_queries"] if header.query_execution else [],
             selection_outputs=["selected_group"] if header.query_execution else [],
@@ -82,7 +101,7 @@ def core_skill_guide():
     """Shared tool protocol, snapshotted separately from the analysis procedure."""
     from importlib.resources import files
     text = (files("decision_layer") / "guides" / "analysis-core.md").read_text(encoding="utf-8")
-    return MethodGuide(name="analysis-core", version="1.1.0",
+    return MethodGuide(name="analysis-core", version="1.2.0",
         sha256=sha256(text.encode()).hexdigest(), markdown=text)
 
 

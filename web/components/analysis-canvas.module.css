@@ -12,6 +12,27 @@
 .page .inspectorBack{align-self:start;min-height:28px;padding:0;border:0;background:transparent;color:var(--accent);font-size:12px}
 .page .inspectorBack:hover{color:var(--accent-hover);text-decoration:underline}
 .comparisonPair { min-width:0; }
+.skillIntro { display:grid; gap:10px; min-width:0; }
+.skillIntro p { margin:0; line-height:1.6; }
+.stepTitle { display:grid; gap:6px; margin-bottom:4px; }
+.inspector .stepTitle h2 { margin:0; }
+.stepVersion { margin:0; color:#66777e; font-size:11px; line-height:1.5; }
+.metricSummary { display:grid; gap:4px; min-width:0; }
+.metricRow { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; }
+.metricRow strong { min-width:0; overflow-wrap:anywhere; }
+.page .metricAction { background:transparent; color:var(--link); flex-shrink:0; padding:4px 0 4px 8px; min-height:32px; }
+.page .metricAction:hover { text-decoration:underline; }
+.optionalInputs { display:grid; gap:10px; min-width:0; }
+.optionalInputs > p { margin:0; line-height:1.6; }
+.page .optionalToggle { justify-content:space-between; width:100%; padding:4px 0; background:transparent; color:var(--text); text-align:left; min-height:32px; }
+.optionalToggle svg { flex-shrink:0; transition:transform .15s ease; }
+.optionalToggle[aria-expanded="true"] svg { transform:rotate(180deg); }
+.optionalInputs .refRow { border:0; background:var(--bg); border-radius:4px; padding:6px 10px; }
+.inspector:has(.skillIntro) > .fields { gap:24px; }
+.inspector:has(.skillIntro) .previewSection { border:0; margin-top:0; padding-top:0; }
+.inspector:has(.skillIntro) .previewSection > p { margin:0; }
+@media(min-width:761px){.workspace:has(.skillIntro){grid-template-columns:minmax(0,1fr) 380px}.workspace:has(.skillIntro) .canvas{height:640px}.workspace:has(.skillIntro) .inspector{max-height:640px}}
+@media(min-width:761px) and (max-width:1100px){.workspace:has(.skillIntro){display:flex;flex-direction:column}.workspace:has(.skillIntro) .canvas{height:280px}.workspace:has(.skillIntro) .inspector{border-left:0;border-top:1px solid var(--line);max-height:none}}
 .inspector:has(.comparisonPair) > .fields { gap:14px; }
 .inspector:has(.comparisonPair) h2 { margin:4px 0 10px; }
 .inspector:has(.comparisonPair) h3 { margin:0; }

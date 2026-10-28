@@ -26,7 +26,7 @@ export function SourceDiff({ before, after, baseVersion, version }: {
   return <section className={styles.diffPanel} aria-label={t("Code comparison")}>
     <h3>{t("Published v{version}", { version: baseVersion })}</h3>
     <p className={styles.muted}>{t("→ Editing v{version}", { version })} · <span className={styles.diffAdded}>{t("+{count} lines added", { count: added })}</span> · <span className={styles.diffRemoved}>{t("−{count} lines removed", { count: removed })}</span></p>
-    {!patch ? <p className={styles.notice}>{t("The change is too large for a line diff. Review the full code in preview.")}</p>
+    {!patch ? <p className={styles.notice}>{t("Too many changes for a line diff. Review the preview.")}</p>
       : !lines.length ? <p className={styles.notice}>{t("No code changes.")}{baseVersion !== version && t("Only the version changed.")}</p>
       : <div className={styles.diffScroll} tabIndex={0} role="region" aria-label={t("Changed code lines")}>
         <table className={styles.diffTable} aria-label={t("Added and removed code")}><thead><tr><th>{t("Before")}</th><th>{t("Change")}</th><th>{t("Code")}</th></tr></thead>

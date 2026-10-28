@@ -40,7 +40,7 @@ export function RecipeDelete({ recipe, onDeleted }: { recipe: Recipe; onDeleted:
     <dialog ref={dialog} className={s.dialog} aria-labelledby={id} aria-describedby={`${id}-description`} onCancel={event => { event.preventDefault(); close(); }} onClose={() => setOpen(false)}>
       <h2 id={id}>{t("Archive this Recipe?")}</h2>
       <p className={s.name}>{recipe.description || recipe.name}</p>
-      <p id={`${id}-description`}>{t("Remove it from lists and new executions. Original versions, drafts and existing Runs are retained and can be restored by a publisher.")}</p>
+      <p id={`${id}-description`}>{t("Hide from lists and new runs. Versions, drafts and Runs are kept; publishers can restore it.")}</p>
       {!latest && !error && <p role="status">{t("Checking the latest version…")}</p>}
       {error && <p role="alert" className={s.error}>{error}</p>}
       <div className={s.actions}><button type="button" disabled={busy} onClick={close} autoFocus>{t("Cancel")}</button>

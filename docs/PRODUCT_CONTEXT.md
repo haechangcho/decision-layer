@@ -30,8 +30,8 @@ Methods as primitives where data and assumptions support them.
 | Validator | A reusable check on data, execution or analytical assumptions |
 
 A Python Method can request multiple datasets and combine them. A query-executing
-Skill guides an AI through recorded, scoped Cube queries in a Run step. Its body
-contains the analytical procedure; a shared product guide supplies the tool protocol
+Skill guides an AI through recorded, scoped Cube queries in a Run step. Query Skills can omit input declarations and use the shared metric/scope contract.
+Its body contains the analytical procedure; a shared product guide supplies the tool protocol
 and is snapshotted with each execution (ADR-121). Advisory-only
 Skills remain reference material. Reading prose never verifies its claims. A Recipe selects and
 configures Methods according to an organization's investigation procedure. Do not
@@ -149,7 +149,7 @@ run an autonomous model on the server. A selection must reference an actual retu
 row; its complete filters can feed a later ordinary Python function. Fixed steps
 remain repeatable, but agent choices can vary and must be reviewed on rerun.
 Operator-owned Git assets and an opt-in local Method editor are implemented. Web
-shows registered Python source and rendered Skill Markdown, saves drafts, checks
+shows registered Python source and original Skill Markdown files, saves drafts, checks
 syntax/registration and publishes immutable versions (ADR-100). Method publisher
 permission is separate from Recipe publication. Shared untrusted-code hosting is not supported.
 

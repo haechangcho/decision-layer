@@ -71,6 +71,29 @@ async def test_invalid_period_is_logged_without_query_and_can_be_recovered(tmp_p
     e.jobs.shutdown()
 
 
+async def test_markdown_skill_can_choose_dimensions_but_cannot_change_bound_metric(tmp_path):
+    e = engine(tmp_path)
+    run = await e.start(CREDS, ME, recipe=None, question='Inspect groups', scope=SCOPE)
+    run, result = await e.step(CREDS, ME, run.id, PlanStep(id='inspect',
+        method='analysis.drilldown', bindings={'metric': METRIC},
+        purpose='Choose a grouping dimension from the catalog.'))
+    assert result.needs_input['reason_code'] == 'AGENT_EXECUTION_REQUIRED'
+    assert 'roles:' not in registry.get('analysis.drilldown').source_text
+    assert run.steps[0].step.purpose == 'Choose a grouping dimension from the catalog.'
+    wrong = SPEC.model_copy(update={'measures': ['cube://fixture/other/metric']})
+    _, refused = await e.skill_query(CREDS, ME, run.id, 'inspect',
+        SkillQueryRequest(id='wrong', purpose='Unbound metric', spec=wrong))
+    assert refused.status == 'failed' and not e.provider.calls
+    assert 'bound metrics' in refused.error['message']
+    _, query = await e.skill_query(CREDS, ME, run.id, 'inspect',
+        SkillQueryRequest(id='groups', purpose='Choose dimension from catalog', spec=SPEC))
+    assert query.status == 'success'
+    run = await e.finish_skill(CREDS, ME, run.id, 'inspect',
+        SkillFinishRequest(reason='Observed the returned groups.'))
+    assert run.steps[0].result.status == 'success'
+    e.jobs.shutdown()
+
+
 async def test_mixed_pipeline_pauses_then_resumes_and_retains_selection(tmp_path):
     e=engine(tmp_path)
     from examples.methods.authoring.plain_python import rank_groups
@@ -142,7 +165,7 @@ async def test_shared_protocol_is_snapshotted_and_delivered_with_each_skill(tmp_
     e = engine(tmp_path)
     run = await start(e)
     core = run.steps[0].skill.core_guide
-    assert core.name == "analysis-core" and core.version == "1.1.0"
+    assert core.name == "analysis-core" and core.version == "1.2.0"
     assert core.sha256 == sha256(core.markdown.encode()).hexdigest()
     assert "run_skill_query" in core.markdown and "inherited" in core.markdown
     assert run.steps[0].result.needs_input["core_guide"]["sha256"] == core.sha256

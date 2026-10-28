@@ -65,12 +65,12 @@ function ModelDrafts({ run, item, objects }: { run: Run; item: RunRemediation; o
   const fallback = provider && item.requirements.every(required => required.kind === "dimension") ? [{
     provider, title: t("Dimension template"),
     yaml: provider === "cube" ? 'dimensions:\n  - name: "<dimension_name>"\n    sql: "<source_column_or_expression>"\n    type: string' : 'dimensions:\n  - name: "<dimension_name>"\n    type: categorical\n    expr: "<source_column_or_expression>"',
-    unresolved: [t("Confirm the source column, data type and model to edit."), t("Confirm this dimension can group and filter the requested metric.")],
+    unresolved: [t("Confirm the source column, data type and model to edit."), t("Check that this dimension can group and filter the metric.")],
     basis: [t("Template only; no physical column or relationship was confirmed.")],
   }] : [];
   const drafts = item.model_drafts?.length ? item.model_drafts : fallback;
   const draft = drafts[Math.min(selected, drafts.length - 1)];
-  if (!draft) return <p className={s.note}>{t("A model owner must confirm the source columns and relationships before a YAML draft can be prepared.")}</p>;
+  if (!draft) return <p className={s.note}>{t("Confirm source columns and relationships with the model owner first.")}</p>;
   async function copy() {
     try { await navigator.clipboard.writeText(draft.yaml); setCopyState(t("Copied")); }
     catch { setCopyState(t("Copy failed. Select the YAML text below.")); }
@@ -78,7 +78,7 @@ function ModelDrafts({ run, item, objects }: { run: Run; item: RunRemediation; o
   return <div className={s.draft}>
     <div className={s.draftHeader}><h4><FileCode2 size={16} />{t(item.model_drafts?.length ? "Suggested YAML" : "YAML template")}<span>{draft.provider === "cube" ? "Cube" : "dbt"}</span></h4><button type="button" className="ghost" onClick={copy}><Copy size={14} />{t("Copy YAML")}</button></div>
     {drafts.length > 1 && <div className={s.draftTabs} role="tablist" aria-label={t("Suggested YAML")}>{drafts.map((value, index) => <button type="button" key={index} role="tab" aria-selected={index === selected} onClick={() => { setSelected(index); setCopyState(""); }}>{value.title}</button>)}</div>}
-    <p className={s.note}>{t("Review draft, not applied. Update the model in your semantic layer.")}</p>
+    <p className={s.note}>{t("Draft only. Apply changes in the semantic layer.")}</p>
     <pre><code>{draft.yaml}</code></pre>
     {!!draft.unresolved.length && <div className={s.unknown}><strong>{t("Confirm before applying")}</strong><ul>{draft.unresolved.map((value, index) => <li key={index}>{value}</li>)}</ul></div>}
     {item.model_drafts?.length ? <p className={s.note}>{t("Draft basis")}: {draft.basis.join("; ")}</p> : null}

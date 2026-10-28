@@ -15,7 +15,7 @@ export function RunAnswer({ run, warnings, onSelect }: { run: Run; warnings: Val
   const authored = run.conclusion && run.conclusion.source !== "execution" ? run.conclusion : null;
   const findings = authored?.findings ?? run.steps.map((record, index) => ({ text: stepFinding(record, t), step_indices: [index] }));
   if (!authored && !run.summary) return <section className={styles.runProgressSummary} aria-label={t("Analysis answer")}>
-    <p>{run.running ? t("Analysis is running.") : run.steps.length ? t("These are the results so far. Write a conclusion when the analysis is complete.") : t("No analysis steps have run yet.")}</p>
+    <p>{run.running ? t("Analysis is running.") : run.steps.length ? t("Review the results, then write a conclusion.") : t("No analysis steps have run yet.")}</p>
     {warnings.length > 0 && <ValidationList items={warnings} />}
   </section>;
   return <section className={styles.runAnswer} aria-label={t("Analysis answer")}>

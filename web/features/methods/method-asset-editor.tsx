@@ -1,7 +1,7 @@
 "use client";
 import { useT } from "@/lib/i18n";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Pencil, Eye, Code2, Save, Check, Upload, GitCompareArrows, AlignLeft, Undo2 } from "lucide-react";
@@ -23,7 +23,7 @@ const nextVersion = (value:string) => { const parts=value.split(".").map(Number)
 const bodyOnly = (text:string) => text.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, "");
 const same = (a:TextState,b:TextState) => a.content===b.content && a.version===b.version;
 
-export function MethodAssetEditor({ name, onPublished, children }: { name:string; onPublished:() => void; children?:ReactNode }) {
+export function MethodAssetEditor({ name, onPublished }: { name:string; onPublished:() => void }) {
   const t = useT();
   const { data:info, error, reload } = useApi<Asset>(`/methods/${name}/source`);
   const [editing,setEditing]=useState(false), [text,setText]=useState<TextState>({content:"",version:""});
@@ -82,7 +82,7 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
       const result=await api<{content:string;changed:boolean}>(`/methods/${name}/source:format`,{body:{content:original}});
       if (result.changed) {
         change(result.content);setFormatUndo(original);
-        setMessage(t("Code formatted. Review the diff, then save the draft."));
+        setMessage(t("Code formatted. Review changes before saving."));
       } else setMessage(t("The code already uses the shared Python format."));
     } catch(error) {setFailure(error instanceof Error ? error.message : t("Could not format the code."));}
     finally {pending.current=false;setBusy(null);}
@@ -110,7 +110,7 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
         // Fetch the exact new base before reopening; no stale revision/version is reused.
         try { hydrate(await api<Asset>(`/methods/${name}/source`)); }
         catch {setBaseline(text);setDraft(null);setReviewed(false);initialized.current="";}
-        setEditing(false);reload();onPublished();setMessage(t("Published v{version}. Pinned Recipes and historical Runs keep their existing version.", { version: text.version }));
+        setEditing(false);reload();onPublished();setMessage(t("Published v{version}. Existing Recipes and Runs keep their versions.", { version: text.version }));
       }
       return true;
     } catch(error) { setFailure(error instanceof Error ? error.message : t("Could not save the changes."));return false; }
@@ -129,30 +129,31 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
     const version=nextVersion(remote.version);
     setBaseVersion(remote.version);setDraft(remote.draft || null);
     setText(current => ({version,content:skill ? current.content.replace(/^version:.*$/m,`version: ${version}`) : current.content}));
-    setReviewed(false);setRemote(null);setFailure("");setMessage(t("Your changes were kept. Check and save again to replace the server draft you reviewed."));reload();
+    setReviewed(false);setRemote(null);setFailure("");setMessage(t("Changes kept. Check and save to replace the server draft."));reload();
   }
-  if (error instanceof ApiError && error.status === 401 && !info) return <section className={styles.panel}>{children}<p>{t("Authenticate to view or edit server code. You can also view and edit project Methods in local method.py files.")}</p><Link href="/sources">{t("Check connection settings")}</Link></section>;
-  if (error && !info) return <section className={styles.panel}>{children}<p role="alert">{t("Could not load editing information:")} {error.message}</p><button onClick={reload}>{t("Retry")}</button></section>;
-  if (!info) return <section className={styles.panel}>{children}<p role="status">{t("Loading editing permissions…")}</p></section>;
+  if (error instanceof ApiError && error.status === 401 && !info) return <section className={styles.panel}><p>{t("Sign in to view server code, or edit the project files locally.")}</p><Link href="/sources">{t("Check connection settings")}</Link></section>;
+  if (error && !info) return <section className={styles.panel}><p role="alert">{t("Could not load editing information:")} {error.message}</p><button onClick={reload}>{t("Retry")}</button></section>;
+  if (!info) return <section className={styles.panel}><p role="status">{t("Loading editing permissions…")}</p></section>;
   const status=busy ? ({save:t("Saving…"),check:t("Checking syntax and registration…"),publish:t("Publishing…"),format:t("Formatting code…")}[busy])
     : dirty ? t("Unsaved changes") : checked ? t("Registration checked / not published") : draft ? t("Draft saved on server") : t("Published version");
   return <section id="method-editor" className={styles.panel} aria-label={t("Analysis source and editing")} aria-busy={!!busy}>
     <div className={`${styles.heading} ${editing ? styles.editorToolbar : ""}`}>
-      <div><h2>{skill ? "Skill.md" : t("Authorable Python code")}</h2>
-        <p className={styles.muted}><span className={dirty ? styles.unsaved : styles.badge}>{status}</span>  {t("/ Published v")}{info.version}{editing && t(" → Draft v{version}", { version: text.version })}{savedAt && t(" · Saved {time}", { time: savedAt })}</p></div>
+      <div><h2>{skill ? "SKILL.md" : t("Authorable Python code")}</h2>
+        <p className={styles.muted}><span className={dirty ? styles.unsaved : styles.badge}>{status}</span> · v{info.version}{editing && t(" → Draft v{version}", { version: text.version })}{savedAt && t(" · Saved {time}", { time: savedAt })}</p></div>
       {info.permissions.edit && info.content && <div className={styles.controls}>
         {editing && <button className={`${styles.button} ${styles.secondary}`} disabled={!!busy || !needsSave || !validVersion} onClick={() => action("save")}><Save size={15}/>{t("Save draft")}</button>}
         <button className={`${styles.button} ${styles.secondary}`} disabled={!!busy} onClick={() => {setEditing(!editing);setView("edit");}}><Pencil size={15}/>{editing ? t("Back to reading") : draft || dirty ? t("Continue editing") : skill ? t("Edit SKILL.md") : t("Edit Python")}</button>
       </div>}
     </div>
-    {!editing && <>{skill ? children || <MethodMarkdown content={bodyOnly(info.content || "")} /> : <SourceEvidence source={info.code} />}
-      {dirty && <p className={styles.notice}>{t("Your edits remain in this view. Continue editing and save a draft.")}</p>}
-      {draft && <p className={styles.notice}>v{draft.version}  {t("A draft is saved. Execution changes only after publication.")}</p>}</>}
-    {!info.permissions.edit && <p className={styles.muted}>{t("Read-only. An operator can enable UI editing and grant Method editing permission.")}</p>}
+    {!editing && <>{skill ? <pre className={styles.skillSource} aria-label={t("Original Skill Markdown")} tabIndex={0}><code>{info.content}</code></pre> : <SourceEvidence source={info.code} />}
+      <p className={styles.muted}>{!info.permissions.edit && <>{t("Read-only.")} </>}{t(skill ? "Edit the project's SKILL.md file." : "Edit the project's method.py file.")}</p>
+      {dirty && <p className={styles.notice}>{t("Unsaved edits kept. Continue editing to save them.")}</p>}
+      {draft && <p className={styles.notice}>v{draft.version}  {t("Draft saved; publish to apply it.")}</p>}</>}
+    {editing && <p className={styles.notice}>{t("Publishing updates the server only. Edit project files separately.")}</p>}
     {editing && <div className={styles.workspace}>
       <div className={styles.versionBar}><label className={styles.versionField}>{t("New version to publish")}<input aria-label={t("Published version")} value={text.version} disabled={!!busy} aria-invalid={!validVersion}
         onChange={event => change(skill ? text.content.replace(/^version:.*$/m,`version: ${event.target.value}`) : text.content,event.target.value)} /></label>
-        <p className={styles.muted}>{t("Edit, check and publish. Saving a draft alone does not change execution.")}</p></div>
+        <p className={styles.muted}>{t("Check and publish to apply your changes.")}</p></div>
       {!validVersion && <p role="alert" className={styles.error}>{t("Enter a version such as 1.0.1.")}</p>}
       {stale && <div role="alert" className={styles.notice}>{t("The published version changed. Your edits are preserved.")} <button className={styles.textButton} onClick={inspectRemote}>{t("Check server state")}</button></div>}
       <div className={styles.tabs} role="tablist" aria-label={t("Editor view")}>
@@ -177,27 +178,27 @@ export function MethodAssetEditor({ name, onPublished, children }: { name:string
         {view==="preview" && <div className={styles.preview}>{skill ? <MethodMarkdown content={bodyOnly(text.content)} /> : <MethodCode content={text.content} />}</div>}
         {view==="compare" && <SourceDiff before={info.content || ""} after={text.content} baseVersion={baseVersion} version={text.version} />}
       </div>
-      <p id="source-editor-help" className={styles.muted}>{t("⌘ / Ctrl+S save / ⌘ / Ctrl+F find and replace / ⌘ / Ctrl+] indent")}{!skill && t("/ Shift+Alt+F format (Ruff / 88 columns / 4 spaces)")}  {t("/ Tab next control")}</p>
+      <p id="source-editor-help" className={styles.muted}>{t("⌘ / Ctrl+S save / ⌘ / Ctrl+F find and replace / ⌘ / Ctrl+] indent")}{!skill && t("/ Shift+Alt+F format")}  {t("/ Tab next control")}</p>
       <div className={styles.publishPanel}>
         <label className={styles.review}><input type="checkbox" checked={reviewed} disabled={!!busy} onChange={event => setReviewed(event.target.checked)}/>
-          {skill ? t("I reviewed the changed instructions and input requirements.") : t("I reviewed the code and trust it to run with server permissions.")}</label>
-        {!skill && <p className={styles.muted}>{t("Python registration checks execute code. They do not verify analytical accuracy or provide a security sandbox.")}</p>}
+          {skill ? t("I reviewed the changed instructions and input requirements.") : t("I reviewed and trust this code to run with server permissions.")}</label>
+        {!skill && <p className={styles.muted}>{t("Python checks run code without a security sandbox. Analytical accuracy is not checked.")}</p>}
         <div className={styles.controls}>
           <button className={`${styles.button} ${styles.secondary}`} disabled={!!busy || stale || !validVersion || !text.content.trim() || !skill && (!reviewed || !info.permissions.publish)} onClick={() => action("check")}><Check size={15}/>{busy==="check" ? t("Checking…") : t("Check syntax and registration")}</button>
           <button className={styles.button} disabled={!!busy || stale || !checked || !reviewed || !info.permissions.publish} onClick={() => action("publish")}><Upload size={15}/>{busy==="publish" ? t("Publishing…") : t("Publish v{version}", { version: text.version })}</button>
         </div>
-        {!checked && <p className={styles.muted}>{!skill && !reviewed ? t("Confirm the code review to run registration checks.") : t("Checking first saves the draft. Publish after checks pass.")}</p>}
+        {!checked && <p className={styles.muted}>{!skill && !reviewed ? t("Confirm the code review to run registration checks.") : t("Checks save the draft. Publish after they pass.")}</p>}
         {!info.permissions.publish && <p className={styles.notice}>{t("You only have draft editing permission.")} {t(skill ? "Publication requires an operator with Method publishing permission." : "Python registration checks and publication require an operator with Method publishing permission.")}</p>}
         {draft?.validation && !needsSave && <p className={draft.validation.status==="pass" ? styles.success : styles.error} role={draft.validation.status==="fail" ? "alert" : "status"}>
-          {draft.validation.status==="pass" ? t("Syntax and registration checks passed. Real data and analytical quality were not checked.") : draft.validation.message}</p>}
+          {draft.validation.status==="pass" ? t("Syntax and registration passed. Data and analysis are unchecked.") : draft.validation.message}</p>}
       </div>
     </div>}
     {message && <p className={styles.success} role="status">{message}</p>}
-    {failure && <div className={styles.notice} role="alert"><p>{failure}</p><p>{t("Your edits are kept. If there is a conflict, inspect the server draft before saving again.")}</p><button className={styles.textButton} onClick={inspectRemote}>{t("Check server state")}</button></div>}
+    {failure && <div className={styles.notice} role="alert"><p>{failure}</p><p>{t("Edits kept. Review the server draft before retrying.")}</p><button className={styles.textButton} onClick={inspectRemote}>{t("Check server state")}</button></div>}
     {remote && <div className={styles.notice} aria-label={t("Compare the server draft with your changes")}><h3>{t("Server draft and your changes")}</h3><div className={styles.compare}>
       <div><h3>{t("Server v")}{remote.draft?.version || remote.version}</h3><MethodCode content={remote.draft?.content || remote.content || ""} language={skill ? "markdown" : "python"}/></div>
       <div><h3>{t("Your changes v")}{text.version}</h3><MethodCode content={text.content} language={skill ? "markdown" : "python"}/></div>
-    </div><p>{t("Keeping your changes replaces the reviewed server draft on your next save. Nothing is overwritten automatically.")}</p><div className={styles.controls}>
+    </div><p>{t("The next save will replace the server draft with your changes.")}</p><div className={styles.controls}>
       <button className={styles.button} onClick={keepLocalAgainstRemote}>{t("Keep your changes and update baseline")}</button>
       <button className={`${styles.button} ${styles.secondary}`} onClick={() => {hydrate(remote);setRemote(null);}}>{t("Replace with server content")}</button>
       <button className={styles.textButton} onClick={() => setRemote(null)}>{t("Close comparison")}</button>

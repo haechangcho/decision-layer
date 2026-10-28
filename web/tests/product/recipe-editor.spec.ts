@@ -69,6 +69,52 @@ async function codeEdit(page: Page, update: (recipe: Recipe) => void) {
   await page.getByRole("button", { name: "코드 닫기", exact: true }).click();
 }
 
+test("Skill steps keep instructions primary and let both saved and new steps choose optional dimensions", async ({ page }, info) => {
+  const initial = existing();
+  initial.semantic_scope.preferred_dimensions = [];
+  initial.steps = [{ id: "inspect", method: "analysis.drilldown", method_version: "2.1.0",
+    bindings: { metric: "$scope.primary_metric", dimensions: [dimension] }, params: { filters: [] } }];
+  const state = await mockApi(page, initial);
+  const skill = { name: "analysis.drilldown", version: "2.1.0", implementation: "skill", agent_executable: true,
+    description: "Inspect groups", roles: { metric: {kind: "measure", required: true},
+      dimensions: {kind: "dimension", multiple: true, required: false} }, parameters: {} };
+  await page.route("**/api/methods", route => route.fulfill({json: [skill]}));
+  await page.goto("/recipes/insurance-review/edit");
+  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await expect(page.getByLabel("이 단계의 분석 지시", {exact: true})).toBeVisible();
+  await expect(page.getByText("살펴볼 차원: 지급 유형", {exact: true})).toBeVisible();
+  await page.getByRole("button", {name: "분석 대상 설정 (선택)", exact: true}).click();
+  await expect(page.getByLabel("살펴볼 차원", {exact: true})).toBeVisible();
+  await page.getByRole("button", {name: "살펴볼 차원 1 삭제", exact: true}).click();
+  await page.getByLabel("살펴볼 차원", {exact: true}).selectOption(dimension);
+  await page.getByRole("button", {name: "분석 단계 추가", exact: true}).click();
+  await page.getByRole("button", {name: /그룹별 분석/}).click();
+  await page.getByLabel("이 단계의 분석 지시", {exact: true}).fill("선택한 기준으로 분포를 살펴보고 다음 대상을 정한다.");
+  await page.getByRole("button", {name: "분석 대상 설정 (선택)", exact: true}).click();
+  await page.getByLabel("살펴볼 차원", {exact: true}).selectOption(dimension);
+  await expect(page.getByText("AI가 참고할 차원입니다. 실행 순서는 정하지 않습니다.")).toBeVisible();
+  if (info.project.name === "desktop") {
+    await page.setViewportSize({width:811,height:863});
+    await expect.poll(async () => {
+      const graph = await page.getByRole("region", {name:"Recipe 그래프"}).boundingBox();
+      const nodes = await page.locator(".react-flow__node").all();
+      if (!graph) return false;
+      for (const node of nodes) {
+        const box = await node.boundingBox();
+        if (!box || box.y < graph.y || box.y + box.height > graph.y + graph.height) return false;
+      }
+      return true;
+    }).toBe(true);
+  }
+  await page.screenshot({path: info.outputPath("skill-step-inputs.png"), fullPage: true});
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await save(page);
+  await expect.poll(() => state.submission()?.recipe.steps[1].bindings.dimensions).toEqual([dimension]);
+  expect(state.submission()?.recipe.steps[0].method_version).toBe("2.1.0");
+  expect(state.submission()?.recipe.steps[0].params).toEqual({filters: []});
+  expect(state.submission()?.recipe.steps[1].purpose).toBe("선택한 기준으로 분포를 살펴보고 다음 대상을 정한다.");
+});
+
 test("comparison groups use generic typed controls and reset on criterion changes", async ({ page }, info) => {
   const initial = existing();
   const flag = "cube://local/fact_payment/flag";
@@ -147,7 +193,7 @@ for (const automatic of [true, false]) test(`average count connection is ${autom
   await page.locator('.react-flow__node[data-id="step:0"]').click();
   await expect(page.getByLabel("표본 건수 지표", { exact: true })).toHaveCount(0);
   if (!automatic) {
-    await expect(page.getByText(/자동으로 확인할 수 없어 연결이 필요합니다/)).toBeVisible();
+    await expect(page.getByText(/평균을 비교하려면 같은 분석 단위의 건수를 연결하세요/)).toBeVisible();
     await page.getByLabel("분석 단위의 건수 확인").selectOption(count);
   }
   await expect(page.getByLabel("분석 단위의 건수 확인")).toHaveCount(0);
@@ -218,9 +264,9 @@ test("step metric override is deliberate and can return to the Recipe metric", a
   await page.getByRole("button", { name: "지표 변경", exact: true }).click();
   await page.locator('[class*="refField"]').filter({ hasText: "이 단계에서 사용할 지표" }).getByRole("button", { name: "직접 선택" }).click();
   await page.getByRole("combobox", { name: "이 단계에서 사용할 지표" }).selectOption(alternateMetric);
-  await expect(page.locator('[class*="inherited"]').getByText("청구 건수", { exact: true })).toBeVisible();
+  await expect(page.locator('[class*="metricSummary"]').getByText("청구 건수", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Recipe 지표 사용" }).click();
-  await expect(page.locator('[class*="inherited"]').getByText("지급액", { exact: true }).first()).toBeVisible();
+  await expect(page.locator('[class*="metricSummary"]').getByText("지급액", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "초안 저장", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "지표 변경", exact: true }).click();
   await page.locator('[class*="refField"]').filter({ hasText: "이 단계에서 사용할 지표" }).getByRole("button", { name: "직접 선택" }).click();
@@ -234,7 +280,7 @@ test("Recipe-fixed parameters stay preserved outside basic editing", async ({ pa
   const state = await mockApi(page, locked);
   await page.goto("/recipes/insurance-review/edit");
   await page.locator('.react-flow__node[data-id="step:0"]').click();
-  await expect(page.getByText(/이 절차에 지정된 실행 제약/)).toBeVisible();
+  await expect(page.getByText("실행 제약은 코드 보기에서 수정하세요.", {exact:true})).toBeVisible();
   await expect(page.getByLabel("표시할 그룹 수")).toHaveCount(0);
   await page.getByRole("button", { name: "분석 절차 정보" }).click();
   await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("보험금 지급액 분석 절차");
@@ -275,7 +321,7 @@ test("YAML edits update the graph and graph edits refresh YAML", async ({ page }
   await page.getByLabel("Recipe YAML").fill("name: insurance-review\ndescription: 덮어쓰기 시도\n");
   await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("더 최근 그래프 변경");
   await page.getByRole("button", { name: "YAML 적용" }).click();
-  await expect(page.getByText("그래프가 변경되었습니다. YAML을 새로고침한 뒤 다시 편집해 주세요.")).toBeVisible();
+  await expect(page.getByText("단계가 변경되었습니다. YAML을 다시 불러오세요.")).toBeVisible();
   await expect(page.getByLabel("어떤 질문에 사용하는 분석인가요?")).toHaveValue("더 최근 그래프 변경");
 });
 
@@ -369,7 +415,7 @@ test("editing an existing step-specific metric preserves its override", async ({
   const state = await mockApi(page, before);
   await page.goto("/recipes/insurance-review/edit");
   await page.locator('.react-flow__node[data-id="step:0"]').click();
-  await expect(page.locator('[class*="inherited"]').getByText("청구 건수", { exact: true })).toBeVisible();
+  await expect(page.locator('[class*="metricSummary"]').getByText("청구 건수", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "지표 변경", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "분석 절차 정보" }).click();
   await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("수정한 분석 목적");
@@ -416,6 +462,31 @@ test("a contributed Method generates labels, catalog inputs and conditional opti
   await expect(page.getByLabel("허용 차이")).toHaveValue("0.1");
   await expect(page.getByLabel("나눠 볼 영역", { exact: true }).locator("option").filter({ hasText: "지급액" })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("declarative-method-editor.png"), fullPage: true });
+});
+
+test("unavailable pinned settings stop loading and can be retried without changing the Recipe", async ({ page }, info) => {
+  const initial = existing();
+  initial.steps[0].method_version = "1.0.0";
+  await mockApi(page, initial);
+  let requests = 0;
+  await page.route("**/api/methods/query.drilldown?version=1.0.0", route => {
+    requests++;
+    return route.fulfill(requests === 1
+      ? { status: 400, json: { error: { code: "INVALID_BINDING", message: "The recorded Method version is not installed. Review the Recipe before changing its version." } } }
+      : { json: { ...methods[1], version: "1.0.0" } });
+  });
+  await page.goto("/recipes/insurance-review/edit");
+  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  const settingsError = page.locator("aside").last().getByRole("alert");
+  await expect(settingsError).toContainText("The recorded Method version is not installed.");
+  await page.screenshot({ path: info.outputPath("unavailable-pinned-settings.png"), fullPage: true });
+  await expect(page.getByRole("status").filter({ hasText: "분석 설정을 불러오는 중…" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "결과 확인", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "다시 시도", exact: true }).click();
+  await expect(settingsError).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "지표 변경", exact: true })).toBeVisible();
+  await expect(page.getByText("이 단계의 고정 버전 · v1.0.0")).toBeVisible();
+  expect(requests).toBe(2);
 });
 
 test("drilldown exposes one effective dimension, not engine options", async ({ page }, info) => {

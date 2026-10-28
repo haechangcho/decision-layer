@@ -24,7 +24,7 @@ export function SourceEvidence({ source, historical=false }: { source?: MethodSo
   const t = useT();
   const [open, setOpen] = useState(false);
   const [filename, setFilename] = useState("");
-  if (!source?.available || !source.files.length) return <p className={styles.muted}>{historical ? t("This Run has no execution-time source snapshot. Current source is not shown in its place.") : t("Cannot read source code from the installed package.")}</p>;
+  if (!source?.available || !source.files.length) return <p className={styles.muted}>{historical ? t("No source code was saved for this Run.") : t("Cannot read source code from the installed package.")}</p>;
   const projectFiles = source.files.length > 1 && source.files[0].name.endsWith(".method");
   const file = source.files.find(item => item.name === filename) ?? source.files[0];
   const original = <div className={styles.originalSource}>
@@ -36,6 +36,6 @@ export function SourceEvidence({ source, historical=false }: { source?: MethodSo
       {source.authoring_content && <button type="button" className="ghost" onClick={() => setOpen(true)}>{t("View original file")}</button>}</div>
     {projectFiles && <div className={styles.codeFiles} role="group" aria-label={t("Code files")}>{source.files.map(item => <button type="button" key={item.name} aria-pressed={item.name === file.name} onClick={() => setFilename(item.name)}>{item.name.split(".").at(-1)}.py</button>)}</div>}
     {projectFiles ? <MethodCode content={file.content} /> : source.authoring_content ? <div aria-label={t("Authorable analysis code")}><MethodCode content={source.authoring_content} /></div> : original}
-    <InspectorDialog title={t("Original Python file")} open={open} onClose={() => setOpen(false)}><p>{t("Preserved entry module and helper code. External libraries are not included in full.")}</p>{original}</InspectorDialog>
+    <InspectorDialog title={t("Original Python file")} open={open} onClose={() => setOpen(false)}><p>{t("Recorded source and helpers; external libraries are not fully included.")}</p>{original}</InspectorDialog>
   </div>;
 }

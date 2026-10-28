@@ -25,7 +25,7 @@ test("delete requires confirmation, checks the latest version and updates both l
   await trigger.click();
   let dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("button", { name: "취소", exact: true })).toBeFocused();
-  await expect(dialog).toContainText("원본 버전과 기존 실행 기록은 남아 있으며");
+  await expect(dialog).toContainText("버전·초안·실행 기록은 보존되며");
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   expect(deletes).toBe(0);

@@ -18,7 +18,7 @@ test("a Run can be deleted from the list after confirmation", async ({ page }) =
   await page.getByRole("button", { name: /실행 기록 삭제:/ }).click();
   const dialog = page.getByRole("dialog", { name: "실행 기록을 삭제할까요?" });
   await expect(dialog).toContainText(run.plan.question);
-  await expect(dialog).toContainText("이미 등록한 Recipe는 유지됩니다");
+  await expect(dialog).toContainText("레시피는 유지됩니다");
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   expect(deletes).toBe(0);

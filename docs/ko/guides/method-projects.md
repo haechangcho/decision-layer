@@ -91,6 +91,13 @@ METHOD = python_method(
 `SKILL.md`에는 분석 순서와 판단 기준을 적습니다.
 
 ```markdown
+---
+name: my_team.metric_review
+version: 1.0.0
+description: 지표를 항목별로 살펴보고 결과를 설명합니다.
+query_execution: true
+---
+
 # 매출을 항목별로 살펴보기
 
 1. 상품 부문별 매출을 조회합니다.
@@ -99,7 +106,40 @@ METHOD = python_method(
 4. 결과와 확인하지 못한 내용을 설명합니다.
 ```
 
+파일 상단에는 이름·버전·설명과 쿼리 실행 여부만 적으면 됩니다.
+`roles`와 `parameters`를 직접 선언하지 않아도 공통 입력이 제공됩니다.
+필수 지표, 선택 사항인 관련 지표·참고 차원, 필터·대상 범위·비교 기간입니다.
+참고 차원의 목록 순서가 쿼리 실행 순서를 강제하지는 않습니다.
+기존에 명시한 `roles`나 `parameters`는 빈 맵을 포함해 각각의 계약을 그대로 유지합니다.
+
 도구 호출과 결과 기록은 공통 지침으로 전달하므로 각 Skill에 반복해서 적지 않습니다.
+서버는 지정한 지표·기간·필터·권한·쿼리 제한을 계속 검사합니다.
+
+## Recipe 파일 작성하기
+
+연결한 시맨틱 카탈로그의 실제 지표 참조로 실행합니다.
+
+```bash
+decision-layer new recipe metric_review --metric cube://connection/model/metric
+```
+
+`recipes/metric_review.yaml`에 초안이 생성됩니다. 첫 Method는
+`analysis.metric_lookup`이며, `--method my_team.metric_review`로 변경할 수 있습니다.
+편집기에서 설명과 각 단계의 `purpose`를 적고, 등록된 Method를 단계로 연결합니다.
+명확한 입력이나 이전 결과 연결이 필요하면 `bindings`와 `params`를 사용합니다.
+예를 들어 `params.filters: $steps.inspect.selections.selected_group.evidence.filters`는
+앞선 Skill 단계가 선택한 대상의 필터를 전달합니다. 단계를 이어 놓는 것만으로
+대상 필터가 자동 연결되지는 않습니다.
+
+`decision-layer check`는 Method 등록과 Recipe 파일을 함께 검사합니다.
+Web에서 초안을 검토하고 게시하세요. Web은 Method 연결, 단계별 분석 지시,
+선택 입력 설정과 실행 결과 확인에 사용하고, 상세 YAML은 코드 보기에서 확인합니다.
+
+Method는 프로젝트의 `methods/`에서 수정하고 동작을 바꾸면 버전도 올립니다.
+`decision-layer serve --reload`로 파일 변경을 다시 불러옵니다.
+Web의 Method 화면에서는 SKILL.md 원본을 볼 수 있습니다.
+Web의 별도 편집 기능으로 게시한 Method는 서버가 관리하는 버전이며,
+프로젝트 파일이나 Git에 자동 반영되지 않습니다.
 
 ## AI에서 사용하기
 

@@ -18,7 +18,7 @@ export function MethodExecutions({ method }: { method: MethodManifest }) {
     step.method === reference ? [{ run, step, index }] : [])).slice(0, 5);
   return <section className={styles.methodPanel} aria-label={t("Runs for this version")}>
     <h2>{t("Runs for this version")}</h2>
-    <p>{t("Runs for v{version} among the latest 100 Runs.", { version: method.version })}</p>
+    <p>{t("v{version} · latest 100 Runs", { version: method.version })}</p>
     {error ? <RequestError title={t("Could not load the Runs")} error={error} retry={reload} /> : loading || !data ? <LoadingState /> : executions.length ?
       <div className={styles.methodEvidence}>{executions.map(({ run, step, index }) => {
         const status = step.result.status;
@@ -28,7 +28,7 @@ export function MethodExecutions({ method }: { method: MethodManifest }) {
             <small>{new Date(step.started_at).toLocaleString()} / {t("{checks} checks / {queries} recorded queries", { checks: step.result.validation.length, queries: step.skill ? step.skill.queries.length : step.result.provenance.queries.length })}</small></span>
           <ArrowUpRight size={17} />
         </Link>;
-      })}</div> : <p>{t("No Runs found within this range. Registration alone does not verify execution.")}</p>}
+      })}</div> : <p>{t("No Runs found. Execution is unverified.")}</p>}
     <Link className={styles.secondaryLink} href="/runs">{t("View all Runs")}</Link>
   </section>;
 }

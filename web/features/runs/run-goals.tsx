@@ -41,7 +41,7 @@ export function RunGoals({ run, mine, onSelect }: { run: Run; mine: boolean; onS
     })}</ul>
     <dialog ref={dialog} className={s.dialog} aria-label={t("Propose an analysis Method")}>
       <header><h2>{t("Propose an analysis Method")}</h2><button type="button" aria-label={t("Close")} title={t("Close")} onClick={() => dialog.current?.close()}><X size={18} /></button></header>
-      <p>{t("Use public or synthetic examples. Your Run data and queries are not copied.")}</p>
+      <p>{t("Use public or synthetic examples. Run data and queries are not copied.")}</p>
       {draft ? <><label>{t("Public issue draft")}<textarea rows={12} readOnly value={draft.body} /></label><div className={s.links}><a href={draft.existing_issues_url} target="_blank" rel="noreferrer">{t("Check existing proposals")}<ExternalLink size={14} /></a><a href={draft.url} target="_blank" rel="noreferrer">{t("Review on GitHub")}<ExternalLink size={14} /></a></div><p>{t("The issue is submitted only after you review and submit it on GitHub.")}</p></> : <form onSubmit={prepare}><label>{t("Method proposal title")}<input required maxLength={120} value={title} onChange={event => setTitle(event.target.value)} /></label><label>{t("Public example question")}<textarea required maxLength={1000} rows={3} value={question} onChange={event => setQuestion(event.target.value)} /></label><label>{t("Expected analysis result")}<textarea required maxLength={1000} rows={3} value={expected} onChange={event => setExpected(event.target.value)} /></label><button type="submit" disabled={busy}>{t(busy ? "Preparing draft…" : "Prepare public draft")}</button></form>}
       {error && <p role="alert">{error}</p>}
     </dialog>

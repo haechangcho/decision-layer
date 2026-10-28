@@ -74,7 +74,7 @@ test("language switching updates libraries, catalog, project navigation and API 
 test("Method inputs, source diff and editor localize without losing unsaved code", async ({ page }) => {
   await setup(page);
   await page.goto(`${prefix}/methods/${python.name}`);
-  await expect(page.getByRole("region", { name: "Data passed to the function" })).toContainText("Minimum 10 rows.");
+  await expect(page.getByRole("region", { name: "data", exact: true })).toContainText("Minimum 10 rows.");
   await noKoreanUI(page);
   await page.getByRole("tab", { name: "Python code", exact: true }).click();
   await page.getByRole("button", { name: "Edit Python", exact: true }).click();

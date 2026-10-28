@@ -70,6 +70,12 @@ Team projects place `decision-layer.yaml`, `methods/` and `recipes/` at the root
 uses the same two starter Skill files as new projects, keeping one current
 procedure definition (ADR-124). New projects generate two Skill files and two ordinary Python calculations with separate checks and local tests. Their configuration disables built-in defaults; older projects retain the previous catalog. Package updates never rewrite user-owned definitions (ADR-116). Legacy module-loading settings remain supported.
 
+Skill headers identify the asset and opt into query execution; omitted role/parameter
+maps use the common query inputs in `methods/skills.py`. Explicit maps retain their
+contracts. Project files are the primary authoring surface; Web composes Methods
+and step instructions, with optional semantic inputs and full source inspection
+(ADR-127). `new recipe` writes a canonical draft and `check` validates Recipe files.
+
 External AI clients drive Skill execution. `runs/skills.py` validates structured Cube queries and records actual requests and results. Each Skill execution snapshots both the shared `analysis-core` tool protocol and its individual analytical procedure; active REST/MCP responses deliver both automatically (ADR-121). The pipeline waits for querying and completion before continuing. Reading guidance alone is neither execution nor validation.
 
 ## Scope, validation and evidence

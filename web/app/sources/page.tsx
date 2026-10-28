@@ -80,7 +80,7 @@ export default function SourcesPage() {
       if (envManaged) {
         // Inspect the configured source; no administrator-only arbitrary-target test.
         const catalog = await api<SemanticCatalog>("/semantic/catalog", { callerToken: auth === "token" ? callerToken.trim() : "" });
-        if (!catalog.objects.length) throw new Error(t("No metrics are visible. Check the semantic models and access permissions."));
+        if (!catalog.objects.length) throw new Error(t("No visible metrics. Check the model and access permissions."));
         if (auth === "token") setToken(callerToken.trim());
         setTest({ status: "connected", provider: catalog.provider, instance: catalog.instance, objects: catalog.objects.length,
           measures: catalog.objects.filter(obj => obj.kind === "measure").length,
@@ -134,9 +134,9 @@ export default function SourcesPage() {
       </section>}
 
       {/* Operator configuration stays outside the HTTP API when no admin key exists. */}
-      {!source.admin_configured && <p className={styles.help}><Info size={14} />{t("HTTP source administration is disabled. Configure the connection in the server environment.")}</p>}
-      {envManaged && source.admin_configured && <p className={styles.help}><Info size={14} /> {t("This connection is managed by environment variables on the server. To change it, update the environment variables (.env) and restart.")}</p>}
-      {envManaged && auth === "token" && <label className={styles.field}><span id="readonly-token-label">{t("Access token")}</span><input aria-labelledby="readonly-token-label" type="password" autoComplete="off" value={callerToken} disabled={busy !== null} onChange={e => { setCallerToken(e.target.value); invalidateTest(); }} placeholder={t("Enter without the Bearer prefix")} /><small>{t("Used only in this browser tab after saving. Not stored in the server database.")}</small></label>}
+      {!source.admin_configured && <p className={styles.help}><Info size={14} />{t("Connection editing is disabled. Configure it on the server.")}</p>}
+      {envManaged && source.admin_configured && <p className={styles.help}><Info size={14} /> {t("Update the server environment (.env) and restart to change this connection.")}</p>}
+      {envManaged && auth === "token" && <label className={styles.field}><span id="readonly-token-label">{t("Access token")}</span><input aria-labelledby="readonly-token-label" type="password" autoComplete="off" value={callerToken} disabled={busy !== null} onChange={e => { setCallerToken(e.target.value); invalidateTest(); }} placeholder={t("Enter without the Bearer prefix")} /><small>{t("Used in this tab only; not stored on the server.")}</small></label>}
 
       {/* Shared deployment, not yet unlocked: ask for the admin key */}
       {!envManaged && source.admin_required && !unlocked && <section className={styles.admin}>
@@ -147,7 +147,7 @@ export default function SourcesPage() {
           <input id="admin-key" type="password" autoComplete="current-password" disabled={busy !== null} value={adminKey} onChange={(e) => setAdminKey(e.target.value)} />
           <button type="submit" disabled={busy === "unlock" || !adminKey}>{busy === "unlock" ? t("Verifying…") : t("Open settings")}</button>
         </form>
-        <p className={styles.help}>{t("The admin key is the DL_SOURCE_ADMIN_TOKEN set by the deployment administrator.")}</p>
+        <p className={styles.help}>{t("Use the server's DL_SOURCE_ADMIN_TOKEN.")}</p>
       </section>}
 
       {/* Editable: the form */}
@@ -156,7 +156,7 @@ export default function SourcesPage() {
         <div className={styles.field}><span>{t("Provider")}</span><strong>Cube</strong></div>
         <label className={styles.field}><span id="source-url-label">{t("API URL")}</span>
           <input aria-labelledby="source-url-label" aria-describedby="source-url-help" value={url} onChange={(e) => { setUrl(e.target.value); invalidateTest(); }} placeholder="https://cube.example.com/cubejs-api/v1" disabled={busy !== null || locked("api_url")} />
-          <small id="source-url-help">{t("Use an address reachable from the Decision Layer server.")}</small>
+          <small id="source-url-help">{t("Enter an address the server can reach.")}</small>
           {locked("api_url") && <small><LockKeyhole size={13} />{t("Fixed by environment variable")} · {ENV_LABEL.api_url}</small>}</label>
         <label className={styles.field}><span id="source-auth-label">{t("Authentication")}</span>
           <select aria-labelledby="source-auth-label" value={auth} onChange={(e) => { setAuth(e.target.value as "token" | "api_secret" | "none"); invalidateTest(); }} disabled={busy !== null || locked("auth_method")}>
@@ -165,10 +165,10 @@ export default function SourcesPage() {
           {locked("auth_method") && <small><LockKeyhole size={13} />{t("Fixed by environment variable")} · {ENV_LABEL.auth_method}</small>}</label>
         {auth === "token" ? <label className={styles.field}><span id="source-token-label">{t("Access token")}</span>
           <input aria-labelledby="source-token-label" aria-describedby="source-token-help" type="password" autoComplete="off" value={callerToken} disabled={busy !== null} onChange={(e) => { setCallerToken(e.target.value); invalidateTest(); }} placeholder={t("Enter without the Bearer prefix")} />
-          <small id="source-token-help">{t("Used only in this browser tab after saving. Not stored in the server database.")}</small></label>
+          <small id="source-token-help">{t("Used in this tab only; not stored on the server.")}</small></label>
         : auth === "api_secret" ? locked("api_secret") ? <p className={styles.credential}><LockKeyhole size={14} />{t("API secret is configured on the server.")}</p> : <label className={styles.field}><span>{t("Cube API secret")}</span>
             <input type="password" autoComplete="new-password" value={secret} onChange={(e) => { setSecret(e.target.value); invalidateTest(); }} placeholder={selectedConfig?.api_secret_configured ? t("Leave blank to keep the current value") : ""} disabled={busy !== null} />
-          </label> : <p className={styles.help}>{t("Local development only. Every user shares the same data access.")}</p>}
+          </label> : <p className={styles.help}>{t("Local development only; all users share data access.")}</p>}
         <section className={styles.advanced}><h3>{t("Additional connection settings")}</h3>
           <label className={styles.field}><span>{t("Instance")}</span><input value={instance} onChange={e => { setInstance(e.target.value); invalidateTest(); }} disabled={busy !== null || locked("instance")} /><small>{t("Identifies this connection in saved semantic references.")}{locked("instance") && ` · ${prefix}_INSTANCE`}</small></label>
           {auth === "api_secret" && <label className={styles.field}><span>{t("Service groups")}</span><input value={groups} onChange={e => { setGroups(e.target.value); invalidateTest(); }} disabled={busy !== null || locked("service_groups")} /><small>{t("Comma-separated. Use for development/local connections only.")}</small></label>}
@@ -195,7 +195,7 @@ export default function SourcesPage() {
 
       {readiness && <section className={styles.readiness}>
         <div className={styles.sectionHeading}><h2><ShieldCheck size={17} />{t("Metric readiness")}</h2><span>{t("{count} metrics", { count: readiness.metrics.length })}</span></div>
-        {readiness.metrics.length === 0 ? <p>{t("No metrics are visible. Check the semantic models and access permissions.")}</p>
+        {readiness.metrics.length === 0 ? <p>{t("No visible metrics. Check the model and access permissions.")}</p>
         : readiness.metrics.map((item) => <article className={styles.readinessRow} key={item.metric.ref}>
           <div><strong>{item.metric.title}</strong></div>
           <div>{([["Decomposition", item.checks.decomposition.status], ["Time", item.checks.time.status], ["Primary key", item.checks.entity_key.status]] as const).map(([label, state]) =>

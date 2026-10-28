@@ -37,7 +37,7 @@ export default function RecipesPage() {
     {error && <RequestError title={t("Could not load the analysis procedures")} error={error} retry={reload} />}
     {error && !data ? null : data && !data.length && !drafts?.length && !loading ? <section className={styles.empty}>
       <BookOpen size={24} /><h2>{t("No analysis procedures yet")}</h2>
-      <p>{t("Connect a semantic layer and choose a metric to create the first one.")}</p>
+      <p>{t("Connect a semantic layer and choose a metric to start.")}</p>
       <div className={styles.emptyActions}><Link href="/catalog">{t("Explore metrics")} <ArrowRight size={15} /></Link><Link href="/recipes/new">{t("New analysis procedure")} <ArrowRight size={15} /></Link></div>
     </section> : <section className={styles.libraryList} aria-label={t("Recipes")}>
       <div className={styles.libraryToolbar}>

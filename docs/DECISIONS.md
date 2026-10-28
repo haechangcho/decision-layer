@@ -2813,3 +2813,30 @@ Because PyPI currently has no stable release of this package, pip resolves its
 prerelease without `--pre`; verify that public resolution after publishing each
 release. Once a stable release exists, ordinary pip follows stable releases and
 preview testing may explicitly request a version or `--pre`.
+
+
+## ADR-127 — File-authored Skills with shared query inputs and lightweight Recipe composition (2026-10-27)
+
+Query-executing Skills may omit roles and parameters. The loader supplies a common
+contract: required metric, optional related metrics and suggested dimensions;
+filters, population and optional comparison period. Each omitted map uses that
+shared contract; an explicitly supplied map, including {}, remains authoritative.
+Advisory Skills gain no execution inputs. This removes repetitive authoring metadata
+without replacing governed bindings with prose. Existing query scope, access,
+metric, filter, budget and evidence checks remain in the canonical runtime.
+
+Starter query Skills advance to 2.2.0 with minimal registration headers. Their
+2.1.0 files are retained for pinned Recipes; user-owned project files are not
+rewritten. The analysis-core guide advances to 1.2.0 to clarify step purpose and
+suggested dimensions. Dimensions are guidance, not an enforced drill order.
+An ordered Recipe does not automatically propagate a selected group's filters;
+that connection remains explicit in params and is checked by the shared engine.
+
+Project files and Git are the primary Method and Recipe authoring workflow. The CLI adds
+new recipe with a caller-selected metric and registered initial Method, emitting a
+version-pinned draft through canonical configure_step/validation. check validates
+Recipe files as well as Method registration, without executing data queries.
+Web composition emphasizes Method order and step instructions, with optional Skill
+inputs available even when empty. Required custom inputs stay visible. Full Skill
+source is inspectable independently of editing permission. Web Method publication
+continues to create managed versions, not synchronize project files or Git.

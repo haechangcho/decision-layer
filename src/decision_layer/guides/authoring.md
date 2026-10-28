@@ -85,8 +85,13 @@ Then describe when to use it, required user decisions, existing tools, stop cond
 
 ## Write the analysis procedure
 
-A query-executing Skill declares `query_execution: true` with its required roles
-and parameters. Write the body as an analyst would explain the procedure:
+A query-executing Skill needs name, version, description and `query_execution: true`
+in its YAML header. Omit roles and parameters to use the shared query inputs:
+metric (required), related metrics and suggested dimensions (optional), filters,
+population and an optional comparison period. Explicit role/parameter maps still
+define the full respective contract, including empty maps. The server enforces
+bound metrics and scope; Markdown never grants permissions. Write the body as an
+analyst would explain the procedure:
 
 1. Break down revenue by product department.
 2. Choose the highest-revenue department. Ask the user when first place is tied.

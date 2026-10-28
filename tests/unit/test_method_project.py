@@ -28,6 +28,37 @@ def project(tmp_path):
     return project
 
 
+def test_recipe_file_scaffold_and_check_share_canonical_contract(project, capsys):
+    import yaml
+    args = ['new', 'recipe', 'review', '--project', str(project.root),
+            '--method', project.config.name + '.review', '--metric', METRIC]
+    assert main(args) == 0
+    path = project.root / 'recipes' / 'review.yaml'
+    text = path.read_text()
+    recipe = yaml.safe_load(text)
+    assert recipe['status'] == 'draft'
+    assert recipe['steps'][0]['bindings'] == {'metric': '$scope.primary_metric'}
+    assert recipe['steps'][0]['method_version'] == '1.0.0'
+    assert main(['check', '--project', str(project.root)]) == 0
+    assert '1 drafts' in capsys.readouterr().out
+    from decision_layer.api.app import create_app
+    from examples.methods.authoring.sample_data import fixture_provider
+    settings = Settings(project_dir=str(project.root), database_url='memory',
+        recipes_dir=str(project.root / 'recipes'), allow_service_credentials=True,
+        cube_api_secret='test-secret-at-least-32-characters')
+    with TestClient(create_app(settings, fixture_provider())) as client:
+        response = client.get('/recipes/review/edit')
+        assert response.status_code == 200, response.text
+        assert response.json()['steps'][0]['bindings'] == {'metric': '$scope.primary_metric'}
+        assert response.json()['status'] == 'draft'
+    assert main(args) == 1
+    assert path.read_text() == text
+    recipe['steps'][0]['method'] = 'missing.method'
+    path.write_text(yaml.safe_dump(recipe))
+    assert main(['check', '--project', str(project.root)]) == 1
+    assert 'review.yaml' in capsys.readouterr().err
+
+
 async def test_scaffold_lists_and_runs_through_local_registry(project):
     session = await practice_session()
     loaded = session.load_project(str(project.root))

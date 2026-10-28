@@ -57,7 +57,7 @@ test("local install without admin key cannot edit or test another endpoint", asy
   await page.goto("/sources");
   await expect(page.getByLabel("API URL", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Save settings" })).toHaveCount(0);
-  await expect(page.getByText(/HTTP source administration is disabled/)).toBeVisible();
+  await expect(page.getByText(/Connection editing is disabled/)).toBeVisible();
   await page.getByPlaceholder("Enter without the Bearer prefix").fill("my-token");
   await page.getByRole("button", { name: "Test connection" }).click();
   await expect(page.getByText(/Catalog access verified/)).toBeVisible();

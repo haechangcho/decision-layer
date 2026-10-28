@@ -36,7 +36,7 @@ def test_default_project_owns_all_discovered_definitions(project):
     assert {m.name for m in target.manifests()} == EXPECTED
     for name in EXPECTED:
         method = target.get(name)
-        assert method.manifest.version == "2.1.0"
+        assert method.manifest.version == ("2.2.0" if method.manifest.implementation == "skill" else "2.1.0")
         assert Path(method.definition_path).is_relative_to(project.methods_dir)
         assert Path(method.definition_path).is_file()
         # Legacy pinned Recipes retain their exact implementation and contract.

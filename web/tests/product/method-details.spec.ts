@@ -23,16 +23,14 @@ test("method details lead directly to selecting inputs and running", async ({ pa
 test("Skill is readable guidance and cannot be mistaken for an executable Recipe step", async ({ page }) => {
   const skill = { ...manifest, name: "guide.breakdown", implementation: "skill", execution: "agent_guided", roles: {}, parameters: {}, outputs: [] };
   await page.route("**/api/methods/guide.breakdown", route => route.fulfill({ json: skill }));
-  await page.route("**/api/methods/guide.breakdown/guide", route => route.fulfill({ json: {
-    name: skill.name, version: "1.0.0", sha256: "a".repeat(64), enforcement: "advisory",
-    markdown: "Discover the metric. Stop when scope is ambiguous.", suggested_methods: ["query.aggregate"] } }));
+  const content = "---\nname: guide.breakdown\nversion: 1.0.0\ndescription: Review groups\nsuggested_methods: [query.aggregate]\n---\nDiscover the metric. Stop when scope is ambiguous.";
+  await page.route("**/api/methods/guide.breakdown/source", route => route.fulfill({ json: {
+    implementation:"skill", version:"1.0.0", content, permissions:{edit:false,publish:false}, history:[] } }));
   await page.goto("/methods/guide.breakdown");
   await page.getByRole("tab", { name: "분석 지침", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "AI가 참고하는 분석 지침" })).toBeVisible();
-  await expect(page.getByText("Discover the metric. Stop when scope is ambiguous.")).toBeVisible();
+  await expect(page.getByLabel("Skill Markdown 원본")).toHaveText(content);
   await expect(page.getByRole("link", { name: "분석 절차 만들기" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "현재 연결에서 실행 조건 확인" })).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "query.aggregate" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

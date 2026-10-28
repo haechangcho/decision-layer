@@ -1,15 +1,8 @@
 ---
 name: analysis.drilldown
-version: 2.1.0
+version: 2.2.0
 description: 지표를 항목별로 나누어 보고, 다음에 살펴볼 대상을 선택합니다.
 query_execution: true
-roles:
-  metric: {kind: measure, default_binding: primary_metric}
-  dimensions: {kind: dimension, multiple: true, required: false, default_binding: preferred_dimensions}
-parameters:
-  filters: {type: filters, default: []}
-  population: {type: drill_path, default: [], meaning: comparison_population}
-  comparison: {type: date_range}
 ---
 # 항목별로 나누어 살펴보기
 

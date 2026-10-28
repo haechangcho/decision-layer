@@ -6,6 +6,8 @@ these instructions into each SKILL.md. These instructions grant no permissions.
 
 ## Confirm the inputs
 
+- Read the active step's procedure purpose together with the Skill instructions.
+  Source-run purposes describe the original analysis, not a new execution scope.
 - Read the active step's bindings and parameters, the Run period and shared filters.
   Keep inherited population and filter conditions in every relevant query.
 - Read get_semantic_catalog to see all available metrics, dimensions and dates.
@@ -13,6 +15,11 @@ these instructions into each SKILL.md. These instructions grant no permissions.
   silently substitute another metric. Ask when the requested meaning is ambiguous.
 - Query only bound metrics (or their provider-declared count measures). If the
   question needs another metric, resolve its binding before running the step.
+
+- Bound dimensions are suggestions for this procedure, not an enforced query order.
+  Use the procedure to decide which catalog dimensions to query. A Recipe step
+  sequence alone does not filter the next step to a selected group: its filters
+  must explicitly reference the earlier selected_group.evidence.filters.
 
 ## Query and inspect
 

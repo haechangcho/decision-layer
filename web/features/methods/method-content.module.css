@@ -21,7 +21,11 @@
 .document th, .document td { border: 1px solid #cbd5e1; padding: 8px 12px; }
 .code { padding: 0; overflow: hidden; }
 .code pre { margin: 0; border: 0; border-radius: 10px; }
-.panel { margin-top: 28px; padding-top: 22px; border-top: 1px solid #cbd5e1; }
+.panel { margin-top: 24px; min-width: 0; }
+.skillSource { margin:20px 0; padding:20px 24px; border:1px solid var(--line, #dce0e5); border-radius:6px; background:var(--panel, #fff); color:var(--text, #24292c); font:13px/1.85 ui-monospace, "SF Mono", Menlo, monospace; white-space:pre-wrap; overflow-wrap:anywhere; tab-size:4; }
+.skillSource code { font:inherit; }
+.skillSource:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@media(max-width:700px){.skillSource{padding:16px;font-size:12px}}
 .heading { display: flex; gap: 16px; justify-content: space-between; align-items: center; }
 .muted { overflow-wrap: anywhere; color: #526175; font-size: 13px; line-height: 1.7; }
 .button { background: #173f70; color: white; border: 1px solid #173f70; border-radius: 7px; padding: 9px 14px; cursor: pointer; font-weight: 600; }

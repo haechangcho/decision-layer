@@ -18,7 +18,7 @@ def test_configured_catalog_retires_calculations_without_losing_pins():
             assert not any(name in text for name in RETIRED)
     assert own.get('analysis.drilldown', '1.0.1').guide.version == '1.0.1'
     assert own.get('analysis.trend', '1.0.0').guide.version == '1.0.0'
-    assert own.get('analysis.drilldown').guide.version == '2.1.0'
+    assert own.get('analysis.drilldown').guide.version == '2.2.0'
     assert own.get('analysis.drilldown', '1.1.0').guide.version == '1.1.0'
 
 

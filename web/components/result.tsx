@@ -171,7 +171,7 @@ export function ArtifactView({ artifact, titles, expanded = false, showTitle = t
       value: populationLabel(index, row.value, t) })) : rows;
     if (isRowList(displayedRows)) return <section className="artifact">
       {showTitle && <h4>{artifact.title || (artifactNames[artifact.type] ? t(artifactNames[artifact.type]) : artifact.type)}</h4>}
-      {populationComparison && <div className="result-note"><p><strong>{t("Comparison basis")}</strong> {t("Values apply the metric definition to each whole group. They are not simple averages of member values.")}</p><p>{t("The peer group applies the given conditions; the overall group does not. Both exclude the selected subject and keep the shared filters and run period.")}</p>{data.statistical_judgement === "not_tested" && <p><strong>{t("Numeric comparison only")}</strong> {t("Statistical significance and causality of the difference are not judged. This Method does not test significance even when sample counts are available.")}</p>}</div>}
+      {populationComparison && <div className="result-note"><p><strong>{t("Comparison basis")}</strong> {t("Each value uses the metric definition for the whole group, not an average of member values.")}</p><p>{t("Only peers use the selected conditions. Both groups exclude the subject and keep shared filters and dates.")}</p>{data.statistical_judgement === "not_tested" && <p><strong>{t("Numeric comparison only")}</strong> {t("No significance or causality test is performed, even with sample counts.")}</p>}</div>}
       <DataTable rows={displayedRows} titles={titles} columns={["value", "metric", "count", "share_of_count", "difference_from_subject"].filter((key) => key in displayedRows[0])} />
       {!expanded && <><button type="button" className="ghost" onClick={() => setFullOpen(true)}>{t("View full result")}</button><InspectorDialog title={t("Full analysis result")} open={fullOpen} onClose={() => setFullOpen(false)}><Value value={data} titles={titles} /></InspectorDialog></>}
     </section>;
@@ -192,7 +192,7 @@ export function ValidationList({ items }: { items: Validation[] }) {
     <ul className="validation">
       {important.map((v, i) => (
         <li key={i} className={v.status}><b>{(name => name ? t(name) : v.validator.replaceAll("_", " "))(({ freshness: "Data freshness", complete_period: "Analysis period", non_empty: "Data present", min_count: "Sample size", overlap: "Group comparability" } as Record<string, string>)[v.validator])}</b> {v.code === "DATA_STALE" && typeof v.details?.latest === "string" && typeof v.details?.end === "string"
-          ? t("Data only goes up to {latest}, so results through the chosen end date ({end}) may be incomplete.", { latest: v.details.latest, end: v.details.end }) : v.message}</li>
+          ? t("Data ends on {latest}; results through {end} may be incomplete.", { latest: v.details.latest, end: v.details.end }) : v.message}</li>
       ))}
     </ul>
   );
@@ -220,7 +220,7 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
           <ul>{result.needs_input.candidates.map((c, i) => (
             <li key={i}>{c.label}{c.count !== undefined ? ` — ${c.count.toLocaleString()}` : ""} <code>{JSON.stringify(c.value)}</code></li>
           ))}</ul>
-          <div className="hint">{t("Put one of these values into the {field} parameter and run again.", { field: result.needs_input.field })}</div>
+          <div className="hint">{t("Set {field} to one of these values and rerun.", { field: result.needs_input.field })}</div>
         </div>
       )}
       {!expanded && result.warnings.length > 0 && <ul className="warnings">{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}

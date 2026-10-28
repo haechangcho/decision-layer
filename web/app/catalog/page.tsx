@@ -83,7 +83,7 @@ export default function CatalogPage() {
       <p>{t("Check the connection address and access permissions, then try again.")}</p>
       <div className={styles.actions}><Link className={styles.primaryButton} href="/sources">{t("Open connection settings")} <ArrowRight size={16} /></Link><button className={styles.secondaryButton} onClick={() => void loadCatalog()}>{t("Retry")}</button></div>
     </section> : loading ? <div className={styles.loading} role="status"><LoadingIndicator />{t("Loading the metric catalog…")}</div> : metrics.length === 0 ? <section className={styles.empty}>
-      <Database size={24} /><h2>{t("No visible metrics")}</h2><p>{t("Register metrics in the semantic model and check they are visible to the current user.")}</p>
+      <Database size={24} /><h2>{t("No visible metrics")}</h2><p>{t("Check metric definitions and your access in the semantic model.")}</p>
       <Link className={styles.primaryButton} href="/sources">{t("Check connection")} <ArrowRight size={16} /></Link>
     </section> : <div className={styles.workspace}>
       <section className={styles.catalog} aria-label={t("Catalog metrics")}>
@@ -110,12 +110,12 @@ export default function CatalogPage() {
             {selected.ratio_parts?.length ? <div className={styles.reference}><span>{t("Numerator / denominator")}</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
             {selected.entity && <div className={styles.reference}><span>{t("Analysis unit reference")}</span><code>{selected.entity}</code></div>}</InspectorDialog>
           <div className={styles.readinessTitle}><Info size={16} /><strong>{t("Confirmed in the model")}</strong></div>
-          {!selected.checks ? <p className={styles.help}>{t("Could not load more model details. Whether the analysis can run is checked at run time.")}</p> : <ul className={styles.checks}>
+          {!selected.checks ? <p className={styles.help}>{t("Model details unavailable. Execution will check the required inputs.")}</p> : <ul className={styles.checks}>
             <li><span>{t("Time dimension")}</span><strong>{selected.checks.time.status === "ready" ? t("Registered") : t("Not confirmed")}</strong></li>
             {(selected.metric_kind === "ratio" || selected.checks.decomposition.status !== "not_applicable") && <li><span>{t("Numerator / denominator")}</span><strong>{selected.checks.decomposition.status === "ready" ? t("Registered") : t("Not confirmed")}</strong></li>}
           </ul>}
           <Link className={styles.primaryButton} href={methodHref(selected)}>{t("Create Recipe")} <ArrowRight size={16} /></Link>
-          <p className={styles.footnote}>{t("Metric definitions and data access are managed in the connected semantic layer.")}</p>
+          <p className={styles.footnote}>{t("The semantic layer manages metric definitions and access.")}</p>
         </> : <div className={styles.noSelection}>{t("Choose a metric from the list.")}</div>}
       </aside>
     </div>}

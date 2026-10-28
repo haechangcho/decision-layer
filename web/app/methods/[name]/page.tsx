@@ -7,13 +7,12 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { MethodAssetEditor } from "@/features/methods/method-asset-editor";
-import { MethodMarkdown } from "@/features/methods/method-content";
 import { PythonInputContract } from "@/features/methods/python-input-contract";
 import { MethodExecutions } from "@/features/methods/method-executions";
 import { LoadingState } from "@/components/loading-indicator";
 import { RequestError } from "@/components/request-error";
 import { useApi } from "@/lib/hooks";
-import type { MethodManifest, MethodGuide } from "@/lib/api";
+import type { MethodManifest } from "@/lib/api";
 import { methodTitle } from "@/lib/method-name";
 import styles from "../../library.module.css";
 
@@ -39,9 +38,8 @@ export default function MethodPage() {
       <div id="method-panel-overview" role="tabpanel" aria-labelledby="method-tab-overview" hidden={view !== "overview"}>
       {(!skill || method.agent_executable) && <section className={styles.methodPanel} aria-label={t("Test Method")}>
         <h2>{skill ? t("Run with AI") : t("Test with real data")}</h2>
-        <p>{skill ? t("Ask your connected AI to use this Method. Its queries and responses are recorded.") : t("Choose metrics and dates, then inspect results and checks. Tests are saved as Runs.")}</p>
+        <p>{skill ? t("Ask your connected AI to run this Method. Queries and results are recorded.") : t("Choose a metric and dates to test. Results are saved as a Run.")}</p>
         <Link className={styles.primary} href={`/recipes/new?method=${encodeURIComponent(name)}`}>{skill ? t("Create analysis procedure") : t("Choose inputs and test")}</Link>
-        {skill && <p>{t("Starting this procedure waits for the connected AI to execute it.")}</p>}
       </section>}
       {!skill && <section className={styles.methodPanel}>
         <h2>{t("Required data")}</h2>
@@ -55,24 +53,11 @@ export default function MethodPage() {
       </section>}
       </div>
       <div id="method-panel-implementation" role="tabpanel" aria-labelledby="method-tab-implementation" hidden={view !== "implementation"}>
-        <MethodAssetEditor key={`editor:${name}`} name={name} onPublished={reload}>{skill ? <SkillGuide key={method.version} name={name} /> : undefined}</MethodAssetEditor>
+        <MethodAssetEditor key={`editor:${name}`} name={name} onPublished={reload} />
       </div>
       <div id="method-panel-executions" role="tabpanel" aria-labelledby="method-tab-executions" hidden={view !== "executions"}>
         <MethodExecutions key={`${name}:${method.version}`} method={method} />
       </div>
     </>}
   </div>;
-}
-
-function SkillGuide({ name }: { name: string }) {
-  const t = useT();
-  const { data: guide, error, reload } = useApi<MethodGuide>(`/methods/${name}/guide`);
-  if (error) return <RequestError title={t("Could not load the instructions")} error={error} retry={reload} />;
-  if (!guide) return <LoadingState />;
-  return <section aria-label={t("Skill instructions")}>
-    <h2>{t("Analysis instructions for AI")}</h2>
-    <MethodMarkdown content={guide.markdown} />
-    {!!guide.suggested_methods.length && <><h3>{t("Execution tools")}</h3><ul>{guide.suggested_methods.map(tool => <li key={tool}><Link href={`/methods/${encodeURIComponent(tool)}`}>{tool}</Link></li>)}</ul></>}
-    <p className={styles.contentHash}>v{guide.version} / SHA-256 {guide.sha256}</p>
-  </section>;
 }

@@ -1,15 +1,8 @@
 ---
 name: analysis.metric_lookup
-version: 2.1.0
+version: 2.2.0
 description: 선택한 지표를 조회하고 기간과 단위를 함께 설명합니다.
 query_execution: true
-roles:
-  metric: {kind: measure, default_binding: primary_metric}
-  related: {kind: measure, multiple: true, required: false}
-  dimensions: {kind: dimension, multiple: true, required: false}
-parameters:
-  filters: {type: filters, default: []}
-  population: {type: drill_path, default: []}
 ---
 # 지표 조회
 

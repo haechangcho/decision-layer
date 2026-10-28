@@ -48,8 +48,11 @@ def init_project(path: str | Path, name: str | None = None, *, empty=False):
         "decision-layer serve --reload\n```\n\n"
         "Tests use synthetic data and need no server or Cube connection.\n"
         "Actual data execution in the admin UI requires a Cube connection.\n"
-        "CLI source paths and web code refer to the same project files.\n\n"
+        "Use decision-layer list to locate source files. Web Method publication creates separate server versions; it does not rewrite these files.\n\n"
         "`decision-layer new python rank` or `decision-layer new skill investigation` to add a definition.\n"
+        "Create a Recipe: decision-layer new recipe review --metric cube://connection/model/metric\n"
+        "Use --method <registered-name> to choose its first Method. Replace the metric with a catalog reference.\n"
+        "Recipe files start as drafts; edit the steps and review them in Web before publication.\n"
         "Keep the project in Git. Package upgrades never overwrite project files.\n"
         "Runs are stored in .decision-layer/decision_layer.db; Recipes in recipes/.\n"
     )
@@ -108,11 +111,38 @@ def new_method(project: Project, kind: str, name: str):
         path.write_text(
             f"---\nname: {identity}\nversion: 1.0.0\n"
             "description: Inspect a governed metric for a selected period.\n"
-            "query_execution: true\nroles:\n  metric:\n    kind: measure\n---\n\n"
+            "query_execution: true\n---\n\n"
             "# Inspect the selected metric\n\n"
             "1. Confirm the metric meaning and period with the user.\n"
             "2. Query the bound metric through the recorded Cube tools.\n"
             "3. Report only observed values with query evidence and limitations.\n"
             "4. Stop and ask when a required input is ambiguous or unavailable.\n"
         )
+    return path
+
+
+def new_recipe(project: Project, name: str, metric: str, method: str, registry):
+    """Create a reviewable draft using the same configuration as the Web editor."""
+    import yaml
+    from .core.models import Recipe, SemanticScope, PlanStep
+    from .recipes.configuration import configure_step
+    from .recipes.authoring import validate_recipe
+
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}", name):
+        raise ProjectError("Use a Recipe name such as metric_review")
+    manifest = registry.plannable(method).manifest
+    recipe = Recipe(name=name, version="1.0.0", status="draft", mode="pipeline",
+        description="Describe the recurring question this procedure answers.",
+        semantic_scope=SemanticScope(primary_metric=metric),
+        steps=[PlanStep(id="inspect", method=method, method_version=manifest.version,
+            purpose="Describe what to inspect and when to stop.", purpose_context="procedure")])
+    recipe = configure_step(recipe, 0, registry=registry)
+    validate_recipe(recipe, registry=registry)
+    folder = project.root / "recipes"
+    folder.mkdir(exist_ok=True)
+    path = folder / f"{name}.yaml"
+    with path.open("x") as output:
+        output.write("# Edit the procedure, run decision-layer check, then review and publish in Web.\n")
+        yaml.safe_dump(recipe.model_dump(mode="json", exclude_defaults=True), output,
+                       sort_keys=False, allow_unicode=True)
     return path

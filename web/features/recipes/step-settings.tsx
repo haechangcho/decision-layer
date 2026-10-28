@@ -3,7 +3,7 @@ import { useT } from "@/lib/i18n";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Undo2 } from "lucide-react";
+import { ChevronDown, Undo2 } from "lucide-react";
 import { api, type MethodManifest, type ParamSpec, type PlanStep, type Recipe, type RoleSpec, type SemanticObject } from "@/lib/api";
 import { declaredPath, selectionLabel, sourceLabel } from "./step-input-source";
 import { explainError, parameterLabel, refs, roleLabels, roleObjects, type FieldError } from "./editor-model";
@@ -13,7 +13,9 @@ import s from "@/components/analysis-canvas.module.css";
 
 export function StepSettings({ step, manifest, onChange, objects, recipe, stepIndex, fieldError, methods }: { step: PlanStep; manifest: MethodManifest; onChange: (s: PlanStep) => void; objects: SemanticObject[]; recipe: Recipe; stepIndex: number; fieldError: FieldError | null; methods: MethodManifest[] }) {
   const t = useT();
+  const skill = manifest.implementation === "skill";
   const [editingMetric, setEditingMetric] = useState(false);
+  const [showOptional, setShowOptional] = useState(false);
   const bind = (key: string, value: unknown) => onChange({ ...step, bindings: { ...step.bindings, [key]: value } });
   const param = (key: string, value: unknown) => onChange({ ...step, params: { ...step.params, [key]: value } });
   const policy = recipe.method_parameters?.[step.method];
@@ -75,6 +77,7 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
     return <ParameterField key={`${name}:${reference}`} objects={objects} name={name} spec={spec} value={value} disabled={fixed(name)} fieldPath={path} dataType={objects.find(object => object.ref === reference)?.data_type} oppositeValue={subject ? parameterValue(subject[0]) : undefined} error={fieldError?.field === path ? fieldError.message : undefined} onChange={value => param(name, value)} />;
   };
   const roleField = ([name, role]: [string, RoleSpec]) => {
+    const label = role.label || (skill && name === "dimensions" ? t("Dimensions to explore") : roleLabels[name] ? t(roleLabels[name]) : name);
     const inherited = name === "metric" ? objects.find(o => o.ref === recipe.semantic_scope.primary_metric)?.title || t("Not selected")
       : name === "dimensions" ? recipe.semantic_scope.preferred_dimensions.map(ref => objects.find(o => o.ref === ref)?.title || ref).join(" → ") || t("Not selected") : undefined;
     const path = `steps[${stepIndex}].bindings.${name}`;
@@ -84,9 +87,9 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
       if (current && metricObject.entity && current.count_measure === current.ref && current.entity === metricObject.entity && current.metric_kind === "count") return null;
       const candidates = roleObjects(role, objects).filter(object => !!metricObject.entity && object.entity === metricObject.entity && object.count_measure === object.ref);
       return <div key={name} className={groupsStyle.countIssue}>
-        <p>{countBusy ? t("Checking the analysis unit to compare…") : t("Comparing averages requires the count for the same analysis unit. It could not be found automatically, so link it.")}</p>
+        <p>{countBusy ? t("Checking the analysis unit to compare…") : t("Link a count for the same analysis unit to compare averages.")}</p>
         {countError && <><p role="alert">{countError}</p><button type="button" className={s.secondary} onClick={() => setCountRetry(value => value + 1)}>{t("Check again")}</button></>}
-        {!countBusy && (candidates.length ? <RefField label={t("Count for the analysis unit")} value={step.bindings[name]} objects={candidates} onChange={next => { const bindings = { ...step.bindings }; if (next) bindings[name] = next; else delete bindings[name]; onChange({ ...step, bindings }); }} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} /> : <p>{t("The connected semantic layer must provide a row count at the same unit as the base analysis unit. Check with the model owner.")} <Link href="/sources">{t("Check connection status")}</Link></p>)}
+        {!countBusy && (candidates.length ? <RefField label={t("Count for the analysis unit")} value={step.bindings[name]} objects={candidates} onChange={next => { const bindings = { ...step.bindings }; if (next) bindings[name] = next; else delete bindings[name]; onChange({ ...step, bindings }); }} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} /> : <p>{t("Ask the model owner to provide a count for this analysis unit.")} <Link href="/sources">{t("Check connection status")}</Link></p>)}
       </div>;
     }
     if (role.exclusive_group) {
@@ -127,27 +130,43 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
         onChange({ ...step, bindings: { ...step.bindings, [name]: dimensions.includes(String(next)) ? dimensions : [...dimensions, String(next)] }, params: { ...step.params, [parameter]: next } });
       }} /></fieldset>;
     }
-    return <RefField key={name} label={role.label || (roleLabels[name] ? t(roleLabels[name]) : name)} value={step.bindings[name]} objects={roleObjects(role, objects)} multiple={role.multiple} inherited={inherited} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} onChange={next => bind(name, next)} />;
+    return <RefField key={name} label={label} value={step.bindings[name]} objects={roleObjects(role, objects)} multiple={role.multiple} inherited={inherited} fieldPath={path} error={fieldError?.field === path ? fieldError.message : undefined} onChange={next => bind(name, next)} />;
   };
   const context = Object.entries(manifest.parameters).filter(([, spec]) => spec.meaning === "analysis_scope").map(([name, spec]) => {
     const value = parameterValue(name);
     return sourceLabel(value, t) || Array.isArray(value) && value.length ? describeSource(value, spec) : null;
   }).filter(Boolean);
+  const roles = Object.entries(manifest.roles).filter(([name]) => name !== "metric");
+  const optionalRoles = skill ? roles.filter(([, role]) => !role.required && !role.exclusive_group && role.default_binding !== "unit_count") : [];
+  const optionalError = optionalRoles.some(([name]) => fieldError?.field === `steps[${stepIndex}].bindings.${name}`);
+  const purpose = <label>{skill ? t("Instructions for this step") : step.purpose_context === "source_run" ? t("Step description from the original analysis (edit it for reuse)") : t("What to check in this step")}<textarea rows={skill ? 4 : 2} maxLength={240} value={step.purpose ?? ""} placeholder={skill ? t("What should be checked, how should groups be chosen, and when should it stop?") : undefined} onChange={event => onChange({ ...step, purpose: event.target.value || null, purpose_context: "procedure" })} /></label>;
   return <>
-    {manifest.roles.metric && <div><p className={s.nodeStatus}>{Object.values(manifest.roles).some(role => role.exclusive_group) ? t("Metric to compare") : t("Analysis metric")}</p><div className={s.inherited}><strong>{metricTitle}</strong><button type="button" className={s.secondary} onClick={() => setEditingMetric(!editingMetric)}>{editingMetric ? t("Done") : t("Change metric")}</button></div></div>}
+    {skill && <div className={s.skillIntro}>
+      {purpose}
+      <p className={s.nodeStatus}>{t("AI uses these with the Method instructions. Queries and selections are recorded.")} <Link href={`/methods/${encodeURIComponent(manifest.name)}`} target="_blank" rel="noopener noreferrer">{t("View Method")}</Link></p>
+    </div>}
+    {manifest.roles.metric && <div className={s.metricSummary}><span className={s.nodeStatus}>{Object.values(manifest.roles).some(role => role.exclusive_group) ? t("Metric to compare") : t("Analysis metric")}</span><div className={s.metricRow}><strong>{metricTitle}</strong><button type="button" className={s.metricAction} onClick={() => setEditingMetric(!editingMetric)}>{editingMetric ? t("Done") : t("Change metric")}</button></div></div>}
     {editingMetric && manifest.roles.metric && <>
       <RefField label={t("Metric for this step")} value={metricBinding} objects={roleObjects(manifest.roles.metric, objects)} inherited={metricTitle} fieldPath={`steps[${stepIndex}].bindings.metric`} error={fieldError?.field === `steps[${stepIndex}].bindings.metric` ? fieldError.message : undefined} onChange={next => bind("metric", next)} />
       {!usesRecipeMetric && <button type="button" className={s.secondary} onClick={() => { bind("metric", "$scope.primary_metric"); setEditingMetric(false); }}><Undo2 size={13} />{t("Use the Recipe metric")}</button>}
     </>}
     {context.map((text, index) => <p key={index} className={s.nodeStatus}>{text}</p>)}
-    {policy && <p className={s.nodeStatus}>{t("The run constraints set for this procedure are kept. Change them in the code view.")}</p>}
-    {Object.entries(manifest.roles).filter(([name, role]) => name !== "metric" && (role.required || role.exclusive_group || step.bindings[name] || role.default_binding === "unit_count" && metricObject?.metric_kind === "average")).map(roleField)}
+    {policy && <p className={s.nodeStatus}>{t("Edit execution limits in the code view.")}</p>}
+    {roles.filter(([name, role]) => !optionalRoles.some(([key]) => key === name) && (role.required || role.exclusive_group || step.bindings[name] || role.default_binding === "unit_count" && metricObject?.metric_kind === "average")).map(roleField)}
+    {optionalRoles.length > 0 && <section className={s.optionalInputs}>
+      <button type="button" className={s.optionalToggle} aria-expanded={showOptional || optionalError} onClick={() => setShowOptional(value => !value)}>{t("Optional analysis inputs")}<ChevronDown size={15} aria-hidden="true" /></button>
+      {!showOptional && !optionalError && <p className={s.nodeStatus}>{optionalRoles.filter(([name]) => refs(step.bindings[name]).length).map(([name, role]) => `${role.label || (name === "dimensions" ? t("Dimensions to explore") : roleLabels[name] ? t(roleLabels[name]) : name)}: ${refs(step.bindings[name]).map(ref => ref.startsWith("$") ? t("Shared breakdown dimensions") : objects.find(object => object.ref === ref)?.title || ref).join(", ")}`).join(" · ") || t("Leave blank to let AI choose dimensions from the catalog.")}</p>}
+      {(showOptional || optionalError) && <div className={s.fields}>
+        <p className={s.nodeStatus}>{t("Suggested dimensions; list order does not set execution order.")}</p>
+        {optionalRoles.map(roleField)}
+      </div>}
+    </section>}
     {basicParameters.filter(([, spec]) => !spec.semantic_role || !manifest.roles[spec.semantic_role]?.exclusive_group).map(([name, spec]) => {
       const path = `steps[${stepIndex}].params.${name}`;
       const value = parameterValue(name);
       return spec.type === "drill_path" && sourceLabel(value, t) ? <div className={s.refField} key={name}><strong>{spec.label || parameterLabel(name, t)}</strong><span className={s.nodeStatus}>{describeSource(value, spec)}</span></div>
         : parameterField([name, spec]);
     })}
-    <label>{step.purpose_context === "source_run" ? t("Step description from the original analysis (edit it for reuse)") : t("What to check in this step")}<textarea rows={2} maxLength={240} value={step.purpose ?? ""} onChange={event => onChange({ ...step, purpose: event.target.value || null, purpose_context: "procedure" })} /></label>
+    {!skill && purpose}
   </>;
 }

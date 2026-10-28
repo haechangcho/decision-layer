@@ -28,7 +28,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const t = useT();
   const router = useRouter();
   const { objects, byRef, error: catalogError } = useCatalog();
-  const { data: allMethods, error: methodsError } = useApi<MethodManifest[]>("/methods");
+  const { data: allMethods, error: methodsError, reload: reloadMethods } = useApi<MethodManifest[]>("/methods");
   const methods = useMemo(() => allMethods?.filter(method => method.implementation !== "skill" || method.agent_executable), [allMethods]);
   const { data: readiness } = useApi<SourceReadiness>("/sources/current/readiness");
   const [recipe, setRecipe] = useState<Recipe>(() => initial || blank());
@@ -95,8 +95,9 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const previewDatesInvalid = previewWithPeriod && (!previewRange[0] || !previewRange[1] || previewRange[0] > previewRange[1]);
   const latestManifest = methods?.find(method => method.name === active?.method);
   const needsPinnedManifest = !!active && (!latestManifest || !!active.method_version && latestManifest.version !== active.method_version);
-  const { data: pinnedManifest, error: pinnedError } = useApi<MethodManifest>(needsPinnedManifest ? `/methods/${encodeURIComponent(active.method)}${active.method_version ? `?version=${encodeURIComponent(active.method_version)}` : ""}` : null);
+  const { data: pinnedManifest, error: pinnedError, reload: reloadPinnedManifest } = useApi<MethodManifest>(needsPinnedManifest ? `/methods/${encodeURIComponent(active.method)}${active.method_version ? `?version=${encodeURIComponent(active.method_version)}` : ""}` : null);
   const activeManifest = needsPinnedManifest ? pinnedManifest : latestManifest;
+  const settingsError = needsPinnedManifest ? pinnedError : methodsError;
   useEffect(() => { setPreviewFormOpen(false); }, [selected]);
   const displayMethod = (name: string) => methods?.find(method => method.name === name)?.label || methodName(name, t);
   const missingRoles = activeManifest ? Object.entries(activeManifest.roles).filter(([name, role]) => {
@@ -131,7 +132,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
     if (method && !methods) return;
     initializedFromLink.current = true;
     const manifest = methods?.find(item => item.name === method);
-    if (method && !manifest) { setError(t("The selected Method is unavailable. Choose another from the Method list.")); return; }
+    if (method && !manifest) { setError(t("Method unavailable. Choose another Method.")); return; }
     setRecipe(current => {
       const metric = current.semantic_scope.primary_metric || params.get("metric") || "";
       return {
@@ -186,7 +187,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   }, [yamlOpen, yamlDirty, recipe, steps.length]);
   function change(next: Recipe) { setRecipe(next); setError(""); setFieldError(null); setPreviewRun(null); setPreviewError(""); }
   async function applyYaml() {
-    if (yamlBase !== JSON.stringify(recipe)) { setYamlError(t("The graph changed. Reload the YAML and edit it again.")); return; }
+    if (yamlBase !== JSON.stringify(recipe)) { setYamlError(t("Steps changed. Reload the YAML before editing.")); return; }
     setYamlBusy(true); setYamlError("");
     try {
       const parsed = await api<Recipe>("/recipes:parse", { body: { yaml: yamlText } });
@@ -231,7 +232,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
     for (const step of next) {
       const expressions = JSON.stringify(step).match(/\$steps\.([^."\\]+)\./g) || [];
       const sources = Object.values(step.params).filter(value => value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, unknown>).source === "step") as { step_id: string }[];
-      if (expressions.some(expression => !seen.has(expression.split(".")[1])) || sources.some(source => !seen.has(source.step_id))) { setError(t("A step uses a previous result. Change the reference before reordering or deleting.")); return false; }
+      if (expressions.some(expression => !seen.has(expression.split(".")[1])) || sources.some(source => !seen.has(source.step_id))) { setError(t("Update dependent steps before reordering or deleting.")); return false; }
       if (step.id) seen.add(step.id);
     }
     change({ ...recipe, steps: next }); setPositions([]); return true;
@@ -240,7 +241,8 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
     const dimensions = step.bindings.dimensions;
     const source = sourceLabel(step.params.drill_path ?? step.params.subject, t, recipe.steps);
     if (source) return source;
-    if (dimensions) return refs(dimensions).map(ref => ref.startsWith("$") ? t("Shared breakdown dimensions") : title(ref)).join(" → ");
+    if (dimensions) return refs(dimensions).map(ref => ref.startsWith("$") ? t("Shared breakdown dimensions") : title(ref)).join(methods?.find(method => method.name === step.method)?.implementation === "skill" ? " · " : " → ");
+    if (step.purpose) return step.purpose;
     const granularity = step.params.granularity ?? methods?.find(method => method.name === step.method)?.parameters.granularity?.default;
     if (typeof granularity === "string") {
       const period: Record<string, string> = { day: "Daily", week: "Weekly", month: "Monthly", quarter: "Quarterly" };
@@ -304,9 +306,9 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       {!dirty && saved?.status !== "draft" && saved && <button disabled={busy} onClick={() => router.push(`/recipes/${encodeURIComponent(recipe.name)}`)}><Play size={16} />{t("Run analysis")}</button>}
       {saved && !busy && <RecipeDelete recipe={saved} onDeleted={() => { setSaved(undefined); setRecipe(blank()); router.push("/recipes"); }} />}
     </div></header>
-    {(catalogError || methodsError) && <p className={s.error} role="alert">{catalogError?.message || methodsError?.message} <Link href="/sources">{t("Check connection")}</Link></p>}
+    {(catalogError || methodsError) && <p className={s.error} role="alert">{catalogError?.message || methodsError?.message} <Link href="/sources">{t("Check connection")}</Link>{methodsError && <button type="button" className={s.secondary} onClick={reloadMethods}>{t("Retry")}</button>}</p>}
     {error && !dialog && <p className={s.error} role="alert">{error}</p>}
-    {!!recipe.origin_runs?.length && <div className={s.reviewNotice}><strong>{t("Analysis procedure taken from a run")}</strong><Link href={`/runs/${recipe.origin_runs[0]}`}>{t("View original run")} <ArrowRight size={14} /></Link><p>{recipe.steps.length}{t("steps / dates are chosen at execution")}</p>{!!reviewNotes.length && <p>{t("Check the groups and periods that were set directly. To select from the data on every run, set a previous result in the step settings.")}</p>}</div>}
+    {!!recipe.origin_runs?.length && <div className={s.reviewNotice}><strong>{t("Analysis procedure taken from a run")}</strong><Link href={`/runs/${recipe.origin_runs[0]}`}>{t("View original run")} <ArrowRight size={14} /></Link><p>{recipe.steps.length}{t("steps / dates are chosen at execution")}</p>{!!reviewNotes.length && <p>{t("Review fixed groups and dates. Use a previous result to select groups on each run.")}</p>}</div>}
     {fieldError && <p className={s.error} role="alert">{t("Check before saving:")} {fieldError.message}</p>}
     <div className={s.toolbar}><span className={s.recipeMode}>{pipeline ? t("Analysis procedure · {count} steps", { count: steps.length }) : t("Analyses for exploration · {count}", { count: steps.length })}</span>{steps.length > 0 && <button disabled={!recipe.semantic_scope.primary_metric} onClick={() => { setAdding(true); setSearch(""); }}><Plus size={16} />{pipeline ? t("Add analysis step") : t("Add allowed Method")}</button>}</div>
     <div className={s.workspace}>
@@ -315,7 +317,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       </section>
       <aside ref={inspector} className={s.inspector}>
         {adding ? <><h2>{t("Choose a Method")}</h2><label className={s.search}><Search size={16} /><input aria-label={t("Search Methods")} value={search} placeholder={t("trend, by group, matched")} onChange={e => setSearch(e.target.value)} /></label><div className={s.choices}>{(methods || []).filter(m => (pipeline || !recipe.allowed_methods.includes(m.name)) && `${displayMethod(m.name)} ${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase())).map(m => <button key={m.name} onClick={() => add(m.name)}><span>{displayMethod(m.name)}</span><Plus size={16} /><small>{m.description}</small></button>)}</div><button className={s.secondary} onClick={() => setAdding(false)}>{t("Cancel")}</button></> : !active ? <div className={s.fields}>
-          <h2>{t("Analysis procedure details")}</h2><label>{t("Which question is this analysis for?")}<textarea rows={2} value={recipe.routing.objective || recipe.description} placeholder={t("e.g. check changes in the metric and find the largest contributors")} onChange={e => change({ ...recipe, description: e.target.value, routing: { ...recipe.routing, objective: e.target.value } })} /></label>
+          <h2>{t("Analysis procedure details")}</h2><p className={s.nodeStatus}>{t("Connect Methods in order and describe each step.")}</p><label>{t("Which question is this analysis for?")}<textarea rows={2} value={recipe.routing.objective || recipe.description} placeholder={t("e.g. check changes in the metric and find the largest contributors")} onChange={e => change({ ...recipe, description: e.target.value, routing: { ...recipe.routing, objective: e.target.value } })} /></label>
           <RefField label={t("Metric to analyze")} selectRef={metricSelect} value={recipe.semantic_scope.primary_metric} objects={objects.filter(o => o.kind === "measure")} fieldPath="semantic_scope.primary_metric" error={fieldError?.field === "semantic_scope.primary_metric" ? fieldError.message : undefined} onChange={v => change({ ...recipe, name: recipe.name || newName(String(v)), semantic_scope: { ...recipe.semantic_scope, primary_metric: String(v) } })} />
         </div> : <div className={s.fields}>
           <button type="button" className={s.inspectorBack} onClick={() => { setSelected(-1); setAdding(false); }}><ArrowLeft size={14} />{t("Analysis procedure details")}</button>
@@ -323,11 +325,13 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
             {pipeline && <><button className={s.icon} disabled={selected === 0} title={t("Move up")} aria-label={t("Move up")} onClick={() => { const next = [...recipe.steps]; [next[selected - 1], next[selected]] = [next[selected], next[selected - 1]]; if (updateSteps(next)) setSelected(selected - 1); }}><ArrowUp size={16} /></button><button className={s.icon} disabled={selected === steps.length - 1} title={t("Move down")} aria-label={t("Move down")} onClick={() => { const next = [...recipe.steps]; [next[selected + 1], next[selected]] = [next[selected], next[selected + 1]]; if (updateSteps(next)) setSelected(selected + 1); }}><ArrowDown size={16} /></button></>}
             <button className={s.icon} title={t("Delete step")} aria-label={t("Delete step")} onClick={() => pipeline ? updateSteps(recipe.steps.filter((_, i) => i !== selected)) : change({ ...recipe, allowed_methods: recipe.allowed_methods.filter((_, i) => i !== selected) })}><Trash2 size={16} /></button>
           </div></div>
-          <h2>{displayMethod(active.method)}</h2>
-          {active.method_version && <p className={s.dependency}>{t("Pinned version for this step / v")}{active.method_version}</p>}
-          {pinnedError && <p className={s.error} role="alert">{pinnedError.message}</p>}
+          <div className={s.stepTitle}>
+            <h2>{displayMethod(active.method)}</h2>
+            {active.method_version && <p className={s.stepVersion}>{t("Pinned version for this step / v")}{active.method_version}</p>}
+          </div>
+          {needsPinnedManifest && pinnedError && <p className={s.error} role="alert">{pinnedError.message} <button type="button" className={s.secondary} onClick={reloadPinnedManifest}>{t("Retry")}</button></p>}
           {pipeline && active.method_version && latestManifest && active.method_version !== latestManifest.version && <button type="button" className={s.secondary} disabled={busy} onClick={() => configure({ ...recipe, steps:recipe.steps.map((step,index) => index===selected ? { ...step, method_version:latestManifest.version, bindings:{}, params:{} } : step) },selected)}>v{latestManifest.version}  {t("Apply and reset input settings")}</button>}
-          {pipeline && activeManifest ? <StepSettings key={`${selected}-${active.method}-${active.method_version || "latest"}`} step={active} manifest={activeManifest} methods={methods ?? []} objects={objects} recipe={recipe} stepIndex={selected} fieldError={fieldError} onChange={step => change({ ...recipe, steps: recipe.steps.map((s, i) => i === selected ? step : s) })} /> : !pipeline ? <p className={s.dependency}>{t("When this Recipe is chosen from MCP, the next analysis and inputs are decided from each result.")}</p> : <p role="status">{t("Loading analysis settings…")}</p>}
+          {pipeline && activeManifest ? <StepSettings key={`${selected}-${active.method}-${active.method_version || "latest"}`} step={active} manifest={activeManifest} methods={methods ?? []} objects={objects} recipe={recipe} stepIndex={selected} fieldError={fieldError} onChange={step => change({ ...recipe, steps: recipe.steps.map((s, i) => i === selected ? step : s) })} /> : !pipeline ? <p className={s.dependency}>{t("In MCP, each result guides the next step and its inputs.")}</p> : !settingsError && <p role="status">{t("Loading analysis settings…")}</p>}
           {pipeline && <section className={s.previewSection} aria-label={t("Check result")}>
             {previewFormOpen && <>
               <RecipeRuntimeInputs specs={recipe.inputs ?? {}} values={previewInputs} onChange={setPreviewInputs} objects={objects} />
@@ -343,7 +347,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
         </div>}
       </aside>
     </div>
-    {yamlOpen && <section className={s.previewOutput} aria-label={t("Recipe code")}><h2>{t("Recipe code")}</h2><div className={s.fields}>
+    {yamlOpen && <section className={s.previewOutput} aria-label={t("Recipe code")}><h2>{t("Recipe code")}</h2><p className={s.nodeStatus}>{t("Edit YAML files in recipes/. Validate with decision-layer check.")}</p><div className={s.fields}>
             <label data-recipe-field="name">Recipe ID<input value={recipe.name} disabled={!!saved} onChange={event => change({ ...recipe, name: event.target.value })} /></label>
             <label>Recipe YAML<textarea aria-label="Recipe YAML" rows={18} spellCheck={false} value={yamlText} onChange={event => { setYamlText(event.target.value); setYamlDirty(true); setYamlError(""); }} /></label>
             {yamlDirty && <span className={s.nodeStatus}>{t("Apply the YAML changes to the graph to save them.")}</span>}
@@ -363,7 +367,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       {error && <p className={s.error} role="alert">{error}</p>}
     </section></div>}
     {publishDialog && <div className={s.overlay}><section className={s.dialog} role="dialog" aria-modal="true" aria-labelledby="publish-dialog-title"><div className={s.inspectorHeading}><h2 id="publish-dialog-title">{t("Publish analysis procedure")}</h2><button className={s.icon} disabled={busy} aria-label={t("Close")} onClick={() => setPublishDialog(false)}><X size={18} /></button></div>
-      <p>{recipe.description || recipe.name}  {t("/ Draft v")}{saved?.version} · {t("{count} steps", { count: steps.length })}</p><p>{t("Publishing shows the new version in the Recipe list and MCP so it can run. The current draft is kept.")}</p>
+      <p>{recipe.description || recipe.name}  {t("/ Draft v")}{saved?.version} · {t("{count} steps", { count: steps.length })}</p><p>{t("Publish to run this version from Recipes or MCP. The draft is kept.")}</p>
       <ul className={s.changeList}><li>{t("Analysis metric /")} {title(recipe.semantic_scope.primary_metric)}</li>{steps.map((step, index) => <li key={step.id || index}>{index + 1}{t("Step /")} {displayMethod(step.method)}</li>)}</ul>
       <button className={s.run} disabled={busy} onClick={publish}><Check size={16} />{busy ? t("Validating…") : t("Validate and publish")}</button>{error && <p className={s.error} role="alert">{error}</p>}
     </section></div>}
