@@ -94,7 +94,6 @@ export default function CatalogPage() {
             return <button key={metric.ref} className={`${styles.row} ${selected?.ref === metric.ref ? styles.selected : ""}`} onClick={() => { setSelected(metric); setMobileDetailOpen(true); }} aria-pressed={selected?.ref === metric.ref}>
               <span className={styles.metricIcon}><Activity size={17} /></span>
               <span className={styles.metricCopy}><strong>{metric.title}</strong>{metric.description && <small>{metric.description}</small>}</span>
-              <span className={styles.kind}>{metric.metric_kind ?? t("Measure")}</span>
             </button>;
           })}
         </section>)}
@@ -104,7 +103,7 @@ export default function CatalogPage() {
       {mobileDetailOpen && <button type="button" className={styles.mobileBackdrop} onClick={() => setMobileDetailOpen(false)} aria-label={t("Close metric details")} />}
       <aside className={`${styles.detail} ${mobileDetailOpen ? styles.detailMobileOpen : ""}`} aria-label={t("Metric details")}>
         {selected ? <>
-          <div className={styles.detailHeader}><span className={styles.largeIcon}><Activity size={20} /></span><span className={styles.kindTag}>{selected.metric_kind ?? t("Measure")}</span><button type="button" className={styles.mobileClose} onClick={() => setMobileDetailOpen(false)} aria-label={t("Close")}><X size={19} /></button></div>
+          <div className={styles.detailHeader}><span className={styles.largeIcon}><Activity size={20} /></span><button type="button" className={styles.mobileClose} onClick={() => setMobileDetailOpen(false)} aria-label={t("Close")}><X size={19} /></button></div>
           <h2>{selected.title}</h2><p className={styles.description}>{selected.description || t("No description is registered in the semantic model.")}</p>
           <button type="button" className="ghost" onClick={() => setTechnicalOpen(true)}>{t("View technical details")}</button><InspectorDialog title={t("Metric technical details")} open={technicalOpen} onClose={() => setTechnicalOpen(false)}><div className={styles.reference}><span>{t("Metric reference")}</span><code>{selected.ref}</code></div>
             {selected.ratio_parts?.length ? <div className={styles.reference}><span>{t("Numerator / denominator")}</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
