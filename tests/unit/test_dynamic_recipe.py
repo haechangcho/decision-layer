@@ -26,9 +26,9 @@ def source(step_id, project="path"):
 def procedure():
     return Recipe(name="highest-group", version="1.0.0", description="Compare the leading group's rate",
                   semantic_scope={"primary_metric": RR}, mode="pipeline", steps=[
-        PlanStep(id="groups", method="query.drilldown", bindings={"metric": RR, "dimensions": [CAT, SELLER]}, params={"top_n": 1}),
-        PlanStep(id="members", method="query.drilldown", bindings={"metric": RR, "dimensions": [CAT, SELLER]}, params={"drill_path": source("groups")}),
-        PlanStep(id="comparison", method="query.peer_comparison", bindings={"metric": RR},
+        PlanStep(id="groups", method="test.groups", bindings={"metric": RR, "dimensions": [CAT, SELLER]}, params={"top_n": 1}),
+        PlanStep(id="members", method="test.groups", bindings={"metric": RR, "dimensions": [CAT, SELLER]}, params={"drill_path": source("groups")}),
+        PlanStep(id="comparison", method="test.peers", bindings={"metric": RR},
                  params={"subject": source("members", "condition"), "peers": source("members", "parents")})])
 
 
@@ -135,10 +135,7 @@ async def test_default_registration_builds_runtime_rules_without_copying_winner_
     recipe.status = "published"
     replay = await execute(provider, tmp_path / "promoted", recipe)
     assert replay.steps[2].step.params["subject"] == [{"member": SELLER, "value": "S1"}]
-    # Native declared query dimensions also support historical ordinary drilldowns.
-    for record in run.steps:
-        record.result.selections = {}
-    assert runtime_recipe_from_run(run).steps[2].params["subject"] == source("members", "condition")
+
 
 
 async def test_unconnected_target_becomes_required_runtime_input_without_literal_default(provider, tmp_path):
@@ -156,7 +153,7 @@ async def test_unconnected_target_becomes_required_runtime_input_without_literal
 async def test_default_registration_preserves_explicit_fixed_method_policy(provider, tmp_path):
     recipe = procedure()
     fixed = {"subject": [{"member": SELLER, "value": "S1"}], "peers": [{"member": CAT, "value": "A"}]}
-    recipe.method_parameters = {"query.peer_comparison": MethodParameterPolicy(fixed=fixed)}
+    recipe.method_parameters = {"test.peers": MethodParameterPolicy(fixed=fixed)}
     recipe.steps[2].params = fixed
     run = await execute(provider, tmp_path, recipe)
     promoted = runtime_recipe_from_run(run)
@@ -165,7 +162,7 @@ async def test_default_registration_preserves_explicit_fixed_method_policy(provi
 
 
 async def test_display_limit_does_not_limit_eligible_selection_and_terminal_groups_export(provider):
-    result = await registry.run("query.drilldown", ctx(provider), {"metric": RR, "dimensions": [CAT]}, {"top_n": 1})
+    result = await registry.run("test.groups", ctx(provider), {"metric": RR, "dimensions": [CAT]}, {"top_n": 1})
     output = result.selections["ranked_groups"]
     assert output.complete and len(output.candidates) == 2
     assert len(result.primary.data["rows"]) == 1
@@ -193,7 +190,7 @@ def test_full_precision_ties_and_projection_validation():
 
 
 async def test_truncated_provider_population_refuses_selection(provider, tmp_path, monkeypatch):
-    monkeypatch.setattr("decision_layer.methods.drilldown.MAX_GROUPS", 2)
+    monkeypatch.setattr("tests.support.query_methods.MAX_GROUPS", 2)
     run = await execute(provider, tmp_path)
     assert run.status == "failed" and len(run.steps) == 2
     assert not run.steps[0].result.selections["ranked_groups"].complete
@@ -248,7 +245,7 @@ def test_invalid_source_contracts_are_rejected_before_saving(change):
     elif change == "type":
         recipe.steps[1].params["top_n"] = source("groups")
     else:
-        recipe.method_parameters = {"query.drilldown": MethodParameterPolicy(fixed={"drill_path": source("groups")})}
+        recipe.method_parameters = {"test.groups": MethodParameterPolicy(fixed={"drill_path": source("groups")})}
     with pytest.raises(RecipeEditError):
         validate_recipe(recipe)
 
@@ -263,3 +260,6 @@ async def test_current_credentials_revalidated_before_downstream_execution(provi
     with pytest.raises(ProviderAccessDenied):
         await engine.step(RequestCredentials("bad"), caller, run.id, procedure().steps[1])
     assert provider.calls == calls
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

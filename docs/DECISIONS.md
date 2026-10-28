@@ -2840,3 +2840,33 @@ Web composition emphasizes Method order and step instructions, with optional Ski
 inputs available even when empty. Required custom inputs stay visible. Full Skill
 source is inspectable independently of editing permission. Web Method publication
 continues to create managed versions, not synchronize project files or Git.
+
+
+## ADR-128 — Remove the hidden compatibility catalog (2026-10-28)
+
+**Accepted at the user's explicit request.** Supersedes retention of hidden builtin
+Methods and bundled prior versions in ADR-099/103/115/116/124/127. QA exposed a
+`query.aggregate` execution although the Methods page offered only four choices.
+Keeping a separate executable catalog obscured the product's actual capabilities.
+
+Ship the same four current starter definitions everywhere: analysis.metric_lookup
+and analysis.drilldown Skills (2.2.0), plus stats.regression_adjustment and
+stats.binary_matching Python calculations (2.1.0). Remove all 21 hidden Method IDs,
+bundled historical Skill/Python versions, the former DoWhy defaults and private
+algorithms used only by removed implementations. MethodRegistry has no compatibility
+flag/filter; every active installed Method appears in discovery. Operator modules
+must export METHODS, not a hidden COMPATIBILITY_METHODS collection. Ordinary
+registration and immutable managed publication remain available for custom assets.
+
+Remove POST /datasets/preview, which implicitly invoked query.aggregate. All current
+queries use recorded Skill stages; calculations use the ordinary Python contract.
+Synthetic demo walkthroughs also use current Skills. Framework tests explicitly
+install small test capabilities instead of relying on retired product algorithms.
+
+Do not delete user-owned project definitions, managed publications, Recipe files,
+Run results, recorded queries or source snapshots. Storage loading accepts absent
+Method contracts for historical inspection without resolving them to current code.
+Authoring and execution still require the exact installed Method/version and fail
+before querying when it is missing. No alias, automatic Recipe rewrite or fallback
+resurrects a removed implementation. New user-published versions retain the normal
+version registry; this removes bundled history, not the provenance/version model.

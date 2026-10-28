@@ -1,4 +1,5 @@
-"""Opt-in live Recipe-free exploration; not an LLM planning benchmark."""
+"""Opt-in current-Skill execution against Complete Journey through MCP."""
+
 import json
 import os
 import sys
@@ -9,9 +10,10 @@ from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
 API = os.environ.get("DL_JOURNEY_API_URL")
-pytestmark = pytest.mark.skipif(not API, reason="Set DL_JOURNEY_API_URL to the Complete Journey API")
-PROVIDER = "cube"
-PREFIX = f"{PROVIDER}://journey/"
+pytestmark = pytest.mark.skipif(
+    not API, reason="Set DL_JOURNEY_API_URL to the Complete Journey API"
+)
+PREFIX = "cube://journey/"
 
 
 def data(response):
@@ -21,75 +23,162 @@ def data(response):
     return payload
 
 
-async def test_mcp_exploration_and_peer_comparison():
-    server = StdioServerParameters(command=sys.executable, args=["-m", "decision_layer.mcp.server"],
-                                   env={"DL_API_URL": API, "DL_LOCALE": "ko"})
-    async with stdio_client(server) as (read, write), ClientSession(read, write) as client:
-        await client.initialize()
-        data(await client.call_tool("list_recipes"))
-        receipts, department, rate, store = "transaction/receipts", "product/department", "transaction/coupon_line_rate", "transaction/store"
-        question = "어떤 부문의 수취액이 가장 높고, 가장 높은 매장의 쿠폰 사용 비율은 동료·전체 집단과 얼마나 달라?"
-        goals = [
-            {"id": "department", "description": "Find the leading department", "semantic_refs": [PREFIX + receipts, PREFIX + department], "required_capabilities": ["group_breakdown"]},
-            {"id": "store", "description": "Find its leading store", "semantic_refs": [PREFIX + receipts, PREFIX + store], "required_capabilities": ["group_breakdown"]},
-            {"id": "comparison", "description": "Compare coupon usage", "semantic_refs": [PREFIX + rate, PREFIX + store], "required_capabilities": ["peer_comparison"]},
-        ]
-        candidates = data(await client.call_tool("find_recipes", {"question": question, "goals": goals}))
-        assert "candidates" in candidates
-        started = data(await client.call_tool("start_analysis", {"question": question, "goals": goals,
-            "recipe_review": [{"recipe": item["recipe"], "decision": "skipped",
-                "reason": "This controlled integration test checks direct Method execution separately from Recipe reuse."}
-                for item in candidates["candidates"]],
-            "period": {"mode": "all", "source": "caller"}}))
-        run_id = started["run_id"]
-        result = data(await client.call_tool("run_step", {
-            "run_id": run_id, "method": "query.drilldown", "purpose": "수취액이 가장 큰 상품 부문 확인",
-            "goal_ids": ["department"],
-            "bindings": {"metric": PREFIX + receipts, "dimensions": [PREFIX + department, PREFIX + store]},
-        }))
-        assert result["status"] == "success", result
-        row = result["primary"]["data"]["rows"][0]
-        assert row["value"] == "GROCERY" and row["metric"] == pytest.approx(4093814.14, abs=0.01)
-        stores = data(await client.call_tool("run_step", {
-            "run_id": run_id, "method": "query.drilldown", "purpose": "최상위 부문에서 수취액이 가장 큰 매장 확인",
-            "goal_ids": ["store"],
-            "bindings": {"metric": PREFIX + receipts, "dimensions": [PREFIX + department, PREFIX + store]},
-            "params": {"drill_path": {"source": "step", "step_id": "step_1", "project": "path"}},
-        }))
-        assert stores["status"] == "success"
-        top_store = stores["primary"]["data"]["rows"][0]["value"]
-        assert top_store == "367"
-        peer = data(await client.call_tool("run_step", {
-            "run_id": run_id, "method": "query.peer_comparison", "purpose": "최상위 매장의 쿠폰 사용 비율을 동료·전체 집단과 비교",
-            "goal_ids": ["comparison"],
-            "bindings": {"metric": PREFIX + rate},
-            "params": {"subject": {"source": "step", "step_id": "step_2", "project": "condition"},
-                       "peers": {"source": "step", "step_id": "step_2", "project": "parents"}},
-        }))
-        assert peer["status"] == "success", peer
-        rows = peer["primary"]["data"]["rows"]
-        assert len(rows) == 3 and all(row["count"] is None for row in rows)
-        assert rows[0]["metric"] == pytest.approx(1.613, abs=0.0001)
-        assert rows[1]["difference_from_subject"] == pytest.approx(rows[0]["metric"] - rows[1]["metric"], abs=0.0002)
-        assert PREFIX + store in peer["provenance"]["semantic_refs"]
-        assert peer["primary"]["data"]["statistical_judgement"] == "not_tested"
-        pending = data(await client.call_tool("get_run", {"run_id": run_id}))
-        assert pending["status"] == "open" and pending["conclusion"] is None
-        assert pending["question"] == question and len(pending["steps"]) == 3
-        assert all(step["purpose"] for step in pending["steps"])
-        assert pending["steps"][2]["requested_step"]["params"]["subject"]["source"] == "step"
-        assert len(pending["steps"][2]["input_resolutions"]) == 2
-        data(await client.call_tool("complete_run", {"run_id": run_id, "conclusion": {
-            "answer": "GROCERY 수취액이 가장 높습니다. 최상위 매장 367의 쿠폰 사용 비율은 동료 및 전체 비교 집단보다 높습니다.",
-            "findings": [{"text": "상품 부문별 수취액을 비교했습니다.", "step_indices": [0]},
-                         {"text": "최상위 부문에서 수취액 1위 매장을 찾았습니다.", "step_indices": [1]},
-                         {"text": "선택한 매장을 제외한 동료·전체 집단과 비교했습니다.", "step_indices": [2]}],
-            "limitations": ["인과 효과나 부정 행위는 판단하지 않았습니다."],
-            "goal_outcomes": [{"goal_id": item["id"], "status": "supported", "step_indices": [index]}
-                              for index, item in enumerate(goals)]}}))
-    async with httpx.AsyncClient(base_url=API, timeout=60) as api:
-        response = await api.get(f"/runs/{run_id}/recipe-candidate", params=[("indices", 0), ("indices", 1), ("indices", 2)])
-        response.raise_for_status()
-        assert len(response.json()["recipe"]["steps"]) == 3
-        assert response.json()["recipe"]["steps"][2]["params"]["subject"]["source"] == "step"
-    print(f"JOURNEY_MCP_RUN_ID={run_id}")
+async def test_mcp_current_skill_records_departments_and_selection():
+    server = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "decision_layer.mcp.server"],
+        env={"DL_API_URL": API, "DL_LOCALE": "ko"},
+    )
+    metric, dimension, time = map(
+        lambda name: PREFIX + name,
+        ["transaction/receipts", "product/department", "transaction/analysis_date"],
+    )
+    goals = [
+        {
+            "id": "department",
+            "description": "Compare department receipts",
+            "semantic_refs": [metric, dimension],
+        }
+    ]
+    run_id = None
+    try:
+        async with (
+            stdio_client(server) as (read, write),
+            ClientSession(read, write) as client,
+        ):
+            await client.initialize()
+            methods = data(await client.call_tool("list_methods"))["methods"]
+            assert {"analysis.metric_lookup", "analysis.drilldown"} <= {
+                m["name"] for m in methods
+            }
+            question = "2001년 1월의 부문별 수취액을 조회해줘."
+            candidates = data(
+                await client.call_tool(
+                    "find_recipes", {"question": question, "goals": goals}
+                )
+            )
+            started = data(
+                await client.call_tool(
+                    "start_analysis",
+                    {
+                        "question": question,
+                        "goals": goals,
+                        "date_range": ["2001-01-01", "2001-01-31"],
+                        "time_dimension": time,
+                        "recipe_review": [
+                            {
+                                "recipe": r["recipe"],
+                                "decision": "skipped",
+                                "reason": "This test checks the current Skill directly.",
+                            }
+                            for r in candidates["candidates"]
+                        ],
+                    },
+                )
+            )
+            run_id = started["run_id"]
+            result = data(
+                await client.call_tool(
+                    "run_step",
+                    {
+                        "run_id": run_id,
+                        "step_id": "departments",
+                        "method": "analysis.drilldown",
+                        "purpose": "Read department receipts",
+                        "goal_ids": ["department"],
+                        "bindings": {"metric": metric, "dimensions": [dimension]},
+                    },
+                )
+            )
+            assert result["status"] == "needs_input"
+            query = data(
+                await client.call_tool(
+                    "run_skill_query",
+                    {
+                        "run_id": run_id,
+                        "step_id": "departments",
+                        "query_id": "groups",
+                        "purpose": "Read governed department receipts",
+                        "spec": {
+                            "grain": "aggregate",
+                            "measures": [metric],
+                            "dimensions": [dimension],
+                            "time": {
+                                "dimension": time,
+                                "date_range": ["2001-01-01", "2001-01-31"],
+                            },
+                            "order": [[metric, "desc"]],
+                            "limit_rows": 1000,
+                        },
+                    },
+                )
+            )
+            if query.get("status") == "running":
+                data(await client.call_tool("wait_for_run", {"run_id": run_id}))
+                query = data(
+                    await client.call_tool(
+                        "get_skill_query",
+                        {
+                            "run_id": run_id,
+                            "step_id": "departments",
+                            "query_id": "groups",
+                        },
+                    )
+                )
+            rows = query["result"]["primary"]["data"]
+            assert rows[0][dimension] == "GROCERY"
+            assert rows[0][metric] == pytest.approx(193074.59, abs=0.01)
+            data(
+                await client.call_tool(
+                    "finish_skill_step",
+                    {
+                        "run_id": run_id,
+                        "step_id": "departments",
+                        "reason": "Compared recorded department values",
+                        "selection": {
+                            "query_id": "groups",
+                            "row": 0,
+                            "dimension": dimension,
+                            "reason": "Largest returned receipts",
+                        },
+                    },
+                )
+            )
+            data(
+                await client.call_tool(
+                    "complete_run",
+                    {
+                        "run_id": run_id,
+                        "conclusion": {
+                            "answer": "GROCERY has the highest returned January receipts.",
+                            "findings": [
+                                {
+                                    "text": "Queried department receipts.",
+                                    "step_indices": [0],
+                                }
+                            ],
+                            "limitations": [
+                                "Observed receipts do not establish profit or causality."
+                            ],
+                            "goal_outcomes": [
+                                {
+                                    "goal_id": "department",
+                                    "status": "supported",
+                                    "step_indices": [0],
+                                }
+                            ],
+                        },
+                    },
+                )
+            )
+        async with httpx.AsyncClient(base_url=API) as api:
+            response = await api.get(f"/runs/{run_id}")
+            response.raise_for_status()
+            run = response.json()
+            assert run["status"] == "completed" and len(run["query_attempts"]) == 1
+            assert run["steps"][0]["step"]["method"] == "analysis.drilldown"
+            assert run["steps"][0]["skill"]["guide"]["sha256"]
+    finally:
+        if run_id and os.environ.get("DL_KEEP_TEST_RUNS") != "true":
+            async with httpx.AsyncClient(base_url=API) as api:
+                assert (await api.delete(f"/runs/{run_id}")).status_code == 204

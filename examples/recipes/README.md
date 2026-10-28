@@ -7,7 +7,11 @@
 .venv/bin/python -m examples.recipes.skill_chain_demo
 ```
 
-`evals/` contains opt-in live evaluations with an external AI client. Historical
-three-step procedures remain explicit compatibility definitions in `skill_chain.py`.
+`skill_chain.py` uses the current drilldown and metric-lookup Skills. The hidden
+three-step compatibility procedure and its calculation have been removed.
+
+`evals/` preserves historical external-client protocols and evidence verifiers.
+Those older runners require their original checkout/release; they cannot execute
+the retired Methods against the current package.
 See the [Recipe guide](../../docs/guides/recipes.md) and the
 [complete journey](../complete-journey/README.md) for server usage.

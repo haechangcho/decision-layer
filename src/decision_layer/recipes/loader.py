@@ -75,9 +75,11 @@ def parse_recipe(doc: dict[str, Any], provider: str, instance: str) -> Recipe:
 
 
 class RecipeStore:
-    def __init__(self, directory: str | Path | None, provider: str, instance: str, *, registry=None) -> None:
+    def __init__(self, directory: str | Path | None, provider: str, instance: str, *, registry=None,
+                 require_installed_methods: bool = False) -> None:
         from ..methods import registry as default_registry
         self.registry = registry or default_registry
+        self.require_installed_methods = require_installed_methods
         self._writable = bool(directory)
         self._lock = Lock()
         self.directory = Path(directory) if directory else Path("/nonexistent")
@@ -93,7 +95,7 @@ class RecipeStore:
                 recipe = parse_recipe(yaml.safe_load(path.read_text()), self.provider, self.instance)
                 from .authoring import validate_recipe
 
-                validate_recipe(recipe, registry=self.registry, allow_uninstalled_versions=True)
+                validate_recipe(recipe, registry=self.registry, allow_uninstalled_versions=not self.require_installed_methods)
             except DecisionLayerError as e:
                 raise InvalidRecipe(
                     _("Can't read recipe file {file}: {error}", file=path.name, error=e.message),

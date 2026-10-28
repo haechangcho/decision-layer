@@ -1,178 +1,97 @@
-"""Public developer helpers exercise the canonical registry and dataset boundary."""
-from dataclasses import replace
+"""Developer sessions use explicitly registered functions and strict query evidence."""
 
+from dataclasses import replace
 import pytest
 
 from decision_layer.core.errors import ProviderError
-from decision_layer.core.models import Artifact, MethodManifest, Recipe, PlanStep, SemanticScope
 from decision_layer.core.periods import ExecutionPolicy
 from decision_layer.dev import MethodSession
-from decision_layer.methods import registry as global_registry
-from decision_layer.methods import InvalidBinding, Method, MethodOutput
-from decision_layer.methods.context import Refused, Scope
-from decision_layer.methods.peer_comparison import PeerComparison
-from decision_layer.semantic.credentials import AnonymousServiceCredentials
-from decision_layer.testing import FixtureProvider, QueryFixture
-
-from tests.support.methods import peer_data as fixtures
-from tests.support.methods.peer_data import METRIC, DATE, DATES, BINDINGS, PARAMS
+from decision_layer.methods import InvalidBinding, Refused, Scope, registry
+from tests.support.methods.functions import group_metric
+from tests.support.methods.cases import M, GROUP, DATE, FEB, scenarios
 
 
-async def session_for(provider=None, policy=None):
-    provider = provider or fixtures.fixture_provider()
-    session = await MethodSession.connect(provider, AnonymousServiceCredentials(), policy=policy)
-    session.register(PeerComparison())
+async def session_for(policy=None):
+    provider = scenarios()[0].provider()
+    session = await MethodSession.fixture(provider, policy=policy)
+    session.register(group_metric)
     return session, provider
 
 
-def scope():
-    return Scope(date_range=DATES, time_dimension=DATE)
+def arguments():
+    return dict(metric=M, group=GROUP, limit=3, scope=Scope(FEB, DATE))
 
 
-async def test_peer_queries_and_independent_expected_result():
+async def test_query_and_source_evidence():
     session, provider = await session_for()
-    trial = await session.run("query.peer_comparison", bindings=BINDINGS, params=PARAMS, scope=scope())
+    trial = await session.run(group_metric, **arguments())
     assert trial.result.status == "success"
-    assert [row["difference_from_subject"] for row in trial.result.primary.data["rows"]] == [0, 4, 6]
-    assert [attempt.status for attempt in trial.attempts] == ["success"] * 3
-    assert len(trial.queries) == 3 and trial.result.run_id is None
-    assert trial.result.interpretation == "descriptive"
-    assert trial.result.primary.data["statistical_judgement"] == "not_tested"
+    assert [row["metric"] for row in trial.result.primary.data] == [30, 20, 10]
+    assert trial.result.run_id is None and len(trial.queries) == 1
+    assert trial.attempts[0].status == "success"
     provider.assert_consumed()
 
 
-async def test_registry_is_local_and_replacement_explicit():
-    original = global_registry.get("query.peer_comparison")
+async def test_registration_is_local_and_replacement_explicit():
     session, _ = await session_for()
-    listed = session.list_methods()
-    assert [method.name for method in listed] == ["query.peer_comparison"]
-    listed[0].description = "Edited local copy"
-    assert session.list_methods()[0].description != "Edited local copy"
+    with pytest.raises(InvalidBinding):
+        registry.get(group_metric.manifest.name)
     with pytest.raises(InvalidBinding, match="already registered"):
-        session.register(PeerComparison())
-    edited = PeerComparison()
-    session.register(edited, replace=True)
-    assert session.registry.get("query.peer_comparison") is edited
-    assert global_registry.get("query.peer_comparison") is original
+        session.register(group_metric)
+    session.register(group_metric, replace=True)
+    listed = session.list_methods()
+    listed[0].description = "Local edit"
+    assert session.list_methods()[0].description != "Local edit"
 
 
-async def test_catalog_helpers_only_return_visible_objects():
+async def test_catalog_copies_and_private_objects():
     session, _ = await session_for()
-    assert session.metrics()[0].ref == METRIC
-    assert DATE in [obj.ref for obj in session.dimensions(METRIC)]
-    session.metrics()[0].title = "Modified copy"
-    assert session.object(METRIC).title == "Return rate"
-    session.catalog.objects[0].public = False
-    assert METRIC not in [obj.ref for obj in session.metrics()]
+    session.object(M).title = "Edited copy"
+    assert session.object(M).title != "Edited copy"
+    session.catalog.get(M).public = False
     from decision_layer.core.errors import UnknownSemanticObject
+
     with pytest.raises(UnknownSemanticObject):
-        session.object(METRIC)
+        session.object(M)
 
 
-async def test_provider_failure_retains_partial_evidence_and_raises():
-    provider = fixtures.fixture_provider()
-    responses = provider._queries
-    responses[1] = replace(responses[1], error=ProviderError("Fixture provider unavailable"))
-    session, _ = await session_for(provider)
+async def test_failure_retains_attempt():
+    session, provider = await session_for()
+    provider._queries[0] = replace(
+        provider._queries[0], error=ProviderError("Unavailable")
+    )
     with pytest.raises(ProviderError):
-        await session.run("query.peer_comparison", bindings=BINDINGS, params=PARAMS, scope=scope())
+        await session.run(group_metric, **arguments())
     assert session.last_trial.result is None
-    assert [attempt.status for attempt in session.last_trial.attempts] == ["success", "failed"]
-    assert len(session.last_trial.queries) == 1
-    assert len(provider.calls) == 2
-
-
-async def test_wrong_population_filter_is_not_accepted_as_fixture_success():
-    session, _ = await session_for()
-    params = {**PARAMS, "peers": []}
-    with pytest.raises(AssertionError, match="Query #1 differs"):
-        await session.run("query.peer_comparison", bindings=BINDINGS, params=params, scope=scope())
     assert session.last_trial.attempts[0].status == "failed"
 
 
-async def test_scope_and_budget_checks_still_apply():
-    session, provider = await session_for(policy=ExecutionPolicy(max_queries=1))
+async def test_no_period_or_missing_binding_never_queries():
+    session, provider = await session_for()
     with pytest.raises(Refused):
-        await session.run("query.peer_comparison", bindings=BINDINGS, params=PARAMS, scope=Scope())
-    assert provider.calls == []
-    trial = await session.run("query.peer_comparison", bindings=BINDINGS, params=PARAMS, scope=scope())
-    assert trial.result.status == "refused" and trial.result.provides == []
-    assert len(trial.attempts) == 1
-
-
-async def test_missing_population_refuses_comparison():
-    provider = fixtures.fixture_provider()
-    provider._queries[1] = replace(provider._queries[1], rows=[])
-    session, _ = await session_for(provider)
-    trial = await session.run("query.peer_comparison", bindings=BINDINGS, params=PARAMS, scope=scope())
-    assert trial.result.status == "refused" and trial.result.provides == []
-    provider.assert_consumed()
-
-
-async def test_unused_queries_and_bad_rows_are_detected():
-    provider = fixtures.fixture_provider()
-    with pytest.raises(AssertionError, match="Used 0 of 3"):
-        provider.assert_consumed()
-    first = provider._queries[0]
-    bad = FixtureProvider(provider.catalog, [QueryFixture(first.spec, [[12]])])
-    session, _ = await session_for(bad)
-    with pytest.raises(AssertionError, match="row width"):
-        await session.run("query.peer_comparison", bindings=BINDINGS, params=PARAMS, scope=scope())
-
-
-async def test_output_contract_is_enforced_in_shared_registry():
-    class Broken(Method):
-        manifest = MethodManifest(name="example.broken", version="1.0.0", kind="query",
-                                  description="Invalid output", roles={}, outputs=["table"],
-                                  execution="semantic_pushdown", interpretation="descriptive")
-        async def run(self, ctx, bindings, params):
-            return MethodOutput(primary=Artifact(type="estimate", data={"value": 1}))
-    session, _ = await session_for()
-    session.register(Broken())
-    with pytest.raises(InvalidBinding, match="undeclared artifact"):
-        await session.run("example.broken", bindings={}, scope=scope())
-
-
-async def test_recipe_preview_uses_run_engine_and_local_method():
-    session, provider = await session_for()
-    recipe = Recipe(name="peer-example", version="1.0.0", mode="pipeline", description="Peer comparison",
-                    semantic_scope=SemanticScope(primary_metric=METRIC),
-                    steps=[PlanStep(id="compare", method="query.peer_comparison", bindings=BINDINGS, params=PARAMS)])
-    run = await session.preview(recipe, step_index=0,
-                                scope={"date_range": list(DATES), "time_dimension": DATE})
-    assert run.preview and run.status == "completed"
-    assert run.steps[0].result.status == "success"
-    assert len(run.query_attempts) == 3
-    assert run.steps[0].result.run_id == run.id
-    provider.assert_consumed()
-    session.close()
-
-
-@pytest.mark.parametrize("bindings,params", [({}, PARAMS), (BINDINGS, {**PARAMS, "min_count": 0})])
-async def test_session_invalid_inputs_issue_no_queries(bindings, params):
-    session, provider = await session_for()
+        await session.run(group_metric, **{**arguments(), "scope": Scope()})
     with pytest.raises(InvalidBinding):
-        await session.run("query.peer_comparison", bindings=bindings, params=params, scope=scope())
-    assert provider.calls == [] and session.last_trial.attempts == []
+        await session.run(group_metric, metric=M, scope=Scope(FEB, DATE))
+    assert provider.calls == []
 
 
-async def test_timeout_retains_failed_query_evidence():
+async def test_timeout_retains_interrupted_evidence():
     import asyncio
-    session, provider = await session_for(policy=ExecutionPolicy(deadline_seconds=0.01))
+
+    session, provider = await session_for(ExecutionPolicy(deadline_seconds=0.01))
+
     async def slow(*args, **kwargs):
         await asyncio.sleep(1)
+
     provider.execute = slow
     with pytest.raises(TimeoutError):
-        await session.run("query.peer_comparison", bindings=BINDINGS, params=PARAMS, scope=scope())
-    assert session.last_trial.result is None
+        await session.run(group_metric, **arguments())
     assert session.last_trial.attempts[0].error_code == "QUERY_INTERRUPTED"
 
 
-async def test_row_bound_refuses_without_providing_capability():
-    provider = fixtures.fixture_provider()
-    provider._queries[0] = replace(provider._queries[0], rows=[[12, 100], [12, 100]])
-    session, _ = await session_for(provider, ExecutionPolicy(max_result_rows=1))
-    trial = await session.run("query.peer_comparison", bindings=BINDINGS, params=PARAMS, scope=scope())
-    assert trial.result.status == "refused" and trial.result.provides == []
-    assert len(trial.attempts) == 1 and trial.attempts[0].status == "failed"
-
+async def test_row_bound_refuses_without_capability():
+    session, provider = await session_for(ExecutionPolicy(max_result_rows=1))
+    trial = await session.run(group_metric, **arguments())
+    assert trial.result.status == "refused"
+    assert not trial.result.provides
+    assert provider.calls == [] and trial.attempts == []

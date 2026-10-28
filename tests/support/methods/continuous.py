@@ -1,7 +1,6 @@
 """A known numeric-treatment slope on the same governed fixture execution path."""
 
 from decision_layer.dev import MethodSession
-from decision_layer.methods import Scope, register_builtins
 from decision_layer.core.models import DatasetSpec, TimeScope
 from decision_layer.testing import FixtureProvider, QueryFixture
 from tests.support.methods.cases import catalog, M, RATE, BASELINE, UNIT, DATE, FEB
@@ -38,27 +37,4 @@ async def example_session():
     session = await MethodSession.fixture(
         FixtureProvider(catalog(), [QueryFixture(spec, rows)])
     )
-    register_builtins(session.registry)
     return session
-
-
-async def demonstrate():
-    results = []
-    for label, params in (
-        ("per stored treatment unit", {}),
-        ("0.10 to 0.20", {"control_value": 0.10, "treatment_value": 0.20}),
-    ):
-        session = await example_session()
-        trial = await session.run(
-            "stats.regression_adjustment",
-            outcome=M,
-            treatment=RATE,
-            confounders=[BASELINE],
-            unit=UNIT,
-            scope=Scope(FEB, DATE),
-            **params,
-        )
-        session.provider.assert_consumed()
-        results.append({"result": label, "value": trial.result.primary.data["value"]})
-        session.close()
-    return results

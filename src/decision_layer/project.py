@@ -181,7 +181,7 @@ class Project:
                 method.definition_path = str(path)
                 name = method.manifest.name
                 if name in sources or any(
-                    m.name == name for m in staged.manifests(include_compatibility=True)
+                    m.name == name for m in staged.manifests()
                 ):
                     raise ProjectError(f"Duplicate Method name {name!r} at {path}")
                 sources[name] = path

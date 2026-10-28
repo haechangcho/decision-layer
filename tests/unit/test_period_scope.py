@@ -16,7 +16,7 @@ from tests.support.semantic import CAT, CREDS, DT, Q3, RR, FakeProvider
 
 ME = CallerInfo(subject="period-owner")
 DATES = {"date_range": list(Q3), "time_dimension": DT}
-STEP = PlanStep(id="by_category", method="query.drilldown", purpose="Find the leading category", bindings={"metric": RR, "dimensions": [CAT]})
+STEP = PlanStep(id="by_category", method="test.groups", purpose="Find the leading category", bindings={"metric": RR, "dimensions": [CAT]})
 
 
 @pytest.fixture
@@ -143,7 +143,7 @@ async def test_trend_cannot_use_all_even_when_server_allows_it(setup):
     engine, provider = setup
     engine.policy = ExecutionPolicy(allow_all=True)
     run = await engine.start(CREDS, ME, recipe=None, question="Trend", scope={"period": {"mode": "all"}})
-    run, result = await engine.step(CREDS, ME, run.id, PlanStep(method="query.trend", bindings={"metric": RR}))
+    run, result = await engine.step(CREDS, ME, run.id, PlanStep(method="test.series", bindings={"metric": RR}))
     assert result.status == "needs_input"
     assert run.needs_input["allow_all"] is False
     provider.execute.assert_not_awaited()
@@ -219,3 +219,6 @@ async def test_promotion_preserves_declared_rule_not_execution_dates(setup):
     candidate = candidate_from_run(run, [0]).recipe
     assert candidate.default_scope.period.mode == "relative"
     assert candidate.default_scope.date_range is None
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

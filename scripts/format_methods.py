@@ -1,4 +1,4 @@
-"""Format current authoring surfaces; frozen compatibility implementations stay intact."""
+"""Format current Method authoring surfaces."""
 
 import argparse
 from pathlib import Path
@@ -8,8 +8,6 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 FILES = [
     "src/decision_layer/starters",
-    "src/decision_layer/methods/native_matching.py",
-    "src/decision_layer/methods/native_regression.py",
     "src/decision_layer/methods/formatting.py",
     "src/decision_layer/methods/python.py",
     "src/decision_layer/methods/function",

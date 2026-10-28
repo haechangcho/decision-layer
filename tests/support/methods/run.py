@@ -4,7 +4,6 @@ from dataclasses import asdict
 from decision_layer.methods import Scope
 
 from decision_layer.dev import MethodSession
-from decision_layer.methods import register_builtins
 from tests.support.methods.functions import AUTHORED
 from tests.support.methods.cases import verify
 
@@ -12,7 +11,6 @@ from tests.support.methods.cases import verify
 async def run_scenario(scenario):
     provider = scenario.provider()
     session = await MethodSession.fixture(provider)
-    register_builtins(session.registry)
     for implementation in AUTHORED:
         session.register(implementation)
     trial = await session.run(scenario.method, **scenario.arguments)

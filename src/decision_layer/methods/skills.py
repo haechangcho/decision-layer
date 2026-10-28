@@ -77,7 +77,7 @@ def load_skill_directory(registry, directory: str | Path, *, builtin=False):
     """Operator-owned directory only. No HTTP upload or arbitrary request path."""
     root = Path(directory).resolve(strict=True)
     pending = []
-    seen = {m.name for m in registry.manifests(include_compatibility=True)}
+    seen = {m.name for m in registry.manifests()}
     for path in sorted(root.rglob("*.md")):
         if not path.resolve().is_relative_to(root):
             raise ValueError("Skill symlinks must stay inside the configured directory")

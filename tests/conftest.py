@@ -21,3 +21,18 @@ def cube_meta():
 def provider(cube_meta):
     from tests.support.semantic import FakeProvider
     return FakeProvider(cube_meta)
+
+
+@pytest.fixture
+def query_methods(monkeypatch):
+    """Explicit test capabilities for Run/API framework contract scenarios."""
+    from copy import deepcopy
+    from decision_layer.methods import registry
+    from tests.support.query_methods import METHODS
+
+    monkeypatch.setattr(registry, "_methods", dict(registry._methods))
+    monkeypatch.setattr(registry, "_versions", dict(registry._versions))
+    monkeypatch.setattr(registry, "_builtin_defaults", set(registry._builtin_defaults))
+    for method in METHODS:
+        registry.register(deepcopy(method))
+    return registry

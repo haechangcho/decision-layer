@@ -13,7 +13,7 @@ def recipe():
     return Recipe.model_validate({
         "name": "orders-test", "version": "1.0.0", "description": "Test recipe",
         "semantic_scope": {"primary_metric": "cube://local/ecom_order/return_rate"},
-        "mode": "pipeline", "steps": [{"id": "trend", "method": "query.trend",
+        "mode": "pipeline", "steps": [{"id": "trend", "method": "test.series",
             "bindings": {"metric": "$scope.primary_metric"}, "params": {"granularity": "month"}}],
     })
 
@@ -113,13 +113,13 @@ def test_restore_accepts_existing_recipe_name_contract(tmp_path, name):
 
 
 @pytest.mark.parametrize("method,params", [
-    ("query.drilldown", {"top_n": 0}),
-    ("query.drilldown", {"min_count": -1}),
-    ("query.drilldown", {"top_n": "10"}),
-    ("query.drilldown", {"top_n": None}),
-    ("query.trend", {"vs_previous": "false"}),
-    ("query.trend", {"current": ["2026-10-02", "2026-10-01"]}),
-    ("causal.cem", {"min_target_retention": 1.5}),
+    ("test.groups", {"top_n": 0}),
+    ("test.groups", {"min_count": -1}),
+    ("test.groups", {"top_n": "10"}),
+    ("test.groups", {"top_n": None}),
+    ("test.series", {"vs_previous": "false"}),
+    ("test.series", {"current": ["2026-10-02", "2026-10-01"]}),
+    ("test.comparison", {"min_target_retention": 1.5}),
 ])
 def test_manifest_parameters_reject_invalid_types_and_bounds(method, params):
     with pytest.raises(InvalidBinding):
@@ -128,7 +128,7 @@ def test_manifest_parameters_reject_invalid_types_and_bounds(method, params):
 
 def test_recipe_parameter_policy_is_validated_before_save(tmp_path: Path):
     base = recipe().model_dump()
-    base["method_parameters"] = {"query.trend": {"fixed": {"granularity": "week"},
+    base["method_parameters"] = {"test.series": {"fixed": {"granularity": "week"},
                                                      "runtime_allowed": ["vs_previous"]}}
     with pytest.raises(RecipeEditError, match="conflicts") as error:
         RecipeStore(tmp_path, "cube", "local").save(Recipe.model_validate(base), None)
@@ -136,8 +136,11 @@ def test_recipe_parameter_policy_is_validated_before_save(tmp_path: Path):
 
     base["steps"][0]["params"] = {"granularity": "week"}
     saved = RecipeStore(tmp_path, "cube", "local").save(Recipe.model_validate(base), None)
-    assert saved.method_parameters["query.trend"].fixed == {"granularity": "week"}
+    assert saved.method_parameters["test.series"].fixed == {"granularity": "week"}
 
-    base["method_parameters"]["query.trend"]["fixed"] = {"granularity": "year"}
+    base["method_parameters"]["test.series"]["fixed"] = {"granularity": "year"}
     with pytest.raises(RecipeEditError):
         RecipeStore(tmp_path, "cube", "local").save(Recipe.model_validate(base), None)
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

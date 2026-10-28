@@ -104,7 +104,7 @@ def test_partial_analysis_keeps_executed_steps_in_same_run(client):
     req["goals"].append({"id": "total", "description": "Inspect total", "semantic_refs": [AMOUNT]})
     started = c.post("/runs", json={"question": req["question"], "goals": req["goals"], "scope": req["scope"]}).json()
     run_id = started["id"]
-    result = c.post(f"/runs/{run_id}/steps", json={"method": "query.aggregate", "bindings": {"metric": AMOUNT}, "goal_ids": ["total"]})
+    result = c.post(f"/runs/{run_id}/steps", json={"method": "test.lookup", "bindings": {"metric": AMOUNT}, "goal_ids": ["total"]})
     assert result.status_code == 200 and result.json()["status"] == "success"
     before = c.get(f"/runs/{run_id}").json()
     req["run_id"] = run_id
@@ -117,3 +117,6 @@ def test_partial_analysis_keeps_executed_steps_in_same_run(client):
     assert response.json()["steps"] == before["steps"]
     assert response.json()["id"] == run_id
     assert len(c.get("/runs").json()) == 1
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

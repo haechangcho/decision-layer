@@ -12,17 +12,17 @@ semantic_scope:
                     ecom_delivery.avg_delivery_days]
   preferred_dimensions: [ecom_product.category_nm, ecom_order.seller_id, ecom_order.channel, ecom_order.is_free_shipping]
 mode: investigation
-allowed_methods: [query.trend, query.drilldown, causal.cem]
+allowed_methods: [test.series, test.groups, test.comparison]
 limits: {max_steps: 12, max_queries: 60}
 validators:
   - name: complete_period
   - name: freshness
 instructions: >
-  기간 변화를 묻는 질문이면 먼저 query.trend(current·comparison 또는 vs_previous)로 변화가 유의한지 확인한다.
-  유의하지 않으면 원인을 찾지 말고 그렇게 답한다. 유의하면 query.drilldown 기간 모드로 어느 그룹이 변화를 만들었는지 본다.
-  문제 그룹은 preferred_dimensions 순서로 query.drilldown해 좁힌다. 판매자 수준의 결론은
+  기간 변화를 묻는 질문이면 먼저 test.series(current·comparison 또는 vs_previous)로 변화가 유의한지 확인한다.
+  유의하지 않으면 원인을 찾지 말고 그렇게 답한다. 유의하면 test.groups 기간 모드로 어느 그룹이 변화를 만들었는지 본다.
+  문제 그룹은 preferred_dimensions 순서로 test.groups해 좁힌다. 판매자 수준의 결론은
   selection 보정 후에도 유의한 경우에만 말한다.
-  요인(무료배송 여부, 택배사, 배송 소요일 등)이 반품률과 관련 있는지는 causal.cem으로 조건을 맞춰 비교한다.
+  요인(무료배송 여부, 택배사, 배송 소요일 등)이 반품률과 관련 있는지는 test.comparison으로 조건을 맞춰 비교한다.
   주문 요인의 기본 조건은 카테고리(ecom_product.category_nm)·채널(ecom_order.channel)·주문금액(ecom_order.order_amount,
   구간 [30000, 100000, 300000])이다. 조건을 맞춘 결과가 있을 때만
   '조건을 맞춰도 관련이 있다'고 말하고, 맞추지 않은 요인이 남아 있다는 한계를 함께 밝힌다.

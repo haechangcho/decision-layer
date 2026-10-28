@@ -93,7 +93,7 @@ class MethodSession:
         return self.catalog.model_copy(deep=True)
 
     def register(self, method: Method, *, replace: bool = False) -> Method:
-        if not replace and any(m.name == method.manifest.name for m in self.registry.manifests(include_compatibility=True)):
+        if not replace and any(m.name == method.manifest.name for m in self.registry.manifests()):
             raise InvalidBinding(_("Method already registered locally; use replace=True after editing."))
         return self.registry.register(method)
 

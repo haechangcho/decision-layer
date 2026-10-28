@@ -5,10 +5,10 @@ from dataclasses import replace
 from decision_layer.core.errors import ProviderError
 from decision_layer.core.periods import ExecutionPolicy
 from decision_layer.dev import MethodSession
-from decision_layer.methods import InvalidBinding, Refused, Scope, register_builtins
+from decision_layer.methods import InvalidBinding, Refused, Scope
 from decision_layer.methods.dependencies import dependency_issue
 from tests.support.methods.functions import AUTHORED
-from tests.support.methods.cases import GROUP, M, scenarios
+from tests.support.methods.cases import M, scenarios
 
 FAILURES = (
     "wrong-kind",
@@ -17,13 +17,6 @@ FAILURES = (
     "query-budget",
     "provider-failure",
     "row-overflow",
-    "non-primary-unit",
-    "missing-data",
-    "duplicate-unit",
-    "missing-cohort",
-    "unsupported-option",
-    "duplicate-panel",
-    "overlapping-windows",
 )
 
 
@@ -31,13 +24,6 @@ async def failure(name):
     parent = {
         "query-budget": "peer",
         "provider-failure": "peer",
-        "non-primary-unit": "ols",
-        "missing-data": "ols",
-        "duplicate-unit": "ols",
-        "missing-cohort": "unit-change",
-        "unsupported-option": "did",
-        "duplicate-panel": "did",
-        "overlapping-windows": "did",
     }.get(name, "by_group")
     scenario = next(item for item in scenarios() if item.name == parent)
     policy = (
@@ -67,36 +53,8 @@ async def failure(name):
         scenario.queries[0] = replace(
             scenario.queries[0], rows=[*scenario.queries[0].rows, [5, "D"]]
         )
-    elif name == "non-primary-unit":
-        arguments["entity"] = GROUP
-        expected_error, queries = InvalidBinding, 0
-    elif name in ("missing-data", "duplicate-unit"):
-        query = scenario.queries[0]
-        rows = [list(row) for row in query.rows]
-        if name == "missing-data":
-            rows[0][0] = None
-        else:
-            rows[1][-1] = rows[0][-1]
-        scenario.queries[0] = replace(query, rows=rows)
-    elif name == "missing-cohort":
-        scenario.queries[1] = replace(
-            scenario.queries[1], rows=scenario.queries[1].rows[:1]
-        )
-        queries = 2
-    elif name == "unsupported-option":
-        arguments.setdefault("params", {})["causal_claim"] = True
-        expected_error, queries = InvalidBinding, 0
-    elif name == "duplicate-panel":
-        query = scenario.queries[0]
-        scenario.queries[0] = replace(query, rows=[*query.rows, query.rows[0]])
-    elif name == "overlapping-windows":
-        from tests.support.methods.cases import FEB
-
-        arguments.setdefault("params", {})["windows"] = [FEB, FEB]
-        queries = 0
     provider = scenario.provider()
     session = await MethodSession.fixture(provider, policy=policy)
-    register_builtins(session.registry)
     for implementation in AUTHORED:
         session.register(implementation)
     if issue := dependency_issue(

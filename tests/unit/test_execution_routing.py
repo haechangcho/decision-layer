@@ -34,11 +34,11 @@ def goal(name="lookup", capability="metric_lookup", metric=AMOUNT, interpretatio
 
 
 def lookup(**extra):
-    return PlanStep(id="lookup", method="query.aggregate", purpose="Inspect governed sales",
+    return PlanStep(id="lookup", method="test.lookup", purpose="Inspect governed sales",
                     bindings={"metric": AMOUNT, "dimensions": [CAT]}, **extra)
 
 
-def recipe(name="lookup-procedure", metric=AMOUNT, method="query.aggregate", **extra):
+def recipe(name="lookup-procedure", metric=AMOUNT, method="test.lookup", **extra):
     return Recipe(name=name, version="1.0.0", description="Sales by department",
         routing={"objective": "Inspect sales by department"}, semantic_scope={"primary_metric": metric},
         mode="pipeline", steps=[PlanStep(id="first", method=method, bindings={"metric": metric})], **extra)
@@ -60,7 +60,7 @@ async def test_lookup_records_scope_and_can_be_promoted(setup):
         goal_outcomes=[GoalOutcome(goal_id="lookup", status="supported", step_indices=[0])]))
     from decision_layer.recipes.from_run import runtime_recipe_from_run
     converted = runtime_recipe_from_run(done)
-    assert converted.steps[0].method == "query.aggregate"
+    assert converted.steps[0].method == "test.lookup"
     assert not converted.steps[0].goal_ids and not converted.steps[0].exploration
 
 
@@ -100,7 +100,7 @@ async def test_unrelated_metric_cannot_supply_a_goals_capability(setup):
     run = await engine.start(CREDS, ME, recipe=None, question="Sales breakdown?", scope=SCOPE,
                              goals=[goal(capability="group_breakdown")])
     run, _ = await engine.step(CREDS, ME, run.id, lookup(goal_ids=["lookup"]))
-    run, _ = await engine.step(CREDS, ME, run.id, PlanStep(method="query.drilldown",
+    run, _ = await engine.step(CREDS, ME, run.id, PlanStep(method="test.groups",
         bindings={"metric": COUNT, "dimensions": [CAT]}, params={}, goal_ids=["lookup"]))
     with pytest.raises(InvalidBinding):
         await engine.complete(ME, run.id, conclusion=RunConclusion(answer="Unsupported combination",
@@ -117,7 +117,7 @@ async def test_historical_question_is_not_a_runtime_period_constraint(setup):
     assert candidate["objective"] == ""
     assert candidate["source_question"] == rec.description
     assert candidate["reuse"]["period"] == {"binding": "runtime", "default": None, "fixed_method_periods": []}
-    assert candidate["reuse"]["procedure"][0]["method"] == "query.aggregate"
+    assert candidate["reuse"]["procedure"][0]["method"] == "test.lookup"
     assert engine.recipes.get(rec.name).description == rec.description
     run = await engine.start(CREDS, ME, recipe=rec.name, question="Inspect second-half sales",
         scope={"date_range": ["2001-07-01", "2001-12-31"]}, origin="mcp", goals=[goal()],
@@ -146,7 +146,7 @@ async def test_mcp_cannot_silently_skip_current_candidates(setup):
 def test_fixed_method_dates_remain_visible_and_blank_skip_reasons_fail():
     from pydantic import ValidationError
     from decision_layer.recipes.routing import reuse_contract
-    rec = recipe(method="query.trend")
+    rec = recipe(method="test.series")
     rec.steps[0].params = {"current": ["2001-01-01", "2001-06-30"]}
     assert reuse_contract(rec)["period"]["fixed_method_periods"][0]["value"] == ["2001-01-01", "2001-06-30"]
     with pytest.raises(ValidationError):
@@ -188,7 +188,7 @@ async def test_query_cannot_hide_out_of_scope_measures_in_parameters(setup):
     run = await engine.start(CREDS, ME, recipe=rec.name, question="Rate?", scope=SCOPE, origin="mcp", goals=[goal(metric=RR)],
         recipe_selection=RecipeSelection(reason="Inspect the requested rate", goal_ids=["lookup"]))
     calls = provider.calls
-    _, result = await engine.step(CREDS, ME, run.id, PlanStep(id="hidden", method="query.aggregate", purpose="Hidden measure", goal_ids=["lookup"],
+    _, result = await engine.step(CREDS, ME, run.id, PlanStep(id="hidden", method="test.lookup", purpose="Hidden measure", goal_ids=["lookup"],
         bindings={"metric": RR}, params={"order_by": AMOUNT}))
     assert result.status == "refused"
     assert provider.calls == calls
@@ -239,7 +239,7 @@ async def test_partial_candidate_never_claims_causal_coverage(setup):
 
 async def test_recipe_extension_keeps_metric_scope_fixed_policy_and_total_budget(setup):
     engine, provider = setup
-    rec = recipe(method_parameters={"query.aggregate": {"fixed": {"limit": 5}}})
+    rec = recipe(method_parameters={"test.lookup": {"fixed": {"limit": 5}}})
     engine.recipes.save(rec, None)
     run = await engine.start(CREDS, ME, recipe=rec.name, question="Sales and trend?", scope=SCOPE, origin="mcp", goals=[goal()],
         recipe_selection=RecipeSelection(reason="Inspect sales before follow-up", goal_ids=["lookup"]))
@@ -247,8 +247,8 @@ async def test_recipe_extension_keeps_metric_scope_fixed_policy_and_total_budget
     with pytest.raises(InvalidBinding, match="fixed"):
         await engine.step(CREDS, ME, run.id, lookup(exploration=True, goal_ids=["lookup"], params={"limit": 10}))
     with pytest.raises(InvalidBinding, match="scope"):
-        await engine.step(CREDS, ME, run.id, PlanStep(method="query.trend", purpose="Other metric", exploration=True, goal_ids=["lookup"], bindings={"metric": RR}))
-    run, result = await engine.step(CREDS, ME, run.id, PlanStep(id="trend", method="query.trend", purpose="Sales over time", exploration=True, goal_ids=["lookup"], bindings={"metric": AMOUNT}))
+        await engine.step(CREDS, ME, run.id, PlanStep(method="test.series", purpose="Other metric", exploration=True, goal_ids=["lookup"], bindings={"metric": RR}))
+    run, result = await engine.step(CREDS, ME, run.id, PlanStep(id="trend", method="test.series", purpose="Sales over time", exploration=True, goal_ids=["lookup"], bindings={"metric": AMOUNT}))
     assert result.status == "success" and run.steps[1].invocation_id is None
     assert result.provides == ["time_series"]
     assert len(run.recipe_invocation.step_ids) == 1
@@ -300,7 +300,7 @@ async def test_attach_one_recipe_after_lookup_preserves_identities_and_query_sco
 
 async def test_fixed_trend_cannot_be_a_period_change_candidate(setup):
     engine, provider = setup
-    engine.recipes.save(recipe(method="query.trend"), None)
+    engine.recipes.save(recipe(method="test.series"), None)
     result = await search_recipes(engine.recipes, provider, CREDS, "Sales change", [goal(capability="period_change")], {}, 5)
     assert result["candidates"] == []
 
@@ -329,17 +329,15 @@ async def test_old_sqlite_document_reads_without_rewriting_history(setup, tmp_pa
     assert engine.store._db.execute("SELECT doc FROM runs WHERE id=?", (run.id,)).fetchone()[0] == raw
 
 
-def test_preview_rejects_missing_period_and_records_governed_execution(cube_meta, tmp_path):
+def test_removed_preview_never_dispatches_a_method(cube_meta, tmp_path):
     provider = FakeProvider(cube_meta)
     app = create_app(Settings(cube_api_secret="test-secret-at-least-32-characters", allow_service_credentials=True,
         database_url="memory", recipes_dir=str(tmp_path)), provider)
-    client = TestClient(app)
-    spec = {"grain": "aggregate", "measures": [AMOUNT], "dimensions": [CAT]}
-    assert client.post("/datasets/preview", json=spec).status_code == 422 and provider.calls == 0
-    spec["time"] = {"dimension": DT, "date_range": list(Q3)}
-    response = client.post("/datasets/preview", json=spec)
-    assert response.status_code == 200, response.json()
-    runs = client.get("/runs").json()
-    executed = next(run for run in runs if run["steps"])
-    assert executed["preview"] and executed["steps"][0]["step"]["method"] == "query.aggregate"
-    assert executed["query_attempts"][0]["status"] == "success"
+    with TestClient(app) as client:
+        spec = {"grain": "aggregate", "measures": [AMOUNT], "dimensions": [CAT]}
+        assert client.post("/datasets/preview", json=spec).status_code == 404
+        assert provider.calls == 0
+        assert client.get("/runs").json() == []
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

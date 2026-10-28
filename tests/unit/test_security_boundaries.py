@@ -88,7 +88,7 @@ def test_recipe_roles_archive_restore_and_shared_run_promotion(cube_meta, tmp_pa
         assert client.get("/recipes/orders-test", headers=bearer("reader")).status_code == 404
         assert client.post("/recipes/orders-test/restore", headers=bearer("publisher"),
                            json={"base_version": "1.0.1"}).status_code == 200
-        run = client.post("/methods/query.trend:run", headers=bearer("editor"),
+        run = client.post("/methods/test.series:run", headers=bearer("editor"),
                           json={"bindings": {"metric": RR}, "scope": {"date_range": list(Q3)}}).json()
         run_id = run["run_id"]
         assert client.post(f"/runs/{run_id}:share", headers=bearer("editor"), json={"subjects": ["publisher"]}).status_code == 200
@@ -112,3 +112,6 @@ def test_provider_subject_cannot_impersonate_local_service_permissions(cube_meta
         response = client.put("/recipes/orders-test", headers=bearer("service:decision-layer"),
                               json={"recipe": recipe().model_dump(mode="json")})
         assert response.status_code == 403
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

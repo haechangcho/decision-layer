@@ -1,79 +1,60 @@
-"""Exercise the public REST API against the synthetic Cube sample; no LLM required.
+"""Run current query Skills against an existing synthetic demo dataset."""
 
-This is an executable product walkthrough, not an AI quality benchmark.
-"""
-
-from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
 import httpx
-
 from .client import request, settled
+from .replay import read_groups, finish_groups
 
 BASE = "cube://quickstart/sales/"
 METRIC, DEPARTMENT, REGION, DATE = [
-    BASE + x for x in ("revenue", "department", "region", "sold_at")
+    BASE + name for name in ("revenue", "department", "region", "sold_at")
 ]
-RULE = {
-    "source": "step",
-    "step_id": "departments",
-    "output": "ranked_groups",
-    "select": "first",
-    "project": "path",
-}
+RULE = "$steps.departments.selections.selected_group.evidence.filters"
 
 
 def complete(client, run):
-    rows = run["steps"][0]["result"]["primary"]["data"]["rows"]
-    winner = rows[0]["value"]
+    if run["status"] == "completed":
+        return run
     return request(
         client,
         "POST",
         f"/runs/{run['id']}:complete",
         json={
-            "conclusion": {
-                "source": "execution",
-                "answer": f"{winner} has the highest revenue in this sample period. The next step inspects its regions.",
-                "findings": [
-                    {
-                        "text": f"{winner} leads with {rows[0]['metric']:,.0f} example currency units.",
-                        "step_indices": [0],
-                    },
-                    {
-                        "text": "The regional breakdown uses the selected department from this run.",
-                        "step_indices": [1],
-                    },
-                ],
-                "limitations": [
-                    "Synthetic tutorial data; descriptive ranking does not establish causes.",
-                    "The source does not declare a sample count for revenue; inspect the recorded warnings.",
-                ],
-            }
+            "summary": "Compared recorded department and regional values. Synthetic data; no causal claim."
         },
     )
 
 
-def walkthrough(client, emit=print):
-    def scope(dates):
-        return {"date_range": dates, "time_dimension": DATE}
+def check_run(run, department, amount, north):
+    assert run["status"] == "completed", run
+    a, b = run["steps"]
+    assert a["result"]["primary"]["data"][0][DEPARTMENT] == department
+    assert a["result"]["primary"]["data"][0][METRIC] == amount
+    assert b["result"]["primary"]["data"][0][METRIC] == north
+    assert b["step"]["params"]["filters"] == [
+        {"member": DEPARTMENT, "operator": "equals", "values": [department]}
+    ]
+    assert all(record["skill"] for record in run["steps"])
 
+
+def walkthrough(client, emit=print):
     first = request(
         client,
         "POST",
         "/runs?wait=60",
         json={
-            "question": "Which department leads revenue in January, and how is its revenue split by region?",
-            "scope": scope(["2026-01-01", "2026-01-31"]),
+            "question": "Which department leads, and which regions lead within it?",
+            "scope": {
+                "date_range": ["2026-01-01", "2026-01-31"],
+                "time_dimension": DATE,
+            },
         },
     )
-    for step_id, params, purpose in [
-        ("departments", {}, "Find the highest-revenue department in this period"),
-        (
-            "regions",
-            {"drill_path": RULE},
-            "Inspect the regions of the department selected above",
-        ),
+    for step_id, dimension, params in [
+        ("departments", DEPARTMENT, {}),
+        ("regions", REGION, {"filters": RULE}),
     ]:
         request(
             client,
@@ -81,75 +62,87 @@ def walkthrough(client, emit=print):
             f"/runs/{first['id']}/steps?wait=60",
             json={
                 "id": step_id,
-                "method": "query.drilldown",
-                "purpose": purpose,
-                "bindings": {"metric": METRIC, "dimensions": [DEPARTMENT, REGION]},
+                "method": "analysis.drilldown",
+                "purpose": "Inspect the observed groups",
+                "bindings": {"metric": METRIC, "dimensions": [dimension]},
                 "params": params,
             },
         )
-        settled(client, first["id"])
-    first = complete(client, settled(client, first["id"]))
+        first = settled(client, first["id"])
+        rows = read_groups(
+            client, first, step_id, dimension, metric=METRIC, time_dimension=DATE
+        )
+        first = finish_groups(
+            client,
+            first,
+            step_id,
+            dimension,
+            rows,
+            select=step_id == "departments",
+            metric=METRIC,
+        )
+    first = complete(client, first)
     check_run(first, "Home", 6200, 3720)
-    emit("JANUARY  Home leads: 6,200. Its North region contributes 3,720.")
-    recipe = request(client, "POST", f"/runs/{first['id']}/recipe", json={})
-    assert recipe["status"] == "draft"
-    assert recipe.get("source_question") is None
+    draft = request(client, "POST", f"/runs/{first['id']}/recipe", json={})
     recipe = request(
         client,
         "POST",
-        f"/recipes/{recipe['name']}/publish",
-        json={"base_version": recipe["version"]},
+        f"/recipes/{draft['name']}/publish",
+        json={"base_version": draft["version"]},
     )
-    assert recipe["steps"][1]["params"]["drill_path"] == RULE
-    assert not recipe.get("default_scope", {}).get("date_range")
-    emit("SAVED    A Recipe that selects the current leader, not the word Home.")
+    assert recipe["steps"][1]["params"]["filters"] == RULE
     second = request(
         client,
         "POST",
         "/runs?wait=60",
         json={
             "recipe": recipe["name"],
-            "question": "Reuse the reviewed department investigation for February.",
-            "scope": scope(["2026-02-01", "2026-02-28"]),
+            "question": "Repeat for February",
+            "scope": {
+                "date_range": ["2026-02-01", "2026-02-28"],
+                "time_dimension": DATE,
+            },
         },
     )
-    second = complete(client, settled(client, second["id"]))
+    for step_id, dimension in [("departments", DEPARTMENT), ("regions", REGION)]:
+        rows = read_groups(
+            client, second, step_id, dimension, metric=METRIC, time_dimension=DATE
+        )
+        second = finish_groups(
+            client,
+            second,
+            step_id,
+            dimension,
+            rows,
+            select=step_id == "departments",
+            metric=METRIC,
+        )
+    second = complete(client, second)
     check_run(second, "Grocery", 6720, 4032)
-    emit("FEBRUARY Grocery now leads: 6,720. Its North region contributes 4,032.")
-    # A third month has equal leaders. The same rule must not invent a winner.
     tied = request(
         client,
         "POST",
         "/runs?wait=60",
         json={
             "recipe": recipe["name"],
-            "question": "Reuse the procedure for March, where leaders tie.",
-            "scope": scope(["2026-03-01", "2026-03-31"]),
+            "question": "Inspect March with tied leaders",
+            "scope": {
+                "date_range": ["2026-03-01", "2026-03-31"],
+                "time_dimension": DATE,
+            },
         },
     )
+    rows = read_groups(
+        client, tied, "departments", DEPARTMENT, metric=METRIC, time_dimension=DATE
+    )
+    assert len(rows) > 1 and rows[0][METRIC] == rows[1][METRIC]
     tied = settled(client, tied["id"])
-    assert tied["status"] == "open"
-    assert tied["steps"][-1]["result"]["status"] == "needs_input"
-    assert not tied["steps"][-1]["result"]["provenance"]["queries"]
-    # The January evidence remains unchanged after both replays.
+    assert tied["status"] == "open" and tied["active_skill_step"] == "departments"
     assert request(client, "GET", f"/runs/{first['id']}")["steps"] == first["steps"]
-    emit("MARCH    Tie: asks for a selection before querying a regional branch.")
+    emit(
+        "PASS: current Skills, saved Recipe, fresh queries and a tie awaiting explicit selection."
+    )
     return {"january": first, "recipe": recipe, "february": second, "march": tied}
-
-
-def check_run(run, department, amount, north):
-    assert run["status"] == "completed", run
-    assert len(run["steps"]) == 2
-    a, b = run["steps"]
-    assert a["result"]["status"] == b["result"]["status"] == "success"
-    assert a["result"]["primary"]["data"]["rows"][0]["value"] == department
-    assert a["result"]["primary"]["data"]["rows"][0]["metric"] == amount
-    assert b["step"]["params"]["drill_path"] == [
-        {"member": DEPARTMENT, "value": department}
-    ]
-    assert b["requested_step"]["params"]["drill_path"] == RULE
-    assert b["result"]["primary"]["data"]["rows"][0]["metric"] == north
-    assert a["result"]["provenance"]["queries"] and b["result"]["provenance"]["queries"]
 
 
 def main():

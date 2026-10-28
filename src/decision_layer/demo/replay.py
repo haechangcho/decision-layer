@@ -20,7 +20,7 @@ PERIODS = {
 }
 
 
-def read_groups(client, run, step_id, dimension):
+def read_groups(client, run, step_id, dimension, *, metric=METRIC, time_dimension=DATE):
     record = next(step for step in run["steps"] if step["step"]["id"] == step_id)
     scope = run["plan"]["scope"]
     query = request(
@@ -32,11 +32,11 @@ def read_groups(client, run, step_id, dimension):
             "purpose": "Read the selected metric by observed group",
             "spec": {
                 "grain": "aggregate",
-                "measures": [METRIC],
+                "measures": [metric],
                 "dimensions": [dimension],
-                "time": {"dimension": DATE, "date_range": scope["date_range"]},
+                "time": {"dimension": time_dimension, "date_range": scope["date_range"]},
                 "filters": record["step"]["params"].get("filters", []),
-                "order": [[METRIC, "desc"], [dimension, "asc"]],
+                "order": [[metric, "desc"], [dimension, "asc"]],
                 "limit_rows": 1000,
             },
             "author": {"client_name": "decision-layer-demo"},
@@ -55,10 +55,10 @@ def read_groups(client, run, step_id, dimension):
     return rows
 
 
-def finish_groups(client, run, step_id, dimension, rows, *, select=False):
+def finish_groups(client, run, step_id, dimension, rows, *, select=False, metric=METRIC):
     body = {"reason": "Read all returned groups from the recorded Cube query."}
     if select:
-        if len(rows) > 1 and float(rows[0][METRIC]) == float(rows[1][METRIC]):
+        if len(rows) > 1 and float(rows[0][metric]) == float(rows[1][metric]):
             raise RuntimeError("Sample leaders tie; an explicit selection is required.")
         body["selection"] = {
             "query_id": "groups",

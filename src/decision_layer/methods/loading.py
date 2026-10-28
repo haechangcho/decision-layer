@@ -9,14 +9,14 @@ def configured_registry(settings):
     target = registry.copy()
     for module_name in settings.method_modules:
         module = importlib.import_module(module_name)
-        methods = [(method, False) for method in module.METHODS]
-        methods += [(method, True) for method in getattr(module, "COMPATIBILITY_METHODS", ())]
-        for method, compatibility in methods:
+        if hasattr(module, "COMPATIBILITY_METHODS"):
+            raise ValueError("Hidden Method registration is no longer supported. Export installed Methods in METHODS.")
+        for method in module.METHODS:
             if not isinstance(method, Method):
                 raise ValueError(f"{module_name}.METHODS must contain registered Methods")
             if method.manifest.name in target._methods:
                 raise ValueError(f"Duplicate Method name: {method.manifest.name}")
-            target.register(method, compatibility=compatibility)
+            target.register(method)
     if settings.skills_dir:
         load_skill_directory(target, settings.skills_dir)
     from ..project import Project

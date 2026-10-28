@@ -144,84 +144,21 @@ async def test_private_input_is_also_refused_at_execution_without_queries():
     assert not session.provider.calls
 
 
-async def test_compatibility_methods_are_resolvable_but_not_listed():
-    session = await MethodSession.fixture(fixture_provider())
-    register_builtins(session.registry)
-    retired = {"stats.adjusted_difference", "stats.dml", "stats.did"}
-    assert (
-        len([m for m in session.registry.manifests() if m.implementation == "python"])
-        == 2
-    )
-    assert (
-        len(
-            [
-                m
-                for m in session.registry.manifests(include_compatibility=True)
-                if m.implementation == "python"
-            ]
-        )
-        == 18
-    )
-    assert retired.isdisjoint(m.name for m in session.registry.manifests())
-    for name in retired:
-        legacy = session.registry.get(name)
-        assert legacy.manifest.version == "1.0.0"
-        assert "design" in legacy.manifest.parameters
-    assert retired.isdisjoint(m.name for m in session.list_methods())
-    assert not session.provider.calls
-
-
-async def test_cem_is_compatibility_only():
-    session = await MethodSession.fixture(fixture_provider())
-    register_builtins(session.registry)
-    assert "causal.cem" not in {
-        m.name for m in session.registry.manifests() if m.implementation == "python"
-    }
-    assert session.registry.get("causal.cem").manifest.version == "1.1.1"
-    assert "causal.cem" not in {m.name for m in session.list_methods()}
-
-
-async def test_optional_method_can_be_enabled_with_existing_registration():
-    from decision_layer.methods.peer_comparison import PeerComparison
-
-    session = await MethodSession.fixture(fixture_provider())
-    register_builtins(session.registry)
-    assert {
-        m.name for m in session.registry.manifests() if m.implementation == "python"
-    } == {
-        "stats.regression_adjustment",
-        "stats.binary_matching",
-    }
-    assert "query.peer_comparison" not in {m.name for m in session.list_methods()}
-    # replace=True acknowledges an existing compatibility registration locally.
-    session.register(PeerComparison(), replace=True)
-    assert "query.peer_comparison" in {m.name for m in session.list_methods()}
-    assert (
-        len([m for m in session.registry.manifests() if m.implementation == "python"])
-        == 3
-    )
-    assert not session.provider.calls
-
-
-def test_current_skills_share_project_starters_and_keep_pinned_versions():
+def test_current_builtins_share_exact_project_starters():
     from importlib.resources import files
     from decision_layer.methods import MethodRegistry
     from decision_layer.methods.skills import SkillMethod
 
     target = register_builtins(MethodRegistry())
-    for directory, name, pinned_version in [
-        ("metric_lookup", "analysis.metric_lookup", "1.0.0"),
-        ("drilldown", "analysis.drilldown", "1.1.0"),
-    ]:
+    assert len(target.manifests()) == len(target._versions) == 4
+    for directory, name in [("metric_lookup", "analysis.metric_lookup"), ("drilldown", "analysis.drilldown")]:
         path = files("decision_layer") / "starters" / "methods" / directory / "SKILL.md"
         starter = SkillMethod.from_file(path)
         current = target.get(name)
         assert current.manifest.version == "2.2.0"
-        assert "roles:" not in current.source_text
-        assert target.get(name, "2.1.0").manifest.version == "2.1.0"
         assert current.source_text == starter.source_text
         assert current.guide.sha256 == starter.guide.sha256
-        assert "run_skill_query" not in current.guide.markdown
-        pinned = target.get(name, pinned_version)
-        assert pinned.manifest.version == pinned_version
-        assert "run_skill_query" in pinned.guide.markdown
+    from decision_layer.starters.methods.ols.method import METHOD as regression
+    from decision_layer.starters.methods.matching.method import METHOD as matching
+    assert target.get(regression.manifest.name) is regression
+    assert target.get(matching.manifest.name) is matching

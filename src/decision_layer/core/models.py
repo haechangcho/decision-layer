@@ -251,7 +251,7 @@ class MethodGuide(BaseModel):
 
 class MethodManifest(BaseModel):
     data_inputs: dict[str, DataInput] = Field(default_factory=dict)
-    name: str                                      # "query.drilldown"
+    name: str                                      # "analysis.drilldown"
     version: str
     kind: Literal["query", "stats", "causal"]
     description: str
@@ -340,7 +340,7 @@ class Limits(BaseModel):
 
 class PlanStep(BaseModel):
     id: str | None = None                          # lets later steps reference this one: $steps.<id>.…
-    method: str                                    # "query.drilldown"
+    method: str                                    # "analysis.drilldown"
     method_version: str | None = None              # optional replay pin from a recorded Run
     purpose: str | None = Field(default=None, max_length=240)  # intended question for this step, not evidence
     purpose_context: Literal["procedure", "source_run"] | None = None

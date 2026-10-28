@@ -55,10 +55,10 @@ def poll(c, run_id, seconds=5):
 
 def test_slow_method_answers_202_then_result(setup):
     c, provider = setup
-    r = c.post("/methods/query.trend:run?wait=0", json=COMPARE)
+    r = c.post("/methods/test.series:run?wait=0", json=COMPARE)
     assert r.status_code == 202 and r.json()["status"] == "running"
     run_id = r.json()["run_id"]
-    assert c.get(f"/runs/{run_id}").json()["running"]["method"] == "query.trend"
+    assert c.get(f"/runs/{run_id}").json()["running"]["method"] == "test.series"
     assert c.get("/health").status_code == 200                 # the API is not blocked by the job
     provider.gate.set()
     done = poll(c, run_id)
@@ -70,7 +70,7 @@ def test_slow_method_answers_202_then_result(setup):
 def test_fast_method_answers_directly(setup):
     c, provider = setup
     provider.gate.set()
-    r = c.post("/methods/query.trend:run?wait=10", json=COMPARE)
+    r = c.post("/methods/test.series:run?wait=10", json=COMPARE)
     assert r.status_code == 200 and r.json()["status"] == "success"
 
 
@@ -79,7 +79,7 @@ def test_busy_run_rejects_next_step(setup):
     provider.gate.set()                                          # recipe validators query on start
     run = c.post("/runs", json={"recipe": "return-rate-investigation", "scope": SCOPE}).json()
     provider.gate.clear()
-    step = {"method": "query.trend", "bindings": {"metric": RR}}
+    step = {"method": "test.series", "bindings": {"metric": RR}}
     assert c.post(f"/runs/{run['id']}/steps?wait=0", json=step).status_code == 202
     r = c.post(f"/runs/{run['id']}/steps", json=step)
     assert r.status_code == 409 and r.json()["error"]["code"] == "RUN_BUSY"
@@ -90,7 +90,7 @@ def test_busy_run_rejects_next_step(setup):
 
 def test_job_error_is_recorded(setup):
     c, provider = setup
-    run_id = c.post("/methods/query.trend:run?wait=0", json=COMPARE).json()["run_id"]
+    run_id = c.post("/methods/test.series:run?wait=0", json=COMPARE).json()["run_id"]
     provider.fail = True
     provider.gate.set()
     r = poll(c, run_id)
@@ -103,15 +103,15 @@ def test_error_within_wait_is_returned_directly(setup):
     c, provider = setup
     provider.fail = True
     provider.gate.set()
-    r = c.post("/methods/query.trend:run?wait=5", json=COMPARE)
+    r = c.post("/methods/test.series:run?wait=5", json=COMPARE)
     assert r.status_code == 502 and r.json()["error"]["code"] == "PROVIDER_ERROR"
 
 
 async def test_recover_marks_interrupted_runs(cube_meta):
     store = MemoryRunStore()
     me = CallerInfo(subject="alice")
-    adhoc = Run(id="run_a", caller=me, plan={}, running=RunningJob(kind="adhoc", method="query.trend"))
-    step = Run(id="run_b", caller=me, plan={}, running=RunningJob(kind="step", method="query.trend"))
+    adhoc = Run(id="run_a", caller=me, plan={}, running=RunningJob(kind="adhoc", method="test.series"))
+    step = Run(id="run_b", caller=me, plan={}, running=RunningJob(kind="step", method="test.series"))
     for r in (adhoc, step):
         await store.save(r)
     e = RunEngine(FakeProvider(cube_meta), None, store)
@@ -127,7 +127,7 @@ async def test_mcp_wait_for_run(monkeypatch):
     states = iter([
         {"id": "r", "running": {"kind": "adhoc"}, "error": None, "steps": []},
         {"id": "r", "status": "open", "plan": {"question": "Compare groups"}, "caller": {}, "running": None, "error": None,
-         "steps": [{"step": {"id": "step_1", "method": "query.drilldown", "purpose": "Compare groups", "bindings": {}, "params": {}},
+         "steps": [{"step": {"id": "step_1", "method": "test.groups", "purpose": "Compare groups", "bindings": {}, "params": {}},
                     "result": {"status": "success", "provenance": {"queries": []}}}]},
     ])
 
@@ -142,3 +142,6 @@ async def test_mcp_wait_for_run(monkeypatch):
     result = await server.wait_for_run("r")
     assert result["status"] == "open" and result["steps"][0]["result"]["status"] == "success"
     assert result["next"] == {"tools": ["run_step", "complete_run"], "run_id": "r"}
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

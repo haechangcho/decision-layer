@@ -18,9 +18,9 @@ def run():
 
     return Run.model_validate({"id": "run_12345678", "plan": {"scope": {"date_range": ["2026-06-01", "2026-06-30"],
                               "filters": [{"member": DIMENSION, "operator": "equals", "values": ["retail"]}]}},
-        "steps": [step("query.trend", {"metric": METRIC}, {"granularity": "month", "current": ["2026-06-01", "2026-06-30"]},
+        "steps": [step("test.series", {"metric": METRIC}, {"granularity": "month", "current": ["2026-06-01", "2026-06-30"]},
                        {"granularity": "method_default", "current": "request"}),
-                  step("query.drilldown", {"metric": METRIC, "dimensions": [DIMENSION]},
+                  step("test.groups", {"metric": METRIC, "dimensions": [DIMENSION]},
                        {"top_n": 5, "min_count": 30, "drill_path": [{"member": DIMENSION, "value": "retail"}]},
                        {"top_n": "request", "min_count": "method_default", "drill_path": "request"})]})
 
@@ -80,3 +80,6 @@ def test_incomplete_or_unexplained_refusals_still_require_editing(status, has_pr
     result.validation = [ValidationResult(validator="test", status="fail", code="FAIL", message="fail")] if has_failure else []
     with pytest.raises(RunPromotionError):
         candidate_from_run(current, [0])
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

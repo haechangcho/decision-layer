@@ -29,13 +29,14 @@ def _invalid(message: str, field: str) -> RecipeEditError:
 
 
 def validate_recipe(recipe: Recipe, registry=registry, *, allow_uninstalled_versions: bool = False) -> None:
-    def selected_version(name, version):
-        if allow_uninstalled_versions and version:
-            try:
-                registry.get(name, version)
-            except InvalidBinding:
-                return None  # Historical structure may be inspected; execution never uses this fallback.
-        return version
+    def installed_manifest(name, version=None):
+        try:
+            registry.get(name, version)
+        except InvalidBinding:
+            if allow_uninstalled_versions:
+                return None  # Read stored structure without substituting a different implementation.
+            raise
+        return registry.plannable(name, version).manifest
     if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,99}", recipe.name):
         raise _invalid("Recipe name must contain only letters, numbers, underscores or hyphens.", "name")
     if not re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", recipe.version):
@@ -45,7 +46,7 @@ def validate_recipe(recipe: Recipe, registry=registry, *, allow_uninstalled_vers
     if recipe.mode == "investigation" and recipe.steps:
         raise _invalid("Investigation Recipes declare allowed methods, not automatic steps.", "steps")
     previous: set[str] = set()
-    previous_outputs: dict[str, list[str]] = {}
+    previous_outputs: dict[str, list[str] | None] = {}
     for name, spec in recipe.inputs.items():
         if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", name) or is_dynamic(spec.default):
             raise _invalid("Runtime inputs need a valid name and a literal default.", f"inputs.{name}")
@@ -61,7 +62,8 @@ def validate_recipe(recipe: Recipe, registry=registry, *, allow_uninstalled_vers
                     ref = StepSelectionSource.model_validate(value)
                 except ValueError as e:
                     raise _invalid("Invalid previous-step selection reference.", field) from e
-                if ref.step_id not in previous or ref.output not in previous_outputs.get(ref.step_id, []):
+                if ref.step_id not in previous or (previous_outputs.get(ref.step_id) is not None
+                        and ref.output not in previous_outputs[ref.step_id]):
                     raise _invalid("Selection must reference a declared output of an earlier step.", field)
                 return
             if value.get("source") == "input":
@@ -87,7 +89,7 @@ def validate_recipe(recipe: Recipe, registry=registry, *, allow_uninstalled_vers
 
     for method in recipe.allowed_methods:
         try:
-            registry.plannable(method)
+            installed_manifest(method)
         except InvalidBinding as e:
             raise _invalid(e.message, "allowed_methods") from e
     available = set(recipe.allowed_methods if recipe.mode == "investigation" else (step.method for step in recipe.steps))
@@ -97,14 +99,16 @@ def validate_recipe(recipe: Recipe, registry=registry, *, allow_uninstalled_vers
             raise _invalid("Parameter policy refers to a Method outside this Recipe.", field)
         versions = {step.method_version for step in recipe.steps if step.method == method} or {None}
         for version in versions:
-            manifest = registry.get(method, selected_version(method, version)).manifest
+            manifest = installed_manifest(method, version)
+            if manifest is None:
+                continue
             for name, value in policy.fixed.items():
                 if name not in manifest.parameters:
                     raise _invalid(f"Unknown Method parameter: {name}.", f"{field}.fixed.{name}")
                 if is_dynamic(value):
                     raise _invalid("Fixed parameters must be literal values.", f"{field}.fixed.{name}")
                 try:
-                    registry.resolve_params(method, {name: value}, partial=True, version=selected_version(method, version))
+                    registry.resolve_params(method, {name: value}, partial=True, version=version)
                 except InvalidBinding as e:
                     raise _invalid(e.message, f"{field}.fixed.{name}") from e
             if policy.runtime_allowed is not None:
@@ -117,11 +121,20 @@ def validate_recipe(recipe: Recipe, registry=registry, *, allow_uninstalled_vers
         if step.exploration or step.goal_ids:
             raise _invalid("Run goal links and exploration flags do not belong in reusable Recipe steps.", f"steps[{i}]")
         try:
-            manifest = registry.plannable(step.method, selected_version(step.method, step.method_version)).manifest
+            manifest = installed_manifest(step.method, step.method_version)
         except InvalidBinding as e:
             raise _invalid(e.message, f"steps[{i}].method") from e
         if step.id and (not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", step.id) or step.id in previous):
             raise _invalid("Use a unique step ID without dots.", f"steps[{i}].id")
+        if manifest is None:
+            # Storage inspection still checks expression structure and step order.
+            # Only execution/authoring requires the removed Method's contract.
+            expressions(step.bindings, f"steps[{i}].bindings")
+            expressions(step.params, f"steps[{i}].params")
+            if step.id:
+                previous.add(step.id)
+                previous_outputs[step.id] = None
+            continue
         if set(step.bindings) - set(manifest.roles) or set(step.params) - set(manifest.parameters):
             unknown = (set(step.bindings) - set(manifest.roles)) | (set(step.params) - set(manifest.parameters))
             key = sorted(unknown)[0]
@@ -161,7 +174,7 @@ def validate_recipe(recipe: Recipe, registry=registry, *, allow_uninstalled_vers
                 raise _invalid(f"{key} conflicts with the Recipe's fixed value.", f"steps[{i}].params.{key}")
             if key in step.params and not (isinstance(value, str) and value.startswith("$")):
                 try:
-                    registry.resolve_params(step.method, {key: value}, partial=True, version=selected_version(step.method, step.method_version))
+                    registry.resolve_params(step.method, {key: value}, partial=True, version=step.method_version)
                 except InvalidBinding as e:
                     raise _invalid(e.message, f"steps[{i}].params.{key}") from e
         expressions(step.bindings, f"steps[{i}].bindings")

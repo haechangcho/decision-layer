@@ -34,7 +34,7 @@ Cube REST is the current product connection. Legacy dbt code remains for compati
 | `tests/`, `tests/support/` | Product checks and shared test data |
 | `docs/tutorials/`, `examples/` | Learning notebooks and importable examples |
 
-Python paths are relative to `src/decision_layer/`. `methods/catalog.py` assembles defaults; `methods/compatibility.py` retains older implementations.
+Python paths are relative to `src/decision_layer/`. `methods/catalog.py` installs exactly the four current starter definitions. There is no hidden compatibility catalog (ADR-128).
 
 ## Shared execution path
 
@@ -68,7 +68,7 @@ Ordinary `Column` and `DataInput` declarations compile to the shared manifest an
 
 Team projects place `decision-layer.yaml`, `methods/` and `recipes/` at the root. Version 2 configuration separates the project name from Python source paths. Each project has a private import namespace, restored before loading its calculation in a spawned server worker. Version 1 projects keep their original package layout (ADR-120). Python sessions, CLI and server startup share `project.py`. The builtin registry
 uses the same two starter Skill files as new projects, keeping one current
-procedure definition (ADR-124). New projects generate two Skill files and two ordinary Python calculations with separate checks and local tests. Their configuration disables built-in defaults; older projects retain the previous catalog. Package updates never rewrite user-owned definitions (ADR-116). Legacy module-loading settings remain supported.
+procedure definition (ADR-124). Package defaults and new projects share two Skill files and two ordinary Python calculations with separate checks and local tests. Their configuration disables built-in defaults; older configurations use the same current package defaults. Package updates never rewrite user-owned definitions (ADR-116). Legacy module-loading settings remain supported.
 
 Skill headers identify the asset and opt into query execution; omitted role/parameter
 maps use the common query inputs in `methods/skills.py`. Explicit maps retain their
@@ -88,7 +88,7 @@ External AI clients drive Skill execution. `runs/skills.py` validates structured
 
 ## Versions and storage
 
-Recipes are versioned YAML. A separate Run store retains execution-time Methods, Recipes, inputs, queries and results. Stores support memory, SQLite and PostgreSQL. Version changes do not rewrite historical evidence.
+Recipes are versioned YAML. A separate Run store retains execution-time Methods, Recipes, inputs, queries and results. Stores support memory, SQLite and PostgreSQL. Version changes do not rewrite historical evidence. Removed builtin code and versions cannot be rerun; stored Recipe files remain inspectable and require explicit revision before execution (ADR-128).
 
 `methods/source.py` captures executed source and hashes. It does not archive every external dependency or dynamic import.
 

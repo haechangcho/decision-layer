@@ -175,7 +175,7 @@ def main(argv=None):
             )
         if args.command == "check":
             from .recipes.loader import RecipeStore
-            recipes = RecipeStore(project.root / "recipes", "cube", "local", registry=registry)
+            recipes = RecipeStore(project.root / "recipes", "cube", "local", registry=registry, require_installed_methods=True)
             # Loading validates draft and published files without querying data.
             print(
                 f"Valid: {project.root / PROJECT_FILE} ({len(entries)} registered Methods; "

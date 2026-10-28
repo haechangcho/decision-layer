@@ -14,15 +14,15 @@ semantic_scope:
 mode: pipeline
 steps:
   - id: overview
-    method: query.trend
+    method: test.series
     bindings: {metric: $scope.primary_metric, related: $scope.related_metrics}
     params: {vs_previous: true, granularity: month}
   - id: by_category
-    method: query.drilldown
+    method: test.groups
     bindings: {metric: $scope.primary_metric, dimensions: [ecom_product.category_nm]}
     params: {vs_previous: true}
   - id: by_channel
-    method: query.drilldown
+    method: test.groups
     bindings: {metric: $scope.primary_metric, dimensions: [ecom_order.channel]}
     params: {vs_previous: true}
 limits: {max_steps: 8, max_queries: 30}

@@ -10,10 +10,10 @@ semantic_scope:
 mode: pipeline
 steps:
   - id: by_category
-    method: query.drilldown
+    method: test.groups
     bindings: {metric: $scope.primary_metric, dimensions: $scope.preferred_dimensions}
   - id: by_seller
-    method: query.drilldown
+    method: test.groups
     bindings: {metric: $scope.primary_metric, dimensions: $scope.preferred_dimensions}
     params:
       drill_path: $steps.by_category.primary.data.next_candidates.0.drill_path

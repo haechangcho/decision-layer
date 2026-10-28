@@ -53,7 +53,7 @@ New registrations declare explicit Column sources and constraints in DataInput.c
 matching function arguments receive resolved column names automatically. Entity-level
 methods declare a Column with source="dimension" and role="entity_key"; callers
 select its actual reference through the same named bindings as other variables.
-These declarations compile to the shared manifest and validation contracts (ADR-108/109). Legacy declarations remain supported. AI selects semantic bindings;
+These declarations compile to the shared manifest and validation contracts (ADR-108/109). Custom declarations remain supported. AI selects semantic bindings;
 grain and variable meaning are not guessed from a Python signature alone.
 The first development example needs no Web server or live provider. Web helps select
 semantic inputs, create procedures and inspect recorded execution.
@@ -113,17 +113,22 @@ Method authoring exposes ordinary typed Python arguments and native statistical-
 
 ## Default MVP Methods
 
-Offer two query-executing Skills: analysis.metric_lookup and analysis.drilldown.
-The registry and new projects load the same starter Skill files; shared tool
-protocol lives in analysis-core (ADR-124).
-Trend, peer comparison and advisory-only guides remain compatibility lookups, not
-new discovery choices (ADR-115). Shared Cube tools execute their
-queries. Period-change and series-diagnostic calculations are compatibility-only
-(ADR-103); Skills must stop claims that require unavailable calculations. Legacy query.aggregate, query.trend, query.drilldown
-and query.peer_comparison remain available to pinned Recipes (ADR-099). New projects generate editable metric/drilldown Skills and OLS/matching Python files with calculation tests. OLS uses statsmodels and matching uses scikit-learn; both report association with unverified causal assumptions. Earlier DoWhy implementations remain available to their pinned versions (ADR-116). Peer comparisons, unit analyses and other
-statistical estimators are optional reviewed implementations, enabled by normal
-Python registration when needed. Existing explicit Recipe contracts retain compatible
-execution. A plugin marketplace or Web code installer is outside this MVP (ADR-090).
+Ship exactly four current Methods: query-executing Skills `analysis.metric_lookup`
+and `analysis.drilldown`, plus Python `stats.regression_adjustment` (statsmodels OLS)
+and `stats.binary_matching` (scikit-learn matching). The package and new projects
+use the same starter definitions and checks. Shared query protocol lives in
+analysis-core. Every installed current Method appears in discovery (ADR-128).
+
+The former 21 compatibility-only Methods/Skills, bundled prior versions and old
+DoWhy defaults are removed, including the legacy dataset-preview endpoint. Existing
+Run results, queries and source snapshots remain readable. Recipes referencing
+removed Methods or unavailable versions require explicit revision before execution;
+there is no automatic substitution. User-owned definitions and managed publications
+are not deleted. New capabilities can be installed through normal reviewed Python
+or Skill registration; no hidden registration collection remains. Skills must stop
+claims requiring an unavailable calculation. OLS and matching report association
+without establishing causal identification. A plugin marketplace or Web code
+installer is outside this MVP.
 
 The first revised-PRD increment adds native synchronous calculation registration,
 Codex sample setup, and draft-first MCP procedure saving/publication. Only local
@@ -155,13 +160,11 @@ permission is separate from Recipe publication. Shared untrusted-code hosting is
 
 Method detail starts with the selected analysis's authorable function/registration,
 not the entire framework module. Exact source evidence is separately expandable.
-The retired series diagnostic retains its source-aware adapter for pinned execution.
 The general contributor entry remains `python_method` and `DataInput` (ADR-101).
 
 ADR-102 standardizes new calculations on ordinary functions + explicit DataInput.
-DoWhy matching/regression 1.1.0 now actually use that runtime. REST/MCP/Web expose the
+Current OLS/matching starter calculations use that runtime. REST/MCP/Web expose the
 same executable input table contracts: columns, row meaning and query inputs remain
 separate from function options. AI may propose semantic bindings but type checks do
-not verify business meaning. Two justified time-analysis source adapters remain;
-legacy implementations and saved versions stay available without appearing as new
-choices. See the dated method audit for actual retained Run references.
+not verify business meaning. Removed builtin implementations and versions are not
+executable (ADR-128). See the dated method audit for historical Run references.

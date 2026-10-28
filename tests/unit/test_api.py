@@ -20,7 +20,7 @@ def test_catalog_and_preview(cube_meta):
     r = c.post("/datasets/preview", json={"grain": "aggregate", "measures": [ref("ecom_order.count")],
                                            "dimensions": [ref("ecom_order.channel")],
                                            "time": {"dimension": ref("ecom_order.order_dt"), "date_range": ["2026-07-01", "2026-09-30"]}})
-    assert r.status_code == 200 and len(r.json()["rows"]) == 3
+    assert r.status_code == 404
 
 
 def test_errors_are_structured(cube_meta):
@@ -31,14 +31,14 @@ def test_errors_are_structured(cube_meta):
     assert r.status_code == 404 and r.json()["error"]["code"] == "UNKNOWN_SEMANTIC_OBJECT"
     r = c.post("/datasets/preview", json={"grain": "entity", "measures": [ref("ecom_order.count")]},
                headers={"Authorization": f"Bearer {jwt.encode({'sub': 'alice'}, 'test-secret')}"})
-    assert r.status_code == 422  # contract validation (entity grain without entity)
+    assert r.status_code == 404  # Removed preview cannot dispatch a hidden Method.
 
 
 def test_recipe_writes_use_caller_identity_and_create_new_versions(cube_meta, tmp_path):
     c = client(cube_meta, recipes_dir=str(tmp_path), recipe_publishers=("alice",))
     document = {"recipe": {"name": "orders-test", "version": "1.0.0", "description": "test",
         "semantic_scope": {"primary_metric": ref("ecom_order.return_rate")}, "mode": "pipeline",
-        "steps": [{"id": "trend", "method": "query.trend", "bindings": {"metric": "$scope.primary_metric"},
+        "steps": [{"id": "trend", "method": "test.series", "bindings": {"metric": "$scope.primary_metric"},
                    "params": {"granularity": "month"}}]}, "base_version": None}
     assert client(cube_meta, recipes_dir=str(tmp_path)).put("/recipes/orders-test", json=document).status_code == 401
     caller = {"Authorization": f"Bearer {jwt.encode({'sub': 'alice'}, 'test-secret')}"}
@@ -60,7 +60,7 @@ def test_live_recipe_validation_identifies_the_field_for_an_unknown_semantic_ref
     c = client(cube_meta, secret="s")
     candidate = {"name": "orders-test", "version": "1.0.0", "description": "test",
         "semantic_scope": {"primary_metric": missing}, "mode": "pipeline",
-        "steps": [{"id": "trend", "method": "query.trend", "bindings": {"metric": "$scope.primary_metric"},
+        "steps": [{"id": "trend", "method": "test.series", "bindings": {"metric": "$scope.primary_metric"},
                    "params": {"granularity": "month"}}]}
     response = c.post("/recipes:validate?live=true", json=candidate)
     assert response.status_code == 404
@@ -71,7 +71,7 @@ def test_draft_publish_uses_the_same_recipe_files_and_hides_unpublished_versions
     c = client(cube_meta, recipes_dir=str(tmp_path), secret="s")
     candidate = {"name": "orders-test", "version": "1.0.0", "description": "test", "status": "draft",
         "semantic_scope": {"primary_metric": ref("ecom_order.return_rate")}, "mode": "pipeline",
-        "steps": [{"id": "trend", "method": "query.trend", "bindings": {"metric": "$scope.primary_metric"},
+        "steps": [{"id": "trend", "method": "test.series", "bindings": {"metric": "$scope.primary_metric"},
                    "params": {"granularity": "month"}}]}
     saved = c.put("/recipes/orders-test", json={"recipe": candidate, "base_version": None})
     assert saved.status_code == 200, saved.json()
@@ -95,7 +95,7 @@ def test_recipe_yaml_round_trip_uses_the_canonical_parser(cube_meta):
     c = client(cube_meta, secret="s")
     candidate = {"name": "orders-test", "version": "1.0.0", "description": "test", "status": "draft",
         "semantic_scope": {"primary_metric": ref("ecom_order.return_rate")}, "mode": "pipeline",
-        "steps": [{"id": "trend", "method": "query.trend", "bindings": {"metric": "$scope.primary_metric"},
+        "steps": [{"id": "trend", "method": "test.series", "bindings": {"metric": "$scope.primary_metric"},
                    "params": {"granularity": "month"}}]}
     formatted = c.post("/recipes:format", json=candidate)
     assert formatted.status_code == 200, formatted.json()
@@ -117,3 +117,6 @@ def test_pre_rename_environment_names_still_work(monkeypatch):
     assert env("DL_LOCALE") == "ko" and env("DL_API_URL") == "http://old"
     monkeypatch.setenv("DL_LOCALE", "en")
     assert env("DL_LOCALE") == "en"                     # the new name wins
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

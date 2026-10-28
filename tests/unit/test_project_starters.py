@@ -39,11 +39,9 @@ def test_default_project_owns_all_discovered_definitions(project):
         assert method.manifest.version == ("2.2.0" if method.manifest.implementation == "skill" else "2.1.0")
         assert Path(method.definition_path).is_relative_to(project.methods_dir)
         assert Path(method.definition_path).is_file()
-        # Legacy pinned Recipes retain their exact implementation and contract.
-        old_version = {"analysis.drilldown": "1.1.0", "analysis.metric_lookup": "1.0.0"}.get(name)
-        old = registry.get(name, old_version)
-        assert target.get(name, old.manifest.version) is old
-    assert registry.get("stats.regression_adjustment").manifest.version == "1.1.0"
+        assert target.get(name, method.manifest.version) is method
+    assert registry.get("stats.regression_adjustment").manifest.version == "2.1.0"
+
 
 
 def test_removing_a_starter_does_not_resurrect_a_package_default(project):
@@ -52,7 +50,8 @@ def test_removing_a_starter_does_not_resurrect_a_package_default(project):
     assert {m.name for m in target.manifests()} == EXPECTED - {"stats.binary_matching"}
     with pytest.raises(InvalidBinding, match="Unknown method"):
         target.get("stats.binary_matching")
-    assert target.get("stats.binary_matching", "1.1.0")
+    with pytest.raises(InvalidBinding):
+        target.get("stats.binary_matching", "2.1.0")
 
 
 def test_failed_project_load_preserves_registry(project):
@@ -72,7 +71,7 @@ def test_legacy_config_keeps_package_defaults(tmp_path):
     target = registry.copy()
     Project.find(project.root).load(target)
     assert {m.name for m in target.manifests()} == EXPECTED
-    assert target.get("stats.regression_adjustment").manifest.version == "1.1.0"
+    assert target.get("stats.regression_adjustment").manifest.version == "2.1.0"
 
 
 def test_project_files_survive_reinitialization(project):

@@ -87,6 +87,16 @@ async def search_recipes(store, provider, credentials, question, goals, inputs, 
     for recipe in store.list():
         if not semantic_refs(recipe.model_dump(mode="json")) <= visible:
             continue
+        references = ([(name, None) for name in recipe.allowed_methods]
+                      if recipe.mode == "investigation"
+                      else [(step.method, step.method_version) for step in recipe.steps])
+        try:
+            for name, version in references:
+                store.registry.plannable(name, version)
+        except InvalidBinding:
+            # Historical files stay inspectable, but cannot be offered for reuse
+            # until their absent Method/version is explicitly revised.
+            continue
         check = compatibility(recipe, goals, inputs, registry=store.registry)
         if goals and not check["covered_goal_ids"]:
             continue

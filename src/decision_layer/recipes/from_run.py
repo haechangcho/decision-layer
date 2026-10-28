@@ -144,15 +144,5 @@ def runtime_recipe_from_run(run: Run, registry=registry) -> Recipe:
         output = record.result.selections.get("ranked_groups")
         if output and output.candidates:
             paths[step.id] = [condition.member for condition in output.candidates[0].path]
-        elif step.method == "query.drilldown" and not record.step.params.get("current") and not record.step.params.get("comparison"):
-            # Older ordinary drilldowns lack exported results. Their native query
-            # contract still declares the path's dimensions; never match winner values.
-            used = [condition["member"] for condition in record.step.params.get("drill_path", [])]
-            dimensions = record.step.bindings.get("dimensions", [])
-            if isinstance(dimensions, str):
-                dimensions = [dimensions]
-            dimension = record.step.params.get("next_dimension") or next((member for member in dimensions if member not in used), None)
-            if is_semantic_ref(dimension):
-                paths[step.id] = [*used, dimension]
     validate_recipe(recipe, registry=registry)
     return recipe

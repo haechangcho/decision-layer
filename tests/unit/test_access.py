@@ -42,7 +42,7 @@ def test_rejected_or_anonymous_tokens(client):
 def test_runs_are_private_until_shared(client):
     c = client()
     alice, bob = bearer("alice"), bearer("bob")
-    run_id = c.post("/methods/query.trend:run", json=COMPARE, headers=alice).json()["run_id"]
+    run_id = c.post("/methods/test.series:run", json=COMPARE, headers=alice).json()["run_id"]
 
     assert [r["id"] for r in c.get("/runs", headers=alice).json()] == [run_id]
     assert c.get("/runs", headers=bob).json() == []
@@ -63,7 +63,7 @@ def test_shared_runs_are_read_only(client):
     run = c.post("/runs", json={"recipe": "return-rate-investigation", "scope": SCOPE}, headers=alice).json()
     c.post(f"/runs/{run['id']}:share", json={"subjects": ["*"]}, headers=alice)
     assert c.get(f"/runs/{run['id']}", headers=bob).status_code == 200
-    step = {"method": "query.trend", "bindings": {"metric": RR}}
+    step = {"method": "test.series", "bindings": {"metric": RR}}
     assert c.post(f"/runs/{run['id']}/steps", json=step, headers=bob).status_code == 404
     assert c.post(f"/runs/{run['id']}:complete", json={}, headers=bob).status_code == 404
     assert c.post(f"/runs/{run['id']}/steps", json=step, headers=alice).json()["status"] == "success"
@@ -73,7 +73,10 @@ def test_shared_run_hidden_from_viewer_without_access(client):
     c = client()
     alice = bearer("alice")
     carol = bearer("carol", groups=("limited",))                  # carol's catalog lacks the metric
-    run_id = c.post("/methods/query.trend:run", json=COMPARE, headers=alice).json()["run_id"]
+    run_id = c.post("/methods/test.series:run", json=COMPARE, headers=alice).json()["run_id"]
     c.post(f"/runs/{run_id}:share", json={"subjects": ["*"]}, headers=alice)
     r = c.get(f"/runs/{run_id}", headers=carol)
     assert r.status_code == 403 and r.json()["error"]["code"] == "PROVIDER_ACCESS_DENIED"
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")

@@ -25,7 +25,6 @@ from .permissions import (
     require_method_permission,
 )
 
-PREVIEW_ROWS = 1000
 MAX_WAIT_SECONDS = 300
 
 

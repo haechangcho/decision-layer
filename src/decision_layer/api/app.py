@@ -84,7 +84,7 @@ def create_app(
     app.include_router(sources_router(settings, provider, source_manager))
     from .semantic import create_router as semantic_router
 
-    app.include_router(semantic_router(provider, engine))
+    app.include_router(semantic_router(provider))
     from .methods import create_router as methods_router
 
     app.include_router(methods_router(settings, engine))

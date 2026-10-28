@@ -278,7 +278,9 @@ def test_old_empty_demo_gains_editable_methods_once_and_preserves_history(tmp_pa
     assert len(target.manifests()) == 4
     assert all(item.version == ("2.2.0" if item.implementation == "skill" else "2.1.0")
                for item in target.manifests())
-    assert target.get("stats.regression_adjustment", "1.1.0")
+    from decision_layer.methods import InvalidBinding
+    with pytest.raises(InvalidBinding):
+        target.get("stats.regression_adjustment", "1.1.0")
     source = project.methods_dir / "ols" / "method.py"
     source.write_text(source.read_text() + "\n# my change\n")
     shutil.rmtree(project.methods_dir / "matching")

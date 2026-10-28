@@ -80,22 +80,22 @@ async def test_python_runs_in_server_worker():
 def test_skill_discovery_snapshots_and_non_execution(provider):
     settings = Settings(database_url='memory', allow_service_credentials=True, cube_api_secret='test-secret-at-least-32-characters', cube_service_groups=('ecommerce',))
     with TestClient(create_app(settings, provider)) as client:
-        guide = client.get('/methods/guide.breakdown/guide').json()
+        guide = client.get('/methods/test.reference/guide').json()
         assert guide['enforcement'] == 'advisory' and len(guide['sha256']) == 64
         assert client.get('/method-guides/cube-query').json()['package_version']
         assert client.get('/methods/query.aggregate/guide').status_code == 400
-        run = client.post('/runs', json={'question':'Inspect values', 'scope':SCOPE,'guide':'guide.breakdown'}).json()
+        run = client.post('/runs', json={'question':'Inspect values', 'scope':SCOPE,'guide':'test.reference'}).json()
         assert run['method_guides'] == [guide] and run['steps'] == []
         assert not run['validation']
-        refused = client.post(f"/runs/{run['id']}/steps", json={'method':'guide.breakdown'})
+        refused = client.post(f"/runs/{run['id']}/steps", json={'method':'test.reference'})
         assert refused.status_code == 400
         assert client.get(f"/runs/{run['id']}").json()['steps'] == []
-        direct = client.post('/methods/guide.breakdown:run', json={'scope':SCOPE})
+        direct = client.post('/methods/test.reference:run', json={'scope':SCOPE})
         assert direct.status_code == 400
 
 
 def test_operator_modules_and_skills_are_isolated_and_duplicates_fail(tmp_path):
-    text='---\nname: team.lookup\nversion: 1.0.0\ndescription: Read values\nsuggested_methods: [query.aggregate]\n---\nUse the registered tool.\n'
+    text='---\nname: team.lookup\nversion: 1.0.0\ndescription: Read values\nsuggested_methods: [analysis.metric_lookup]\n---\nUse the registered tool.\n'
     (tmp_path/'SKILL.md').write_text(text)
     settings=Settings(method_modules=('examples.methods.authoring.plain_python',), skills_dir=str(tmp_path))
     own=configured_registry(settings)
@@ -110,37 +110,14 @@ async def test_mcp_loads_guide_and_forwards_snapshot_selection(monkeypatch):
     calls=[]
     async def call(method,path,**kwargs):
         calls.append((path,kwargs))
-        return {'implementation':'skill'} if path == '/methods/guide.breakdown' else {'markdown':'guide'}
+        return {'implementation':'skill'} if path == '/methods/test.reference' else {'markdown':'guide'}
     monkeypatch.setattr(server, '_call', call)
     monkeypatch.setattr(server, 'METHODS', set())
-    assert (await server.describe_method('guide.breakdown'))['guide']['markdown'] == 'guide'
-    await server.start_analysis('Question', goals=[], guide='guide.breakdown')
-    assert calls[-1][1]['json']['guide'] == 'guide.breakdown'
+    assert (await server.describe_method('test.reference'))['guide']['markdown'] == 'guide'
+    await server.start_analysis('Question', goals=[], guide='test.reference')
+    assert calls[-1][1]['json']['guide'] == 'test.reference'
 
 
-async def test_existing_dowhy_function_uses_new_adapter_unchanged():
-    pytest.importorskip('dowhy')
-    from decision_layer.methods import DataInput, python_method
-    from decision_layer.methods.statistics import estimate_binary_regression
-
-    def adjusted_difference(observations):
-        return estimate_binary_regression(observations, ["baseline"])
-
-    method = python_method(
-        adjusted_difference, name="test.adjusted", version="1.0.0",
-        inputs={"observations": DataInput(measures=["outcome"], dimensions=["treatment", "baseline"], entity="unit_id", minimum_rows=60)},
-        output="estimate",
-    )
-    from tests.support.methods.data import example_session, binary_regression_frame
-    from tests.support.methods.cases import M, UNIT, TREAT, BASELINE as COVARIATE, FEB, DATE as TIME
-    session = await example_session('dowhy')
-    session.register(method)
-    result = (await session.run(method, outcome=M, treatment=TREAT, baseline=COVARIATE,
-        unit_id=UNIT, scope=Scope(FEB,TIME))).result
-    assert result.status == 'success'
-    assert result.primary.data['value'] == pytest.approx(adjusted_difference(binary_regression_frame())['value'])
-    assert result.primary.data['causal_claim'] == 'not_established'
-    assert result.interpretation == 'association'
 
 
 def test_custom_python_method_api_and_recipe_ownership(provider, tmp_path):
@@ -172,7 +149,7 @@ def test_skill_cannot_be_saved_as_executable_recipe():
     from decision_layer.core.models import Recipe, SemanticScope, PlanStep
     from decision_layer.recipes.authoring import validate_recipe, RecipeEditError
     recipe = Recipe(name='test',version='1.0.0',description='test',semantic_scope=SemanticScope(primary_metric=METRIC),
-        mode='pipeline', steps=[PlanStep(method='guide.breakdown')])
+        mode='pipeline', steps=[PlanStep(method='test.reference')])
     with pytest.raises(RecipeEditError, match='advisory'):
         validate_recipe(recipe)
 
@@ -184,5 +161,13 @@ def test_skill_directory_rejects_outside_symlinks_and_non_executable_suggestions
     (assets/'escape.md').symlink_to(external)
     with pytest.raises(ValueError, match='symlinks'):load_skill_directory(registry.copy(),assets)
     (assets/'escape.md').unlink()
-    (assets/'skill.md').write_text('---\nname: test.skill\nversion: 1.0.0\ndescription: test\nsuggested_methods: [guide.breakdown]\n---\nInstructions')
+    (assets/'skill.md').write_text('---\nname: test.skill\nversion: 1.0.0\ndescription: test\nsuggested_methods: [test.reference]\n---\nInstructions')
     with pytest.raises(ValueError, match='executable'):load_skill_directory(registry.copy(),assets)
+
+
+@pytest.fixture(autouse=True)
+def reference_skill(monkeypatch):
+    skill = SkillMethod("---\nname: test.reference\nversion: 1.0.0\ndescription: Reference only\n---\nReview the scope.")
+    monkeypatch.setattr(registry, '_methods', dict(registry._methods))
+    monkeypatch.setattr(registry, '_versions', dict(registry._versions))
+    registry.register(skill)

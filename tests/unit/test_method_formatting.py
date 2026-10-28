@@ -57,6 +57,6 @@ def test_focused_builtin_sources_use_the_shared_style_without_rewriting_evidence
         source = registry.get(name).source_snapshot
         assert source.editor_content == format_python(source.editor_content)
         assert source.authoring_content == source.editor_content
-        assert '    python_method(\n' in source.editor_content
-        path = Path("src/decision_layer/methods") / ("native_regression.py" if "regression" in name else "native_matching.py")
+        assert 'METHOD = python_method(\n' in source.editor_content
+        path = Path("src/decision_layer/starters/methods") / ("ols" if "regression" in name else "matching") / "method.py"
         assert source.files[0].content == path.read_text()

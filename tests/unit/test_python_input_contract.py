@@ -17,54 +17,49 @@ from tests.support.methods.cases import catalog, M, TREAT, BASELINE, UNIT, DATE,
 def test_default_statistical_authoring_is_a_real_ordinary_function(name, tmp_path):
     method = registry.get(name)
     assert isinstance(method, PythonMethod)
-    assert method.manifest.version == '1.1.0'
+    assert method.manifest.version == '2.1.0'
     assert method.manifest.data_inputs == method.inputs
     source = capture_source(method).editor_content
-    function = next(node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == 'analyze')
+    function = next(node for node in ast.parse(source).body if isinstance(node, ast.FunctionDef) and node.name == ('matching' if name.endswith('matching') else 'ols'))
     assert function.args.args[0].arg == 'data' and 'ctx.' not in source and 'async def' not in source
     restored = import_source(tmp_path / (name.split('.')[-1] + '_copy.py'), source)
     assert restored.manifest == method.manifest
     assert restored.fn is not method.fn  # This is editable code, not an illustrative wrapper.
-    assert registry.get(name, '1.0.0').manifest.version == '1.0.0'
+    with pytest.raises(InvalidBinding):
+        registry.get(name, '1.0.0')
 
 
-async def native_trial(name, version=None, bindings=None):
-    from tests.unit.test_dowhy_matching import sample
-    frame = sample()
+async def native_trial(name, bindings=None):
+    import numpy as np
+    x = np.tile(np.linspace(-1, 1, 100), 2)
+    treatment = np.repeat([0, 1], 100)
+    rows = [[float(3*x[i]+2*treatment[i]), int(treatment[i]), float(x[i]), str(i)] for i in range(200)]
     spec = DatasetSpec(grain='entity', measures=[M], dimensions=[TREAT, BASELINE], entity=UNIT,
         time=TimeScope(dimension=DATE, date_range=FEB), limit_rows=50001)
-    provider = FixtureProvider(catalog(), [QueryFixture(spec, frame[['outcome','treatment','baseline','unit']].values.tolist())])
+    provider = FixtureProvider(catalog(), [QueryFixture(spec, rows)])
     session = await MethodSession.fixture(provider)
-    session.registry = registry.copy()
-    method = registry.get(name, version)
-    # Explicitly select the version for this trial; the application's registry is unchanged.
-    session.register(method, replace=True)
-    trial = await session.run(name, scope=Scope(FEB, DATE),
-        **(bindings or dict(outcome=M, treatment=TREAT, confounders=[BASELINE], unit=UNIT)))
-    return trial
+    method = registry.get(name)
+    session.register(method)
+    return await session.run(name, scope=Scope(FEB, DATE),
+        **(bindings or dict(outcome=M, treatment=TREAT, confounders=[BASELINE], entity_id=UNIT)))
 
 
 @pytest.mark.parametrize('name', ['stats.binary_matching', 'stats.regression_adjustment'])
-async def test_native_versions_preserve_estimate_diagnostics_and_cube_specs(name):
-    pytest.importorskip('dowhy')
-    current, old = await native_trial(name), await native_trial(name, '1.0.0')
-    assert current.result.status == old.result.status == 'success'
-    assert current.result.primary == old.result.primary
-    assert current.result.provides == old.result.provides
-    assert all(check in current.result.validation for check in old.result.validation)
-    assert [a.spec for a in current.attempts] == [a.spec for a in old.attempts]
-    assert current.result.primary.data['causal_claim'] == 'not_established'
-    mapping = json.loads(current.result.provenance.runtime['python.resolved_inputs'])['data']
+async def test_current_calculations_preserve_known_answer_and_query_evidence(name):
+    trial = await native_trial(name)
+    assert trial.result.status == 'success'
+    assert trial.result.primary.data['value'] == pytest.approx(2)
+    assert trial.result.primary.data['causal_claim'] == 'not_established'
+    assert len(trial.attempts) == 1
+    mapping = json.loads(trial.result.provenance.runtime['python.resolved_inputs'])['data']
     assert mapping['semantic_refs']['confounders_0'] == BASELINE
     assert mapping['grain'] == 'entity'
-    assert mapping['columns'] == ['unit', 'treatment', 'confounders_0', 'outcome']
-    assert current.result.provenance.runtime['python.function_sha256'] != 'unavailable'
+    assert trial.result.provenance.runtime['python.function_sha256'] != 'unavailable'
 
 
 async def test_single_ref_for_list_role_still_produces_stable_columns():
-    pytest.importorskip('dowhy')
     trial = await native_trial('stats.binary_matching', bindings={
-        'outcome': [M], 'treatment': TREAT, 'confounders': BASELINE, 'unit': UNIT})
+        'outcome': [M], 'treatment': TREAT, 'confounders': BASELINE, 'entity_id': UNIT})
     assert trial.result.status == 'success'
     assert trial.result.primary.data['value'] == pytest.approx(2)
 
@@ -100,7 +95,8 @@ def test_compatibility_choices_remain_explicit_only():
     public = {m.name for m in registry.manifests()}
     for name in ('query.aggregate','query.trend','query.drilldown','query.peer_comparison','causal.cem'):
         assert name not in public
-        assert registry.get(name).manifest.implementation == 'python'
+        with pytest.raises(InvalidBinding):
+            registry.get(name)
 
 
 def warn_and_return(data):

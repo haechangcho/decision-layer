@@ -77,8 +77,7 @@ class MethodAssets:
                 if current and current.manifest.version == method.manifest.version:
                     raise AssetConflict('Installed and UI assets share a version. Review the source ownership and publish a distinct version before startup.')
                 activate = current is None or tuple(map(int,method.manifest.version.split('.'))) >= tuple(map(int,current.manifest.version.split('.')))
-                self.registry.register(method, activate=activate,
-                    compatibility=method.manifest.name in self.registry._compatibility)
+                self.registry.register(method, activate=activate)
 
     def _write(self, path, value):
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -216,6 +215,6 @@ class MethodAssets:
             method = self.load(entry)
             entries.append(entry)
             self._write(self.root / 'published.json', entries)
-            self.registry.register(method, compatibility=name in self.registry._compatibility)
+            self.registry.register(method)
             self._write(self._path(name), {**value,'published':True})
             return entry

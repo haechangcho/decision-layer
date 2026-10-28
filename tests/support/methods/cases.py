@@ -1,7 +1,6 @@
 """Exact query fixtures and expected answers, independent from Method query builders."""
 
 from dataclasses import dataclass
-import numpy as np
 from decision_layer.core.models import (
     DatasetSpec,
     Filter,
@@ -116,67 +115,6 @@ def scenarios():
         )
         for filters in [[category, subject], [category, exclude], [exclude]]
     ]
-    units = DatasetSpec(
-        grain="entity",
-        entity=UNIT,
-        measures=[M],
-        time=TimeScope(dimension=DATE, date_range=FEB),
-        limit_rows=50001,
-    )
-    before_units = DatasetSpec(
-        grain="entity",
-        entity=UNIT,
-        measures=[M],
-        time=TimeScope(dimension=DATE, date_range=JAN),
-        limit_rows=50001,
-    )
-    wide_before = DatasetSpec(
-        grain="entity",
-        entity=UNIT,
-        measures=[BEFORE],
-        time=TimeScope(dimension=DATE, date_range=FEB),
-        limit_rows=50001,
-    )
-    rng = np.random.default_rng(7)
-    n = 2000
-    w = rng.binomial(1, 0.5, n)
-    t = rng.binomial(1, 0.25 + 0.5 * w)
-    y = 2 * t + 3 * w + rng.normal(0, 1, n)
-    statistical = DatasetSpec(
-        grain="entity",
-        entity=UNIT,
-        measures=[M],
-        dimensions=[TREAT, BASELINE],
-        time=TimeScope(dimension=DATE, date_range=FEB),
-        limit_rows=50001,
-    )
-    statistical_rows = [[float(y[i]), int(t[i]), int(w[i]), str(i)] for i in range(n)]
-    panel = DatasetSpec(
-        grain="entity",
-        entity=UNIT,
-        measures=[M],
-        dimensions=[TREAT],
-        time=TimeScope(dimension=DATE, date_range=JAN_FEB, granularity="month"),
-        limit_rows=50001,
-    )
-    panel_pre = DatasetSpec(
-        grain="entity",
-        entity=UNIT,
-        measures=[M],
-        dimensions=[TREAT],
-        time=TimeScope(dimension=DATE, date_range=JAN, granularity="month"),
-        limit_rows=50001,
-    )
-    panel_post = DatasetSpec(
-        grain="entity",
-        entity=UNIT,
-        measures=[M],
-        dimensions=[TREAT],
-        time=TimeScope(dimension=DATE, date_range=FEB, granularity="month"),
-        limit_rows=50001,
-    )
-    pre_rows = [[10, 1, "A", "2026-01-01"], [8, 0, "B", "2026-01-01"]]
-    post_rows = [[15, 1, "A", "2026-02-01"], [10, 0, "B", "2026-02-01"]]
     return [
         Scenario(
             "by_group",
@@ -225,119 +163,6 @@ def scenarios():
                 },
             },
             {"column": "difference", "values": [4, 6], "queries": 3},
-        ),
-        Scenario(
-            "ols",
-            "C",
-            "stats.ols",
-            [QueryFixture(statistical, statistical_rows)],
-            {
-                "measures": {"outcome": M},
-                "dimensions": {"features": [TREAT, BASELINE]},
-                "entity": UNIT,
-                "scope": Scope(FEB, DATE),
-            },
-            {"coefficients": [2, 3], "tolerance": 0.15, "queries": 1},
-        ),
-        Scenario(
-            "dowhy",
-            "C",
-            "stats.binary_regression",
-            [QueryFixture(statistical, statistical_rows)],
-            {
-                "measures": {"outcome": M},
-                "dimensions": {"treatment": TREAT, "confounders": [BASELINE]},
-                "entity": UNIT,
-                "scope": Scope(FEB, DATE),
-            },
-            {"value": 2, "tolerance": 0.15, "queries": 1},
-        ),
-        Scenario(
-            "econml",
-            "C",
-            "stats.linear_dml",
-            [QueryFixture(statistical, statistical_rows)],
-            {
-                "measures": {"outcome": M},
-                "dimensions": {"treatment": TREAT, "confounders": [BASELINE]},
-                "entity": UNIT,
-                "scope": Scope(FEB, DATE),
-            },
-            {"value": 2, "tolerance": 0.15, "queries": 1},
-        ),
-        Scenario(
-            "unit-change",
-            "D",
-            "query.unit_change",
-            [
-                QueryFixture(units, [[5, "A"], [9, "B"]]),
-                QueryFixture(before_units, [[2, "A"], [4, "B"]]),
-            ],
-            {
-                "measures": {"outcome": M},
-                "entity": UNIT,
-                "scope": Scope(FEB, DATE),
-                "params": {"baseline": JAN},
-            },
-            {"column": "change", "values": [3, 5], "queries": 2},
-        ),
-        Scenario(
-            "unit-change-wide",
-            "D",
-            "query.unit_change",
-            [
-                QueryFixture(units, [[5, "A"], [9, "B"]]),
-                QueryFixture(wide_before, [[2, "A"], [4, "B"]]),
-            ],
-            {
-                "measures": {"outcome": M, "baseline_outcome": BEFORE},
-                "entity": UNIT,
-                "scope": Scope(FEB, DATE),
-            },
-            {"column": "change", "values": [3, 5], "queries": 2},
-        ),
-        Scenario(
-            "did",
-            "E",
-            "stats.two_period_contrast",
-            [QueryFixture(panel, [*pre_rows, *post_rows])],
-            {
-                "measures": {"outcome": M},
-                "dimensions": {"treated": TREAT, "time": DATE},
-                "entity": UNIT,
-                "scope": Scope(JAN_FEB, DATE),
-            },
-            {"value": 3, "tolerance": 1e-9, "queries": 1},
-        ),
-        Scenario(
-            "did-split",
-            "F",
-            "stats.two_period_contrast",
-            [QueryFixture(panel_pre, pre_rows), QueryFixture(panel_post, post_rows)],
-            {
-                "measures": {"outcome": M},
-                "dimensions": {"treated": TREAT, "time": DATE},
-                "entity": UNIT,
-                "scope": Scope(JAN_FEB, DATE),
-                "params": {"windows": [JAN, FEB]},
-            },
-            {"value": 3, "tolerance": 1e-9, "queries": 2},
-        ),
-        Scenario(
-            "mixed",
-            "G",
-            "query.unit_distribution",
-            [
-                QueryFixture(current, [[60]]),
-                QueryFixture(units, [[30, "A"], [20, "B"], [10, "C"]]),
-            ],
-            {"measures": {"outcome": M}, "entity": UNIT, "scope": Scope(FEB, DATE)},
-            {
-                "rows": [
-                    {"provider_value": 60, "unit_min": 10, "unit_max": 30, "n_units": 3}
-                ],
-                "queries": 2,
-            },
         ),
     ]
 

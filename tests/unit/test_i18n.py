@@ -92,9 +92,10 @@ def test_api_speaks_the_requested_language(cube_meta):
     en = c.get("/runs/run_x").json()["error"]["message"]
     ko = c.get("/runs/run_x", headers={"Accept-Language": "ko"}).json()["error"]["message"]
     assert (en, ko) == ("Run not found: run_x", "실행 기록이 없습니다: run_x")
-    assert HANGUL.search(c.get("/methods/query.trend", headers={"Accept-Language": "ko"}).json()["description"])
-    assert not HANGUL.search(c.get("/methods/query.trend").json()["description"])
-    # background jobs keep the request's language
-    r = c.post("/methods/query.trend:run", headers={"Accept-Language": "ko"},
-               json={"bindings": {"metric": RR}, "scope": {"date_range": list(Q3)}}).json()
-    assert HANGUL.search(r["validation"][0]["message"])
+    name = "stats.regression_adjustment"
+    assert HANGUL.search(c.get(f"/methods/{name}", headers={"Accept-Language": "ko"}).json()["description"])
+    assert not HANGUL.search(c.get(f"/methods/{name}").json()["description"])
+    # A refused execution still uses the request locale before a source query.
+    r = c.post(f"/methods/{name}:run", headers={"Accept-Language": "ko"},
+               json={"bindings": {}, "scope": {"date_range": list(Q3)}}).json()
+    assert HANGUL.search(r["error"]["message"])

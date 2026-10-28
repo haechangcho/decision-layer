@@ -30,16 +30,14 @@ class MethodRegistry:
     def __init__(self) -> None:
         self._methods: dict[str, Method] = {}
         self._versions: dict[tuple[str, str], Method] = {}
-        self._compatibility: set[str] = set()
         self._builtin_defaults: set[str] = set()
 
     def copy(self, *, include_builtin_methods=True):
         target = MethodRegistry()
         target._methods = {name: method for name, method in self._methods.items()
-                           if include_builtin_methods or name not in self._builtin_defaults
-                           or name in self._compatibility}
-        target._versions = dict(self._versions)
-        target._compatibility = set(self._compatibility)
+                           if include_builtin_methods or name not in self._builtin_defaults}
+        target._versions = {key: method for key, method in self._versions.items()
+                            if include_builtin_methods or key[0] not in self._builtin_defaults}
         target._builtin_defaults = set(self._builtin_defaults)
         return target
 
@@ -47,7 +45,6 @@ class MethodRegistry:
         """Commit an already validated project without partially replacing defaults."""
         self._methods = dict(staged._methods)
         self._versions = dict(staged._versions)
-        self._compatibility = set(staged._compatibility)
         self._builtin_defaults = set(staged._builtin_defaults)
 
     def plannable(self, name, version=None):
@@ -62,7 +59,7 @@ class MethodRegistry:
             raise InvalidBinding("Skill is advisory guidance, not an executable step. Start a Run with guide=name and execute registered Python tools.")
         return method
 
-    def register(self, method: Method, *, compatibility: bool = False, activate: bool = True, builtin: bool = False) -> Method:
+    def register(self, method: Method, *, activate: bool = True, builtin: bool = False) -> Method:
         Provenance(method=method.ref, semantic_refs=[], queries=[], runtime={})
         self._params(method, {}, partial=True)
         from .source import capture_source
@@ -76,10 +73,6 @@ class MethodRegistry:
         else:
             self._builtin_defaults.discard(method.manifest.name)
         self._methods[method.manifest.name] = method
-        if compatibility:
-            self._compatibility.add(method.manifest.name)
-        else:
-            self._compatibility.discard(method.manifest.name)
         return method
 
     def get(self, name: str, version: str | None = None) -> Method:
@@ -93,10 +86,9 @@ class MethodRegistry:
             raise InvalidBinding(_("Unknown method: {name}", name=name), available=sorted(self._methods))
         return self._methods[name]
 
-    def manifests(self, *, include_compatibility: bool = False) -> list[MethodManifest]:
-        """Current choices by default; explicit legacy lookup remains executable."""
-        return [m.manifest for name, m in self._methods.items()
-                if include_compatibility or name not in self._compatibility]
+    def manifests(self) -> list[MethodManifest]:
+        """Every currently registered Method is a discovery choice."""
+        return [method.manifest for method in self._methods.values()]
 
     async def run(self, name: str, ctx: ExecutionContext, bindings: dict[str, Any],
                   params: dict[str, Any] | None = None, *, version: str | None = None) -> Result:

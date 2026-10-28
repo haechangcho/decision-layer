@@ -32,8 +32,10 @@ Before publishing quantitative claims, use a sufficiently broad reviewed questio
 ## Default and optional Complete Journey cases
 
 `scenarios.json` contains only default-catalog query cases. The separate
-`scenarios-optional.json` requires explicitly registered `query.peer_comparison`
-and compatibility `causal.cem`; do not advertise those cases as default discovery.
+`scenarios-optional.json` records historical cases for removed peer-comparison and
+CEM implementations. It cannot execute against the current four-Method catalog.
+Use the current Skills or explicitly author a reviewed custom Method and update
+the scenarios before running a new evaluation.
 
 ## Reproducible token/cost pilot
 

@@ -64,7 +64,7 @@ async def test_review_refresh_retry_and_preserve_history(cube_meta, tmp_path, ba
         assert old.model_dump()[field] == original[field]
     assert old.remediations[0].events[-1]["run_id"] == retry.id
     from decision_layer.core.models import PlanStep
-    _, result = await engine.step(CREDS, ME, retry.id, PlanStep(method="query.aggregate", bindings={"metric": AMOUNT}))
+    _, result = await engine.step(CREDS, ME, retry.id, PlanStep(method="test.lookup", bindings={"metric": AMOUNT}))
     assert result.status == "success"
     assert (await store.get(run.id)).steps == []
 
@@ -133,3 +133,6 @@ async def test_retry_rechecks_access_and_keeps_goals(cube_meta, tmp_path):
         await remediation.retry(e, CREDS, ME, run.id, fix.id, RemediationRetryRequest(base_revision=current.remediations[0].revision,
             goals=[AnalysisGoal(id="a", description="Different question")]), "web", 5)
     assert len(await e.list(ME)) == 1
+
+
+pytestmark = pytest.mark.usefixtures("query_methods")
