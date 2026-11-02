@@ -1,0 +1,349 @@
+{
+  "note": "Evaluator-only reference on provider-owned eligible cohorts; not supplied to experiment subjects. Policy-refused coefficients are diagnostic oracle values, not permitted business answers.",
+  "campaigns": {
+    "1": {
+      "n": 1980,
+      "rank": 4,
+      "groups": [
+        {
+          "targeted": 0,
+          "n": 1967,
+          "pre_sales": 189.50719369598374,
+          "pre_frequency": 6.378749364514489,
+          "post_sales": 178.80025927808845,
+          "overlap_n": 477,
+          "missing": {
+            "age_code": 1207,
+            "income_code": 1207,
+            "composition_code": 1207
+          }
+        },
+        {
+          "targeted": 1,
+          "n": 13,
+          "pre_sales": 221.7846153846154,
+          "pre_frequency": 7.0,
+          "post_sales": 249.49923076923076,
+          "overlap_n": 11,
+          "missing": {
+            "age_code": 7,
+            "income_code": 7,
+            "composition_code": 7
+          }
+        }
+      ],
+      "target_coefficient": 45.54169306386426,
+      "hc3_se": 36.74183907968117,
+      "hc3_ci95_normal": [
+        -26.470988258077128,
+        117.55437438580564
+      ],
+      "eligible": {
+        "1": false,
+        "2": false,
+        "3": false
+      }
+    },
+    "2": {
+      "n": 1977,
+      "rank": 4,
+      "groups": [
+        {
+          "targeted": 0,
+          "n": 1930,
+          "pre_sales": 184.84907772020725,
+          "pre_frequency": 6.281865284974093,
+          "post_sales": 176.97440932642488,
+          "overlap_n": 535,
+          "missing": {
+            "age_code": 1185,
+            "income_code": 1185,
+            "composition_code": 1185
+          }
+        },
+        {
+          "targeted": 1,
+          "n": 47,
+          "pre_sales": 225.83382978723398,
+          "pre_frequency": 7.957446808510638,
+          "post_sales": 215.1706382978723,
+          "overlap_n": 35,
+          "missing": {
+            "age_code": 29,
+            "income_code": 29,
+            "composition_code": 29
+          }
+        }
+      ],
+      "target_coefficient": 2.5341003953762704,
+      "hc3_se": 19.59149662273227,
+      "hc3_ci95_normal": [
+        -35.86452738841708,
+        40.93272817916962
+      ],
+      "eligible": {
+        "1": true,
+        "2": false,
+        "3": false
+      }
+    },
+    "3": {
+      "n": 1996,
+      "rank": 4,
+      "groups": [
+        {
+          "targeted": 0,
+          "n": 1984,
+          "pre_sales": 185.74863407258064,
+          "pre_frequency": 6.324596774193548,
+          "post_sales": 173.34298891129032,
+          "overlap_n": 575,
+          "missing": {
+            "age_code": 1228,
+            "income_code": 1228,
+            "composition_code": 1228
+          }
+        },
+        {
+          "targeted": 1,
+          "n": 12,
+          "pre_sales": 373.51666666666665,
+          "pre_frequency": 10.666666666666666,
+          "post_sales": 352.49,
+          "overlap_n": 8,
+          "missing": {
+            "age_code": 3,
+            "income_code": 3,
+            "composition_code": 3
+          }
+        }
+      ],
+      "target_coefficient": 34.399790359003596,
+      "hc3_se": 32.4388693411808,
+      "hc3_ci95_normal": [
+        -29.179225248911315,
+        97.97880596691851
+      ],
+      "eligible": {
+        "1": false,
+        "2": false,
+        "3": false
+      }
+    },
+    "4": {
+      "n": 2007,
+      "rank": 4,
+      "groups": [
+        {
+          "targeted": 0,
+          "n": 1927,
+          "pre_sales": 179.13078879086666,
+          "pre_frequency": 6.1105345096004156,
+          "post_sales": 170.1062584327971,
+          "overlap_n": 571,
+          "missing": {
+            "age_code": 1212,
+            "income_code": 1212,
+            "composition_code": 1212
+          }
+        },
+        {
+          "targeted": 1,
+          "n": 80,
+          "pre_sales": 286.87562499999996,
+          "pre_frequency": 9.3,
+          "post_sales": 301.40387499999997,
+          "overlap_n": 46,
+          "missing": {
+            "age_code": 25,
+            "income_code": 25,
+            "composition_code": 25
+          }
+        }
+      ],
+      "target_coefficient": 47.67100622327133,
+      "hc3_se": 18.13441703929072,
+      "hc3_ci95_normal": [
+        12.128201945632036,
+        83.21381050091063
+      ],
+      "eligible": {
+        "1": true,
+        "2": false,
+        "3": false
+      }
+    },
+    "5": {
+      "n": 2016,
+      "rank": 4,
+      "groups": [
+        {
+          "targeted": 0,
+          "n": 1851,
+          "pre_sales": 169.32292274446243,
+          "pre_frequency": 5.93354943273906,
+          "post_sales": 159.25340896812537,
+          "overlap_n": 483,
+          "missing": {
+            "age_code": 1182,
+            "income_code": 1182,
+            "composition_code": 1182
+          }
+        },
+        {
+          "targeted": 1,
+          "n": 165,
+          "pre_sales": 365.5733333333334,
+          "pre_frequency": 10.151515151515152,
+          "post_sales": 361.7775757575758,
+          "overlap_n": 97,
+          "missing": {
+            "age_code": 64,
+            "income_code": 64,
+            "composition_code": 64
+          }
+        }
+      ],
+      "target_coefficient": 57.29487372531674,
+      "hc3_se": 13.567659965105292,
+      "hc3_ci95_normal": [
+        30.7027488392244,
+        83.88699861140908
+      ],
+      "eligible": {
+        "1": true,
+        "2": true,
+        "3": true
+      }
+    },
+    "6": {
+      "n": 2001,
+      "rank": 4,
+      "groups": [
+        {
+          "targeted": 0,
+          "n": 1937,
+          "pre_sales": 176.1153329891585,
+          "pre_frequency": 6.123902942694889,
+          "post_sales": 174.56912235415592,
+          "overlap_n": 1104,
+          "missing": {
+            "age_code": 1213,
+            "income_code": 1213,
+            "composition_code": 1213
+          }
+        },
+        {
+          "targeted": 1,
+          "n": 64,
+          "pre_sales": 442.46453125000005,
+          "pre_frequency": 10.953125,
+          "post_sales": 436.73578124999995,
+          "overlap_n": 63,
+          "missing": {
+            "age_code": 16,
+            "income_code": 16,
+            "composition_code": 16
+          }
+        }
+      ],
+      "target_coefficient": 53.08628421040481,
+      "hc3_se": 20.652188269459458,
+      "hc3_ci95_normal": [
+        12.608739000323688,
+        93.56382942048594
+      ],
+      "eligible": {
+        "1": true,
+        "2": false,
+        "3": false
+      }
+    },
+    "9": {
+      "n": 2062,
+      "rank": 4,
+      "groups": [
+        {
+          "targeted": 0,
+          "n": 1890,
+          "pre_sales": 181.13062433862433,
+          "pre_frequency": 6.2708994708994705,
+          "post_sales": 168.36843386243387,
+          "overlap_n": 946,
+          "missing": {
+            "age_code": 1218,
+            "income_code": 1218,
+            "composition_code": 1218
+          }
+        },
+        {
+          "targeted": 1,
+          "n": 172,
+          "pre_sales": 282.45767441860465,
+          "pre_frequency": 8.30813953488372,
+          "post_sales": 249.1118604651163,
+          "overlap_n": 141,
+          "missing": {
+            "age_code": 58,
+            "income_code": 58,
+            "composition_code": 58
+          }
+        }
+      ],
+      "target_coefficient": 2.3252249315721936,
+      "hc3_se": 11.254876147225374,
+      "hc3_ci95_normal": [
+        -19.73392696744846,
+        24.38437683059285
+      ],
+      "eligible": {
+        "1": true,
+        "2": true,
+        "3": true
+      }
+    },
+    "12": {
+      "n": 2058,
+      "rank": 4,
+      "groups": [
+        {
+          "targeted": 0,
+          "n": 1895,
+          "pre_sales": 169.15276517150394,
+          "pre_frequency": 6.029023746701847,
+          "post_sales": 163.35240105540896,
+          "overlap_n": 1093,
+          "missing": {
+            "age_code": 1201,
+            "income_code": 1201,
+            "composition_code": 1201
+          }
+        },
+        {
+          "targeted": 1,
+          "n": 163,
+          "pre_sales": 351.4106748466258,
+          "pre_frequency": 10.92638036809816,
+          "post_sales": 355.8121472392638,
+          "overlap_n": 159,
+          "missing": {
+            "age_code": 73,
+            "income_code": 73,
+            "composition_code": 73
+          }
+        }
+      ],
+      "target_coefficient": 49.451140429589316,
+      "hc3_se": 13.473453731204673,
+      "hc3_ci95_normal": [
+        23.043656369061345,
+        75.85862449011728
+      ],
+      "eligible": {
+        "1": true,
+        "2": true,
+        "3": true
+      }
+    }
+  }
+}

@@ -1,0 +1,27 @@
+name: benchmark-campaign-8-ols
+version: 1.0.0
+status: published
+description: Compare eligible campaign 8 households with OLS adjusted for prior 30-day sales and purchase frequency. Association only; treatment selection and identification assumptions remain unverified.
+routing:
+  use_for: [campaign 8 targeted and non-targeted adjusted comparison]
+semantic_scope:
+  primary_metric: campaign_household_outcomes.post_sales_mean
+  related_metrics: [campaign_household_outcomes.pre_sales_mean, campaign_household_outcomes.pre_frequency_mean]
+  required_filters:
+    - member: campaign_household_outcomes.campaign_id
+      operator: equals
+      values: ['8']
+default_scope:
+  time_dimension: campaign_household_outcomes.campaign_start_date
+mode: pipeline
+steps:
+  - id: adjusted_comparison
+    method: benchmark.campaign_ols
+    method_version: 1.0.0
+    purpose: Adjust the observed 30-day outcome comparison for two prior-activity variables; do not claim causal identification.
+    bindings:
+      entity_id: campaign_household_outcomes.observation_id
+      outcome: campaign_household_outcomes.post_sales_mean
+      treatment: campaign_household_outcomes.targeted
+      confounders: [campaign_household_outcomes.pre_sales_mean, campaign_household_outcomes.pre_frequency_mean]
+limits: {max_steps: 2, max_queries: 4}

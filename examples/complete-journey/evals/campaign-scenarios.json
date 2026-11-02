@@ -1,0 +1,11 @@
+{
+  "status": "pilot candidate; further cases and independent review required",
+  "scenarios": [
+    {
+      "id": "campaign_8_adjusted",
+      "question": "8번 캠페인의 대상 여부와 이후 30일 구매금액의 관계를 이전 구매 이력을 고려해 비교해줘.",
+      "scope": "eligible campaign-household observations, example calendar start date 2001-02-15",
+      "expected_interpretation": "adjusted association; causal identification is not established"
+    }
+  ]
+}

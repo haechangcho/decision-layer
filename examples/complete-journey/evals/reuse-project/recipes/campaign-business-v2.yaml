@@ -1,0 +1,59 @@
+name: campaign-performance-investigation
+version: 2.0.0
+status: published
+description: >-
+  Investigate one campaign for a business owner. First check eligible target-list and non-target
+  household sizes, their prior and subsequent activity, other overlapping campaign targeting,
+  and missing demographic classifications.
+  Then compare subsequent 30-day sales with OLS adjusted for prior sales and prior purchase frequency.
+  The data is observational; do not claim campaign impact, profitability, a causal effect, or a
+  decision to continue without evidence. Explain eligibility, target-list versus actual exposure,
+  group differences, the adjusted association, overlapping campaigns, missing demographic data and what further evidence
+  a decision would need. State that uncertainty is not reported by this calculation.
+  If the user does not specify dates, use this Recipe's provided default date range, not all-period mode.
+  That range selects campaign start dates; the prior and subsequent windows are fixed by the source.
+routing:
+  use_for: [campaign performance, campaign evaluation, campaign effectiveness, 캠페인 성과, 캠페인 평가]
+inputs:
+  campaign_filter:
+    type: filters
+    required: true
+    description: Equality filter identifying exactly one campaign from the user's question.
+semantic_scope:
+  primary_metric: campaign_household_outcomes.post_sales_mean
+  related_metrics: [campaign_household_outcomes.pre_sales_mean, campaign_household_outcomes.pre_frequency_mean]
+  preferred_dimensions: [campaign_household_outcomes.campaign_id, campaign_household_outcomes.targeted]
+default_scope:
+  time_dimension: campaign_household_outcomes.campaign_start_date
+  date_range: ['2000-01-01', '2001-12-11']
+mode: pipeline
+steps:
+  - id: inspect_cohort
+    method: benchmark.campaign_cohort
+    method_version: 1.0.0
+    purpose: Check cohort sizes, prior and subsequent outcomes and demographic-code missingness before inference.
+    bindings:
+      entity_id: campaign_household_outcomes.observation_id
+      campaign: campaign_household_outcomes.campaign_id
+      outcome: campaign_household_outcomes.post_sales_mean
+      treatment: campaign_household_outcomes.targeted
+      confounders: [campaign_household_outcomes.pre_sales_mean, campaign_household_outcomes.pre_frequency_mean]
+      age: campaign_household_outcomes.age_code
+      income: campaign_household_outcomes.income_code
+      composition: campaign_household_outcomes.composition_code
+      overlaps: campaign_household_outcomes.overlapping_campaigns
+    params:
+      campaign_filter: {source: input, name: campaign_filter}
+  - id: adjusted_comparison
+    method: benchmark.campaign_business
+    method_version: 1.0.0
+    purpose: Compare the groups' subsequent outcomes while adjusting for prior purchase activity, retaining assumptions and limits.
+    bindings:
+      entity_id: campaign_household_outcomes.observation_id
+      campaign: campaign_household_outcomes.campaign_id
+      outcome: campaign_household_outcomes.post_sales_mean
+      treatment: campaign_household_outcomes.targeted
+      confounders: [campaign_household_outcomes.pre_sales_mean, campaign_household_outcomes.pre_frequency_mean]
+    params:
+      campaign_filter: {source: input, name: campaign_filter}
+limits: {max_steps: 3, max_queries: 6}

@@ -1,0 +1,188 @@
+{
+  "analysis_date": "2026-10-28",
+  "source": "lifecycle-observations-2026-10-27.json",
+  "raw_event_directory_present": false,
+  "limitations": [
+    "No original per-tool timing or per-tool token ledger remains available.",
+    "Stage totals are observed session usage; input totals include cached input.",
+    "Current unchanged MCP source establishes response behavior, not measured share of token or time cost.",
+    "Break-even figures hold observed fixed costs and B runtime constant; they are arithmetic targets, not forecasts."
+  ],
+  "stages": {
+    "initial_authoring": {
+      "B": {
+        "jobs": 1,
+        "failed_processes": 0,
+        "seconds": 128.767,
+        "mean_seconds": 128.767,
+        "usage_missing_jobs": 0,
+        "reported_input_tokens": 211430,
+        "reported_cached_input_tokens": 183808,
+        "reported_uncached_input_tokens": 27622,
+        "reported_output_tokens": 3924
+      },
+      "C": {
+        "jobs": 1,
+        "failed_processes": 0,
+        "seconds": 672.777,
+        "mean_seconds": 672.777,
+        "usage_missing_jobs": 0,
+        "reported_input_tokens": 2777588,
+        "reported_cached_input_tokens": 2701440,
+        "reported_uncached_input_tokens": 76148,
+        "reported_output_tokens": 20000
+      },
+      "C_minus_B": {
+        "seconds": 544.01,
+        "reported_input_tokens": 2566158,
+        "reported_cached_input_tokens": 2517632,
+        "reported_uncached_input_tokens": 48526,
+        "reported_output_tokens": 16076
+      },
+      "share_of_net_excess": {
+        "seconds": 0.49306727525518473,
+        "reported_input_tokens": 0.2040202716562214,
+        "reported_cached_input_tokens": 0.2117245610824659,
+        "reported_uncached_input_tokens": 0.07064657205583476,
+        "reported_output_tokens": 0.40838308141750285
+      }
+    },
+    "maintenance": {
+      "B": {
+        "jobs": 2,
+        "failed_processes": 0,
+        "seconds": 678.977,
+        "mean_seconds": 339.488,
+        "usage_missing_jobs": 0,
+        "reported_input_tokens": 652297,
+        "reported_cached_input_tokens": 572672,
+        "reported_uncached_input_tokens": 79625,
+        "reported_output_tokens": 16534
+      },
+      "C": {
+        "jobs": 2,
+        "failed_processes": 0,
+        "seconds": 705.309,
+        "mean_seconds": 352.654,
+        "usage_missing_jobs": 0,
+        "reported_input_tokens": 2826809,
+        "reported_cached_input_tokens": 2750720,
+        "reported_uncached_input_tokens": 76089,
+        "reported_output_tokens": 28877
+      },
+      "C_minus_B": {
+        "seconds": 26.332,
+        "reported_input_tokens": 2174512,
+        "reported_cached_input_tokens": 2178048,
+        "reported_uncached_input_tokens": -3536,
+        "reported_output_tokens": 12343
+      },
+      "share_of_net_excess": {
+        "seconds": 0.02386619270237592,
+        "reported_input_tokens": 0.17288278000018445,
+        "reported_cached_input_tokens": 0.18316666487260358,
+        "reported_uncached_input_tokens": -0.005147885232440994,
+        "reported_output_tokens": 0.3135526482916296
+      }
+    },
+    "business": {
+      "B": {
+        "jobs": 30,
+        "failed_processes": 0,
+        "seconds": 3032.355,
+        "mean_seconds": 101.079,
+        "usage_missing_jobs": 0,
+        "reported_input_tokens": 8876388,
+        "reported_cached_input_tokens": 7799552,
+        "reported_uncached_input_tokens": 1076836,
+        "reported_output_tokens": 105153
+      },
+      "C": {
+        "jobs": 30,
+        "failed_processes": 0,
+        "seconds": 3532.123,
+        "mean_seconds": 117.737,
+        "usage_missing_jobs": 0,
+        "reported_input_tokens": 16521311,
+        "reported_cached_input_tokens": 14813184,
+        "reported_uncached_input_tokens": 1708127,
+        "reported_output_tokens": 115206
+      },
+      "C_minus_B": {
+        "seconds": 499.768,
+        "reported_input_tokens": 7644923,
+        "reported_cached_input_tokens": 7013632,
+        "reported_uncached_input_tokens": 631291,
+        "reported_output_tokens": 10053
+      },
+      "share_of_net_excess": {
+        "seconds": 0.45296822856148444,
+        "reported_input_tokens": 0.6078032869569586,
+        "reported_cached_input_tokens": 0.5898233565485097,
+        "reported_uncached_input_tokens": 0.9190649367287635,
+        "reported_output_tokens": 0.25537914390956434
+      }
+    },
+    "audit": {
+      "B": {
+        "jobs": 1,
+        "failed_processes": 0,
+        "seconds": 56.508,
+        "mean_seconds": 56.508,
+        "usage_missing_jobs": 0,
+        "reported_input_tokens": 198663,
+        "reported_cached_input_tokens": 156288,
+        "reported_uncached_input_tokens": 42375,
+        "reported_output_tokens": 2039
+      },
+      "C": {
+        "jobs": 1,
+        "failed_processes": 0,
+        "seconds": 89.716,
+        "mean_seconds": 89.716,
+        "usage_missing_jobs": 0,
+        "reported_input_tokens": 391026,
+        "reported_cached_input_tokens": 338048,
+        "reported_uncached_input_tokens": 52978,
+        "reported_output_tokens": 2932
+      },
+      "C_minus_B": {
+        "seconds": 33.208,
+        "reported_input_tokens": 192363,
+        "reported_cached_input_tokens": 181760,
+        "reported_uncached_input_tokens": 10603,
+        "reported_output_tokens": 893
+      },
+      "share_of_net_excess": {
+        "seconds": 0.030098303480954713,
+        "reported_input_tokens": 0.015293661386635475,
+        "reported_cached_input_tokens": 0.015285417496420844,
+        "reported_uncached_input_tokens": 0.015436376447842721,
+        "reported_output_tokens": 0.022685126381303187
+      }
+    }
+  },
+  "business": {
+    "B": {
+      "jobs": 30,
+      "mcp_calls": 153,
+      "final_answer_characters": 40958
+    },
+    "C": {
+      "jobs": 30,
+      "mcp_calls": 288,
+      "final_answer_characters": 26750
+    }
+  },
+  "break_even_at_30_business_runs": {
+    "B_fixed_seconds": 864.252,
+    "C_fixed_seconds": 1467.8020000000001,
+    "C_required_mean_business_seconds": 80.96016666666667,
+    "C_required_business_time_reduction_fraction": 0.3123642808406306,
+    "steady_state_required_mean_seconds": 101.079
+  },
+  "mcp_source_matches_initial": {
+    "src/decision_layer/mcp/server.py": true,
+    "src/decision_layer/mcp/presentation.py": true
+  }
+}

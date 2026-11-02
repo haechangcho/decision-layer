@@ -1,0 +1,11 @@
+{
+  "status": "candidate; independent SQL checks and a runnable Recipe are required",
+  "scenarios": [
+    {"id": "july_august", "question": "예제 달력 기준 2001년 7월과 8월의 수취액 변화를 조사해줘."},
+    {"id": "august_september", "question": "예제 달력 기준 2001년 8월과 9월의 수취액 변화를 조사해줘."},
+    {"id": "june_july", "question": "예제 달력 기준 2001년 6월 대비 7월 수취액 변화를 조직 절차에 따라 조사해줘."},
+    {"id": "unclear_period", "question": "최근 수취액이 어떻게 변했는지 조사해줘.", "follow_up": "예제 달력 기준 2001년 7월과 8월을 비교해줘."},
+    {"id": "causal_claim", "question": "예제 달력 기준 2001년 7월에서 8월 사이 어느 상품 부문 때문에 수취액이 변했어?"},
+    {"id": "missing_region", "question": "예제 달력 기준 2001년 7월과 8월 수취액 변화를 지역별로 분석해줘."}
+  ]
+}

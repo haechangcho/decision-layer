@@ -1,0 +1,30 @@
+name: benchmark-receipts-change
+version: 1.1.0
+status: published
+description: Compare two periods of retailer receipts and units, rank departments by absolute receipts change and inspect brand types and units for the unique leader. Ties need user input; differences do not establish causation.
+routing:
+  use_for: [retailer receipts change by department and brand]
+inputs:
+  comparison:
+    type: date_range
+    required: true
+semantic_scope:
+  primary_metric: transaction.receipts
+  related_metrics: [transaction.units]
+  preferred_dimensions: [product.department, product.brand]
+default_scope:
+  time_dimension: transaction.analysis_date
+mode: pipeline
+steps:
+  - id: group_change
+    method: benchmark.group_change
+    method_version: 1.1.0
+    purpose: Calculate period changes, retain ties, and show brand types only for a uniquely largest change.
+    bindings:
+      metric: transaction.receipts
+      units: transaction.units
+      group: product.department
+      subgroup: product.brand
+    params:
+      comparison: {source: input, name: comparison}
+limits: {max_steps: 2, max_queries: 6}

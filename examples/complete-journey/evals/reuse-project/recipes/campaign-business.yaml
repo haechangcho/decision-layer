@@ -1,0 +1,39 @@
+name: campaign-performance-investigation
+version: 1.0.0
+status: published
+description: >-
+  Investigate one campaign for a business owner. Compare eligible target-list and non-target households,
+  their prior purchase activity and subsequent 30-day sales. Adjust the observed difference for prior
+  sales and prior purchase frequency using the registered OLS Method. The data is observational;
+  do not claim campaign impact, profitability, a causal effect, or a decision to continue without evidence.
+  Explain target-list membership, eligibility, group sizes, observed adjusted association, limitations,
+  and what further evidence a decision would need.
+routing:
+  use_for: [campaign performance, campaign evaluation, campaign effectiveness, 캠페인 성과, 캠페인 평가]
+inputs:
+  campaign_filter:
+    type: filters
+    required: true
+    description: Equality filter identifying exactly one campaign from the user's question.
+semantic_scope:
+  primary_metric: campaign_household_outcomes.post_sales_mean
+  related_metrics: [campaign_household_outcomes.pre_sales_mean, campaign_household_outcomes.pre_frequency_mean]
+  preferred_dimensions: [campaign_household_outcomes.campaign_id, campaign_household_outcomes.targeted]
+default_scope:
+  time_dimension: campaign_household_outcomes.campaign_start_date
+  date_range: ['2000-01-01', '2001-12-11']
+mode: pipeline
+steps:
+  - id: compare_households
+    method: benchmark.campaign_business
+    method_version: 1.0.0
+    purpose: Compare one campaign's target and non-target group sizes and outcomes, adjusted for earlier purchase activity, and state limitations.
+    bindings:
+      entity_id: campaign_household_outcomes.observation_id
+      campaign: campaign_household_outcomes.campaign_id
+      outcome: campaign_household_outcomes.post_sales_mean
+      treatment: campaign_household_outcomes.targeted
+      confounders: [campaign_household_outcomes.pre_sales_mean, campaign_household_outcomes.pre_frequency_mean]
+    params:
+      campaign_filter: {source: input, name: campaign_filter}
+limits: {max_steps: 2, max_queries: 4}
