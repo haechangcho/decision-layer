@@ -10,6 +10,7 @@ from decision_layer.semantic.providers.cube.catalog_mapper import map_meta
 from decision_layer.semantic.providers.cube.compiler import compile_spec
 from decision_layer.semantic.providers.cube.provider import CubeProvider
 from tests.support.semantic import ref
+from tests.support.cube import FakeClient
 
 CREDS = RequestCredentials("t")
 
@@ -74,9 +75,6 @@ def test_compile_falls_back_to_base_cubes(cube_meta):
     assert c.view is None and c.query["dimensions"] == ["ecom_seller.join_dt"]
 
 
-from tests.support.cube import FakeClient
-
-
 async def test_entity_grain_pages_in_order(cube_meta, monkeypatch):
     monkeypatch.setattr(provider_mod, "PAGE_SIZE", 10)
     client = FakeClient(cube_meta, rows_total=25)
@@ -85,11 +83,32 @@ async def test_entity_grain_pages_in_order(cube_meta, monkeypatch):
                        dimensions=[ref("ecom_order.channel")])
     ds = await p.execute(spec, CREDS, with_sql=True)
     assert len(ds.rows) == 25 and ds.provenance[0].pages == 3
+    assert ds.provenance[0].retrieval_complete is None
     assert [q["offset"] for q in client.loads] == [0, 10, 20]
     # the view doesn't expose order_id, so the query falls back to base cube names
     assert client.loads[0]["order"] == [["ecom_order.order_id", "asc"]]
     assert ds.rows[0][2] == 0.0 and ds.columns[0].role == "entity"       # measures converted to numbers
     assert ds.provenance[0].compiled_sql == "SELECT 1"
+
+
+async def test_retrieval_evidence_distinguishes_short_page_from_limit(cube_meta, monkeypatch):
+    monkeypatch.setattr(provider_mod, "PAGE_SIZE", 10)
+    spec = DatasetSpec(grain="aggregate", measures=[ref("ecom_order.count")],
+                       dimensions=[ref("ecom_order.seller_id")], limit_rows=10)
+    short = await CubeProvider(FakeClient(cube_meta, rows_total=4), "local").execute(spec, CREDS)
+    limited = await CubeProvider(FakeClient(cube_meta, rows_total=10), "local").execute(spec, CREDS)
+    assert short.provenance[0].retrieval_complete is True
+    assert limited.provenance[0].retrieval_complete is False
+
+
+async def test_missing_page_is_not_evidence_of_complete_empty_data(cube_meta):
+    class MissingData(FakeClient):
+        async def load(self, query, token):
+            return {}
+
+    provider = CubeProvider(MissingData(cube_meta), "local")
+    with pytest.raises(ProviderError, match="missing data page"):
+        await provider.execute(DatasetSpec(grain="aggregate", measures=[ref("ecom_order.count")]), CREDS)
 
 
 async def test_aggregate_overflow_fails_closed(cube_meta, monkeypatch):

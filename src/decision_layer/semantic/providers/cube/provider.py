@@ -92,6 +92,7 @@ class CubeProvider:
         started = time.monotonic()
         pages = 0
         offset = 0
+        retrieval_complete = None
         while True:
             page_size = min(PAGE_SIZE, limit - len(rows))
             try:
@@ -101,12 +102,18 @@ class CubeProvider:
                     raise CapabilityMissing(_("The semantic layer has no join path between the requested members"),
                                             members=spec_members(spec)) from e
                 raise
-            data = body.get("data", [])
+            data = body.get("data")
+            if not isinstance(data, list):
+                raise ProviderError(_("Cube returned an invalid or missing data page"))
             pages += 1
             rows.extend([convert(row.get(k), c.data_type) for k, c in zip(compiled.keys, compiled.columns)] for row in data)
             if len(data) < page_size:
+                # A single short page establishes this bounded query was exhausted.
+                # Multi-page reads can span changing snapshots and are not certified.
+                retrieval_complete = True if pages == 1 else None
                 break
             if len(rows) >= limit:
+                retrieval_complete = False
                 if spec.limit_rows is None:
                     raise DatasetTooLarge(_("The result exceeds {limit:,} rows. Narrow the period or filters", limit=limit), limit=limit)
                 break
@@ -120,5 +127,6 @@ class CubeProvider:
         provenance = QueryProvenance(provider=self.name, instance=self.instance,
                                      native_query={**compiled.query, **({"_view": compiled.view} if compiled.view else {})},
                                      compiled_sql=sql, rows=len(rows), pages=pages,
+                                     retrieval_complete=retrieval_complete,
                                      elapsed_ms=round((time.monotonic() - started) * 1000))
         return Dataset(spec=spec, columns=compiled.columns, rows=rows, provenance=[provenance])

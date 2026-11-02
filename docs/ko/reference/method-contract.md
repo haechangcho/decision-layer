@@ -63,6 +63,7 @@ inputs={
 | 자주 쓰는 `DataInput` 옵션 | 의미 |
 |---|---|
 | `minimum_rows` | 최소 행 수. 기본 `1` |
+| `require_complete` | 계산 전 조회 결과를 끝까지 가져왔는지 확인합니다. 기본값은 `false`이며, 현재 Cube의 첫 페이지가 요청 한도보다 짧은 경우에만 확인됩니다. 원천 데이터 적재나 공통 스냅샷은 보장하지 않습니다. |
 | `format` | 기본 `"dataframe"`. `"records"`는 행 dict 목록 |
 | `time_granularity` | `"day"`, `"week"`, `"month"`, `"quarter"`, `"year"` 단위 조회 |
 | `period_parameter` | 비교 기간을 받을 계산 옵션 이름 |

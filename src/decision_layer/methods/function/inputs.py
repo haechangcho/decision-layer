@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ...core.models import Filter
+from ..context import Refused
 
 
 async def query_inputs(ctx, inputs, roles, bindings, params):
@@ -38,8 +39,14 @@ async def query_inputs(ctx, inputs, roles, bindings, params):
             label=f"python:{name}",
         )
         rows[name] = data.records()
+        retrieval_complete = bool(data.dataset.provenance) and all(
+            query.retrieval_complete is True for query in data.dataset.provenance
+        )
+        if spec.require_complete and not retrieval_complete:
+            raise Refused("Complete retrieval is required but was not established for this input")
         aliases = {alias: ref for pairs in data.roles.values() for alias, ref in pairs}
         resolved[name] = {
+            "retrieval_complete": retrieval_complete if spec.require_complete else None,
             "columns": list(aliases),
             "semantic_refs": aliases,
             "measures": [

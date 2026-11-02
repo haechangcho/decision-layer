@@ -111,6 +111,12 @@ def prepare_inputs(rows_by_name, inputs, resolved=None):
             len(rows) >= spec.minimum_rows,
             f"{name}: {len(rows)} rows; minimum {spec.minimum_rows}.",
         )
+        if spec.require_complete:
+            record(
+                "RETRIEVAL_COMPLETE",
+                contract.get("retrieval_complete") is True,
+                f"{name}: complete bounded query retrieval established; source ingestion and snapshot consistency are not established.",
+            )
         record(
             "REQUIRED_COLUMNS",
             all(set(columns) <= row.keys() for row in rows),
