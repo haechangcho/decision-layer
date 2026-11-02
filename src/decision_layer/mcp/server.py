@@ -7,11 +7,15 @@ Decision Layer server, so the client model chooses *what* to run, never *how* to
     DL_TOKEN  optional bearer passed through to the selected semantic provider; without it the
                      server uses its service credentials (local/dev only)
     DL_LOCALE language of instructions, tool descriptions and API messages (default en)
+
+Shared deployments also serve these tools over streamable HTTP at /mcp (`remote.py`);
+each request's access token is forwarded instead of DL_TOKEN.
 """
 
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 import time
 from typing import Any, Literal
@@ -117,9 +121,13 @@ WAIT_SECONDS = 45  # per call; longer analyses continue with wait_for_run
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
+# Remote MCP (ADR-130): the caller's own access token, forwarded to the REST API.
+REQUEST_TOKEN: contextvars.ContextVar[str | None] = contextvars.ContextVar("dl_mcp_token", default=None)
+
+
 def _client() -> httpx.AsyncClient:
     headers = {"Accept-Language": LOCALE, "X-Decision-Layer-Client": "mcp"}
-    if token := env("DL_TOKEN"):
+    if token := REQUEST_TOKEN.get() or env("DL_TOKEN"):
         headers["Authorization"] = f"Bearer {token}"
     return httpx.AsyncClient(
         base_url=env("DL_API_URL", "http://localhost:5200"),

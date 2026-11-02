@@ -11,9 +11,11 @@ from tests.unit.test_access import bearer
 from tests.unit.test_recipe_authoring import recipe
 
 
-@pytest.mark.parametrize("mode", ["shared", "production", ""])
-def test_unsupported_deployment_fails_closed(mode):
-    with pytest.raises(ValueError, match="Shared deployment requires"):
+@pytest.mark.parametrize("mode,message", [("shared", "Shared deployment requires DL_OIDC_ISSUER"),
+                                          ("production", "Only local, demo and shared"), ("", "Only local, demo and shared")])
+def test_unsupported_deployment_fails_closed(mode, message):
+    # Shared mode starts only with a complete application login (ADR-130).
+    with pytest.raises(ValueError, match=message):
         create_app(Settings(database_url="memory", deployment_mode=mode))
 
 

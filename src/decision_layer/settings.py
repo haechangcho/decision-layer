@@ -25,8 +25,17 @@ class Settings:
         value.strip() for value in env("DL_RECIPE_PUBLISHERS", "").split(",") if value.strip()))
 
     def validate_deployment(self) -> None:
+        if self.deployment_mode == "shared":
+            self.login.validate(self)
+            return
         if self.deployment_mode not in ("local", "demo"):
-            raise ValueError("Only local and demo deployments are supported. Shared deployment requires independent app identity, network isolation and code sandboxing; these release gates are not implemented yet.")
+            raise ValueError("Only local, demo and shared deployments are supported.")
+
+    @property
+    def shared(self) -> bool:
+        return self.deployment_mode == "shared"
+
+    login: "LoginSettings" = field(default_factory=lambda: LoginSettings())
 
     execution_policy: ExecutionPolicy = field(default_factory=lambda: ExecutionPolicy.model_validate_json(
         env("DL_EXECUTION_POLICY", "{}")))
@@ -62,3 +71,73 @@ class Settings:
     issue_repository: str = field(default_factory=lambda: env("DL_ISSUE_REPOSITORY", "haechangcho/decision-layer"))
     # Explicit project directory shared by CLI, local Python and API startup.
     project_dir: str | None = field(default_factory=lambda: env("DL_PROJECT_DIR") or None)
+
+
+def _names(value: str | None) -> tuple[str, ...]:
+    return tuple(v.strip() for v in (value or "").split(",") if v.strip())
+
+
+@dataclass(frozen=True)
+class LoginSettings:
+    """Application login for shared deployments (ADR-130).
+
+    The OIDC provider verifies people; Decision Layer signs short-lived Cube tokens
+    for them with its own key, so the Cube WebApp secret is never shared.
+    """
+    issuer: str | None = field(default_factory=lambda: env("DL_OIDC_ISSUER") or None)
+    client_id: str | None = field(default_factory=lambda: env("DL_OIDC_CLIENT_ID") or None)
+    client_secret: str | None = field(default_factory=lambda: env("DL_OIDC_CLIENT_SECRET") or None)
+    scopes: str = field(default_factory=lambda: env("DL_OIDC_SCOPES", "openid profile email cube_groups"))
+    groups_claim: str = field(default_factory=lambda: env("DL_OIDC_GROUPS_CLAIM", "cube_groups"))
+    # Browser-visible origin; the callback is {public_url}/auth/callback.
+    public_url: str | None = field(default_factory=lambda: (env("DL_PUBLIC_URL") or "").rstrip("/") or None)
+    session_secret: str | None = field(default_factory=lambda: env("DL_SESSION_SECRET") or None)
+    session_hours: float = field(default_factory=lambda: float(env("DL_SESSION_HOURS", "8")))
+    access_token_days: int = field(default_factory=lambda: int(env("DL_ACCESS_TOKEN_DAYS", "30")))
+    # IdP groups allowed to sign in, by application role.
+    admin_groups: tuple[str, ...] = field(default_factory=lambda: _names(env("DL_ADMIN_GROUPS")))
+    user_groups: tuple[str, ...] = field(default_factory=lambda: _names(env("DL_USER_GROUPS")))
+    # Cube access-policy groups carried by the tokens Decision Layer signs.
+    cube_token_secret: str | None = field(default_factory=lambda: env("DL_CUBE_TOKEN_SECRET") or None)
+    cube_admin_groups: tuple[str, ...] = field(default_factory=lambda: _names(env("DL_CUBE_ADMIN_GROUPS", "admin")))
+    cube_user_groups: tuple[str, ...] = field(default_factory=lambda: _names(env("DL_CUBE_USER_GROUPS", "guest")))
+
+    @property
+    def redirect_uri(self) -> str:
+        return f"{self.public_url}/auth/callback"
+
+    @property
+    def secure_cookies(self) -> bool:
+        return bool(self.public_url and self.public_url.startswith("https://"))
+
+    def validate(self, settings: "Settings") -> None:
+        from urllib.parse import urlsplit
+
+        missing = [name for name, value in (
+            ("DL_OIDC_ISSUER", self.issuer), ("DL_OIDC_CLIENT_ID", self.client_id),
+            ("DL_OIDC_CLIENT_SECRET", self.client_secret), ("DL_PUBLIC_URL", self.public_url),
+            ("DL_SESSION_SECRET", self.session_secret), ("DL_CUBE_TOKEN_SECRET", self.cube_token_secret),
+            ("DL_ADMIN_GROUPS", self.admin_groups), ("DL_CUBE_ADMIN_GROUPS", self.cube_admin_groups),
+            ("DL_CUBE_USER_GROUPS", self.cube_user_groups)) if not value]
+        if missing:
+            raise ValueError("Shared deployment requires " + ", ".join(missing))
+        for name, value in (("DL_SESSION_SECRET", self.session_secret), ("DL_CUBE_TOKEN_SECRET", self.cube_token_secret)):
+            if len(value) < 32:
+                raise ValueError(f"{name} must be at least 32 characters")
+        if self.session_secret == self.cube_token_secret:
+            raise ValueError("DL_SESSION_SECRET and DL_CUBE_TOKEN_SECRET must differ")
+        public = urlsplit(self.public_url)
+        if public.scheme != "https" and public.hostname not in ("localhost", "127.0.0.1"):
+            raise ValueError("DL_PUBLIC_URL must use https outside a localhost tunnel")
+        if public.hostname not in settings.http_allowed_hosts:
+            raise ValueError("DL_HTTP_ALLOWED_HOSTS must include the DL_PUBLIC_URL host")
+        if urlsplit(self.issuer).scheme != "https":
+            raise ValueError("DL_OIDC_ISSUER must use https")
+        # Shared mode keeps code and endpoints operator-owned (ADR-130): no service
+        # identity, no HTTP source administration and no Web code editing.
+        if settings.allow_service_credentials:
+            raise ValueError("Shared deployment cannot allow service credentials")
+        if settings.allow_method_editing:
+            raise ValueError("Shared deployment cannot allow Method editing")
+        if settings.source_admin_token:
+            raise ValueError("Shared deployment cannot enable HTTP source administration")

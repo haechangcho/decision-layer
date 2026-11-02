@@ -13,6 +13,11 @@ def _is_local_operator(settings: Settings, caller: CallerInfo) -> bool:
     )
 
 
+def _is_login_admin(settings: Settings, caller: CallerInfo) -> bool:
+    # Shared deployments grant Recipe editing and publication by IdP group (ADR-130).
+    return settings.shared and caller.authentication == "login" and caller.role == "admin"
+
+
 class SourceAdminRequired(DecisionLayerError):
     code = "SOURCE_ADMIN_REQUIRED"
     http_status = 403
@@ -27,8 +32,8 @@ def require_recipe_permission(
     settings: Settings, caller: CallerInfo, *, publish: bool = False
 ) -> None:
     # Explicit local service access belongs to the person operating this runtime.
-    # It is never a multi-user identity; shared mode is rejected at startup.
-    local_owner = _is_local_operator(settings, caller)
+    # It is never a multi-user identity; shared mode refuses service credentials.
+    local_owner = _is_local_operator(settings, caller) or _is_login_admin(settings, caller)
     subjects = (
         settings.recipe_publishers
         if publish

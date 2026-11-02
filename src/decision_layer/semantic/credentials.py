@@ -4,6 +4,8 @@
   Cube applies that caller's access rules (ADR-024).
 - ServiceCredentials: local/dev fallback — a short-lived JWT signed with the
   Cube API secret (Cube OSS default checkAuth), carrying configured groups.
+- LoginCredentials: shared deployments — a person verified by the OIDC provider,
+  with a short-lived JWT signed by Decision Layer's own Cube token key.
 - AnonymousServiceCredentials: local/dev fallback for Cube instances running
   without API authentication; it deliberately sends no Authorization header.
 """
@@ -36,6 +38,13 @@ class ServiceCredentials:
         claims = {"sub": self.subject, "cube_groups": list(self.groups), "cubeGroups": list(self.groups),
                   "iat": now, "exp": now + self.ttl_seconds}
         return jwt.encode(claims, self.secret, algorithm="HS256")
+
+
+@dataclass(frozen=True)
+class LoginCredentials(ServiceCredentials):
+    """A signed-in person (ADR-130): Decision Layer signs their Cube token with its own key."""
+    role: str = "user"
+    name: str | None = None
 
 
 @dataclass(frozen=True)

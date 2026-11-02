@@ -2883,3 +2883,51 @@ Authoring and execution still require the exact installed Method/version and fai
 before querying when it is missing. No alias, automatic Recipe rewrite or fallback
 resurrects a removed implementation. New user-published versions retain the normal
 version registry; this removes bundled history, not the provenance/version model.
+
+## ADR-130 — Application login for a narrowed shared deployment (2026-11-02)
+
+**Accepted for the PoC installation.** Supersedes ADR-094's blanket refusal of
+`shared` and completes ADR-038's application-identity item for this deployment.
+ADR-029's ownership rule (Runs belong to their caller) is unchanged; only how the
+caller is identified changes in shared mode.
+
+`DL_DEPLOYMENT_MODE=shared` starts only with a complete OIDC login configuration
+(issuer, client, `DL_PUBLIC_URL`, two distinct 32+ character keys, admin groups).
+The OIDC provider (authentik first) verifies people with authorization code + PKCE;
+Decision Layer verifies the id_token signature, issuer, audience, expiry and nonce,
+then maps IdP groups to one application role: `DL_ADMIN_GROUPS` → `admin`,
+`DL_USER_GROUPS` → `user`; anyone else is refused. Access and refresh tokens are
+not kept.
+
+Every shared-mode API route except `/health` and `/auth/*` requires a person,
+catalog reads included; OpenAPI pages are disabled. A person comes from either a
+signed HttpOnly SameSite=Lax session cookie (stateless, `DL_SESSION_HOURS`) or a
+personal access token (`dlp_…`, SHA-256 digest stored beside the Run database,
+created and revoked only from a browser session). Bearer tokens accepted by Cube
+are not identities in shared mode.
+
+Cube remains the owner of data access. Decision Layer signs a short-lived Cube JWT
+per request with its own `DL_CUBE_TOKEN_SECRET` (never the Cube WebApp secret),
+carrying the person's subject and the Cube groups configured for their role
+(`DL_CUBE_ADMIN_GROUPS`, `DL_CUBE_USER_GROUPS`). Cube must trust that key
+separately. This makes Decision Layer a trusted token issuer for the configured
+groups; a Decision Layer compromise can claim those groups, not arbitrary Cube
+WebApp sessions.
+
+Roles: `admin` may edit and publish Recipes; `user` may run analyses and read
+published Recipes. Method editing, HTTP source administration and service
+credentials are refused at startup in shared mode, so all executable code and
+endpoints stay operator-owned. This is how the ADR-094 sandbox/egress gates are
+met here: by not accepting untrusted code or caller-chosen endpoints, not by a
+sandbox. Opening those features to shared users needs a separate decision.
+
+Remote MCP is the same tool adapter served over streamable HTTP at `/mcp`
+(stateless). It requires an access token and forwards it unchanged to the REST API,
+which authenticates it like any other caller; there is no MCP-only execution path.
+The stdio adapter can also use an access token as `DL_TOKEN`. MCP OAuth (for
+claude.ai/Claude Desktop connectors) is not implemented.
+
+Known limits: sessions cannot be revoked server-side before expiry; tokens keep the
+role their owner had at creation until they expire (`DL_ACCESS_TOKEN_DAYS`) or are
+revoked; IdP group changes apply at the next login. Audit events still record the
+subject only. The PoC Compose binds to loopback unless `BIND_ADDRESS` is set.

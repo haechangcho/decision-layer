@@ -10,6 +10,7 @@ from ..core.errors import DecisionLayerError
 from ..core.models import CallerInfo, MethodManifest, Run
 from ..semantic.credentials import (
     AnonymousServiceCredentials,
+    LoginCredentials,
     RequestCredentials,
     ServiceCredentials,
 )
@@ -61,6 +62,9 @@ async def get_credentials(
         source = await request.app.state.source_manager.effective()
     if isinstance(request.app.state.provider, ConfiguredSemanticProvider):
         request.app.state.provider.bind(source)
+    if settings.shared:
+        # Shared deployments identify people by the application login only (ADR-130).
+        return await request.app.state.login.credentials(request)
     return credentials(
         authorization,
         allow_service=settings.allow_service_credentials,
@@ -71,7 +75,7 @@ async def get_credentials(
 
 
 Creds = Annotated[
-    RequestCredentials | ServiceCredentials | AnonymousServiceCredentials,
+    RequestCredentials | ServiceCredentials | LoginCredentials | AnonymousServiceCredentials,
     Depends(get_credentials),
 ]
 

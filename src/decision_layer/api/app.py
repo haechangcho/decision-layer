@@ -56,9 +56,22 @@ def create_app(
         yield
         engine.jobs.shutdown()
 
-    app = FastAPI(title="Decision Layer", version=__version__, lifespan=lifespan)
+    shared = {}
+    if settings.shared:
+        from fastapi import Depends
+        from ..login import require_login
+
+        # No anonymous routes or schema browsing on a shared deployment (ADR-130).
+        shared = {"dependencies": [Depends(require_login)], "docs_url": None, "redoc_url": None, "openapi_url": None}
+    app = FastAPI(title="Decision Layer", version=__version__, lifespan=lifespan, **shared)
 
     install_http_handlers(app, settings)
+    if settings.shared:
+        from ..login import Login
+        from ..login.routes import create_router as login_router
+
+        app.state.login = Login(settings)
+        app.include_router(login_router(app.state.login))
     app.state.method_assets = assets
     app.state.settings = settings
     app.state.provider = provider

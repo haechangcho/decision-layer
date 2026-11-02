@@ -8,6 +8,9 @@ without re-verifying the signature.
 
 Service credentials (no Authorization header) are a local/dev fallback, only
 when DL_ALLOW_SERVICE_CREDENTIALS is set; they all share one identity.
+
+Shared deployments identify people through the application login instead (ADR-130,
+`login/`); incoming provider tokens are not accepted there.
 """
 from __future__ import annotations
 
@@ -16,7 +19,7 @@ import hashlib
 
 from .core.errors import DecisionLayerError, ProviderAccessDenied
 from .core.models import CallerInfo
-from .semantic.credentials import AnonymousServiceCredentials, RequestCredentials, ServiceCredentials
+from .semantic.credentials import AnonymousServiceCredentials, LoginCredentials, RequestCredentials, ServiceCredentials
 from .semantic.provider import Credentials, SemanticProvider
 from .i18n import _
 
@@ -45,6 +48,10 @@ def credentials(authorization: str | None, *, allow_service: bool, secret: str |
 
 async def identify(provider: SemanticProvider, creds: Credentials) -> CallerInfo:
     """The caller behind creds, after the provider has accepted them."""
+    if isinstance(creds, LoginCredentials):
+        # Verified by the OIDC login (ADR-130); Cube still applies its groups to every query.
+        return CallerInfo(subject=creds.subject, groups=list(creds.groups), authentication="login",
+                          role=creds.role, name=creds.name)
     if isinstance(creds, (ServiceCredentials, AnonymousServiceCredentials)):
         return CallerInfo(subject=f"service:{creds.subject}", groups=list(creds.groups), authentication="local_service")
     await provider.discover(creds)  # raises ProviderAccessDenied for tokens the provider rejects

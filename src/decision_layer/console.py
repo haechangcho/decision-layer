@@ -1,4 +1,5 @@
 """Serve the packaged console and canonical API on one local origin."""
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from starlette.applications import Starlette
@@ -41,10 +42,24 @@ def create_console(settings=None, static_dir=None):
     async def home(request):
         return RedirectResponse("/ui/")
 
+    routes = [Route("/", home)]
+    lifespan = api.router.lifespan_context
+    if settings.shared:
+        # Remote MCP calls back into this API with the caller's own token (ADR-130).
+        from .mcp.remote import PATH, remote_app
+
+        mcp_app, mcp_lifespan = remote_app(settings)
+        routes.append(Route(PATH, endpoint=mcp_app, methods=["GET", "POST", "DELETE"]))
+
+        @asynccontextmanager
+        async def lifespan(app):
+            async with api.router.lifespan_context(app), mcp_lifespan(app):
+                yield
+
     # API middleware still enforces the same Host, Origin and caller checks.
     return Starlette(routes=[
-        Route("/", home),
+        *routes,
         Mount("/api", app=api),
         Mount("/ui", app=ConsoleFiles(directory=directory, html=True)),
         Mount("/", app=api),
-    ], lifespan=api.router.lifespan_context)
+    ], lifespan=lifespan)

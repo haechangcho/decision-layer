@@ -317,6 +317,11 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
   const body = await resp.json().catch(() => ({}));
   if (!resp.ok) {
     const e = body?.error;
+    // Shared deployments: the server owns login; send the browser there and come back (ADR-130).
+    if (resp.status === 401 && e?.code === "LOGIN_REQUIRED" && typeof window !== "undefined") {
+      const here = window.location.pathname + window.location.search;
+      window.location.assign(`${e?.details?.login_url ?? "/auth/login"}?next=${encodeURIComponent(here)}`);
+    }
     const msg = e?.message ?? (Array.isArray(body?.detail) ? body.detail.map((d: { msg: string }) => d.msg).join("; ") : resp.statusText);
     throw new ApiError(resp.status, e?.code ?? String(resp.status), msg, e?.details ?? body?.detail);
   }

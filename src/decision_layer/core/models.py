@@ -507,7 +507,11 @@ class RuntimeInputSource(BaseModel):
 class CallerInfo(BaseModel):
     subject: str | None = None
     groups: list[str] = Field(default_factory=list)
-    authentication: Literal["provider", "local_service"] = "provider"
+    authentication: Literal["provider", "local_service", "login"] = "provider"
+    # Application login only (ADR-130): role from IdP groups and a display name.
+    role: Literal["admin", "user"] | None = None
+    name: str | None = None
+
 
 class ExecutionAuthor(BaseModel):
     """Informational caller-supplied provenance, never an authenticated identity."""
