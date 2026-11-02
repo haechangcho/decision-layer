@@ -108,6 +108,8 @@ def create_router(login: Login) -> APIRouter:
         who = escape(person.name or person.subject)
         body = (f"<h1>{escape(_('Access tokens'))}</h1><p>{who} · {escape(person.role)} · "
                 f'<a href="/ui/">{escape(_("Open console"))}</a> · <a href="/auth/logout">{escape(_("Sign out"))}</a></p>'
+                f"<p>{escape(_('For MCP, add this URL to your client and sign in. Manual tokens are optional.'))}</p>"
+                f"<p><code>{escape(config.public_url + '/mcp')}</code></p>"
                 f"<p>{escape(_('Tokens let MCP and REST clients act as you. They keep your current role until they expire or you revoke them.'))}</p>"
                 f"{shown}<form method=\"post\" action=\"/auth/tokens\"><input name=\"label\" maxlength=\"80\" placeholder=\"{escape(_('Label, e.g. Claude Code'))}\"> "
                 f"<button>{escape(_('Create token'))}</button></form><h2>{escape(_('Your tokens'))}</h2>"

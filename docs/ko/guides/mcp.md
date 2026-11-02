@@ -1,5 +1,23 @@
 # AI 도구 연결
 
+**공유 서버**는 HTTPS `/mcp` 주소에 OAuth로 연결합니다.
+
+```bash
+codex mcp add decision-layer-shared --url https://<DL 도메인>/mcp
+codex mcp login decision-layer-shared
+```
+
+Claude 원격 커넥터 등 OAuth를 지원하는 MCP 클라이언트에도 같은 주소를 등록합니다.
+인증 서버에서 로그인하고 Decision Layer에 표시된 클라이언트의 연결을 승인하면 됩니다.
+수동 토큰 발급은 필요하지 않습니다. 운영자는 callback 호스트를
+`DL_MCP_REDIRECT_HOSTS`에 허용해야 합니다.
+
+접속 토큰은 기본 1시간입니다. 현재 버전은 refresh token을 발급하지 않으므로
+만료되면 다시 연결·로그인합니다. 기존 토큰은 만료·폐기 전까지 발급 당시 역할을 유지합니다.
+`/auth/tokens`에서 본인의 연결·토큰을 확인하고 폐기할 수 있습니다.
+Bearer 헤더를 쓰는 클라이언트에는 개인 토큰을 보조 수단으로 사용할 수 있습니다.
+MCP 접속 토큰과 Cube 조회 토큰은 별개입니다. 아래는 로컬 stdio 연결 방법입니다.
+
 [Decision Layer 서버](quickstart.md)를 켜 두고, 새 터미널에서 설치에 사용한 가상환경을 활성화하세요.
 사용하는 AI 도구 하나를 선택해 연결합니다.
 

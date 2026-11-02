@@ -47,8 +47,10 @@ def create_console(settings=None, static_dir=None):
     if settings.shared:
         # Remote MCP calls back into this API with the caller's own token (ADR-130).
         from .mcp.remote import PATH, remote_app
+        from .login.oauth import oauth_routes
 
-        mcp_app, mcp_lifespan = remote_app(settings)
+        mcp_app, mcp_lifespan = remote_app(settings, api.state.login)
+        routes.extend(oauth_routes(api.state.login))
         routes.append(Route(PATH, endpoint=mcp_app, methods=["GET", "POST", "DELETE"]))
 
         @asynccontextmanager
@@ -57,9 +59,13 @@ def create_console(settings=None, static_dir=None):
                 yield
 
     # API middleware still enforces the same Host, Origin and caller checks.
-    return Starlette(routes=[
+    console = Starlette(routes=[
         *routes,
         Mount("/api", app=api),
         Mount("/ui", app=ConsoleFiles(directory=directory, html=True)),
         Mount("/", app=api),
     ], lifespan=lifespan)
+    if settings.shared:
+        from starlette.middleware.trustedhost import TrustedHostMiddleware
+        console.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.http_allowed_hosts))
+    return console

@@ -49,13 +49,15 @@ def test_mcp_requires_an_access_token(server):
         assert response.status_code == 401 and response.headers["www-authenticate"].startswith("Bearer")
 
 
-def test_mcp_tools_run_as_the_token_owner(server):
+@pytest.mark.parametrize("oauth", [False, True])
+def test_mcp_tools_run_as_the_token_owner(server, oauth):
     import httpx2
     from mcp.client.session import ClientSession
     from mcp.client.streamable_http import streamable_http_client
 
     url, login = server
-    token, _record = asyncio.run(login.tokens.create(Person("oidc:alice", "user", "Alice"), "test", 1))
+    options = {"seconds": 3600, "client_id": "test-client", "resource": login.config.public_url + "/mcp"} if oauth else {}
+    token, _record = asyncio.run(login.tokens.create(Person("oidc:alice", "user", "Alice"), "test", 1, **options))
 
     async def call(headers):
         async with httpx2.AsyncClient(headers=headers, timeout=30) as http, \
@@ -70,5 +72,16 @@ def test_mcp_tools_run_as_the_token_owner(server):
     assert {"list_methods", "start_analysis", "get_run"} <= tools
     assert not result.is_error and "methods" in str(result.structured_content or result.content)
     asyncio.run(login.tokens.revoke("oidc:alice", _record.id))
-    _tools, revoked = asyncio.run(call({"Authorization": f"Bearer {token}"}))
-    assert "UNAUTHENTICATED" in str(revoked.structured_content or revoked.content)
+    # Invalid tokens are now rejected before MCP initialization/listing, not only
+    # when a tool forwards the token to the API.
+    revoked = httpx.post(url + "/mcp", headers={"Authorization": f"Bearer {token}"}, json={})
+    assert revoked.status_code == 401
+
+
+def test_mcp_rejects_wrong_resource_and_expired_tokens(server):
+    url, login = server
+    for resource, seconds in (("https://cube.example/mcp", 3600), (login.config.public_url + "/mcp", -1)):
+        token, record = asyncio.run(login.tokens.create(Person("oidc:alice", "admin"), "test", 0,
+            seconds=seconds, client_id="test-client", resource=resource))
+        response = httpx.post(url + "/mcp", headers={"Authorization": "Bearer " + token}, json={})
+        assert response.status_code == 401

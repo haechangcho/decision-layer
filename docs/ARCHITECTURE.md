@@ -28,7 +28,7 @@ Cube REST is the current product connection. Legacy dbt code remains for compati
 | `runs/` | Execution state, steps, policy, access and storage |
 | `semantic/`, `sources/` | Cube adapter, catalog and connection settings |
 | `api/`, `mcp/` | REST and MCP (stdio, and streamable HTTP in shared mode) interfaces to the common execution model |
-| `login/` | Shared-mode OIDC login, sessions, access tokens and per-person Cube credentials |
+| `login/` | Shared-mode OIDC login, MCP OAuth consent, sessions, access tokens and per-person Cube credentials |
 | `project.py`, `project_scaffold.py`, `cli.py`, `starters/` | Shared project loading, CLI and editable starter files |
 | `console.py`, `demo/` | Installed admin console and sample launcher |
 | `web/features/` | Method, Recipe and Run screens |
@@ -106,7 +106,7 @@ extras are needed for the demo or AI connection (ADR-125). `console.py` serves A
 
 `decision-layer demo` creates a visible project in the current empty/virtualenv-only workspace (or a safe child directory if populated), then starts sample PostgreSQL and Cube in Docker and launches the installed server. Subsequent commands inside that project select the same root (ADR-118). Docker configuration and Cube models live under `.decision-layer/demo/`; import scripts remain inside the installed package. Its own project and containers do not inherit organization source settings. New demos import all eight Complete Journey source tables with the packaged importer and Cube models. Installed Python imports through an ephemeral loopback PostgreSQL port; Cube uses a read-only account. The archive is downloaded from its publisher and cached in the project. Source data remains in a PostgreSQL volume; Runs use the sample project's SQLite database. Existing synthetic demos keep their dataset and volume (ADR-119).
 
-Local, isolated demo and shared deployments are supported. Shared mode (ADR-130) requires OIDC login for every API route, identifies callers by session cookie or personal access token, signs per-person Cube tokens with its own key, and refuses service credentials, Method editing and HTTP source administration. `login/` owns this. Source administration requires an operator key and approved endpoint. Recipe and Method editing/publication have separate permissions.
+Local, isolated demo and shared deployments are supported. Shared mode (ADR-130/131) requires OIDC login for every API route, identifies callers by session cookie, MCP OAuth token or optional personal access token, signs per-person Cube tokens with its own key, and refuses service credentials, Method editing and HTTP source administration. `login/` owns this. Source administration requires an operator key and approved endpoint. Recipe and Method editing/publication have separate permissions.
 
 `deploy/poc/` prepares a separate two-image installation: the existing Heartcube
 runtime Dockerfile and a Decision Layer wheel image containing the compiled console,

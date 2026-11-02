@@ -1,5 +1,24 @@
 # Connect AI tools
 
+For a **shared deployment**, connect to its HTTPS `/mcp` URL with OAuth:
+
+```bash
+codex mcp add decision-layer-shared --url https://<dl-domain>/mcp
+codex mcp login decision-layer-shared
+```
+
+Or register the HTTP URL in an OAuth-capable MCP client, including Claude's remote
+connector. Sign in through the deployment's identity provider and approve the
+client shown by Decision Layer. A manual token is not required. The operator must
+approve the client's callback host in `DL_MCP_REDIRECT_HOSTS`.
+
+Access tokens last one hour by default; this release does not issue refresh tokens,
+so reconnect/sign in after expiry. Existing tokens keep their granted role until
+expiry or revocation. `/auth/tokens` lists the owner's connections/tokens and can
+revoke them. PATs remain an optional alternative for clients with bearer headers.
+MCP tokens are separate from Cube query tokens. The steps below describe local
+stdio connections.
+
 Keep the [Decision Layer server](quickstart.md) running. Open another terminal and activate the virtual environment used for installation.
 Connect one of the clients below.
 

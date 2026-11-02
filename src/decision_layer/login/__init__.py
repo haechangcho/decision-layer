@@ -59,7 +59,7 @@ class Login:
             token = authorization.removeprefix("Bearer ").strip()
             if not token.startswith(PREFIX):
                 raise Unauthenticated(_("This deployment accepts only Decision Layer access tokens"))
-            record = await self.tokens.verify(token)
+            record = await self.tokens.verify(token, resource=self.config.public_url + "/mcp")
             if record is None:
                 raise Unauthenticated(_("The access token is invalid, expired or revoked"))
             return record.person()

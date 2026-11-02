@@ -94,6 +94,9 @@ class LoginSettings:
     session_secret: str | None = field(default_factory=lambda: env("DL_SESSION_SECRET") or None)
     session_hours: float = field(default_factory=lambda: float(env("DL_SESSION_HOURS", "8")))
     access_token_days: int = field(default_factory=lambda: int(env("DL_ACCESS_TOKEN_DAYS", "30")))
+    mcp_access_token_seconds: int = field(default_factory=lambda: int(env("DL_MCP_ACCESS_TOKEN_SECONDS", "3600")))
+    mcp_redirect_hosts: tuple[str, ...] = field(default_factory=lambda: _names(env(
+        "DL_MCP_REDIRECT_HOSTS", "localhost,127.0.0.1,::1,claude.ai,claude.com,chatgpt.com,chat.openai.com")))
     # IdP groups allowed to sign in, by application role.
     admin_groups: tuple[str, ...] = field(default_factory=lambda: _names(env("DL_ADMIN_GROUPS")))
     user_groups: tuple[str, ...] = field(default_factory=lambda: _names(env("DL_USER_GROUPS")))
@@ -126,6 +129,10 @@ class LoginSettings:
                 raise ValueError(f"{name} must be at least 32 characters")
         if self.session_secret == self.cube_token_secret:
             raise ValueError("DL_SESSION_SECRET and DL_CUBE_TOKEN_SECRET must differ")
+        if not 60 <= self.mcp_access_token_seconds <= 86400:
+            raise ValueError("DL_MCP_ACCESS_TOKEN_SECONDS must be between 60 and 86400")
+        if not self.mcp_redirect_hosts:
+            raise ValueError("DL_MCP_REDIRECT_HOSTS must not be empty")
         public = urlsplit(self.public_url)
         if public.scheme != "https" and public.hostname not in ("localhost", "127.0.0.1"):
             raise ValueError("DL_PUBLIC_URL must use https outside a localhost tunnel")

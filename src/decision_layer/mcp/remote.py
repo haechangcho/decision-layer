@@ -1,7 +1,7 @@
 """Streamable HTTP MCP for shared deployments (ADR-130).
 
 The same tools as the stdio adapter, mounted at /mcp beside the API. Each request
-must carry a personal access token; it is forwarded unchanged to the REST API,
+must carry a verified OAuth or personal access token; it is forwarded unchanged to the REST API,
 which verifies it like any other caller. There is no MCP-only execution path.
 """
 from __future__ import annotations
@@ -18,8 +18,8 @@ PATH = "/mcp"
 
 
 class _RequireAccessToken:
-    def __init__(self, app: ASGIApp) -> None:
-        self.app = app
+    def __init__(self, app: ASGIApp, login) -> None:
+        self.app, self.login = app, login
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         from .server import REQUEST_TOKEN
@@ -29,10 +29,14 @@ class _RequireAccessToken:
             return
         headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
         token = headers.get("authorization", "").removeprefix("Bearer ").strip()
-        if not token.startswith(PREFIX):
-            response = JSONResponse(status_code=401, headers={"WWW-Authenticate": 'Bearer realm="decision-layer"'},
+        resource = self.login.config.public_url + PATH
+        record = await self.login.tokens.verify(token, resource=resource) if token.startswith(PREFIX) else None
+        if record is None:
+            metadata = self.login.config.public_url + "/.well-known/oauth-protected-resource"
+            response = JSONResponse(status_code=401, headers={"WWW-Authenticate":
+                                    f'Bearer resource_metadata="{metadata}", scope="decision-layer"'},
                                     content={"error": {"code": "UNAUTHENTICATED",
-                                                       "message": "Create an access token at /auth/tokens."}})
+                                                       "message": "Connect using OAuth, or supply a personal access token."}})
             await response(scope, receive, send)
             return
         reset = REQUEST_TOKEN.set(token)
@@ -42,7 +46,7 @@ class _RequireAccessToken:
             REQUEST_TOKEN.reset(reset)
 
 
-def remote_app(settings: Settings):
+def remote_app(settings: Settings, login):
     """(ASGI app for PATH, its lifespan context)."""
     from mcp.server.transport_security import TransportSecuritySettings
 
@@ -54,4 +58,4 @@ def remote_app(settings: Settings):
     app = mcp.streamable_http_app(
         streamable_http_path=PATH, stateless_http=True, json_response=True,
         transport_security=TransportSecuritySettings(allowed_hosts=hosts, allowed_origins=[origin]))
-    return _RequireAccessToken(app), app.router.lifespan_context
+    return _RequireAccessToken(app, login), app.router.lifespan_context

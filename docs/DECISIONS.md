@@ -2959,3 +2959,48 @@ Known limits: sessions cannot be revoked server-side before expiry; tokens keep 
 role their owner had at creation until they expire (`DL_ACCESS_TOKEN_DAYS`) or are
 revoked; IdP group changes apply at the next login. Audit events still record the
 subject only. The PoC Compose binds to loopback unless `BIND_ADDRESS` is set.
+
+## ADR-131 — MCP OAuth through the existing OIDC login (2026-11-02)
+
+**Accepted at the user's request.** Supersedes ADR-130's PAT-only remote MCP
+connection and missing MCP OAuth item. Shared Web, REST and MCP still resolve to
+the same Person and canonical execution model; Cube remains the data authority.
+
+The MCP SDK supplies discovery, client authentication, exact redirect matching and
+S256 PKCE. DL brokers a fresh login through its existing OIDC application and
+`/auth/callback`; no extra authentik provider is needed. Each connection requires
+explicit, browser-bound consent identifying the client, user, role, lifetime and
+return URI. Origin/CSRF checks and atomic single-use codes prevent cross-site
+approval and replay. Dynamic registration accepts only operator-approved redirect
+hosts (`DL_MCP_REDIRECT_HOSTS`), HTTPS except loopback callbacks, and at most 1,000
+persisted clients. Client-supplied URLs are never fetched. URL-based client-ID
+metadata discovery is not implemented; DCR and its advertised metadata are used.
+
+OAuth access tokens are opaque, digest-stored records bound to this deployment's
+`{DL_PUBLIC_URL}/mcp` resource and registered client. They use the existing token
+store and preserve the OIDC subject and role, so Web/REST/MCP Run ownership and
+Recipe permissions agree. Foreign resource requests are refused; when omitted the
+single configured resource is used. The MCP endpoint verifies credentials before
+initialization or tool listing. Tokens for Cube, browser sessions and the upstream
+IdP cannot serve as MCP credentials. DL independently signs per-person Cube query
+tokens with its existing, separate key. Personal tokens remain optional.
+
+Client registrations and expiring transactions use the selected app database
+(memory, SQLite or PostgreSQL). Sensitive payloads are Fernet-encrypted using a
+domain-separated key derived from `DL_SESSION_SECRET`; authorization-code keys
+are hashed. Rotating that secret invalidates registrations and pending flows,
+requiring client re-registration. Database migrations are additive and do not
+remove existing Runs, PATs, sessions, Recipes or Cube assets.
+OAuth client/resource binding uses nullable access-token columns; the stored JSON
+retains the previous shape so the prior image can still read token records during
+rollback. New OAuth discovery endpoints naturally disappear when rolling back.
+
+The default OAuth token lifetime is one hour (`DL_MCP_ACCESS_TOKEN_SECONDS`).
+Like the reference HeartMCP implementation, this increment advertises only the
+authorization-code grant: refresh tokens and automatic renewal are not provided.
+Expiry requires signing in again; IdP group changes apply to the next grant.
+Already-issued tokens retain their role until expiry or revocation. Tokens can be
+revoked through OAuth revocation or the owner's existing access-token page.
+OAuth sign-out does not promise immediate revocation of other sessions/tokens.
+PoC multi-replica operation, broad client-registration infrastructure, machine
+identities and untrusted code hosting remain outside this change.

@@ -133,7 +133,7 @@ installer is outside this MVP.
 The first revised-PRD increment adds native synchronous calculation registration,
 Codex sample setup, and draft-first MCP procedure saving/publication. Local and
 isolated demo deployments are supported; a narrowed shared deployment adds OIDC
-login, per-person Cube tokens and remote MCP while keeping code and endpoints
+login, per-person Cube tokens and remote MCP with OAuth sign-in while keeping code and endpoints
 operator-owned (ADR-130). Source administration requires a configured
 key and operator-approved endpoint; Recipe writes have explicit permissions and
 recoverable retirement (ADR-094/095). dbt, direct DW/DM/BigQuery and SQL AST enforcement

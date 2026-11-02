@@ -37,6 +37,14 @@ services:
         read_only: true
         bind:
           create_host_path: false
+      # Heartcube initializes Draft/Git state while listing model files.
+      # Only models are writable; Python auth and web config remain read-only.
+      - type: bind
+        source: ./cube/model
+        target: /cubejs/conf/model
+        read_only: false
+        bind:
+          create_host_path: false
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/readyz').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"]
       interval: 10s
@@ -73,6 +81,8 @@ services:
       DL_CUBE_TOKEN_SECRET: ${DL_CUBE_TOKEN_SECRET:?Set the Decision Layer to Cube signing key}
       DL_CUBE_ADMIN_GROUPS: admin
       DL_CUBE_USER_GROUPS: guest
+      DL_MCP_ACCESS_TOKEN_SECONDS: ${DL_MCP_ACCESS_TOKEN_SECONDS:-3600}
+      DL_MCP_REDIRECT_HOSTS: ${DL_MCP_REDIRECT_HOSTS:-localhost,127.0.0.1,::1,claude.ai,claude.com,chatgpt.com,chat.openai.com}
       # Remote MCP calls the API inside this container with the caller's token.
       DL_API_URL: http://127.0.0.1:8000
       DL_ALLOW_SERVICE_CREDENTIALS: "false"
@@ -86,7 +96,7 @@ services:
       DL_RECIPES_DIR: /opt/decision-layer/project/recipes
       DL_METHOD_ASSETS_DIR: /data/method-assets
       DL_LOCALE: ${DL_LOCALE:-ko}
-      DL_WEB_URL: ${DL_WEB_URL:-http://localhost:5104/ui}
+      DL_WEB_URL: ${DL_WEB_URL:-http://localhost:5104/ui/}
       DL_JOB_WORKERS: ${DL_JOB_WORKERS:-2}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${DECISION_LAYER_PORT:-5104}:8000"
