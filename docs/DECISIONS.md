@@ -2791,6 +2791,19 @@ Execution validation, access, budgets, recorded evidence and Run/Recipe contract
 remain authoritative. This supersedes earlier semantic-search tool
 references in historical guides; current shared protocol governs tool discovery.
 
+## ADR-126 — Record bounded query exhaustion without claiming source completeness (2026-10-27)
+
+Ordinary Python inputs can require complete retrieval. Cube records true only
+when its first page is shorter than the requested bound; reaching a limit is
+false and multi-page reads remain unknown because they may span changing
+snapshots. Unknown or false fails a `require_complete` input before calculation.
+The successful check and query provenance are recorded in the shared Run.
+This does not certify upstream ingestion, missing records, metric correctness,
+or a common warehouse snapshot across queries. Older provenance and providers
+without evidence remain unknown; existing Methods do not require this check by
+default. Narrowing or an explicit source-specific solution is required when
+complete retrieval cannot be established.
+
 ## ADR-125 — Install the standard product with one package (2026-10-26)
 
 **Accepted.** `pip install decision-layer` installs the API, packaged admin console,

@@ -122,6 +122,8 @@ class QueryProvenance(BaseModel):
     rows: int
     elapsed_ms: int
     pages: int = 1
+    # Retrieval only, not ingestion completeness or a consistent warehouse snapshot.
+    retrieval_complete: bool | None = None
     executed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -171,6 +173,7 @@ class DataInput(BaseModel):
     entity: str | None = None
     format: Literal["dataframe", "records"] = "dataframe"
     minimum_rows: int = Field(default=1, ge=0)
+    require_complete: bool = False
     filters_parameter: str | None = None
     period_parameter: str | None = None
     period_role: Literal["current", "comparison"] = "current"
@@ -505,7 +508,6 @@ class CallerInfo(BaseModel):
     subject: str | None = None
     groups: list[str] = Field(default_factory=list)
     authentication: Literal["provider", "local_service"] = "provider"
-
 
 class ExecutionAuthor(BaseModel):
     """Informational caller-supplied provenance, never an authenticated identity."""

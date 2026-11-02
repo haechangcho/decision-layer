@@ -83,6 +83,7 @@ External AI clients drive Skill execution. `runs/skills.py` validates structured
 - Queries obey selected dates, shared filters, access and query budgets. All-period execution requires an explicit choice and policy permission.
 - Each query attempt is recorded before execution. Failures and interruptions consume budget and remain visible.
 - Entity queries validate provider-declared keys and uniqueness. Multiple queries do not guarantee the same warehouse snapshot.
+- Ordinary Python inputs may require proven query exhaustion. Cube records a short first page as complete retrieval, a reached limit as incomplete, and multi-page retrieval as unknown; this does not establish source ingestion completeness.
 - Successful querying does not establish analytical validity. Failed validation limits supported conclusions and capabilities. Association or assumption-dependent results do not establish causation.
 - One MCP question records goals, steps and evidence in one Run. Arbitrary AI-generated Python or SQL is not an execution path.
 

@@ -63,6 +63,7 @@ Function arguments matching declared columns receive DataFrame column names. Mul
 | Common `DataInput` option | Meaning |
 |---|---|
 | `minimum_rows` | Minimum row count; default `1` |
+| `require_complete` | Require verified query exhaustion before calculation; default `false`. Currently Cube proves this only for a short first page. It does not prove source ingestion or a shared snapshot. |
 | `format` | Default `"dataframe"`; `"records"` provides a list of row dicts |
 | `time_granularity` | Query by `"day"`, `"week"`, `"month"`, `"quarter"` or `"year"` |
 | `period_parameter` | Option naming a comparison date range |
