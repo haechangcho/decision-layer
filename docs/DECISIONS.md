@@ -2884,6 +2884,34 @@ before querying when it is missing. No alias, automatic Recipe rewrite or fallba
 resurrects a removed implementation. New user-published versions retain the normal
 version registry; this removes bundled history, not the provenance/version model.
 
+## ADR-129 — Separate PoC runtime images from customer configuration (2026-10-30)
+
+**Accepted for the requested installation rehearsal.** Build the existing Heartcube
+runtime Dockerfile and a dedicated Decision Layer image under `deploy/poc/`.
+Decision Layer builds its console and ordinary wheel in build stages, installs the
+wheel into a Python-only runtime and runs as UID/GID 10001. The existing root
+development/reference Dockerfiles and running services are unchanged.
+
+Images contain product code, not customer models, projects, warehouse data or
+credentials. Compose references fixed image versions and project-scoped resources;
+customer configuration and reviewed assets are supplied separately. SQLite state
+uses a persistent volume by default; the existing PostgreSQL backend remains an
+explicit alternative for a separate app database. Recipe bind mounts need runtime
+write permissions. Image IDs identify tested artifacts; rebuilding from dependency
+ranges is not a guarantee of byte-for-byte reproducibility.
+
+The first verified target is linux/amd64. Disposable checks cover the packaged UI,
+REST, stdio MCP, OLS calculation, state after restart and shared-mode refusal.
+Heartcube runs a real PostgreSQL fixture query in production mode using its memory
+queue, with external pre-aggregations and scheduled refresh disabled. This validates
+the single-instance direct-query configuration, not CubeStore, warehouse-specific
+drivers, authentik or a multi-instance deployment. Auth configuration is supplied
+as test fixtures and is not an approval of customer authentication.
+
+ADR-094's shared identity, network and execution isolation gates remain in place.
+The PoC Compose intentionally requests unsupported shared mode until those gates
+are implemented; no local/demo fallback or remote HTTP MCP support is added here.
+
 ## ADR-130 — Application login for a narrowed shared deployment (2026-11-02)
 
 **Accepted for the PoC installation.** Supersedes ADR-094's blanket refusal of

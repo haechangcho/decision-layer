@@ -1,0 +1,3 @@
+config_version: 2
+name: customer_poc
+include_builtin_methods: true

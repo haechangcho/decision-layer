@@ -108,6 +108,11 @@ extras are needed for the demo or AI connection (ADR-125). `console.py` serves A
 
 Local, isolated demo and shared deployments are supported. Shared mode (ADR-130) requires OIDC login for every API route, identifies callers by session cookie or personal access token, signs per-person Cube tokens with its own key, and refuses service credentials, Method editing and HTTP source administration. `login/` owns this. Source administration requires an operator key and approved endpoint. Recipe and Method editing/publication have separate permissions.
 
+`deploy/poc/` prepares a separate two-image installation: the existing Heartcube
+runtime Dockerfile and a Decision Layer wheel image containing the compiled console,
+REST API and stdio MCP adapter. Customer assets stay outside images. Its smoke checks
+use disposable local containers. Shared startup, login and remote MCP at `/mcp` follow ADR-130.
+
 Runs belong to their caller. Shared reads still validate semantic access. Python module imports and publication are trusted operator code; child-process checks are not an untrusted-code sandbox.
 
 ## Making changes

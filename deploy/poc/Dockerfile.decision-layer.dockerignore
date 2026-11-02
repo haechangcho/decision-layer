@@ -1,0 +1,21 @@
+# Send only package/UI inputs to the build, including when the root .dockerignore
+# excludes web/. Docker uses this Dockerfile-specific file instead of the root one.
+**
+!pyproject.toml
+!README.md
+!LICENSE
+!src/
+!src/decision_layer/
+!src/decision_layer/**
+!web/
+!web/**
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.env*
+**/.git
+**/.next*
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo
+src/decision_layer/static

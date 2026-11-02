@@ -1,0 +1,120 @@
+# PoC installation: new Heartcube and Decision Layer in shared mode (ADR-129/130).
+# See README.md and RUNBOOK.ko.md before starting services.
+name: decision-layer-poc
+
+services:
+  heartcube:
+    image: ${HEARTCUBE_IMAGE:?Set the versioned Heartcube image from stage 2}
+    platform: linux/amd64
+    working_dir: /cubejs/conf
+    environment:
+      CUBEJS_DEV_MODE: "false"
+      # Single-instance direct-query PoC; no pre-aggregations or refresh worker.
+      CUBEJS_CACHE_AND_QUEUE_DRIVER: memory
+      CUBEJS_EXTERNAL_DEFAULT: "false"
+      CUBEJS_SCHEDULED_REFRESH_DEFAULT: "false"
+      CUBEJS_SCHEDULED_REFRESH: "false"
+      CUBEJS_TELEMETRY: "false"
+      CUBEJS_DB_TYPE: ${WAREHOUSE_TYPE:-postgres}
+      CUBEJS_DB_HOST: ${WAREHOUSE_HOST:?Set the existing warehouse host}
+      CUBEJS_DB_PORT: ${WAREHOUSE_PORT:-5432}
+      CUBEJS_DB_NAME: ${WAREHOUSE_DATABASE:?Set the dedicated demo database}
+      CUBEJS_DB_USER: ${WAREHOUSE_USER:?Set the read-only warehouse user}
+      CUBEJS_DB_PASS: ${WAREHOUSE_PASSWORD:?Set the read-only warehouse password}
+      CUBEJS_API_SECRET: ${HEARTCUBE_API_SECRET:?Set a signing secret for this new Cube instance}
+      # Decision Layer signs its users' Cube tokens with its own key (ADR-130).
+      DECISION_LAYER_TOKEN_SECRET: ${DL_CUBE_TOKEN_SECRET:?Set the Decision Layer to Cube signing key}
+      AUTHENTIK_ISSUER: ${HEARTCUBE_OIDC_ISSUER:?Set the new Cube application issuer}
+      AUTHENTIK_CLIENT_ID: ${HEARTCUBE_OIDC_CLIENT_ID:?Set the new Cube application client ID}
+      AUTHENTIK_CLIENT_SECRET: ${HEARTCUBE_OIDC_CLIENT_SECRET:?Set the new Cube application client secret}
+      AUTHENTIK_REDIRECT_URI: ${HEARTCUBE_OIDC_REDIRECT_URI:?Set the new Cube application callback URL}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${HEARTCUBE_PORT:-5103}:4000"
+    volumes:
+      - type: bind
+        source: ./cube
+        target: /cubejs/conf
+        read_only: true
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/readyz').then(r => { if (!r.ok) process.exit(1); }).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  decision-layer:
+    image: ${DECISION_LAYER_IMAGE:?Set the versioned Decision Layer image from stage 2}
+    platform: linux/amd64
+    command:
+      - decision-layer
+      - serve
+      - --project
+      - /opt/decision-layer/project
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    environment:
+      # Application login, per-person Cube tokens and remote MCP (ADR-130).
+      # Startup fails unless every login setting below is present.
+      DL_DEPLOYMENT_MODE: shared
+      DL_PUBLIC_URL: ${DL_PUBLIC_URL:?Set the browser URL of Decision Layer}
+      DL_OIDC_ISSUER: ${DL_OIDC_ISSUER:?Set the Decision Layer application issuer}
+      DL_OIDC_CLIENT_ID: ${DL_OIDC_CLIENT_ID:?Set the Decision Layer application client ID}
+      DL_OIDC_CLIENT_SECRET: ${DL_OIDC_CLIENT_SECRET:?Set the Decision Layer application client secret}
+      DL_OIDC_SCOPES: ${DL_OIDC_SCOPES:-openid profile email cube_groups}
+      DL_OIDC_GROUPS_CLAIM: ${DL_OIDC_GROUPS_CLAIM:-cube_groups}
+      DL_ADMIN_GROUPS: ${DL_ADMIN_GROUPS:-dl-poc-admin}
+      DL_USER_GROUPS: ${DL_USER_GROUPS:-dl-poc-guest}
+      DL_SESSION_SECRET: ${DL_SESSION_SECRET:?Set a session signing key}
+      DL_CUBE_TOKEN_SECRET: ${DL_CUBE_TOKEN_SECRET:?Set the Decision Layer to Cube signing key}
+      DL_CUBE_ADMIN_GROUPS: admin
+      DL_CUBE_USER_GROUPS: guest
+      # Remote MCP calls the API inside this container with the caller's token.
+      DL_API_URL: http://127.0.0.1:8000
+      DL_ALLOW_SERVICE_CREDENTIALS: "false"
+      DL_ALLOW_METHOD_EDITING: "false"
+      DL_HTTP_ALLOWED_HOSTS: ${DL_HTTP_ALLOWED_HOSTS:-localhost,127.0.0.1,::1,decision-layer}
+      CUBE_API_URL: http://heartcube:4000/cubejs-api/v1
+      CUBE_INSTANCE: ${CUBE_INSTANCE:-poc}
+      CUBE_AUTH_METHOD: token
+      DL_DATABASE_URL: ${DL_DATABASE_URL:-sqlite:////data/decision_layer.db}
+      DL_PROJECT_DIR: /opt/decision-layer/project
+      DL_RECIPES_DIR: /opt/decision-layer/project/recipes
+      DL_METHOD_ASSETS_DIR: /data/method-assets
+      DL_LOCALE: ${DL_LOCALE:-ko}
+      DL_WEB_URL: ${DL_WEB_URL:-http://localhost:5104/ui}
+      DL_JOB_WORKERS: ${DL_JOB_WORKERS:-2}
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${DECISION_LAYER_PORT:-5104}:8000"
+    volumes:
+      - type: bind
+        source: ./project
+        target: /opt/decision-layer/project
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./project/recipes
+        target: /opt/decision-layer/project/recipes
+        bind:
+          create_host_path: false
+      - decision-layer-data:/data
+    depends_on:
+      heartcube:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+    restart: unless-stopped
+
+# Compose creates a new project-scoped default network and volume.
+# No external network/volume, host networking or globally fixed container name.
+volumes:
+  decision-layer-data:

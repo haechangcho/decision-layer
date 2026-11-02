@@ -1,0 +1,19 @@
+.env
+.env.*
+!.env.example
+# Customer models, credentials and generated Recipes belong to the deployment,
+# not this public repository. Keep only the empty layout and instructions here.
+/cube/*
+!/cube/README.md
+!/cube/model/
+/cube/model/*
+!/cube/model/.gitkeep
+/project/methods/*
+!/project/methods/.gitkeep
+/project/recipes/*
+!/project/recipes/.gitkeep
+/project/.decision-layer/
+/backups/
+/secrets/
+*.local.json
+*.tar

@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1
+# Build the console on the builder's native CPU; only the runtime targets STG.
+FROM --platform=$BUILDPLATFORM node:22.22.0-bookworm-slim AS console
+WORKDIR /build/web
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/ ./
+RUN npm run build:console
+
+# Build the same wheel used by the ordinary package distribution.
+FROM python:3.11-slim-bookworm AS package
+WORKDIR /build
+COPY pyproject.toml README.md LICENSE ./
+COPY src/ src/
+COPY --from=console /build/src/decision_layer/static/ src/decision_layer/static/
+RUN python -m pip install --no-cache-dir build && \
+    python -m build --wheel --outdir /wheels
+
+FROM python:3.11-slim-bookworm AS runtime
+ARG VCS_REF=unknown
+LABEL org.opencontainers.image.title="Decision Layer" \
+      org.opencontainers.image.source="https://github.com/haechangcho/decision-layer" \
+      org.opencontainers.image.revision=$VCS_REF
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    DL_DATABASE_URL=sqlite:////data/decision_layer.db \
+    DL_RECIPES_DIR=/data/recipes \
+    DL_METHOD_ASSETS_DIR=/data/method-assets
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libgomp1 ca-certificates && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd --gid 10001 decision-layer && \
+    useradd --uid 10001 --gid decision-layer --no-create-home decision-layer && \
+    mkdir -p /app /data/recipes /data/method-assets && \
+    chown -R 10001:10001 /app /data
+COPY --from=package /wheels/ /tmp/wheels/
+RUN python -m pip install /tmp/wheels/*.whl && \
+    python -m pip check && \
+    rm -rf /tmp/wheels
+WORKDIR /app
+USER 10001:10001
+VOLUME ["/data"]
+EXPOSE 8000
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=12 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+CMD ["uvicorn", "decision_layer.console:create_console", "--factory", "--host", "0.0.0.0", "--port", "8000"]

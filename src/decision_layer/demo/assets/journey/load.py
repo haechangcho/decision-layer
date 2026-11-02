@@ -73,6 +73,8 @@ def load(
     *,
     cache=Path("/cache"),
     supplied=Path("/input/complete-journey.zip"),
+    manage_reader=True,
+    require_new_schemas=False,
 ):
     import psycopg
     from psycopg import sql
@@ -82,7 +84,11 @@ def load(
         connection.cursor() as cursor,
     ):
         cursor.execute("SELECT pg_advisory_xact_lock(671821204)")
-        cursor.execute("CREATE SCHEMA IF NOT EXISTS journey_meta")
+        cursor.execute(
+            "CREATE SCHEMA journey_meta"
+            if require_new_schemas
+            else "CREATE SCHEMA IF NOT EXISTS journey_meta"
+        )
         cursor.execute(
             "CREATE TABLE IF NOT EXISTS journey_meta.imports (table_name text PRIMARY KEY, source_sha256 text NOT NULL, rows bigint NOT NULL)"
         )
@@ -109,9 +115,10 @@ def load(
             cursor.execute(
                 Path(__file__).with_name("campaign_outcomes.sql").read_text()
             )
-            cursor.execute(
-                "GRANT SELECT ON journey.campaign_household_outcomes TO journey_reader"
-            )
+            if manage_reader:
+                cursor.execute(
+                    "GRANT SELECT ON journey.campaign_household_outcomes TO journey_reader"
+                )
             print("Pinned Complete Journey import already present.", flush=True)
             return
         source = source_path(cache, supplied)
@@ -177,10 +184,20 @@ def load(
         )
         cursor.execute(Path(__file__).with_name("calendar.sql").read_text())
         cursor.execute(Path(__file__).with_name("campaign_outcomes.sql").read_text())
-        cursor.execute("CREATE ROLE journey_reader LOGIN PASSWORD 'local-read-only'")
-        cursor.execute("GRANT USAGE ON SCHEMA journey TO journey_reader")
-        cursor.execute("GRANT SELECT ON ALL TABLES IN SCHEMA journey TO journey_reader")
-    print("Import complete; Cube uses SELECT-only credentials.", flush=True)
+        if manage_reader:
+            cursor.execute(
+                "CREATE ROLE journey_reader LOGIN PASSWORD 'local-read-only'"
+            )
+            cursor.execute("GRANT USAGE ON SCHEMA journey TO journey_reader")
+            cursor.execute(
+                "GRANT SELECT ON ALL TABLES IN SCHEMA journey TO journey_reader"
+            )
+    message = (
+        "Import complete; Cube uses SELECT-only credentials."
+        if manage_reader
+        else "Import complete; reader grants are managed separately."
+    )
+    print(message, flush=True)
 
 
 if __name__ == "__main__":
