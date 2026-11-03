@@ -79,9 +79,9 @@ Cube는 SELECT만 허용된 계정으로 원본을 조회하며, 공개된 접�
 | `hh_demographic` | 가구에 대해 제공된 분류 코드 | `household_key`, `classification_1`, `classification_3`, `classification_5` | 선택적 가구 비교 조건; 모든 가구에 존재하지 않음 |
 | `campaign_desc` | 캠페인 하나 | `campaign`, `description`, `start_date`, `end_date` | 캠페인 유형과 기간 |
 | `campaign_table` | 원본 캠페인–가구 대상 목록 기록 | `campaign`, `household_key` | 대상 여부; 결과 모델 생성 시 중복 제거 |
-| `coupon` | 쿠폰–상품–캠페인 매핑 | `coupon_upc`, `product_id`, `campaign` | 향후 모델링을 위해 적재한 연결 테이블; 현재 Cube 모델 없음 |
+| `coupon` | 쿠폰–상품–캠페인 매핑 | `coupon_upc`, `product_id`, `campaign` | `coupon` Cube: 매핑 행 수·고유 쿠폰 코드 수; 쿠폰 사용 건수와 구분 |
 | `coupon_redempt` | 가구의 쿠폰 사용 기록 | `household_key`, `coupon_upc`, `campaign`, `redemption_date` | 거래 행과 별도로 쿠폰 사용 건수 분석 |
-| `causal_data` | 상품·매장·주차별 프로모션 배치 기록 | `product_id`, `store_id`, `week_no`, `display`, `mailer` | 향후 모델링을 위해 적재; 이름이 인과관계를 보장하지 않음 |
+| `causal_data` | 상품·매장·주차별 프로모션 배치 기록 | `product_id`, `store_id`, `week_no`, `display`, `mailer` | `causal_data` Cube: 상품·매장·주차·배치 코드별 기록 수; 인과 효과와 구분 |
 | `household` *(파생)* | 거래에 등장한 고유 가구 | `household_key` | 분류 코드가 없는 구매 가구도 유지 |
 | `campaign_household_outcomes` *(파생)* | 캠페인 하나 × 가구 하나 | `observation_id`, `is_targeted`, `pre_sales_band`, `pre_frequency_band`, `post_sales_30d`, `eligible` | 전후 기간을 정의한 가구 매칭 비교 |
 
@@ -166,7 +166,7 @@ erDiagram
 
 ### 원본 데이터가 Catalog에 어떻게 보이나요?
 
-Cube는 [`src/decision_layer/demo/assets/journey/cube/model/cubes/`](../../src/decision_layer/demo/assets/journey/cube/model/cubes/)에 8개 모델을 정의합니다.
+Cube는 [`src/decision_layer/demo/assets/journey/cube/model/cubes/`](../../src/decision_layer/demo/assets/journey/cube/model/cubes/)에 11개 Cube 모델을 정의합니다. 원본 8개 테이블을 모두 모델링하고 가구·캠페인 분석용 파생 모델 3개를 유지합니다.
 두 View는 분석에 쓸 필드들을 묶어서 제공하며 개별 모델의 멤버도 노출됩니다.
 
 | 분석 모델 / View | 원본과 분석 단위 | 사용할 지표·차원 |
@@ -214,6 +214,31 @@ Runs에서 질문·분석 단계·설정·쿼리를 확인합니다. **Recipe로
 **편집해서 저장**은 후보를 수정한 뒤 저장합니다. 관찰 데이터의 차이를 캠페인 인과 효과로 단정하지 마세요.
 쿠폰 사용자는 처치 이후 선택된 집단입니다. 인과 분석에는 사전 공변량, 명시적인 처치·결과 기간,
 비교 집단의 겹침과 식별 논거가 필요합니다.
+
+### 원본 테이블 전체 조회
+
+원본 컬럼은 각 Cube의 공개 차원 또는 지표에서 조회할 수 있습니다. 기존 분석용 이름은 유지합니다.
+
+| 원본 테이블 | Cube |
+|---|---|
+| `transaction_data` | `transaction` |
+| `product` | `product` |
+| `hh_demographic` | `hh_demographic` |
+| `campaign_desc` | `campaign` |
+| `campaign_table` | `campaign_contact` |
+| `coupon` | `coupon` |
+| `coupon_redempt` | `redemption` |
+| `causal_data` | `causal_data` |
+
+`hh_demographic`은 원본에 인구통계 코드가 있는 가구만 포함합니다. 기존 `household` 모델은
+코드가 없는 구매 가구도 유지합니다. 원본 분류·배치 코드는 임의의 의미로 변환하지 않습니다.
+`coupon`은 상품·캠페인, `causal_data`는 상품과 many-to-one으로 연결합니다.
+쿠폰 코드 하나가 여러 상품을 가리킬 수 있어 `redemption`에서 `coupon`으로 직접 연결하지 않습니다.
+프로모션 기록을 상품 키만으로 거래에 붙이는 조인도 선언하지 않습니다.
+
+자연 행 키가 없는 두 원본 기록 모델은 PostgreSQL `ctid`를 비공개 쿼리 키로만 사용합니다.
+중복 원본 행을 유지하고 전체 테이블의 `row_number` 계산을 피합니다. 이 키는 물리적 재구성 시
+달라질 수 있으며, 안정적인 엔터티 ID나 분석 입력으로 노출하지 않습니다.
 
 ## 캠페인 가구 비교
 

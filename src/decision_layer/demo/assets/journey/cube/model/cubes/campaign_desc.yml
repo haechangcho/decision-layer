@@ -28,6 +28,10 @@ cubes:
     sql: end_date
     type: time
     title: Campaign end date
+  - name: campaign_id
+    sql: campaign
+    type: string
+    title: Campaign ID
   measures:
   - name: count
     type: count

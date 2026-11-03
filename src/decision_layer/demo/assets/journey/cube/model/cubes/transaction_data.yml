@@ -27,6 +27,47 @@ cubes:
     sql: transaction_date
     type: time
     title: Transaction date
+  - name: household_key
+    sql: household_key
+    type: string
+    title: Source household key
+  - name: basket_id
+    sql: basket_id
+    type: string
+    title: Source basket ID
+  - name: product_id
+    sql: product_id
+    type: string
+    title: Source product ID
+  - name: quantity
+    sql: quantity::numeric
+    type: number
+    title: Source line quantity
+  - name: sales_value
+    sql: sales_value::numeric
+    type: number
+    title: Source line retailer receipts
+  - name: retail_disc
+    sql: retail_disc::numeric
+    type: number
+    title: Source retail discount
+  - name: trans_time
+    sql: trans_time
+    type: string
+    title: Source transaction time code
+    description: Original HHMM code, not a timestamp or timezone-aware event time.
+  - name: week_no
+    sql: week_no::integer
+    type: number
+    title: Source week number
+  - name: coupon_disc
+    sql: coupon_disc::numeric
+    type: number
+    title: Source coupon discount
+  - name: coupon_match_disc
+    sql: coupon_match_disc::numeric
+    type: number
+    title: Source coupon match discount
   measures:
   - name: count
     type: count

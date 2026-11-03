@@ -77,9 +77,9 @@ Field names below use the lowercase PostgreSQL names; the source CSV headers use
 | `hh_demographic` | Available coded classifications for a household | `household_key`, `classification_1`, `classification_3`, `classification_5` | Optional household comparison conditions; coverage is incomplete |
 | `campaign_desc` | A campaign | `campaign`, `description`, `start_date`, `end_date` | Campaign type and timing |
 | `campaign_table` | A source campaign–household target-list record | `campaign`, `household_key` | Target-list membership; deduplicated when building outcomes |
-| `coupon` | A coupon–product–campaign mapping | `coupon_upc`, `product_id`, `campaign` | Loaded bridge for future modeling; no Cube model yet |
+| `coupon` | A coupon–product–campaign mapping | `coupon_upc`, `product_id`, `campaign` | `coupon` Cube: mapping records and distinct coupon codes; not redemption counts |
 | `coupon_redempt` | A recorded household coupon redemption | `household_key`, `coupon_upc`, `campaign`, `redemption_date` | Redemption counts, separate from purchase lines |
-| `causal_data` | A product/store/week promotion-placement record | `product_id`, `store_id`, `week_no`, `display`, `mailer` | Loaded for future modeling; its name does not establish causality |
+| `causal_data` | A product/store/week promotion-placement record | `product_id`, `store_id`, `week_no`, `display`, `mailer` | `causal_data` Cube: placement records by product/store/week/display/mailer; not causal effects |
 | `household` *(derived)* | A distinct household found in transactions | `household_key` | Keeps purchasers even when demographics are missing |
 | `campaign_household_outcomes` *(derived)* | One campaign × household observation | `observation_id`, `is_targeted`, `pre_sales_band`, `pre_frequency_band`, `post_sales_30d`, `eligible` | Before/after-window matched household comparison |
 
@@ -164,8 +164,8 @@ not attributes to attach to every transaction line. `store_id` and `week_no` are
 
 ### From source tables to the Catalog
 
-Cube defines eight models under [`src/decision_layer/demo/assets/journey/cube/model/cubes/`](../../src/decision_layer/demo/assets/journey/cube/model/cubes/).
-Two views provide convenient analytical field sets; individual models also expose their own members.
+Cube defines eleven models under [`src/decision_layer/demo/assets/journey/cube/model/cubes/`](../../src/decision_layer/demo/assets/journey/cube/model/cubes/).
+Three views provide convenient analytical field sets; individual models also expose their own members.
 
 | Analytical surface | Source and grain | Metrics and dimensions |
 | --- | --- | --- |
@@ -187,6 +187,31 @@ PostgreSQL `DATE` columns for transactions, redemptions and campaign start/end w
 Transactions span **2000-01-01 to 2001-12-11** on this calendar. Use **Transaction date** for purchase-period questions;
 campaign start/end and redemption dates describe different events. Web uses provider period suggestions when available.
 Household classifications are publisher codes, not inferred ages or incomes. See [NOTICE](../../src/decision_layer/demo/assets/journey/NOTICE.md) for source terms.
+
+### Query every original table
+
+Every original column is exposed as a public dimension or measure. Existing analytical references are preserved.
+
+| Source table | Cube |
+|---|---|
+| `transaction_data` | `transaction` |
+| `product` | `product` |
+| `hh_demographic` | `hh_demographic` |
+| `campaign_desc` | `campaign` |
+| `campaign_table` | `campaign_contact` |
+| `coupon` | `coupon` |
+| `coupon_redempt` | `redemption` |
+| `causal_data` | `causal_data` |
+
+`hh_demographic` contains only source households with demographic codes; the existing `household`
+model retains purchasing households without those codes. Source classification and placement codes
+remain uninterpreted. Coupon mappings join many-to-one to product and campaign; promotion placements
+join many-to-one to product. Redemptions do not join directly to coupon mappings because one coupon can
+map to multiple products. Promotion records do not join to transactions by product alone.
+
+The two source record models without natural row keys use PostgreSQL `ctid` only as a private query key.
+This preserves duplicate records without an unbounded `row_number` window. Tuple locators can change
+when PostgreSQL reorganizes a table and are never exposed as stable analytical entity IDs.
 
 ## Ask through MCP
 

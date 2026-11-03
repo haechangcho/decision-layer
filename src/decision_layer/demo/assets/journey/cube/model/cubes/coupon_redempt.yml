@@ -19,6 +19,22 @@ cubes:
     sql: redemption_date
     type: time
     title: Redemption date
+  - name: household_key
+    sql: household_key
+    type: string
+    title: Source household key
+  - name: day_index
+    sql: day::integer
+    type: number
+    title: Source redemption day index
+  - name: coupon_upc
+    sql: coupon_upc
+    type: string
+    title: Coupon UPC
+  - name: campaign_id
+    sql: campaign
+    type: string
+    title: Campaign ID
   measures:
   - name: count
     type: count

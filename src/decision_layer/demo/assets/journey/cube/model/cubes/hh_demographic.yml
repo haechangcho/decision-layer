@@ -1,0 +1,49 @@
+cubes:
+- name: hh_demographic
+  sql_table: journey.hh_demographic
+  title: Source household demographics
+  description: Only households present in the original demographic file; not all purchasing households. Classification
+    values remain source codes with no inferred labels.
+  joins:
+  - name: household
+    sql: '{CUBE}.household_key = {household}.household_key'
+    relationship: many_to_one
+  dimensions:
+  - name: household_key
+    sql: household_key
+    type: string
+    title: Source household key
+    primary_key: true
+    public: true
+  - name: classification_1
+    sql: classification_1
+    type: string
+    title: Source classification 1
+  - name: classification_2
+    sql: classification_2
+    type: string
+    title: Source classification 2
+  - name: classification_3
+    sql: classification_3
+    type: string
+    title: Source classification 3
+  - name: homeowner_desc
+    sql: homeowner_desc
+    type: string
+    title: Source homeowner desc
+  - name: classification_5
+    sql: classification_5
+    type: string
+    title: Source classification 5
+  - name: classification_4
+    sql: classification_4
+    type: string
+    title: Source classification 4
+  - name: kid_category_desc
+    sql: kid_category_desc
+    type: string
+    title: Source kid category desc
+  measures:
+  - name: count
+    type: count
+    title: Households with source demographics
