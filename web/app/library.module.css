@@ -249,7 +249,7 @@
 .libraryFilters button[aria-pressed="true"] { color:var(--accent-hover); background:var(--accent-soft); font-weight:650; }
 .libraryFilters span { font-variant-numeric:tabular-nums; }
 .libraryColumns,.libraryRow { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(150px,.9fr) 120px 18px; align-items:center; gap:14px; }
-.libraryColumns { min-height:35px; padding:0 18px; border-bottom:1px solid var(--line); color:var(--muted); background:var(--bg); font-size:11px; font-weight:600; }
+.libraryColumns { min-height:35px; padding:0 64px 0 20px; border-bottom:1px solid var(--line); color:var(--muted); background:var(--bg); font-size:11px; font-weight:600; }
 .libraryRow { min-height:80px; padding:16px 20px; border-bottom:1px solid var(--line); color:var(--text); text-decoration:none; }
 .libraryRow:last-child { border-bottom:0; }
 .libraryRow:hover,.libraryRow:focus-visible { background:var(--hover); }
@@ -257,7 +257,7 @@
 .libraryName strong { color:var(--text); font-size:14px; font-weight:600; line-height:1.5; overflow-wrap:anywhere; }
 .libraryName small { color:var(--muted); font-size:11px; line-height:1.3; overflow-wrap:anywhere; }
 .runColumns, .runRow { grid-template-columns:minmax(0,1fr) 175px 85px 18px; }
-.runColumns { padding-right:62px; }
+.runColumns { padding-right:64px; }
 .runRow { padding-block:17px; }
 .runRow .libraryName { gap:5px; }
 .runMetadata { display:flex; align-items:center; flex-wrap:wrap; gap:6px 12px; margin-top:4px; min-width:0; }

@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test("sidebar collapses, preserves navigation and remembers preference", async ({ page }, info) => {
+  await page.addInitScript(() => localStorage.setItem("decision-layer.locale", "en"));
   await page.route("**/api/sources/current", route => route.fulfill({ json: {
     provider: "cube", instance: "local", api_url: "http://cube:4000/cubejs-api/v1",
     auth_method: "none", service_groups: [], service_credentials_allowed: true,

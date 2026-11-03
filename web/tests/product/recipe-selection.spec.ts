@@ -52,7 +52,7 @@ test("editor preserves a selected source and prevents removing its upstream step
   await expect(page.getByText(/1단계에서 찾은 대상 안에서 분석/)).toBeVisible();
   await nodes.nth(1).click();
   await page.getByRole("button", { name: "단계 삭제", exact: true }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "이전 결과를 사용하는 단계" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "이전 결과를 참조하는 단계" })).toBeVisible();
   await expect(nodes).toHaveCount(4);
   await page.screenshot({ path: info.outputPath("recipe-source-editor.png"), fullPage: true });
 });

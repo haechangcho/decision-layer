@@ -44,7 +44,7 @@ export function Nav({ context }: { context?: ReactNode }) {
       {context}
       <span className="app-topbar-spacer" />
       {signedIn ? <span className="app-credentials app-account" title={t("Signed in with SSO")} aria-label={t("Signed in as {name}", { name: me?.name || t("Signed-in user") })}>
-        <ShieldCheck size={15} />{me?.name || t("Signed-in user")}{me?.role ? ` · ${t(me.role === "admin" ? "Administrator" : "User")}` : ""}
+        <ShieldCheck size={15} /><span className="app-account-label">{me?.name || t("Signed-in user")}{me?.role ? ` · ${t(me.role === "admin" ? "Administrator" : "User")}` : ""}</span>
       </span> : source?.auth_method === "token" && editing ? (
         <form onSubmit={(e) => { e.preventDefault(); setToken(token); setEditing(false); location.reload(); }} className="app-token-form">
           <input type="password" aria-label={t("User access token")} placeholder={t("User access token")} value={token} onChange={(e) => setTok(e.target.value)} />

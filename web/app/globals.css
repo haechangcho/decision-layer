@@ -160,4 +160,8 @@ dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
   .app-sidebar a, .app-project summary, button { transition:background-color .16s, border-color .16s; }
 }
 
-.app-account { cursor:default; }.app-account:hover { color:var(--muted); background:var(--panel); }
+.app-account { cursor:default; min-width:0; max-width:240px; }.app-account svg { flex-shrink:0; }.app-account-label { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.app-account:hover { color:var(--muted); background:var(--panel); }
+
+@media(max-width:700px) { .app-account { min-width:0; max-width:120px; font-size:11px; padding-inline:8px; } }
+
+.app-project-name { overflow-wrap:anywhere; }

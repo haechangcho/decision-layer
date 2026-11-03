@@ -3,7 +3,7 @@ import { InspectorDialog } from "@/components/inspector-dialog";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, ArrowRight, Database, Info, Search, X } from "lucide-react";
+import { Activity, ArrowRight, Database, Info, Search } from "lucide-react";
 
 import { api, getSourceCallerToken, type SemanticCatalog, type SemanticObject, type SourceReadiness } from "@/lib/api";
 import { LoadingIndicator } from "@/components/loading-indicator";
@@ -18,6 +18,7 @@ function getCube(ref: string) {
 
 export default function CatalogPage() {
   const t = useT();
+  const [compact, setCompact] = useState(false);
   const [technicalOpen, setTechnicalOpen] = useState(false);
   const [metrics, setMetrics] = useState<CatalogMetric[]>([]);
   const [selected, setSelected] = useState<CatalogMetric | null>(null);
@@ -25,6 +26,13 @@ export default function CatalogPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1000px)");
+    const sync = () => { setCompact(media.matches); if (!media.matches) setMobileDetailOpen(false); };
+    sync(); media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   async function loadCatalog() {
     setLoading(true);
@@ -72,6 +80,19 @@ export default function CatalogPage() {
     return `/recipes/new?method=${method}&metric=${encodeURIComponent(metric.ref)}`;
   }
 
+  const detailContent = selected ? <>          <p className={styles.description}>{selected.description || t("No description is registered in the semantic model.")}</p>
+          <button type="button" className="ghost" onClick={() => setTechnicalOpen(true)}>{t("View technical details")}</button><InspectorDialog title={t("Metric technical details")} open={technicalOpen} onClose={() => setTechnicalOpen(false)}><div className={styles.reference}><span>{t("Metric reference")}</span><code>{selected.ref}</code></div>
+            {selected.ratio_parts?.length ? <div className={styles.reference}><span>{t("Numerator / denominator")}</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
+            {selected.entity && <div className={styles.reference}><span>{t("Analysis unit reference")}</span><code>{selected.entity}</code></div>}</InspectorDialog>
+          <div className={styles.readinessTitle}><Info size={16} /><strong>{t("Confirmed in the model")}</strong></div>
+          {!selected.checks ? <p className={styles.help}>{t("Model details unavailable. Execution will check the required inputs.")}</p> : <ul className={styles.checks}>
+            <li><span>{t("Time dimension")}</span><strong>{selected.checks.time.status === "ready" ? t("Registered") : t("Not confirmed")}</strong></li>
+            {(selected.metric_kind === "ratio" || selected.checks.decomposition.status !== "not_applicable") && <li><span>{t("Numerator / denominator")}</span><strong>{selected.checks.decomposition.status === "ready" ? t("Registered") : t("Not confirmed")}</strong></li>}
+          </ul>}
+          <Link className={styles.primaryButton} href={methodHref(selected)}>{t("Create Recipe")} <ArrowRight size={16} /></Link>
+          <p className={styles.footnote}>{t("The semantic layer manages metric definitions and access.")}</p>
+</> : <div className={styles.noSelection}>{t("Choose a metric from the list.")}</div>;
+
   return <div className={styles.page}>
     <div className={styles.heading}>
       <div><h1>{t("Metric catalog")}</h1><p className={styles.intro}>{t("Review the metrics and definitions in the connected semantic layer.")}</p></div>
@@ -87,11 +108,11 @@ export default function CatalogPage() {
       <Link className={styles.primaryButton} href="/sources">{t("Check connection")} <ArrowRight size={16} /></Link>
     </section> : <div className={styles.workspace}>
       <section className={styles.catalog} aria-label={t("Catalog metrics")}>
-        <div className={styles.toolbar}><label className={styles.search}><Search size={17} /><input aria-label={t("Search metrics")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search by name, description or model")} /></label><span className={styles.total}>{t("{count} metrics", { count: metrics.length })}</span></div>
+        <div className={styles.toolbar}><label className={styles.search}><Search size={17} /><input aria-label={t("Search metrics")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search by name, description or model")} /></label><span className={styles.total}>{t("{count} metrics", { count: shown.length })}</span></div>
         {Object.entries(groups).map(([cube, items]) => <section className={styles.group} key={cube} aria-label={t("{model} metrics", { model: cube })}>
           <h2><Database size={15} />{cube}<span>{items.length}</span></h2>
           {items.map((metric) => {
-            return <button key={metric.ref} className={`${styles.row} ${selected?.ref === metric.ref ? styles.selected : ""}`} onClick={() => { setSelected(metric); setMobileDetailOpen(true); }} aria-pressed={selected?.ref === metric.ref}>
+            return <button key={metric.ref} className={`${styles.row} ${selected?.ref === metric.ref ? styles.selected : ""}`} onClick={() => { setSelected(metric); if (compact) setMobileDetailOpen(true); }} aria-pressed={selected?.ref === metric.ref}>
               <span className={styles.metricIcon}><Activity size={17} /></span>
               <span className={styles.metricCopy}><strong>{metric.title}</strong>{metric.description && <small>{metric.description}</small>}</span>
             </button>;
@@ -100,23 +121,8 @@ export default function CatalogPage() {
         {shown.length === 0 && <div className={styles.noResults}><Search size={22} /><strong>{t("No metrics match")}</strong><button onClick={() => setSearch("")}>{t("Reset search")}</button></div>}
       </section>
 
-      {mobileDetailOpen && <button type="button" className={styles.mobileBackdrop} onClick={() => setMobileDetailOpen(false)} aria-label={t("Close metric details")} />}
-      <aside className={`${styles.detail} ${mobileDetailOpen ? styles.detailMobileOpen : ""}`} aria-label={t("Metric details")}>
-        {selected ? <>
-          <div className={styles.detailHeader}><span className={styles.largeIcon}><Activity size={20} /></span><button type="button" className={styles.mobileClose} onClick={() => setMobileDetailOpen(false)} aria-label={t("Close")}><X size={19} /></button></div>
-          <h2>{selected.title}</h2><p className={styles.description}>{selected.description || t("No description is registered in the semantic model.")}</p>
-          <button type="button" className="ghost" onClick={() => setTechnicalOpen(true)}>{t("View technical details")}</button><InspectorDialog title={t("Metric technical details")} open={technicalOpen} onClose={() => setTechnicalOpen(false)}><div className={styles.reference}><span>{t("Metric reference")}</span><code>{selected.ref}</code></div>
-            {selected.ratio_parts?.length ? <div className={styles.reference}><span>{t("Numerator / denominator")}</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
-            {selected.entity && <div className={styles.reference}><span>{t("Analysis unit reference")}</span><code>{selected.entity}</code></div>}</InspectorDialog>
-          <div className={styles.readinessTitle}><Info size={16} /><strong>{t("Confirmed in the model")}</strong></div>
-          {!selected.checks ? <p className={styles.help}>{t("Model details unavailable. Execution will check the required inputs.")}</p> : <ul className={styles.checks}>
-            <li><span>{t("Time dimension")}</span><strong>{selected.checks.time.status === "ready" ? t("Registered") : t("Not confirmed")}</strong></li>
-            {(selected.metric_kind === "ratio" || selected.checks.decomposition.status !== "not_applicable") && <li><span>{t("Numerator / denominator")}</span><strong>{selected.checks.decomposition.status === "ready" ? t("Registered") : t("Not confirmed")}</strong></li>}
-          </ul>}
-          <Link className={styles.primaryButton} href={methodHref(selected)}>{t("Create Recipe")} <ArrowRight size={16} /></Link>
-          <p className={styles.footnote}>{t("The semantic layer manages metric definitions and access.")}</p>
-        </> : <div className={styles.noSelection}>{t("Choose a metric from the list.")}</div>}
-      </aside>
+      {compact ? <InspectorDialog title={selected?.title ?? t("Metric details")} open={mobileDetailOpen} onClose={() => setMobileDetailOpen(false)}><div className={styles.dialogDetail}>{detailContent}</div></InspectorDialog>
+        : <aside className={styles.detail} aria-label={t("Metric details")}>{selected && <><span className={styles.largeIcon}><Activity size={20} /></span><h2>{selected.title}</h2></>}{detailContent}</aside>}
     </div>}
   </div>;
 }

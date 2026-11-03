@@ -44,7 +44,7 @@ export default function RecipesPage() {
         <label className={styles.librarySearch}><Search size={17} /><input aria-label={t("Search analyses")} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("Search by purpose or metric")} />
           {search && <button type="button" onClick={() => setSearch("")} aria-label={t("Clear search")} title={t("Clear search")}><X size={15} /></button>}
         </label>
-        <span className={styles.libraryCount}>{t("{count} results", { count: shown.length })}</span>
+        <span className={styles.libraryCount}>{data ? t("{count} results", { count: shown.length }) : t("Loading…")}</span>
       </div>
       <div className={styles.libraryColumns} aria-hidden="true"><span>{t("Analysis procedure")}</span><span>{t("Primary metric")}</span><span>{t("Steps")}</span><span /></div>
       {loading && !data ? <LoadingState label={t("Loading analyses")} /> : shown.map((recipe) => <div key={recipe.name} className={styles.libraryItem}><Link className={styles.libraryRow} href={`/recipes/${encodeURIComponent(recipe.name)}`}>

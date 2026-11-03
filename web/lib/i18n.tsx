@@ -11,6 +11,8 @@ export const LOCALES: Locale[] = ["en", "ko"];
 const KEY = "decision-layer.locale";
 
 const ko: Record<string, string> = {
+  "Compiled SQL {number}": "컴파일 SQL {number}",
+  "Copy SQL {number}": "SQL {number} 복사",
   "Signed in with SSO": "SSO로 로그인됨",
   "Signed in as {name}": "{name} 계정으로 로그인됨",
   "Signed-in user": "로그인한 사용자",
