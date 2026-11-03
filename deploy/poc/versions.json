@@ -8,8 +8,8 @@
       "commit": "a9e8a00ceec2dea6ca0713dfa94d1ee08e765dd9"
     },
     "decision_layer": {
-      "image": "decision-layer:poc-fae3e7b",
-      "commit": "fae3e7bd579f16c998bf19df4ff20fee24e3ec0c"
+      "image": "decision-layer:poc-7dd23d3",
+      "commit": "7dd23d388394cdf969f5c1e3744d265639db831c"
     },
     "models": {
       "commit": "a3e46aa19a43d675f7211878c71ac5f894f5734b",

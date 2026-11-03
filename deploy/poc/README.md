@@ -60,7 +60,7 @@ Git에서 추출한 커밋 소스만 빌드하며, 무관한 미추적 파일과
 | 로컬 이미지 | 검증 결과 |
 |---|---|
 | `heartcube:poc-a9e8a00` | 커밋 소스 재빌드. 네이티브 모듈·Python 인증·운영 모드·임시 PostgreSQL 집계 통과 |
-| `decision-layer:poc-fae3e7b` | 한국어 런타임·SSO 상태·Cube 쿼리/SQL 표시. 단위 641개·화면 18개·이미지 검증 통과 |
+| `decision-layer:poc-7dd23d3` | 한국어·SSO·쿼리/SQL UI 개선. 화면 259개(레이아웃 15개 포함)·이미지 검증 통과 |
 
 이미지는 로컬 Docker에 있으며 레지스트리에 게시하지 않았습니다.
 이미지 ID 등 로컬 빌드 기록은 Git 제외 파일 `images.local.json`에 남깁니다.
