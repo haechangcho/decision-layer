@@ -20,6 +20,22 @@ cubes:
     sql: commodity_desc
     type: string
     title: Product category
+  - name: product_id
+    sql: product_id
+    type: string
+    title: Source product ID
+  - name: manufacturer
+    sql: manufacturer
+    type: string
+    title: Manufacturer code
+  - name: sub_commodity_desc
+    sql: sub_commodity_desc
+    type: string
+    title: Product subcategory
+  - name: curr_size_of_product
+    sql: curr_size_of_product
+    type: string
+    title: Source product size
   measures:
   - name: count
     type: count

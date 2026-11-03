@@ -1,0 +1,41 @@
+cubes:
+- name: causal_data
+  sql: SELECT ctid::text AS placement_row_id, * FROM journey.causal_data
+  title: Promotion placements
+  description: One source promotion-placement record. display and mailer are source codes; neither proves receipt,
+    treatment assignment or causal effect. Week is the original source index, not an inferred calendar date.
+  joins:
+  - name: product
+    sql: '{CUBE}.product_id = {product}.product_id'
+    relationship: many_to_one
+  dimensions:
+  - name: id
+    sql: placement_row_id
+    type: string
+    title: Private query row key
+    primary_key: true
+    public: false
+  - name: product_id
+    sql: product_id
+    type: string
+    title: Source product ID
+  - name: store_id
+    sql: store_id
+    type: string
+    title: Store ID
+  - name: week_no
+    sql: week_no::integer
+    type: number
+    title: Source week number
+  - name: display
+    sql: display
+    type: string
+    title: Display placement code
+  - name: mailer
+    sql: mailer
+    type: string
+    title: Mailer placement code
+  measures:
+  - name: count
+    type: count
+    title: Promotion placement records

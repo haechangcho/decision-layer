@@ -28,7 +28,7 @@ def test_source_and_semantic_boundaries():
         for path in (FOLDER / "cube/model/cubes").glob("*.yml")
         for cube in yaml.safe_load(path.read_text())["cubes"]
     ]
-    assert len(cubes) == len({cube["name"] for cube in cubes}) == 8
+    assert len(cubes) == len({cube["name"] for cube in cubes}) == 11
     transactions = next(cube for cube in cubes if cube["name"] == "transaction")
     assert {join["name"] for join in transactions["joins"]} == {"product", "household"}
     time = next(
@@ -57,6 +57,33 @@ def test_source_and_semantic_boundaries():
         next(d for d in outcomes["dimensions"] if d.get("primary_key"))["name"]
         == "observation_id"
     )
+
+
+def test_every_original_table_column_has_a_semantic_member():
+    import re
+
+    models = {
+        cube["name"]: cube
+        for path in (FOLDER / "cube/model/cubes").glob("*.yml")
+        for cube in yaml.safe_load(path.read_text())["cubes"]
+    }
+    names = {"transaction_data": "transaction", "campaign_desc": "campaign",
+             "campaign_table": "campaign_contact", "coupon_redempt": "redemption"}
+    for table, headers in loader.HEADERS.items():
+        cube = models[names.get(table, table)]
+        assert "journey." + table in cube.get("sql_table", cube.get("sql", ""))
+        members = [*cube.get("dimensions", []), *cube.get("measures", [])]
+        exposed = {m["sql"].split("::")[0] for m in members
+                   if m.get("public", not m.get("primary_key", False))
+                   and re.fullmatch(r"\w+(?:::\w+)?", m.get("sql", ""))}
+        assert set(headers.lower().split()) <= exposed, (table, exposed)
+
+    # Product mappings are not a unique coupon dimension for redemption facts.
+    assert "coupon" not in {j["name"] for j in models["redemption"]["joins"]}
+    for name in ("coupon", "causal_data"):
+        key = next(d for d in models[name]["dimensions"] if d.get("primary_key"))
+        assert key["public"] is False
+        assert "row_number" not in models[name]["sql"].lower()
 
 
 def test_dbt_example_needs_no_decision_layer_annotations():

@@ -1,0 +1,40 @@
+cubes:
+- name: coupon
+  sql: SELECT ctid::text AS mapping_row_id, * FROM journey.coupon
+  title: Coupon product mappings
+  description: One source coupon/product/campaign mapping record, not a redemption. One coupon can map to multiple
+    products. Do not join redemptions to this table by UPC alone or treat mapping counts as coupon uses.
+  joins:
+  - name: product
+    sql: '{CUBE}.product_id = {product}.product_id'
+    relationship: many_to_one
+  - name: campaign
+    sql: '{CUBE}.campaign = {campaign}.campaign'
+    relationship: many_to_one
+  dimensions:
+  - name: id
+    sql: mapping_row_id
+    type: string
+    title: Private query row key
+    primary_key: true
+    public: false
+  - name: coupon_upc
+    sql: coupon_upc
+    type: string
+    title: Coupon UPC
+  - name: product_id
+    sql: product_id
+    type: string
+    title: Source product ID
+  - name: campaign_id
+    sql: campaign
+    type: string
+    title: Campaign ID
+  measures:
+  - name: count
+    type: count
+    title: Coupon product mapping records
+  - name: coupon_codes
+    sql: coupon_upc
+    type: count_distinct
+    title: Distinct coupon codes

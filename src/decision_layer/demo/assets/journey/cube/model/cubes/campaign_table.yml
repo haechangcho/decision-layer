@@ -15,6 +15,18 @@ cubes:
     type: number
     primary_key: true
     public: false
+  - name: household_key
+    sql: household_key
+    type: string
+    title: Source household key
+  - name: campaign_id
+    sql: campaign
+    type: string
+    title: Campaign ID
+  - name: description
+    sql: description
+    type: string
+    title: Source campaign description
   measures:
   - name: count
     type: count
