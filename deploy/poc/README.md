@@ -19,7 +19,7 @@ Decision Layer 로그인(ADR-130)을 추가하고 별도 컨테이너로 배포�
 | 대상 | 계속 작업할 브랜치 | 현재 검증된 기준 |
 |---|---|---|
 | Heartcube | `poc/deployment` | `heartcube:poc-a9e8a00` |
-| Decision Layer | `poc/deployment` | `decision-layer:poc-2a67b18` |
+| Decision Layer | `poc/deployment` | `decision-layer:poc-68258ed` |
 | 외부 샘플 모델 | DL의 `poc/deployment`에서 관리 | `a3e46aa`: Cube 11개·View 3개 |
 
 버전마다 브랜치를 늘리지 않습니다. 해당 브랜치에 커밋을 쌓고,
@@ -60,7 +60,7 @@ Git에서 추출한 커밋 소스만 빌드하며, 무관한 미추적 파일과
 | 로컬 이미지 | 검증 결과 |
 |---|---|
 | `heartcube:poc-a9e8a00` | 커밋 소스 재빌드. 네이티브 모듈·Python 인증·운영 모드·임시 PostgreSQL 집계 통과 |
-| `decision-layer:poc-6a17241` | 한국어·SSO·쿼리/SQL UI 개선. 화면 259개(레이아웃 15개 포함)·이미지 검증 통과 |
+| `decision-layer:poc-68258ed` | 일반 안내·성공 검사·중복 패널을 줄인 UI. 화면 테스트 263개·이미지 검증 통과. 실제 경고·원문 기록 유지 |
 
 이미지는 로컬 Docker에 있으며 레지스트리에 게시하지 않았습니다.
 이미지 ID 등 로컬 빌드 기록은 Git 제외 파일 `images.local.json`에 남깁니다.
@@ -138,7 +138,7 @@ Heartcube는 기존 Dockerfile을 사용하며 개발용 Compose를 실행하지
 아래 검증 명령은 저장소 루트에서 실행합니다.
 
 ```bash
-python3 deploy/poc/smoke_decision_layer.py decision-layer:poc-2a67b18
+python3 deploy/poc/smoke_decision_layer.py decision-layer:poc-68258ed
 python3 deploy/poc/smoke_heartcube.py heartcube:poc-a9e8a00
 ```
 
@@ -161,7 +161,7 @@ Heartcube는 운영 모드에서도 `/cubejs/conf/cube.config.js`를 필요로 �
 
 ```bash
 docker image save -o /tmp/decision-layer-poc-images.tar \
-  heartcube:poc-a9e8a00 decision-layer:poc-2a67b18
+  heartcube:poc-a9e8a00 decision-layer:poc-68258ed
 # 대상 서버에서 파일을 전달받은 후
 docker image load -i /tmp/decision-layer-poc-images.tar
 ```

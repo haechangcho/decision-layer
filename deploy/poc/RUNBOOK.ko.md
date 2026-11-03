@@ -154,7 +154,7 @@ chmod 600 .env
 ```bash
 COPYFILE_DISABLE=1 tar -C deploy/poc -cf - compose.yaml cube project \
   | ssh "$POC_SSH_HOST" 'mkdir -p ~/decision-layer-poc && tar -xf - -C ~/decision-layer-poc'
-docker save heartcube:poc-a9e8a00 decision-layer:poc-2a67b18 \
+docker save heartcube:poc-a9e8a00 decision-layer:poc-68258ed \
   | ssh "$POC_SSH_HOST" 'docker load'
 ```
 
