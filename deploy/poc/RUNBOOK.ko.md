@@ -44,37 +44,56 @@ nc -vz -w 3 <warehouse-host> <warehouse-port>
 네트워크 확인 뒤 승인된 계정으로 DB 로그인과 `journey` 조회 권한을 확인합니다.
 비밀번호는 비공개 설정 파일이나 승인된 자격증명 관리 수단으로 전달합니다.
 
-## 3. 커밋된 코드로 이미지 빌드
+## 3. PoC 전용 브랜치에서 계속 수정하고 이미지 빌드
 
-개발 PC의 저장소 루트에서 실행합니다. Docker Desktop 접근이 되는지 먼저 확인합니다.
+두 저장소의 장기 PoC 브랜치는 **`poc/deployment`**입니다. 이 PoC의 후속 개선은
+해당 브랜치에 쌓습니다. 새 버전마다 브랜치를 만들거나 일반 개발 브랜치로 자동 병합하지 않습니다.
+이전 기능 브랜치는 보존합니다. 현재 검증 기준은 `versions.json`을 참조합니다.
 
-```bash
-docker info
-```
-
-배포 소스는 지정한 커밋에서 별도 임시 디렉터리로 추출합니다. 아래는 Decision Layer 예시입니다.
-미커밋 파일이나 로컬 고객사 자산이 빌드에 섞이지 않도록 합니다.
+개발 PC의 DL 저장소 루트에서 두 저장소가 PoC 브랜치인지 확인합니다.
+Heartcube가 형제 디렉터리가 아니면 아래 경로와 빌드 도구의 `--source`를 맞춥니다.
 
 ```bash
-POC_DL_REF=82632f794dafe706e8d741eafa2e653f8045e43c
-POC_DL_CONTEXT="$(mktemp -d)"
-git archive "$POC_DL_REF" | tar -xf - -C "$POC_DL_CONTEXT"
-docker buildx build --platform linux/amd64 --load \
-  --build-arg VCS_REF="$POC_DL_REF" \
-  -t decision-layer:poc-82632f7 \
-  -f "$POC_DL_CONTEXT/deploy/poc/Dockerfile.decision-layer" "$POC_DL_CONTEXT"
+git branch --show-current
+git -C ../heartcube branch --show-current
+git status --short
+git -C ../heartcube status --short
 ```
 
-Heartcube도 운영자가 지정한 저장소의 커밋을 추출해 해당 Dockerfile로 빌드합니다.
-`org.opencontainers.image.revision` label과 이미지 태그에 소스 버전을 기록합니다.
+같은 PoC 브랜치에서 수정·테스트·커밋한 뒤, 변경한 프로그램을 빌드합니다.
+`--plan`은 Docker 없이 브랜치·미커밋 상태를 확인하고 빌드 계획만 출력합니다.
 
 ```bash
-python3 deploy/poc/smoke_decision_layer.py decision-layer:poc-82632f7
-python3 deploy/poc/smoke_heartcube.py heartcube:poc-970d41f
+python3 deploy/poc/build_image.py heartcube --plan
+python3 deploy/poc/build_image.py decision-layer --plan
+python3 deploy/poc/build_image.py heartcube
+python3 deploy/poc/build_image.py decision-layer
 ```
 
-스모크는 임시 컨테이너만 사용하고 호스트 포트를 열지 않습니다.
-실제 authentik·데모 DB·HTTPS 프록시 검증은 별도입니다. 새 빌드에는 새 태그를 사용합니다.
+도구는 `poc/deployment`만 허용하고 추적 파일의 미커밋 변경을 거부합니다.
+커밋 소스를 `git archive`로 추출해 `linux/amd64`로 빌드하고, 이미지에 커밋과
+PoC 브랜치 label을 기록합니다. 이미지 태그는 `heartcube:poc-<commit>` 또는
+`decision-layer:poc-<commit>`이며 기존 로컬 태그를 덮어쓰지 않습니다.
+빌드 기록은 `builds/*.local.json`으로 저장하며, 검증/배포 완료를 자동 주장하지 않습니다.
+
+빌드한 태그로 아래 검증 중 해당하는 것을 실행합니다.
+
+```bash
+python3 deploy/poc/smoke_decision_layer.py decision-layer:poc-<새커밋>
+python3 deploy/poc/smoke_heartcube.py heartcube:poc-<새커밋>
+```
+
+실제 authentik·DB·HTTPS 검증은 서버에서 추가로 합니다. 새 이미지와 이전 이미지를 보관하고
+`.env`의 해당 이미지 태그를 갱신한 뒤 필요한 서비스만 교체합니다. 예를 들어 DL만 갱신할 때:
+
+```bash
+docker compose config --quiet
+docker compose up -d --no-deps --wait decision-layer
+```
+
+일반 개발용 Heartcube Compose·소스 배포 절차와 혼용하지 않습니다.
+모델·설정만 바뀌면 백업·대상 파일 반영·Cube 적용/필요한 재시작·권한과 집계 검증으로 진행합니다.
+브랜치 전환이나 빌드 도구는 실행 중인 서버, 기존 `.env`, 모델, DB 볼륨을 변경하지 않습니다.
 
 ## 4. 모델과 운영 자산 보관
 
@@ -135,7 +154,7 @@ chmod 600 .env
 ```bash
 COPYFILE_DISABLE=1 tar -C deploy/poc -cf - compose.yaml cube project \
   | ssh "$POC_SSH_HOST" 'mkdir -p ~/decision-layer-poc && tar -xf - -C ~/decision-layer-poc'
-docker save heartcube:poc-970d41f decision-layer:poc-82632f7 \
+docker save heartcube:poc-a9e8a00 decision-layer:poc-2a67b18 \
   | ssh "$POC_SSH_HOST" 'docker load'
 ```
 

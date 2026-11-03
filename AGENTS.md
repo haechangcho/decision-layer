@@ -85,6 +85,20 @@ Statistical and causal Methods (OLS, CEM, DiD) are reusable primitives within th
 
 ## Development behavior
 
+### Ongoing PoC image development
+
+- At the user's explicit request, this PoC continues on the long-lived
+  `poc/deployment` branch in both Decision Layer and Heartcube repositories.
+- Make subsequent PoC fixes and improvements on that branch. Do not create a
+  new feature/version branch for each PoC change, or merge PoC work into normal
+  development branches, unless the user requests it.
+- Build committed PoC source with `python3 deploy/poc/build_image.py <component>`.
+  Images use immutable `<component>:poc-<git-short-commit>` tags; preserve old tags.
+- Branch changes do not update running containers. Test a new image before a
+  separate, targeted PoC deployment; keep the existing development services intact.
+- Model/config/Recipe files remain separate deployment assets. Keep secrets and
+  customer assets out of public Git. See `deploy/poc/README.md` and `versions.json`.
+
 Before implementing a large feature:
 
 1. Identify which core object it belongs to.

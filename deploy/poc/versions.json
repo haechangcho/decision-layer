@@ -1,0 +1,20 @@
+{
+  "branch": "poc/deployment",
+  "tag_pattern": "<component>:poc-<git-short-commit>",
+  "platform": "linux/amd64",
+  "baseline": {
+    "heartcube": {
+      "image": "heartcube:poc-a9e8a00",
+      "commit": "a9e8a00ceec2dea6ca0713dfa94d1ee08e765dd9"
+    },
+    "decision_layer": {
+      "image": "decision-layer:poc-2a67b18",
+      "commit": "2a67b18057749ff286d2e448b1fb483737406a77"
+    },
+    "models": {
+      "commit": "a3e46aa19a43d675f7211878c71ac5f894f5734b",
+      "cubes": 11,
+      "views": 3
+    }
+  }
+}
