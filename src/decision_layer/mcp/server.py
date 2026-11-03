@@ -81,6 +81,8 @@ def instructions() -> str:
     )
     parts = [
         _(SECTIONS["intro"]),
+        _("Write user-facing purposes, findings and conclusions in {language} unless the user requests another language. Keep semantic identifiers, queries and source code unchanged.",
+          language=_("Korean") if LOCALE == "ko" else _("English")),
         _(
             "Start one Run with the original question. Execute every Method with run_step on that run_id, supplying a purpose. Finish with complete_run and evidence-linked findings. Even a single Method needs a Run."
         ),
@@ -123,10 +125,11 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Remote MCP (ADR-130): the caller's own access token, forwarded to the REST API.
 REQUEST_TOKEN: contextvars.ContextVar[str | None] = contextvars.ContextVar("dl_mcp_token", default=None)
+REQUEST_LOCALE: contextvars.ContextVar[str | None] = contextvars.ContextVar("dl_mcp_locale", default=None)
 
 
 def _client() -> httpx.AsyncClient:
-    headers = {"Accept-Language": LOCALE, "X-Decision-Layer-Client": "mcp"}
+    headers = {"Accept-Language": REQUEST_LOCALE.get() or LOCALE, "X-Decision-Layer-Client": "mcp"}
     if token := REQUEST_TOKEN.get() or env("DL_TOKEN"):
         headers["Authorization"] = f"Bearer {token}"
     return httpx.AsyncClient(

@@ -232,3 +232,13 @@ def test_every_api_route_needs_login_except_health(client, idp):
     assert client.get("/health").status_code == 200
     sign_in(client, idp, ["dl-poc-guest"])
     assert client.get("/methods").status_code == 200
+
+
+def test_shared_source_status_explains_session_auth_without_exposing_secrets(client, idp):
+    sign_in(client, idp, ['dl-poc-admin'])
+    response = client.get('/sources/current')
+    assert response.status_code == 200
+    status = response.json()
+    assert status['deployment_mode'] == 'shared' and not status['editable']
+    assert 'client_secret' not in status and 'cube_token_secret' not in status
+    assert client.get('/me').json()['authentication'] == 'login'

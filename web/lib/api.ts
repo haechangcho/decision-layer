@@ -226,6 +226,7 @@ export interface PeriodChoice { mode: "range" | "all" | "relative" | "unresolved
 export interface Scope { period?: PeriodChoice | null; date_range?: [string, string] | null; time_dimension?: string | null; filters?: unknown[]; inputs?: Record<string, unknown> }
 
 export interface SourceConfig {
+  deployment_mode?: "local" | "demo" | "shared";
   provider: "cube";
   environment_id?: number | null;
   instance: string;
@@ -271,8 +272,17 @@ const SOURCE_ADMIN_KEY = "decision-layer.source-admin-key";
 const SOURCE_CALLER_TOKEN = "decision-layer.source-caller-token";
 const TOKEN_KEY = "decision-layer.token";
 const OLD_TOKEN_KEY = "analytica.token";   // before the rename
+let sessionManaged = false;
+
+export interface CallerInfo {
+  subject: string;
+  authentication?: string;
+  role?: "admin" | "user";
+  name?: string | null;
+}
 
 export function getToken(): string {
+  if (sessionManaged) return "";
   try {
     return sessionStorage.getItem(SOURCE_CALLER_TOKEN) || localStorage.getItem(TOKEN_KEY) || localStorage.getItem(OLD_TOKEN_KEY) || "";
   } catch { return ""; }
@@ -302,7 +312,9 @@ export function setSourceCallerToken(token: string): void {
 export async function api<T>(path: string, init?: { method?: string; body?: unknown; admin?: boolean; callerToken?: string }): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json", "X-Decision-Layer-Client": "web" };
   headers["Accept-Language"] = storedLocale();
-  const token = init?.callerToken ?? getToken();
+  // Source metadata bootstraps the login mode using the browser session. A stale
+  // locally pasted Cube token must not override an authenticated shared session.
+  const token = sessionManaged || path === "/sources/current" ? "" : init?.callerToken ?? getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   if (init?.admin) {
     const key = getSourceAdminKey();
@@ -324,6 +336,10 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
     }
     const msg = e?.message ?? (Array.isArray(body?.detail) ? body.detail.map((d: { msg: string }) => d.msg).join("; ") : resp.statusText);
     throw new ApiError(resp.status, e?.code ?? String(resp.status), msg, e?.details ?? body?.detail);
+  }
+  if (path === "/sources/current" && body?.deployment_mode === "shared") {
+    sessionManaged = true;
+    setToken("");
   }
   return body as T;
 }

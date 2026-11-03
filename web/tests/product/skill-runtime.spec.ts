@@ -28,7 +28,7 @@ test("waiting Skill refreshes recorded failures without offering premature compl
   let queries: unknown[] = [];
   await page.route("**/api/runs/skill-runtime", route => route.fulfill({ json: run(queries) }));
   await page.goto("/runs/skill-runtime");
-  await expect(page.getByRole("status")).toContainText("Skill 단계에서 AI 실행을 기다립니다");
+  await expect(page.getByRole("status")).toContainText("AI 실행 대기 중입니다");
   await expect(page.locator("main details")).toHaveCount(0);
   await page.getByRole("tab", {name:"쿼리 0개"}).click();
   await expect(page.getByText("아직 실행한 쿼리가 없습니다.", { exact: false })).toBeVisible();
@@ -89,4 +89,33 @@ test("query inspection preserves errors, results and snapshot evidence without s
   await expect(page.getByRole("dialog",{name:"실행 당시 Skill 지침"})).toContainText(guide.markdown);
   await page.getByRole("dialog",{name:"실행 당시 Skill 지침"}).getByRole("button",{name:"닫기"}).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+
+test("historical system messages follow UI language and recorded Cube query and SQL are visible", async ({ page }) => {
+  const validation = { validator: "skill_query", status: "pass", code: "QUERY_CHECKED", message: "Bound metrics, period, inherited population and provider query checks executed." };
+  const warning = "Returned rows are a bounded query result, not proof of complete population, appropriate peers or causal validity.";
+  const queryResult = { ...result, status: "success", validation: [validation], warnings: [warning],
+    primary: { type: "table", title: "Agent title stays unchanged", data: [{ receipts: 42 }] },
+    provenance: { ...result.provenance, queries: [{ provider: "cube", instance: "journey", rows: 1, elapsed_ms: 15,
+      native_query: { measures: ["retail_transactions.receipts"], _view: "retail_transactions" },
+      compiled_sql: "SELECT sum(sales_value) FROM journey.transaction_data WHERE transaction_date >= $1" }] } };
+  const finished = run([{ id: "read", purpose: "기록된 거래 조회", status: "success", started_at: stamp, spec: {}, result: queryResult }]);
+  finished.active_skill_step = "";
+  Object.assign(finished.steps[0], { result: { ...queryResult, warnings: ["Skill adherence, peer suitability, source completeness and causal assumptions are not verified. Only recorded query checks executed."] } });
+  await page.route("**/api/runs/skill-runtime", route => route.fulfill({ json: finished }));
+  await page.goto("/runs/skill-runtime");
+  await page.getByRole("tab", { name: "쿼리 1개" }).click();
+  const inspector = page.getByRole("region", { name: "조회 상세" });
+  await expect(inspector.getByRole("heading", { name: "Cube 쿼리", exact: true })).toBeVisible();
+  await expect(inspector.getByRole("heading", { name: "컴파일 SQL", exact: true })).toBeVisible();
+  await expect(inspector.getByRole("region", { name: "기록된 조회 근거" }).locator("pre").filter({ hasText: "SELECT sum" })).toContainText("$1");
+  await expect(inspector.getByLabel("쿼리 1 원본 요청")).not.toContainText("_view");
+  await expect(inspector.getByText(warning, { exact: true })).not.toBeVisible();
+  await expect(inspector.getByText(validation.message, { exact: true })).not.toBeVisible();
+  await expect(inspector.getByText("선택한 지표, 기간, 상속된 분석 대상과 시맨틱 레이어 조회 조건을 확인했습니다.")).toBeVisible();
+  await expect(inspector).toContainText("인과");
+  await page.getByLabel("language").selectOption("en");
+  await expect(page.getByRole("region", { name: "Query details" })).toContainText(warning);
+  await expect(page.getByRole("region", { name: "Query details" })).toContainText(validation.message);
 });

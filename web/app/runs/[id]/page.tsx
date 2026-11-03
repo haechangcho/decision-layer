@@ -23,6 +23,7 @@ import { RunPeriodInput, periodLabel } from "@/features/runs/run-period-input";
 import { AuthorInfo, RunQueries, RunSettings, RunSources, readableValue } from "@/features/runs/run-evidence";
 import { api, MethodManifest, Recipe, Result, Run } from "@/lib/api";
 import { useApi, useCatalog } from "@/lib/hooks";
+import { useRuntimeMessage } from "@/lib/runtime-messages";
 import { useT } from "@/lib/i18n";
 import { methodName } from "@/lib/method-name";
 import { runOriginLabel } from "@/lib/run-origin";
@@ -31,6 +32,7 @@ import styles from "../../library.module.css";
 
 export default function RunPage() {
   const t = useT();
+  const runtime = useRuntimeMessage();
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: run, error, reload } = useApi<Run>(`/runs/${id}`);
@@ -104,7 +106,7 @@ export default function RunPage() {
     {mine && run.needs_input && <RunPeriodInput key={`${run.id}:${run.scope_revision}`} run={run} objects={objects} onDone={() => reload()} />}
     {run.active_skill_step && !run.running && <p className={styles.runNotice} role="status">{t("Waiting for AI. Continue this Run in Claude or Codex.")}</p>}
     {run.running && <p className={styles.runNotice} role="status">{t("Running /")} {run.running.method ? methodName(run.running.method, t) : run.running.kind} · {new Date(run.running.started_at).toLocaleTimeString()}  {t("Started")}</p>}
-    {run.error && <p className={styles.error} role="alert">{run.error.message}  {t("/ Error code")} {run.error.code}</p>}
+    {run.error && <p className={styles.error} role="alert">{runtime(run.error.message)}  {t("/ Error code")} {run.error.code}</p>}
     {(!run.needs_input || run.steps.length > 0) && <><RunAnswer run={run} warnings={warnings} onSelect={index => { setOpen(index); setTab("result"); document.getElementById("run-step-detail")?.scrollIntoView({ behavior: "smooth", block: "start" }); }} />
     <RunRemediations run={run} mine={mine} objects={objects} onDone={() => { reload(); reloadCatalog(); }} />
     {run.steps.length > 1 && <RunGraph run={run} titles={byRef} selected={current} onSelect={index => { setOpen(index); setTab("result"); }} />}</>}
@@ -113,7 +115,7 @@ export default function RunPage() {
       {selectedStep.skill && <div className={styles.executionStrip} aria-label={t("Skill execution status")}><span>{selectedStep.skill.status === "awaiting_agent" ? t("Waiting for AI") : selectedStep.skill.status === "refused" ? t("Analysis stopped") : t("Query step complete")}</span><span>{t("Recorded queries")} {selectedStep.skill.queries.length}</span>
         {selectedStep.skill.queries.some(query => query.error || query.status === "interrupted") && <button type="button" onClick={() => setTab("queries")}>{t("Inspect failed queries")}</button>}
       </div>}
-      {selectedStep.skill && tab !== "queries" && selectedStep.skill.queries.some(query => query.error) && <p role="alert" className={styles.runQueryFailure}>{selectedStep.skill.queries.find(query => query.error)?.error?.message}</p>}
+      {selectedStep.skill && tab !== "queries" && selectedStep.skill.queries.some(query => query.error) && <p role="alert" className={styles.runQueryFailure}>{runtime(selectedStep.skill.queries.find(query => query.error)?.error?.message ?? "")}</p>}
       <WorkspaceTabs id="run" label={t("Analysis step details")} value={tab} onChange={setTab} items={([
         ['result', t("Result")], ...(additional.length || selectedStep.result.validation.length || selectedStep.result.warnings.length ? [['additional', additional.length ? t("Checks and additional results ({count})", { count: additional.length }) : t("Run validation")]] : []),
         ['settings', t("Settings used")], ['queries', t("{n} queries", { n: selectedStep.skill ? selectedStep.skill.queries.length : selectedStep.result.provenance.queries.length })], ['sources', t("Sources")]
@@ -123,7 +125,7 @@ export default function RunPage() {
           <ResultView result={selectedStep.skill && selectedStep.result.primary ? { ...selectedStep.result, primary: { ...selectedStep.result.primary, title: t("Query results") } } : selectedStep.result} titles={byRef} showRunLink={false} showEvidence={false} expanded /></>}
         {tab === "settings" && <><RunSettings record={selectedStep} titles={byRef} manifest={manifests?.find(m => m.name === selectedStep.step.method)} /><div className={styles.runTechnical}><h3>{t("Shared analysis scope")}</h3><dl><div><dt>{t("Analysis period")}</dt><dd>{scope.date_range?.join(" ~ ") || t("All periods")}</dd></div><div><dt>{t("Date basis")}</dt><dd>{timeTitle || t("Not set")}</dd></div></dl></div>{scope.filters?.length ? <div className={styles.runFilterSummary}><strong>{t("Shared filters")}</strong><p>{readableValue(scope.filters, byRef, t)}</p></div> : null}</>}
         {tab === "queries" && (selectedStep.skill ? <SkillQueryActivity key={current} skill={selectedStep.skill} titles={byRef} /> : <RunQueries result={selectedStep.result} />)}
-        {tab === "additional" && <><section className={styles.runChecks}><h3>{t("Run validation")}</h3>{selectedStep.result.validation.length ? <ul>{selectedStep.result.validation.map((item, index) => <li key={index}><span>{item.status === "pass" ? t("Passed") : item.status === "warning" ? t("Caution") : t("Not met")}</span><p>{item.message}</p></li>)}</ul> : <p>{t("No validation checks were recorded.")}</p>}</section>{selectedStep.result.warnings.length > 0 && <section className={styles.runChecks}><h3>{t("Notes for interpretation")}</h3><ul>{selectedStep.result.warnings.map((warning, index) => <li key={index}><p>{warning}</p></li>)}</ul></section>}{additional.map((artifact, index) => <ArtifactView key={index} artifact={artifact} titles={byRef} expanded />)}</>}
+        {tab === "additional" && <><section className={styles.runChecks}><h3>{t("Run validation")}</h3>{selectedStep.result.validation.length ? <ul>{selectedStep.result.validation.map((item, index) => <li key={index}><span>{item.status === "pass" ? t("Passed") : item.status === "warning" ? t("Caution") : t("Not met")}</span><p>{runtime(item.message)}</p></li>)}</ul> : <p>{t("No validation checks were recorded.")}</p>}</section>{selectedStep.result.warnings.length > 0 && <section className={styles.runChecks}><h3>{t("Notes for interpretation")}</h3><ul>{selectedStep.result.warnings.map((warning, index) => <li key={index}><p>{runtime(warning)}</p></li>)}</ul></section>}{additional.map((artifact, index) => <ArtifactView key={index} artifact={artifact} titles={byRef} expanded />)}</>}
         {tab === "sources" && <><RunProcedure run={run} detailed /><div className={styles.runSourceActions}><button type="button" className="ghost" onClick={() => setSnapshotOpen(true)}>{selectedStep.skill ? t("View execution-time instructions") : t("Execution-time Python code")}</button></div><RunSources result={selectedStep.result} titles={byRef} author={selectedStep.author} />{run.author && JSON.stringify(run.author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.author} label={t("Product that started the analysis")} />}{run.conclusion_author && JSON.stringify(run.conclusion_author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.conclusion_author} label={t("Product and model that wrote the conclusion")} />}<div className={styles.runTechnical}><dl><div><dt>{t("Run ID")}</dt><dd>{run.id}</dd></div><div><dt>{t("Started at")}</dt><dd>{new Date(run.created_at).toLocaleString()}</dd></div></dl></div></>}
       </div>
     </section> : !run.needs_input && <div className={styles.placeholder}><History size={20} />{t("No analysis steps have run yet.")}</div>}

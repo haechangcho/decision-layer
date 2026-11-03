@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, ApiError, getSourceCallerToken, SemanticObject } from "./api";
 import { useLocale } from "./i18n";
 
-export function useApi<T>(path: string | null) {
+export function useApi<T>(path: string | null, callerToken?: string) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<ApiError | Error | null>(null);
   const [loading, setLoading] = useState(false);
@@ -15,11 +15,11 @@ export function useApi<T>(path: string | null) {
     if (!path) return;
     setLoading(true);
     setError(null);
-    api<T>(path)
+    api<T>(path, callerToken === undefined ? undefined : { callerToken })
       .then(setData)
       .catch(setError)
       .finally(() => setLoading(false));
-  }, [path, locale]);
+  }, [path, locale, callerToken]);
 
   useEffect(reload, [reload]);
   return { data, error, loading, reload };

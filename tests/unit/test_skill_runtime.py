@@ -179,3 +179,32 @@ async def test_shared_protocol_is_snapshotted_and_delivered_with_each_skill(tmp_
     old = stored.steps[0].skill.model_dump(exclude={"core_guide"})
     assert SkillExecution.model_validate(old).core_guide is None
     e.jobs.shutdown()
+
+
+@pytest.mark.parametrize('locale', ['en', 'ko'])
+async def test_generated_skill_messages_use_request_locale_including_worker_jobs(tmp_path, locale):
+    from decision_layer.i18n import catalog, reset_locale, set_locale
+    e = engine(tmp_path)
+    context = set_locale(locale)
+    try:
+        # This is the same background executor used by canonical API execution.
+        run = await e.jobs.submit(lambda: start(e))
+        _, q = await e.skill_query(CREDS, ME, run.id, 'split',
+            SkillQueryRequest(id='read', purpose='User prose stays unchanged', spec=SPEC))
+        messages = [q.result.validation[0].message, *q.result.warnings]
+        run = await e.finish_skill(CREDS, ME, run.id, 'split', SkillFinishRequest(reason='Agent prose stays unchanged'))
+        messages += run.steps[0].result.warnings + [run.steps[0].result.primary.title]
+        if locale == 'ko':
+            assert all(message in catalog('ko').values() for message in messages)
+            assert all(any('가' <= char <= '힣' for char in message) for message in messages)
+        else:
+            assert 'Bound metrics' in messages[0]
+            assert all(message in catalog('ko') for message in messages)
+        assert q.purpose == 'User prose stays unchanged'
+        assert run.steps[0].skill.completion_reason == 'Agent prose stays unchanged'
+        with pytest.raises(InvalidBinding) as error:
+            await e.finish_skill(CREDS, ME, run.id, 'split', SkillFinishRequest(reason='Again'))
+        assert error.value.message == (catalog('ko')['This is not the active Skill step.'] if locale == 'ko' else 'This is not the active Skill step.')
+    finally:
+        reset_locale(context)
+        e.jobs.shutdown()

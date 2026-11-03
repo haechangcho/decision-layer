@@ -149,7 +149,8 @@ class SourceConfigManager:
 
     async def view(self) -> dict:
         current = await self.effective(resolve_secret=False)
-        return {"provider": current.provider, "instance": current.instance, "api_url": current.api_url, "environment_id": current.environment_id,
+        return {"deployment_mode": self.settings.deployment_mode,
+                "provider": current.provider, "instance": current.instance, "api_url": current.api_url, "environment_id": current.environment_id,
                 "auth_method": current.auth_method, "api_secret_configured": current.saved_secret,
                 "service_groups": list(current.service_groups),
                 "environment_overrides": current.environment_overrides,

@@ -12,6 +12,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ..settings import Settings
+from ..i18n import _, negotiate, reset_locale, set_locale
 from ..login.tokens import PREFIX
 
 PATH = "/mcp"
@@ -22,28 +23,36 @@ class _RequireAccessToken:
         self.app, self.login = app, login
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        from .server import REQUEST_TOKEN
+        from .server import REQUEST_TOKEN, REQUEST_LOCALE
 
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
         headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
-        token = headers.get("authorization", "").removeprefix("Bearer ").strip()
-        resource = self.login.config.public_url + PATH
-        record = await self.login.tokens.verify(token, resource=resource) if token.startswith(PREFIX) else None
-        if record is None:
-            metadata = self.login.config.public_url + "/.well-known/oauth-protected-resource"
-            response = JSONResponse(status_code=401, headers={"WWW-Authenticate":
-                                    f'Bearer resource_metadata="{metadata}", scope="decision-layer"'},
-                                    content={"error": {"code": "UNAUTHENTICATED",
-                                                       "message": "Connect using OAuth, or supply a personal access token."}})
-            await response(scope, receive, send)
-            return
-        reset = REQUEST_TOKEN.set(token)
+        locale = negotiate(headers.get("accept-language"), self.login.settings.locale)
+        context = set_locale(locale)
+        language = REQUEST_LOCALE.set(locale)
+        reset = None
         try:
+            token = headers.get("authorization", "").removeprefix("Bearer ").strip()
+            resource = self.login.config.public_url + PATH
+            record = await self.login.tokens.verify(token, resource=resource) if token.startswith(PREFIX) else None
+            if record is None:
+                metadata = self.login.config.public_url + "/.well-known/oauth-protected-resource"
+                response = JSONResponse(status_code=401, headers={"WWW-Authenticate":
+                                        f'Bearer resource_metadata="{metadata}", scope="decision-layer"'},
+                                        content={"error": {"code": "UNAUTHENTICATED",
+                                                           "message": _("Connect using OAuth, or supply a personal access token.")}})
+                await response(scope, receive, send)
+                return
+            reset = REQUEST_TOKEN.set(token)
             await self.app(scope, receive, send)
         finally:
-            REQUEST_TOKEN.reset(reset)
+            if reset is not None:
+                REQUEST_TOKEN.reset(reset)
+            REQUEST_LOCALE.reset(language)
+            reset_locale(context)
+
 
 
 def remote_app(settings: Settings, login):

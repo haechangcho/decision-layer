@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import { BookOpen, Database, History, Layers3, LayoutGrid, PanelLeftClose, PanelLeftOpen, ShieldCheck, Workflow } from "lucide-react";
 
-import { getToken, setToken, type SourceConfig } from "@/lib/api";
+import { getToken, setToken, type SourceConfig, type CallerInfo } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { LOCALES, Locale, useLocale, useT } from "@/lib/i18n";
 
@@ -17,6 +17,8 @@ export function Nav({ context }: { context?: ReactNode }) {
   const [editing, setEditing] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const { data: source, reload: reloadSource } = useApi<SourceConfig>("/sources/current");
+  const signedIn = source?.deployment_mode === "shared";
+  const { data: me } = useApi<CallerInfo>(signedIn ? "/me" : null, "");
   const t = useT();
   const { locale, setLocale } = useLocale();
   useEffect(() => setTok(getToken()), []);
@@ -41,7 +43,9 @@ export function Nav({ context }: { context?: ReactNode }) {
       </div>
       {context}
       <span className="app-topbar-spacer" />
-      {source?.auth_method === "token" && editing ? (
+      {signedIn ? <span className="app-credentials app-account" title={t("Signed in with SSO")} aria-label={t("Signed in as {name}", { name: me?.name || t("Signed-in user") })}>
+        <ShieldCheck size={15} />{me?.name || t("Signed-in user")}{me?.role ? ` · ${t(me.role === "admin" ? "Administrator" : "User")}` : ""}
+      </span> : source?.auth_method === "token" && editing ? (
         <form onSubmit={(e) => { e.preventDefault(); setToken(token); setEditing(false); location.reload(); }} className="app-token-form">
           <input type="password" aria-label={t("User access token")} placeholder={t("User access token")} value={token} onChange={(e) => setTok(e.target.value)} />
           <button type="submit">{t("Save")}</button>

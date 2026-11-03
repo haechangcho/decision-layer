@@ -3004,3 +3004,33 @@ revoked through OAuth revocation or the owner's existing access-token page.
 OAuth sign-out does not promise immediate revocation of other sessions/tokens.
 PoC multi-replica operation, broad client-registration infrastructure, machine
 identities and untrusted code hosting remain outside this change.
+
+## ADR-132 — Localized runtime messages and inspectable shared-login evidence (2026-11-03)
+
+**Accepted.** Applies ADR-031 to all Run-owned errors, checks, warnings and artifact
+labels, including agent-guided Skill queries and completion. Messages are translated
+when generated using the canonical request locale; worker jobs inherit that locale.
+Remote MCP forwards an explicit Accept-Language or the deployment locale to the same
+REST API and restores its request context afterward. MCP instructions ask agents to
+write purposes, findings and conclusions in the deployment language unless the user
+requests otherwise. This is guidance for agent prose, not a server translation or a
+claim that arbitrary generated prose is guaranteed to follow it. Semantic identifiers,
+queries, code, user input and agent-authored narrative remain unchanged.
+
+The Web UI shares the backend catalog to display known historical system messages in
+the chosen UI language without rewriting stored Runs. Unknown text stays verbatim.
+An AST regression check rejects untranslated literals at Run message sinks; catalog
+completeness checks also cover newly added IDs. English remains supported explicitly.
+
+Source status exposes deployment mode, not credentials. Shared-login screens show
+the signed-in Person and explain automatic per-person Cube authentication; they do
+not ask for a manually pasted Cube token or enable source administration. Local
+installations retain their existing token workflow. Authentication and authorization
+continue to be enforced on the server.
+
+Skill query inspection reuses the existing provenance renderer to show the recorded
+provider request and compiled SQL beside its result. Cube's internal DL `_view`
+routing marker is excluded from the copyable Cube API request and preserved in the
+raw record. Compiled SQL is the provider's compilation response at execution time,
+not an executed-statement trace. Missing SQL or bind parameters are disclosed rather
+than inferred, and historical evidence is never re-executed to fill gaps.

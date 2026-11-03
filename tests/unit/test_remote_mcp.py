@@ -85,3 +85,29 @@ def test_mcp_rejects_wrong_resource_and_expired_tokens(server):
             seconds=seconds, client_id="test-client", resource=resource))
         response = httpx.post(url + "/mcp", headers={"Authorization": "Bearer " + token}, json={})
         assert response.status_code == 401
+
+
+@pytest.mark.parametrize('header,expected', [(None, 'ko'), ('en', 'en'), ('ko-KR', 'ko')])
+async def test_remote_mcp_forwards_request_or_deployment_language_and_restores_context(header, expected):
+    from types import SimpleNamespace
+    from decision_layer.i18n import get_locale
+    from decision_layer.mcp.remote import _RequireAccessToken
+    from decision_layer.mcp.server import REQUEST_LOCALE, REQUEST_TOKEN, _client
+
+    seen = []
+    class Tokens:
+        async def verify(self, token, **kwargs):
+            return object()
+    async def downstream(scope, receive, send):
+        async with _client() as client:
+            seen.append((client.headers['Accept-Language'], get_locale()))
+    login = SimpleNamespace(tokens=Tokens(), config=SimpleNamespace(public_url='https://dl.example'),
+                            settings=SimpleNamespace(locale='ko'))
+    from decision_layer.login.tokens import PREFIX
+    headers = [(b'authorization', ('Bearer ' + PREFIX + 'test').encode())]
+    if header:
+        headers.append((b'accept-language', header.encode()))
+    previous = get_locale()
+    await _RequireAccessToken(downstream, login)({'type':'http','headers':headers}, None, None)
+    assert seen == [(expected, expected)]
+    assert REQUEST_LOCALE.get() is None and REQUEST_TOKEN.get() is None and get_locale() == previous

@@ -95,11 +95,16 @@ export function RunQueries({ result }: { result: Result }) {
   const [copyError, setCopyError] = useState(false);
   if (!result.provenance.queries.length) return <p className={s.muted}>{t("No queries were recorded for this run.")}</p>;
   return <div className={s.queries}>{result.provenance.queries.map((query, index) => {
-    const text = typeof query.native_query === "string" ? query.native_query : JSON.stringify(query.native_query, null, 2);
+    // _view is DL routing metadata, not a field accepted by the Cube API.
+    const native = query.native_query;
+    const cubeRequest = native && typeof native === "object" && !Array.isArray(native)
+      ? Object.fromEntries(Object.entries(native).filter(([key]) => key !== "_view")) : native;
+    const request = query.provider === "cube" ? cubeRequest : query.native_query;
+    const text = JSON.stringify(request, null, 2);
     return <section key={index}><header><strong>{t("Query {number}", { number: index + 1 })}</strong><span>{t("{rows} rows returned", { rows: query.rows.toLocaleString() })} · {query.elapsed_ms >= 1000 ? t("{seconds} s", { seconds: (query.elapsed_ms / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 }) }) : `${query.elapsed_ms.toLocaleString()} ms`}</span>
       <button type="button" title={t("Copy query")} aria-label={t("Copy query {number}", { number: index + 1 })} onClick={async () => { try { await navigator.clipboard.writeText(text); setCopied(index); setCopyError(false); } catch { setCopyError(true); } }}>{copied === index ? <Check size={16} /> : <Copy size={16} />}</button></header>
-      <div className={s.queryContext}><span>{[query.provider, query.instance].filter(Boolean).join(" · ") || t("Provider not recorded")}</span><span>{t(query.compiled_sql ? "Provider request and executed SQL" : "Provider request as sent · SQL not provided")}</span></div><pre tabIndex={0} aria-label={t("Query {number} raw request", { number: index + 1 })}>{text}</pre>
-      {query.compiled_sql != null && <section><h4>{t("Executed SQL")}</h4><pre tabIndex={0}>{typeof query.compiled_sql === "string" ? query.compiled_sql : JSON.stringify(query.compiled_sql, null, 2)}</pre></section>}
+      <div className={s.queryContext}><span>{[query.provider, query.instance].filter(Boolean).join(" · ") || t("Provider not recorded")}</span><span>{t(query.compiled_sql ? "Recorded provider request and compiled SQL" : "Recorded provider request · SQL not recorded")}</span></div><h4>{t(query.provider === "cube" ? "Cube query" : "Provider request")}</h4><pre tabIndex={0} aria-label={t("Query {number} raw request", { number: index + 1 })}>{text}</pre>
+      {query.compiled_sql == null ? <p>{t("Compiled SQL was not recorded for this query.")}</p> : <section><h4>{t("Compiled SQL")}</h4><pre tabIndex={0}>{typeof query.compiled_sql === "string" ? query.compiled_sql : JSON.stringify(query.compiled_sql, null, 2)}</pre><p>{t("Compiled by the provider at execution time. Parameter values, if absent, were not recorded.")}</p></section>}
     </section>;
   })}{copyError && <p role="alert">{t("Copy failed. Select the query text and copy it.")}</p>}</div>;
 }

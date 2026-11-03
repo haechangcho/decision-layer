@@ -159,3 +159,5 @@ dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 @media (prefers-reduced-motion:no-preference) {
   .app-sidebar a, .app-project summary, button { transition:background-color .16s, border-color .16s; }
 }
+
+.app-account { cursor:default; }.app-account:hover { color:var(--muted); background:var(--panel); }

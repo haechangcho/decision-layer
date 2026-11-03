@@ -55,7 +55,8 @@ export default function SourcesPage() {
   // deployment only after the admin key is accepted.
   const selectedConfig = source;
   const locked = (field: string) => !!selectedConfig?.environment_overrides[field];
-  const canEdit = !!source && source.editable && (!source.admin_required || unlocked);
+  const sessionManaged = source?.deployment_mode === "shared";
+  const canEdit = !!source && !sessionManaged && source.editable && (!source.admin_required || unlocked);
 
   function normalizedGroups() { return groups.split(",").map((v) => v.trim()).filter(Boolean); }
   function editBody() {
@@ -79,9 +80,9 @@ export default function SourcesPage() {
     try {
       if (envManaged) {
         // Inspect the configured source; no administrator-only arbitrary-target test.
-        const catalog = await api<SemanticCatalog>("/semantic/catalog", { callerToken: auth === "token" ? callerToken.trim() : "" });
+        const catalog = await api<SemanticCatalog>("/semantic/catalog", { callerToken: !sessionManaged && auth === "token" ? callerToken.trim() : "" });
         if (!catalog.objects.length) throw new Error(t("No visible metrics. Check the model and access permissions."));
-        if (auth === "token") setToken(callerToken.trim());
+        if (!sessionManaged && auth === "token") setToken(callerToken.trim());
         setTest({ status: "connected", provider: catalog.provider, instance: catalog.instance, objects: catalog.objects.length,
           measures: catalog.objects.filter(obj => obj.kind === "measure").length,
           dimensions: catalog.objects.filter(obj => obj.kind === "dimension").length,
@@ -89,7 +90,7 @@ export default function SourcesPage() {
         return;
       }
       const result = await api<SourceTestResult>("/sources/current:test", {
-        method: "POST", admin: source?.admin_required, callerToken: auth === "token" ? callerToken.trim() : "", body: editBody(),
+        method: "POST", admin: source?.admin_required, callerToken: !sessionManaged && auth === "token" ? callerToken.trim() : "", body: editBody(),
       });
       if (envManaged && auth === "token") setToken(callerToken.trim());
       setTest(result);
@@ -108,35 +109,43 @@ export default function SourcesPage() {
 
   async function inspectReadiness() {
     setBusy("readiness"); setError(""); setReadiness(null);
-    try { setReadiness(await api<SourceReadiness>("/sources/current/readiness", { callerToken: auth === "token" ? callerToken.trim() : "" })); }
+    try { setReadiness(await api<SourceReadiness>("/sources/current/readiness", { callerToken: !sessionManaged && auth === "token" ? callerToken.trim() : "" })); }
     catch (cause) { setError(cause instanceof Error ? cause.message : t("Could not load readiness.")); }
     finally { setBusy(null); }
   }
 
   const envManaged = !!source && !source.editable;     // HTTP administration disabled or every field fixed → status only
-  const matchesSaved = !!source && source.provider === provider && source.api_url === url && source.instance === instance && source.auth_method === auth && JSON.stringify(source.service_groups) === JSON.stringify(normalizedGroups()) && !secret && (auth !== "token" || callerToken.trim() === getSourceCallerToken());
+  const matchesSaved = !!source && source.provider === provider && source.api_url === url && source.instance === instance && source.auth_method === auth && JSON.stringify(source.service_groups) === JSON.stringify(normalizedGroups()) && !secret && (sessionManaged || auth !== "token" || callerToken.trim() === getSourceCallerToken());
 
   return <div className={styles.page}>
     <Link className={styles.back} href="/catalog"><ArrowLeft size={15} />{t("Metric catalog")}</Link>
-    <div className={styles.heading}><span className={styles.icon}><Database size={21} /></span><div><h1>{t("Semantic layer connection")}</h1><p>{t("Connect your governed metrics and dimensions.")}</p></div></div>
+    <div className={styles.heading}><span className={styles.icon}><Database size={21} /></span><div><h1>{t("Semantic layer connection")}</h1><p>{t(sessionManaged ? "Explore the metrics available to your signed-in account." : "Connect your governed metrics and dimensions.")}</p></div></div>
 
     {!source ? error ? <div className={styles.alert} role="alert"><Info size={17} /><div>{error}<button onClick={() => { setError(""); void api<SourceConfig>("/sources/current").then(applyConfig).catch(cause => setError(String(cause))); }}>{t("Retry")}</button></div></div> : <div className={styles.skeleton} aria-label={t("Loading…")}><LoadingIndicator /><div /><div /><div /></div> : <>
       {/* Current state summary — always shown */}
       {!canEdit && <section className={styles.formSection}>
         <div className={styles.sectionHeading}><h2>{t("Current connection")}</h2>
-          <span>{envManaged ? t("Managed by environment variables") : t("Saved on the server")}</span></div>
+          <span>{sessionManaged ? t("Managed on the server") : envManaged ? t("Managed by environment variables") : t("Saved on the server")}</span></div>
         <dl className={styles.summary}>
           <div><dt>{t("Provider")}</dt><dd>{t(PROVIDER_TITLES[source.provider])}</dd></div>
-          <div><dt>{t("API URL")}</dt><dd><code>{source.api_url}</code>{locked("api_url") && <small><LockKeyhole size={12} />{ENV_LABEL.api_url}</small>}</dd></div>
-          <div><dt>{t("Authentication")}</dt><dd>{t(source.auth_method === "none" ? "No authentication (development)" : source.auth_method === "api_secret" ? "API secret (development)" : "Access token")}{source.environment_overrides.auth_method && <small><LockKeyhole size={12} /> CUBE_AUTH_METHOD</small>}</dd></div>
+          {!sessionManaged && <div><dt>{t("API URL")}</dt><dd><code>{source.api_url}</code>{locked("api_url") && <small><LockKeyhole size={12} />{ENV_LABEL.api_url}</small>}</dd></div>}
+          <div><dt>{t("Authentication")}</dt><dd>{t(sessionManaged ? "Signed-in user permissions" : source.auth_method === "none" ? "No authentication (development)" : source.auth_method === "api_secret" ? "API secret (development)" : "Access token")}{!sessionManaged && source.environment_overrides.auth_method && <small><LockKeyhole size={12} /> CUBE_AUTH_METHOD</small>}</dd></div>
           {source.provider === "cube" && source.auth_method === "api_secret" && <div><dt>{t("Service groups")}</dt><dd>{source.service_groups.join(", ") || "—"}{locked("service_groups") && <small><LockKeyhole size={12} /> {ENV_LABEL.service_groups}</small>}</dd></div>}
         </dl>
       </section>}
 
+      {sessionManaged && <>
+        <p className={styles.credential}><ShieldCheck size={16} />{t("You are signed in. Decision Layer handles Cube authentication automatically; no token entry is needed.")}</p>
+        <p className={styles.help}>{t("Available metrics and data follow your account permissions. Connection changes are managed by the operator.")}</p>
+        <details className={styles.advanced}><summary>{t("Connection details")}</summary><dl className={styles.summary}>
+          <div><dt>{t("API URL")}</dt><dd><code>{source.api_url}</code></dd></div>
+          <div><dt>{t("Instance")}</dt><dd>{source.instance}</dd></div>
+        </dl></details>
+      </>}
       {/* Operator configuration stays outside the HTTP API when no admin key exists. */}
-      {!source.admin_configured && <p className={styles.help}><Info size={14} />{t("Connection editing is disabled. Configure it on the server.")}</p>}
-      {envManaged && source.admin_configured && <p className={styles.help}><Info size={14} /> {t("Update the server environment (.env) and restart to change this connection.")}</p>}
-      {envManaged && auth === "token" && <label className={styles.field}><span id="readonly-token-label">{t("Access token")}</span><input aria-labelledby="readonly-token-label" type="password" autoComplete="off" value={callerToken} disabled={busy !== null} onChange={e => { setCallerToken(e.target.value); invalidateTest(); }} placeholder={t("Enter without the Bearer prefix")} /><small>{t("Used in this tab only; not stored on the server.")}</small></label>}
+      {!sessionManaged && !source.admin_configured && <p className={styles.help}><Info size={14} />{t("Connection editing is disabled. Configure it on the server.")}</p>}
+      {!sessionManaged && envManaged && source.admin_configured && <p className={styles.help}><Info size={14} /> {t("Update the server environment (.env) and restart to change this connection.")}</p>}
+      {!sessionManaged && envManaged && auth === "token" && <label className={styles.field}><span id="readonly-token-label">{t("Access token")}</span><input aria-labelledby="readonly-token-label" type="password" autoComplete="off" value={callerToken} disabled={busy !== null} onChange={e => { setCallerToken(e.target.value); invalidateTest(); }} placeholder={t("Enter without the Bearer prefix")} /><small>{t("Used in this tab only; not stored on the server.")}</small></label>}
 
       {/* Shared deployment, not yet unlocked: ask for the admin key */}
       {!envManaged && source.admin_required && !unlocked && <section className={styles.admin}>
@@ -179,8 +188,8 @@ export default function SourcesPage() {
         {canEdit && !test && <p className={styles.actionHint}>{t("Test the connection before saving. Then explore the available metrics.")}</p>}
         <div className={styles.actions}>
           <button className={styles.testButton} onClick={() => void testConnection()}
-            disabled={busy !== null || (!envManaged && !canEdit) || !/^https?:\/\/\S+$/.test(url) || (auth === "token" && !callerToken.trim())}>
-            {busy === "test" ? <><LoadingIndicator />{t("Testing…")}</> : <><Wifi size={16} />{t("Test connection")}</>}</button>
+            disabled={busy !== null || (!envManaged && !canEdit) || !/^https?:\/\/\S+$/.test(url) || (!sessionManaged && auth === "token" && !callerToken.trim())}>
+            {busy === "test" ? <><LoadingIndicator />{t("Testing…")}</> : <><Wifi size={16} />{t(sessionManaged ? "Check metric access" : "Test connection")}</>}</button>
           {canEdit && <button className={styles.saveButton} onClick={() => void saveSettings()} disabled={busy !== null || !test || saved}>
             {busy === "save" ? t("Saving…") : <><Save size={15} />{t("Save settings")}</>}</button>}
         </div>

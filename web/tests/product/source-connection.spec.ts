@@ -92,3 +92,26 @@ test("configured administration requires the admin key before editing", async ({
   await expect(page.getByLabel("API URL", { exact: true })).toBeVisible();                        // now editable
   expect(adminKeys).toContain("secret-admin-key");                                    // the key was sent on reload
 });
+
+
+test("shared SSO uses the signed-in account without asking for a Cube token", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("decision-layer.token", "obsolete-cube-token"));
+  await page.route("**/api/sources/current", route => {
+    expect(route.request().headers().authorization).toBeUndefined();
+    return route.fulfill({ json: { ...base, deployment_mode: "shared", auth_method: "token", environment_overrides: {} } });
+  });
+  await page.route("**/api/me", route => route.fulfill({ json: { subject: "oidc:joe", name: "joe", role: "admin", authentication: "login" } }));
+  await page.route("**/api/sources/current:test", () => { throw new Error("SSO must not call the admin test endpoint"); });
+  await page.route("**/api/semantic/catalog", route => {
+    expect(route.request().headers().authorization).toBeUndefined();
+    return route.fulfill({ json: { provider: "cube", instance: "poc", objects: [{ kind: "measure", public: true }], hierarchies: {} } });
+  });
+  await page.goto("/sources");
+  await expect(page.getByLabel("Signed in as joe")).toContainText("joe · Administrator");
+  await expect(page.getByText("Access token required")).toHaveCount(0);
+  await expect(page.getByPlaceholder("Enter without the Bearer prefix")).toHaveCount(0);
+  await expect(page.getByText("Signed-in user permissions")).toBeVisible();
+  await expect(page.getByText("CUBE_AUTH_METHOD")).toHaveCount(0);
+  await page.getByRole("button", { name: "Check metric access" }).click();
+  await expect(page.getByText(/Catalog access verified/)).toBeVisible();
+});
