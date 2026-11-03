@@ -3,7 +3,7 @@
 // Renders any Result by artifact shape, not by Method: tables for row lists, key/value
 // grids for objects. A new Method's output shows up without a new component.
 
-import { useRuntimeMessage } from "@/lib/runtime-messages";
+import { isRoutineSkillNotice, useRuntimeMessage } from "@/lib/runtime-messages";
 import { InspectorDialog } from "@/components/inspector-dialog";
 import type { Artifact, Result, SemanticObject, Validation } from "@/lib/api";
 import { timeSeriesData } from "@/lib/artifact-data";
@@ -227,7 +227,7 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
           <div className="hint">{t("Set {field} to one of these values and rerun.", { field: result.needs_input.field })}</div>
         </div>
       )}
-      {!expanded && result.warnings.length > 0 && <ul className="warnings">{result.warnings.map((w, i) => <li key={i}>{runtime(w)}</li>)}</ul>}
+      {!expanded && result.warnings.length > 0 && <ul className="warnings">{result.warnings.filter(warning => !isRoutineSkillNotice(warning)).map((w, i) => <li key={i}>{runtime(w)}</li>)}</ul>}
       {!expanded && <ValidationList items={result.validation} />}
       {result.primary && <ArtifactView artifact={result.primary} titles={titles} expanded={expanded} showTitle={showPrimaryTitle} />}
       {!expanded && supportingArtifacts.length > 0 && <><button type="button" className="ghost" onClick={() => setAdditionalOpen(true)}>{t("Additional analysis results")} ({supportingArtifacts.length})</button><InspectorDialog title={t("Additional analysis results")} open={additionalOpen} onClose={() => setAdditionalOpen(false)}>

@@ -119,7 +119,7 @@ export default function SourcesPage() {
 
   return <div className={styles.page}>
     <Link className={styles.back} href="/catalog"><ArrowLeft size={15} />{t("Metric catalog")}</Link>
-    <div className={styles.heading}><span className={styles.icon}><Database size={21} /></span><div><h1>{t("Semantic layer connection")}</h1><p>{t(sessionManaged ? "Explore the metrics available to your signed-in account." : "Connect your governed metrics and dimensions.")}</p></div></div>
+    <div className={styles.heading}><span className={styles.icon}><Database size={21} /></span><div><h1>{t("Semantic layer connection")}</h1>{!sessionManaged && <p>{t("Connect your governed metrics and dimensions.")}</p>}</div></div>
 
     {!source ? error ? <div className={styles.alert} role="alert"><Info size={17} /><div>{error}<button onClick={() => { setError(""); void api<SourceConfig>("/sources/current").then(applyConfig).catch(cause => setError(String(cause))); }}>{t("Retry")}</button></div></div> : <div className={styles.skeleton} aria-label={t("Loading…")}><LoadingIndicator /><div /><div /><div /></div> : <>
       {/* Current state summary — always shown */}
@@ -135,8 +135,6 @@ export default function SourcesPage() {
       </section>}
 
       {sessionManaged && <>
-        <p className={styles.credential}><ShieldCheck size={16} />{t("You are signed in. Decision Layer handles Cube authentication automatically; no token entry is needed.")}</p>
-        <p className={styles.help}>{t("Available metrics and data follow your account permissions. Connection changes are managed by the operator.")}</p>
         <details className={styles.advanced}><summary>{t("Connection details")}</summary><dl className={styles.summary}>
           <div><dt>{t("API URL")}</dt><dd><code>{source.api_url}</code></dd></div>
           <div><dt>{t("Instance")}</dt><dd>{source.instance}</dd></div>

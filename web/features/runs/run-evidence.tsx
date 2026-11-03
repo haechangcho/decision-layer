@@ -89,7 +89,7 @@ export function RunSources({ result, titles, author }: { result: Result; titles:
   </div>;
 }
 
-function QueryCode({ title, text, label, copyLabel, note }: { title: string; text: string; label: string; copyLabel: string; note?: string }) {
+function QueryCode({ title, text, label, copyLabel }: { title: string; text: string; label: string; copyLabel: string }) {
   const t = useT();
   const [copyState, setCopyState] = useState<"" | "copied" | "failed">("");
   return <section className={s.queryCode} aria-label={title}>
@@ -99,7 +99,6 @@ function QueryCode({ title, text, label, copyLabel, note }: { title: string; tex
     }}>{copyState === "copied" ? <Check size={16} /> : <Copy size={16} />}</button></div>
     <pre tabIndex={0} aria-label={label}>{text}</pre>
     {copyState && <p role={copyState === "failed" ? "alert" : "status"} className={s.copyFeedback}>{t(copyState === "copied" ? "Copied" : "Copy failed. Select the query text and copy it.")}</p>}
-    {note && <p className={s.queryNote}>{note}</p>}
   </section>;
 }
 
@@ -113,12 +112,11 @@ export function RunQueries({ result }: { result: Result }) {
       ? Object.fromEntries(Object.entries(native).filter(([key]) => key !== "_view")) : native;
     const sql = typeof query.compiled_sql === "string" ? query.compiled_sql : query.compiled_sql == null ? null : JSON.stringify(query.compiled_sql, null, 2);
     return <section className={s.queryCard} key={JSON.stringify([index, request, sql])}>
-      <header className={s.queryHeader}><strong>{t("Query {number}", { number: index + 1 })}</strong><span>{t("{rows} rows returned", { rows: query.rows.toLocaleString() })} · {query.elapsed_ms >= 1000 ? t("{seconds} s", { seconds: (query.elapsed_ms / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 }) }) : `${query.elapsed_ms.toLocaleString()} ms`}</span></header>
-      <div className={s.queryContext}><span>{[query.provider, query.instance].filter(Boolean).join(" · ") || t("Provider not recorded")}</span><span>{t(sql ? "Recorded provider request and compiled SQL" : "Recorded provider request · SQL not recorded")}</span></div>
+      <header className={s.queryHeader}>{result.provenance.queries.length > 1 && <strong>{t("Query {number}", { number: index + 1 })}</strong>}<span>{[query.provider, query.instance].filter(Boolean).join(" · ")}</span><span>{t("{rows} rows returned", { rows: query.rows.toLocaleString() })} · {query.elapsed_ms >= 1000 ? t("{seconds} s", { seconds: (query.elapsed_ms / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 }) }) : `${query.elapsed_ms.toLocaleString()} ms`}</span></header>
+
       <QueryCode title={t(query.provider === "cube" ? "Cube query" : "Provider request")} text={typeof request === "string" ? request : JSON.stringify(request, null, 2) ?? ""}
         label={t("Query {number} raw request", { number: index + 1 })} copyLabel={t("Copy query {number}", { number: index + 1 })} />
-      {sql ? <QueryCode title={t("Compiled SQL")} text={sql} label={t("Compiled SQL {number}", { number: index + 1 })} copyLabel={t("Copy SQL {number}", { number: index + 1 })}
-        note={t("Compiled by the provider at execution time. Parameter values, if absent, were not recorded.")} /> : <p className={s.missingSql}>{t("Compiled SQL was not recorded for this query.")}</p>}
+      {sql ? <QueryCode title={t("Compiled SQL")} text={sql} label={t("Compiled SQL {number}", { number: index + 1 })} copyLabel={t("Copy SQL {number}", { number: index + 1 })} /> : <p className={s.missingSql}>{t("Compiled SQL was not recorded for this query.")}</p>}
     </section>;
   })}</div>;
 }

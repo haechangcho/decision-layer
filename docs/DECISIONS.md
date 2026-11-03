@@ -3034,3 +3034,20 @@ routing marker is excluded from the copyable Cube API request and preserved in t
 raw record. Compiled SQL is the provider's compilation response at execution time,
 not an executed-statement trace. Missing SQL or bind parameters are disclosed rather
 than inferred, and historical evidence is never re-executed to fill gaps.
+
+## ADR-133 — Concise default inspection (2026-11-03)
+
+**Accepted at the user's request.** Default Run inspection presents results, Cube
+queries, compiled SQL and actions without generic Skill caveats or routine query
+scope passes. Only the known fixed notices are suppressed from the working view
+(including historical Korean/English forms); unknown, data-specific warnings,
+failed checks and errors remain visible. The canonical API, validation and stored
+Run are unchanged. Full notices and successful checks remain in the existing raw
+request/Run inspectors. No evidence is deleted or strengthened by presentation.
+
+A single query needs no selection panel. Mirrored query-result artifacts do not
+create an additional-results tab, and normal Recipe registration needs buttons
+rather than a separate instructional section. Compilation is labeled as such;
+its constant explanatory paragraph is omitted. SSO connection and catalog views
+omit repeated operational explanations. Development and packaged UI use the same
+components and concise defaults.

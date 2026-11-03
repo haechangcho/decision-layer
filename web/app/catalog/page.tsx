@@ -80,7 +80,7 @@ export default function CatalogPage() {
     return `/recipes/new?method=${method}&metric=${encodeURIComponent(metric.ref)}`;
   }
 
-  const detailContent = selected ? <>          <p className={styles.description}>{selected.description || t("No description is registered in the semantic model.")}</p>
+  const detailContent = selected ? <>          {selected.description && <p className={styles.description}>{selected.description}</p>}
           <button type="button" className="ghost" onClick={() => setTechnicalOpen(true)}>{t("View technical details")}</button><InspectorDialog title={t("Metric technical details")} open={technicalOpen} onClose={() => setTechnicalOpen(false)}><div className={styles.reference}><span>{t("Metric reference")}</span><code>{selected.ref}</code></div>
             {selected.ratio_parts?.length ? <div className={styles.reference}><span>{t("Numerator / denominator")}</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
             {selected.entity && <div className={styles.reference}><span>{t("Analysis unit reference")}</span><code>{selected.entity}</code></div>}</InspectorDialog>
@@ -90,7 +90,6 @@ export default function CatalogPage() {
             {(selected.metric_kind === "ratio" || selected.checks.decomposition.status !== "not_applicable") && <li><span>{t("Numerator / denominator")}</span><strong>{selected.checks.decomposition.status === "ready" ? t("Registered") : t("Not confirmed")}</strong></li>}
           </ul>}
           <Link className={styles.primaryButton} href={methodHref(selected)}>{t("Create Recipe")} <ArrowRight size={16} /></Link>
-          <p className={styles.footnote}>{t("The semantic layer manages metric definitions and access.")}</p>
 </> : <div className={styles.noSelection}>{t("Choose a metric from the list.")}</div>;
 
   return <div className={styles.page}>

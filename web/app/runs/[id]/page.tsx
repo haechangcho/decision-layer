@@ -23,7 +23,7 @@ import { RunPeriodInput, periodLabel } from "@/features/runs/run-period-input";
 import { AuthorInfo, RunQueries, RunSettings, RunSources, readableValue } from "@/features/runs/run-evidence";
 import { api, MethodManifest, Recipe, Result, Run } from "@/lib/api";
 import { useApi, useCatalog } from "@/lib/hooks";
-import { useRuntimeMessage } from "@/lib/runtime-messages";
+import { isRoutineSkillNotice, useRuntimeMessage } from "@/lib/runtime-messages";
 import { useT } from "@/lib/i18n";
 import { methodName } from "@/lib/method-name";
 import { runOriginLabel } from "@/lib/run-origin";
@@ -91,7 +91,12 @@ export default function RunPage() {
     ((!run.needs_input && run.steps.length > 0) || (!!run.goals?.length && !run.steps.length));
   const canShare = mine && !run.preview && !run.caller.subject?.startsWith("service:");
   const selectedStep = run.steps[current];
-  const additional = selectedStep?.result.artifacts.filter(artifact => !Array.isArray(artifact.data) || artifact.data.length > 0) ?? [];
+  const queryArtifacts = new Set(selectedStep?.skill?.queries.flatMap(query => query.result?.primary ? [JSON.stringify(query.result.primary)] : []) ?? []);
+  const additional = selectedStep?.result.artifacts.filter(artifact => (!Array.isArray(artifact.data) || artifact.data.length > 0) && !queryArtifacts.has(JSON.stringify(artifact))) ?? [];
+  const stepChecks = selectedStep?.result.validation.filter(item => item.status !== "pass" || !isRoutineSkillNotice(item.message)) ?? [];
+  const stepWarnings = selectedStep?.result.warnings.filter(warning => !isRoutineSkillNotice(warning)) ?? [];
+  const registrationVisible = !run.preview && showRegistration && reusableSteps.length > 0;
+  const shareAction = canShare && <button type="button" className={styles.secondaryLink} onClick={() => shareDialog.current?.showModal()}><Share2 size={15} />{t("Sharing settings")}</button>;
   const warnings = [...new Map([...run.validation, ...run.steps.flatMap((step) => step.result.validation)]
     .filter((item) => item.status !== "pass").map((item) => [`${item.code}:${item.message}`, item])).values()];
   return <div className={`${styles.page} ${styles.runPage}`}>
@@ -112,12 +117,12 @@ export default function RunPage() {
     {run.steps.length > 1 && <RunGraph run={run} titles={byRef} selected={current} onSelect={index => { setOpen(index); setTab("result"); }} />}</>}
     {selectedStep ? <section id="run-step-detail" className={styles.runStepDetail}><span>{t("{current} / {total} steps", { current: current + 1, total: run.steps.length })}</span><h2>{methodName(selectedStep.step.method, t)}</h2><p className={styles.runPurpose}><span>{t("Analysis purpose")}</span>{stepPurpose(selectedStep.step, t, run)}</p>
       {isSourcePurpose(selectedStep.step, run) && selectedStep.step.purpose && <div className={styles.runPurposeContext}><p><strong>{t("Period for this run")}</strong> {periodLabel(run, t)}</p><p><strong>{t("Step description when registered")}</strong> {selectedStep.step.purpose}</p><span>{t("Original step description. See this Run's dates and settings for its actual scope.")}</span></div>}
-      {selectedStep.skill && <div className={styles.executionStrip} aria-label={t("Skill execution status")}><span>{selectedStep.skill.status === "awaiting_agent" ? t("Waiting for AI") : selectedStep.skill.status === "refused" ? t("Analysis stopped") : t("Query step complete")}</span><span>{t("Recorded queries")} {selectedStep.skill.queries.length}</span>
+      {selectedStep.skill && (selectedStep.skill.status !== "completed" || selectedStep.skill.queries.some(query => query.error || query.status === "interrupted")) && <div className={styles.executionStrip} aria-label={t("Skill execution status")}><span>{selectedStep.skill.status === "awaiting_agent" ? t("Waiting for AI") : selectedStep.skill.status === "refused" ? t("Analysis stopped") : t("Query step complete")}</span><span>{t("Recorded queries")} {selectedStep.skill.queries.length}</span>
         {selectedStep.skill.queries.some(query => query.error || query.status === "interrupted") && <button type="button" onClick={() => setTab("queries")}>{t("Inspect failed queries")}</button>}
       </div>}
       {selectedStep.skill && tab !== "queries" && selectedStep.skill.queries.some(query => query.error) && <p role="alert" className={styles.runQueryFailure}>{runtime(selectedStep.skill.queries.find(query => query.error)?.error?.message ?? "")}</p>}
       <WorkspaceTabs id="run" label={t("Analysis step details")} value={tab} onChange={setTab} items={([
-        ['result', t("Result")], ...(additional.length || selectedStep.result.validation.length || selectedStep.result.warnings.length ? [['additional', additional.length ? t("Checks and additional results ({count})", { count: additional.length }) : t("Run validation")]] : []),
+        ['result', t("Result")], ...(additional.length || stepChecks.length || stepWarnings.length ? [['additional', additional.length ? t("Checks and additional results ({count})", { count: additional.length }) : t("Run validation")]] : []),
         ['settings', t("Settings used")], ['queries', t("{n} queries", { n: selectedStep.skill ? selectedStep.skill.queries.length : selectedStep.result.provenance.queries.length })], ['sources', t("Sources")]
       ]).map(([value,label]) => ({value,label}))} />
       <div id={`run-panel-${tab}`} role="tabpanel" aria-labelledby={`run-tab-${tab}`} className={styles.runTabPanel}>
@@ -125,7 +130,7 @@ export default function RunPage() {
           <ResultView result={selectedStep.skill && selectedStep.result.primary ? { ...selectedStep.result, primary: { ...selectedStep.result.primary, title: t("Query results") } } : selectedStep.result} titles={byRef} showRunLink={false} showEvidence={false} expanded /></>}
         {tab === "settings" && <><RunSettings record={selectedStep} titles={byRef} manifest={manifests?.find(m => m.name === selectedStep.step.method)} /><div className={styles.runTechnical}><h3>{t("Shared analysis scope")}</h3><dl><div><dt>{t("Analysis period")}</dt><dd>{scope.date_range?.join(" ~ ") || t("All periods")}</dd></div><div><dt>{t("Date basis")}</dt><dd>{timeTitle || t("Not set")}</dd></div></dl></div>{scope.filters?.length ? <div className={styles.runFilterSummary}><strong>{t("Shared filters")}</strong><p>{readableValue(scope.filters, byRef, t)}</p></div> : null}</>}
         {tab === "queries" && (selectedStep.skill ? <SkillQueryActivity key={current} skill={selectedStep.skill} titles={byRef} /> : <RunQueries result={selectedStep.result} />)}
-        {tab === "additional" && <><section className={styles.runChecks}><h3>{t("Run validation")}</h3>{selectedStep.result.validation.length ? <ul>{selectedStep.result.validation.map((item, index) => <li key={index}><span>{item.status === "pass" ? t("Passed") : item.status === "warning" ? t("Caution") : t("Not met")}</span><p>{runtime(item.message)}</p></li>)}</ul> : <p>{t("No validation checks were recorded.")}</p>}</section>{selectedStep.result.warnings.length > 0 && <section className={styles.runChecks}><h3>{t("Notes for interpretation")}</h3><ul>{selectedStep.result.warnings.map((warning, index) => <li key={index}><p>{runtime(warning)}</p></li>)}</ul></section>}{additional.map((artifact, index) => <ArtifactView key={index} artifact={artifact} titles={byRef} expanded />)}</>}
+        {tab === "additional" && <>{stepChecks.length > 0 && <section className={styles.runChecks}><h3>{t("Run validation")}</h3><ul>{stepChecks.map((item, index) => <li key={index}><span>{item.status === "pass" ? t("Passed") : item.status === "warning" ? t("Caution") : t("Not met")}</span><p>{runtime(item.message)}</p></li>)}</ul></section>}{stepWarnings.length > 0 && <section className={styles.runChecks}><h3>{t("Notes for interpretation")}</h3><ul>{stepWarnings.map((warning, index) => <li key={index}><p>{runtime(warning)}</p></li>)}</ul></section>}{additional.map((artifact, index) => <ArtifactView key={index} artifact={artifact} titles={byRef} expanded />)}</>}
         {tab === "sources" && <><RunProcedure run={run} detailed /><div className={styles.runSourceActions}><button type="button" className="ghost" onClick={() => setSnapshotOpen(true)}>{selectedStep.skill ? t("View execution-time instructions") : t("Execution-time Python code")}</button></div><RunSources result={selectedStep.result} titles={byRef} author={selectedStep.author} />{run.author && JSON.stringify(run.author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.author} label={t("Product that started the analysis")} />}{run.conclusion_author && JSON.stringify(run.conclusion_author) !== JSON.stringify(selectedStep.author) && <AuthorInfo author={run.conclusion_author} label={t("Product and model that wrote the conclusion")} />}<div className={styles.runTechnical}><dl><div><dt>{t("Run ID")}</dt><dd>{run.id}</dd></div><div><dt>{t("Started at")}</dt><dd>{new Date(run.created_at).toLocaleString()}</dd></div></dl></div></>}
       </div>
     </section> : !run.needs_input && <div className={styles.placeholder}><History size={20} />{t("No analysis steps have run yet.")}</div>}
@@ -138,18 +143,18 @@ export default function RunPage() {
       {canConclude && <button type="button" onClick={() => setContinueMode("conclusion")}>{t("Write conclusion")}</button>}</div>
       <InspectorDialog title={continueMode === "step" ? t("Next analysis step") : t("Write an analysis conclusion")} open={continueMode !== null} onClose={() => setContinueMode(null)}><NextStep key={`${run.id}:${run.steps.length}`} run={run} allowSteps={canContinue} mode={continueMode ?? "step"} manifests={manifests} objects={objects} onDone={() => { setContinueMode(null); setOpen(null); reload(); }} /></InspectorDialog>
     </section>}
-    {!run.preview && showRegistration && reusableSteps.length > 0 && <section className={styles.runRecipeDecision} aria-label={t("Register Recipe")}>
-      <div><h2>{registered ? (registered.status === "published" ? t("This Recipe is already published") : t("Recipe draft saved")) : hasAdditionalAnalysis ? t("Save as a new Recipe including the additional analysis") : t("Save this analysis procedure as a Recipe")}</h2><p>{registered ? (registered.status === "published" ? t("Run the published procedure again for a new period.") : t("Review inputs and content, then publish to reuse.")) : hasAdditionalAnalysis ? t("Saves a separate Recipe; the original is kept.") : t("{count} steps · groups reselected from previous results on each run.", { count: run.steps.length })}</p></div>
+    {registrationVisible && <section className={styles.runRecipeDecision} aria-label={t("Register Recipe")}>
+      {(registered || hasAdditionalAnalysis) && <div><h2>{registered ? (registered.status === "published" ? t("This Recipe is already published") : t("Recipe draft saved")) : t("Save as a new Recipe including the additional analysis")}</h2></div>}
       <div className={styles.runDraftActions}>{registered ? <Link className={styles.runPrimary} href={`/recipes/${encodeURIComponent(registered.name)}${registered.status === "published" ? "" : "/edit"}`}><Check size={16} />{registered.status === "published" ? t("View Recipe") : t("Review Recipe draft")}</Link>
         : <button type="button" className={styles.runPrimary} disabled={!canRegister || registering} onClick={registerRecipe}>{registering ? <LoaderCircle className={styles.spinning} size={16} /> : <BookPlus size={16} />}{registering ? t("Registering…") : t("Register as Recipe")}</button>}
-        <Link className={styles.runEditLink} href={`/recipes/new?${candidateParams.toString()}`}><SlidersHorizontal size={14} />{t("Edit and save")}</Link></div>
+        {!registered && <Link className={styles.runEditLink} href={`/recipes/new?${candidateParams.toString()}`}><SlidersHorizontal size={14} />{t("Edit and save")}</Link>}{shareAction}</div>
       {rejectedCalculations > 0 && !registered && <p className={styles.runActionNote}>{t("Calculations that did not pass validation")} {rejectedCalculations}{t("are saved with their settings and checks. Failed checks stop a rerun; no fallback comparison is used.")}</p>}
       {!canRegister && !registered && <p className={styles.runActionNote}>{canConclude ? t("Save a conclusion first. Fix incomplete or refused steps with Edit and save.") : t("Register completed analyses. Edit to fix or exclude incomplete or refused steps.")}</p>}
       {registerError && <p className={styles.inlineError} role="alert">{registerError}</p>}
     </section>}
-    {((recipe && !run.preview && !run.running) || canShare) && <footer className={styles.runFooterActions} aria-label={t("Run actions")}>
+    {((recipe && !run.preview && !run.running) || (canShare && !registrationVisible)) && <footer className={styles.runFooterActions} aria-label={t("Run actions")}>
       {recipe && !run.preview && !run.running && <Link className={styles.secondaryLink} href={`/recipes/${encodeURIComponent(recipe.name)}`}>{stopped || run.status === "failed" ? t("Change Recipe conditions and run again") : t("View Recipe")}</Link>}
-      {canShare && <button type="button" className={styles.secondaryLink} onClick={() => shareDialog.current?.showModal()}><Share2 size={15} />{t("Sharing settings")}</button>}
+      {!registrationVisible && shareAction}
     </footer>}
     {canShare && <dialog ref={shareDialog} className={styles.runDialog} aria-label={t("Sharing settings")}><header><h2>{t("Share run")}</h2><button type="button" aria-label={t("Close")} title={t("Close")} onClick={() => shareDialog.current?.close()}><X size={18} /></button></header><Share run={run} onDone={() => { reload(); shareDialog.current?.close(); }} /></dialog>}
   </div>;

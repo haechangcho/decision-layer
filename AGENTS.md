@@ -99,6 +99,14 @@ Statistical and causal Methods (OLS, CEM, DiD) are reusable primitives within th
 - Model/config/Recipe files remain separate deployment assets. Keep secrets and
   customer assets out of public Git. See `deploy/poc/README.md` and `versions.json`.
 
+### PoC UI presentation
+
+- Keep default views concise: results, queries, SQL and primary actions first.
+- Do not add generic disclaimers, routine successful checks, duplicated headings
+  or panels for a single item. Keep complete evidence available on demand.
+- Show actual errors and data-specific limitations; never remove stored evidence
+  or execution checks to simplify the UI.
+
 Before implementing a large feature:
 
 1. Identify which core object it belongs to.

@@ -328,7 +328,7 @@
 .methodOptions { border-top:1px solid var(--line); padding-top:22px; margin-top:22px; }.methodOptions h3 { font-size:14px; margin:0 0 14px; }
 .runQueryFailure { padding:14px 18px; border-left:3px solid var(--bad); background:var(--bg); color:var(--bad); font-size:13px; overflow-wrap:anywhere; }
 .runProgressSummary { margin:20px 0 28px; color:var(--muted); font-size:13px; line-height:1.7; }.runProgressSummary>p { margin:0; }
-.runPage .runRecipeDecision { margin-top:32px; padding-block:22px; }.runRecipeDecision h2 { font-size:14px; }
+.runPage .runRecipeDecision { margin-top:16px; padding-block:8px; justify-content:flex-start; }.runRecipeDecision h2 { font-size:14px; }
 
 /* A persistent sidebar leaves too little room for desktop list columns here. */
 @media (min-width:701px) and (max-width:1000px) {
@@ -339,3 +339,5 @@
   .libraryRow > .librarySteps,.libraryRow > .libraryState { grid-column:1; grid-row:3; }
   .libraryRow > .libraryArrow { grid-column:2; grid-row:1 / 4; }
 }
+
+.runDraftActions .secondaryLink { display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 12px; background:transparent; color:var(--muted); font-size:12px; }
