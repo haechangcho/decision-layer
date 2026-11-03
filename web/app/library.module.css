@@ -329,3 +329,13 @@
 .runQueryFailure { padding:14px 18px; border-left:3px solid var(--bad); background:var(--bg); color:var(--bad); font-size:13px; overflow-wrap:anywhere; }
 .runProgressSummary { margin:20px 0 28px; color:var(--muted); font-size:13px; line-height:1.7; }.runProgressSummary>p { margin:0; }
 .runPage .runRecipeDecision { margin-top:32px; padding-block:22px; }.runRecipeDecision h2 { font-size:14px; }
+
+/* A persistent sidebar leaves too little room for desktop list columns here. */
+@media (min-width:701px) and (max-width:1000px) {
+  .libraryColumns { display:none; }
+  .libraryRow { grid-template-columns:minmax(0,1fr) 20px; gap:6px 12px; }
+  .libraryRow > .libraryName { grid-column:1; grid-row:1; }
+  .libraryRow > .libraryMetric { grid-column:1; grid-row:2; }
+  .libraryRow > .librarySteps,.libraryRow > .libraryState { grid-column:1; grid-row:3; }
+  .libraryRow > .libraryArrow { grid-column:2; grid-row:1 / 4; }
+}
