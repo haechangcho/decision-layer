@@ -74,7 +74,8 @@ services:
       retries: 30
   web:
     build:
-      context: ../../web
+      context: ../..
+      dockerfile: web/Dockerfile
       args:
         DL_API_URL: http://api:8000
     depends_on:

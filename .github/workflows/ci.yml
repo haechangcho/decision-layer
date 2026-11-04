@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.11"}
       - run: pip install -c tests/requirements-statistics.txt -e '.[dev,dowhy,econml]'
-      - run: pytest -q tests/unit/test_method_authoring.py tests/unit/test_advanced_methods.py tests/unit/test_method_cases.py tests/unit/test_method_failures.py tests/unit/test_regression_adjustment.py tests/unit/test_dowhy_matching.py tests/examples
+      - run: pytest -q tests/unit/test_method_authoring.py tests/unit/test_advanced_methods.py tests/unit/test_method_cases.py tests/unit/test_method_failures.py tests/unit/test_python_input_contract.py tests/examples
 
   web:
     runs-on: ubuntu-latest

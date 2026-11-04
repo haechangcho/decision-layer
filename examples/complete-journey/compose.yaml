@@ -52,7 +52,7 @@ services:
       retries: 12
 
   web:
-    build: {context: ../../web, args: {DL_API_URL: "http://api:8000"}}
+    build: {context: ../.., dockerfile: web/Dockerfile, args: {DL_API_URL: "http://api:8000"}}
     depends_on:
       api: {condition: service_healthy}
     ports: ["127.0.0.1:${WEB_PORT:-3000}:3000"]
