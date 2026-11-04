@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SSRProvider } from "@fluentui/react-components";
 
+import { ProjectMenu } from "@/components/project-menu";
 import { Nav } from "@/components/nav";
 import { LocaleProvider } from "@/lib/i18n";
 
@@ -15,8 +16,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SSRProvider>
           <LocaleProvider>
             <div className="app-shell">
-              <Nav />
-              <main className="app-main">{children}</main>
+              <Nav context={<ProjectMenu />} />
+              <main id="main-content" className="app-main">{children}</main>
             </div>
           </LocaleProvider>
         </SSRProvider>

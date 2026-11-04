@@ -89,17 +89,34 @@ export function RunSources({ result, titles, author }: { result: Result; titles:
   </div>;
 }
 
+function QueryCode({ title, text, label, copyLabel }: { title: string; text: string; label: string; copyLabel: string }) {
+  const t = useT();
+  const [copyState, setCopyState] = useState<"" | "copied" | "failed">("");
+  return <section className={s.queryCode} aria-label={title}>
+    <div className={s.codeHeading}><h4>{title}</h4><button type="button" aria-label={copyLabel} title={copyLabel} onClick={async () => {
+      try { await navigator.clipboard.writeText(text); setCopyState("copied"); }
+      catch { setCopyState("failed"); }
+    }}>{copyState === "copied" ? <Check size={16} /> : <Copy size={16} />}</button></div>
+    <pre tabIndex={0} aria-label={label}>{text}</pre>
+    {copyState && <p role={copyState === "failed" ? "alert" : "status"} className={s.copyFeedback}>{t(copyState === "copied" ? "Copied" : "Copy failed. Select the query text and copy it.")}</p>}
+  </section>;
+}
+
 export function RunQueries({ result }: { result: Result }) {
   const t = useT();
-  const [copied, setCopied] = useState<number | null>(null);
-  const [copyError, setCopyError] = useState(false);
   if (!result.provenance.queries.length) return <p className={s.muted}>{t("No queries were recorded for this run.")}</p>;
   return <div className={s.queries}>{result.provenance.queries.map((query, index) => {
-    const text = typeof query.native_query === "string" ? query.native_query : JSON.stringify(query.native_query, null, 2);
-    return <section key={index}><header><strong>{t("Query {number}", { number: index + 1 })}</strong><span>{t("{rows} rows returned", { rows: query.rows.toLocaleString() })} · {query.elapsed_ms >= 1000 ? t("{seconds} s", { seconds: (query.elapsed_ms / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 }) }) : `${query.elapsed_ms.toLocaleString()} ms`}</span>
-      <button type="button" title={t("Copy query")} aria-label={t("Copy query {number}", { number: index + 1 })} onClick={async () => { try { await navigator.clipboard.writeText(text); setCopied(index); setCopyError(false); } catch { setCopyError(true); } }}>{copied === index ? <Check size={16} /> : <Copy size={16} />}</button></header>
-      <div className={s.queryContext}><span>{[query.provider, query.instance].filter(Boolean).join(" · ") || t("Provider not recorded")}</span><span>{t(query.compiled_sql ? "Provider request and executed SQL" : "Provider request as sent · SQL not provided")}</span></div><pre tabIndex={0} aria-label={t("Query {number} raw request", { number: index + 1 })}>{text}</pre>
-      {query.compiled_sql != null && <section><h4>{t("Executed SQL")}</h4><pre tabIndex={0}>{typeof query.compiled_sql === "string" ? query.compiled_sql : JSON.stringify(query.compiled_sql, null, 2)}</pre></section>}
+    // _view is DL routing metadata, not a field accepted by the Cube API.
+    const native = query.native_query;
+    const request = query.provider === "cube" && native && typeof native === "object" && !Array.isArray(native)
+      ? Object.fromEntries(Object.entries(native).filter(([key]) => key !== "_view")) : native;
+    const sql = typeof query.compiled_sql === "string" ? query.compiled_sql : query.compiled_sql == null ? null : JSON.stringify(query.compiled_sql, null, 2);
+    return <section className={s.queryCard} key={JSON.stringify([index, request, sql])}>
+      <header className={s.queryHeader}>{result.provenance.queries.length > 1 && <strong>{t("Query {number}", { number: index + 1 })}</strong>}<span>{[query.provider, query.instance].filter(Boolean).join(" · ")}</span><span>{t("{rows} rows returned", { rows: query.rows.toLocaleString() })} · {query.elapsed_ms >= 1000 ? t("{seconds} s", { seconds: (query.elapsed_ms / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 }) }) : `${query.elapsed_ms.toLocaleString()} ms`}</span></header>
+
+      <QueryCode title={t(query.provider === "cube" ? "Cube query" : "Provider request")} text={typeof request === "string" ? request : JSON.stringify(request, null, 2) ?? ""}
+        label={t("Query {number} raw request", { number: index + 1 })} copyLabel={t("Copy query {number}", { number: index + 1 })} />
+      {sql ? <QueryCode title={t("Compiled SQL")} text={sql} label={t("Compiled SQL {number}", { number: index + 1 })} copyLabel={t("Copy SQL {number}", { number: index + 1 })} /> : <p className={s.missingSql}>{t("Compiled SQL was not recorded for this query.")}</p>}
     </section>;
-  })}{copyError && <p role="alert">{t("Copy failed. Select the query text and copy it.")}</p>}</div>;
+  })}</div>;
 }

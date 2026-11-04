@@ -16,15 +16,19 @@ import Sources from "@/app/sources/page";
 import Catalog from "@/app/catalog/page";
 import "@/app/globals.css";
 
-function App() {
+function NotFound() {
   const t = useT();
+  return <p>{t("Page not found.")}</p>;
+}
+
+function App() {
   return <SSRProvider><LocaleProvider><BrowserRouter basename="/ui"><div className="app-shell"><Nav context={<ProjectMenu />} /><main id="main-content" className="app-main"><Routes>
-    <Route path="/" element={<Navigate to="/methods" replace />} />
+    <Route path="/" element={<Navigate to="/recipes" replace />} />
     <Route path="/methods" element={<Methods />} /><Route path="/methods/:name" element={<Method />} />
     <Route path="/recipes" element={<Recipes />} /><Route path="/recipes/:name/edit" element={<RecipeEdit />} /><Route path="/recipes/:name" element={<Recipe />} />
     <Route path="/runs" element={<Runs />} /><Route path="/runs/:id" element={<Run />} />
     <Route path="/sources" element={<Sources />} /><Route path="/catalog" element={<Catalog />} />
-    <Route path="*" element={<p>{t("Page not found.")}</p>} />
+    <Route path="*" element={<NotFound />} />
   </Routes></main></div></BrowserRouter></LocaleProvider></SSRProvider>;
 }
 createRoot(document.getElementById("root")!).render(<App />);

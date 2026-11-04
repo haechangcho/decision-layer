@@ -214,11 +214,11 @@ class RunEngine:
                     )
                 )
             if not run.pending_execution:
-                raise InvalidBinding("This Run has no pending period request.")
+                raise InvalidBinding(_("This Run has no pending period request."))
             pending = run.pending_execution
             # Filters, inputs and provider context cannot be replaced by a period update.
             if set(scope) - {"period", "date_range", "time_dimension"}:
-                raise InvalidBinding("Only period and time dimension may change here.")
+                raise InvalidBinding(_("Only period and time dimension may change here."))
             merged = {
                 k: v
                 for k, v in run.plan.scope.items()
@@ -294,26 +294,26 @@ class RunEngine:
 
             selected = self.registry.get(guide)
             if not isinstance(selected, SkillMethod):
-                raise InvalidBinding("guide must name a registered Skill Method")
+                raise InvalidBinding(_("guide must name a registered Skill Method"))
             guidance = [selected.guide.model_copy(deep=True)]
         rec = self.recipes.get(recipe) if recipe else None
         goals = goals or []
         if origin == "mcp" and not goals:
             raise AnalysisContractError(
-                "Record the requested answers as goals before execution.",
+                _("Record the requested answers as goals before execution."),
                 next_tool="start_analysis",
             )
         if len({goal.id for goal in goals}) != len(goals):
-            raise InvalidBinding("Goal IDs must be unique.")
+            raise InvalidBinding(_("Goal IDs must be unique."))
         if goals:
             await self.provider.resolve(
                 sorted({ref for goal in goals for ref in goal.semantic_refs}), creds
             )
         if recipe_selection and not rec:
-            raise InvalidBinding("A Recipe selection requires a Recipe.")
+            raise InvalidBinding(_("A Recipe selection requires a Recipe."))
         if rec and origin == "mcp" and not recipe_selection:
             raise AnalysisContractError(
-                "Record why this Recipe fits and which goals it covers.",
+                _("Record why this Recipe fits and which goals it covers."),
                 next_tool="start_run",
             )
         if rec:
@@ -328,9 +328,9 @@ class RunEngine:
                 else [goal.id for goal in goals]
             )
             if goals and not selected_ids:
-                raise InvalidBinding("Select at least one goal for this Recipe.")
+                raise InvalidBinding(_("Select at least one goal for this Recipe."))
             if set(selected_ids) - {goal.id for goal in goals}:
-                raise InvalidBinding("Recipe selection references an unknown goal.")
+                raise InvalidBinding(_("Recipe selection references an unknown goal."))
             check = compatibility(
                 rec,
                 [goal for goal in goals if goal.id in selected_ids],
@@ -339,7 +339,7 @@ class RunEngine:
             )
             if check["conflicts"]:
                 raise InvalidBinding(
-                    "This Recipe cannot cover the selected goals.",
+                    _("This Recipe cannot cover the selected goals."),
                     conflicts=check["conflicts"],
                 )
         if rec:
@@ -366,21 +366,21 @@ class RunEngine:
             )["candidates"]
             by_ref = {item.recipe: item for item in reviews}
             if len(by_ref) != len(reviews):
-                raise InvalidBinding("Review each Recipe version only once.")
+                raise InvalidBinding(_("Review each Recipe version only once."))
             selected_ref = recipe_ref(rec.name, rec.version) if rec else None
             visible_refs = {item["recipe"] for item in candidates} | (
                 {selected_ref} if selected_ref else set()
             )
             if set(by_ref) - visible_refs:
                 raise InvalidBinding(
-                    "Recipe reviews must reference current visible candidates."
+                    _("Recipe reviews must reference current visible candidates.")
                 )
             if any(
                 item.decision == "selected" and item.recipe != selected_ref
                 for item in reviews
             ):
                 raise InvalidBinding(
-                    "The selected review must match the executed Recipe."
+                    _("The selected review must match the executed Recipe.")
                 )
             if rec and recipe_selection:
                 if (
@@ -388,7 +388,7 @@ class RunEngine:
                     and by_ref[selected_ref].decision != "selected"
                 ):
                     raise InvalidBinding(
-                        "An executed Recipe cannot be recorded as skipped."
+                        _("An executed Recipe cannot be recorded as skipped.")
                     )
                 reviews = [item for item in reviews if item.recipe != selected_ref]
                 reviews.append(
@@ -411,7 +411,7 @@ class RunEngine:
                 missing = [item for item in candidates if item["recipe"] not in by_ref]
                 if missing:
                     raise AnalysisContractError(
-                        "Review the available Recipe candidates before starting a new procedure. Record a concrete skip reason; a historical date in source_question is not a fixed execution period.",
+                        _("Review the available Recipe candidates before starting a new procedure. Record a concrete skip reason; a historical date in source_question is not a fixed execution period."),
                         next_tool="find_recipes",
                         candidates=missing,
                     )
@@ -484,11 +484,11 @@ class RunEngine:
         async with self._scope_locks.setdefault(run_id, asyncio.Lock()):
             run = await self._owned(run_id, caller)
             if run.status != "open" or run.running or run.recipe_snapshot:
-                raise RunBusy("This Run cannot start another Recipe.")
+                raise RunBusy(_("This Run cannot start another Recipe."))
             rec = self.recipes.get(recipe)
             if rec.mode != "pipeline":
                 raise InvalidBinding(
-                    "Only a pipeline Recipe can be attached to an existing exploration."
+                    _("Only a pipeline Recipe can be attached to an existing exploration.")
                 )
             from ..recipes.routing import compatibility, semantic_refs
 
@@ -498,7 +498,7 @@ class RunEngine:
             if not selection.goal_ids or set(selection.goal_ids) - {
                 goal.id for goal in run.goals
             }:
-                raise InvalidBinding("Select recorded goals for the Recipe.")
+                raise InvalidBinding(_("Select recorded goals for the Recipe."))
             check = compatibility(
                 rec,
                 [goal for goal in run.goals if goal.id in selection.goal_ids],
@@ -507,7 +507,7 @@ class RunEngine:
             )
             if check["conflicts"]:
                 raise InvalidBinding(
-                    "This Recipe cannot cover the selected goals.",
+                    _("This Recipe cannot cover the selected goals."),
                     conflicts=check["conflicts"],
                 )
             values = self.registry.input_values(rec.inputs, inputs)
@@ -520,7 +520,7 @@ class RunEngine:
                 for item in rec.semantic_scope.required_filters
             ):
                 raise InvalidBinding(
-                    "This Recipe requires different shared filters. Start a new Run."
+                    _("This Recipe requires different shared filters. Start a new Run.")
                 )
             run.recipe_snapshot = rec.model_copy(deep=True)
             run.recipe_selection = selection
@@ -651,7 +651,7 @@ class RunEngine:
         run = await self._owned(run_id, caller)
         if run.active_skill_step:
             raise RunBusy(
-                "Finish the active Skill step before starting another step.",
+                _("Finish the active Skill step before starting another step."),
                 step_id=run.active_skill_step,
             )
         if input_maps:
@@ -675,13 +675,13 @@ class RunEngine:
                     ).model_dump() == step.model_dump():
                         return run, record.result
                     raise InvalidBinding(
-                        "This step ID already has a different request.", step_id=step.id
+                        _("This step ID already has a different request."), step_id=step.id
                     )
             if run.active_step and run.active_step.id == step.id:
                 if run.active_step.model_dump() == step.model_dump():
                     return run, None
                 raise InvalidBinding(
-                    "This step ID is executing a different request.", step_id=step.id
+                    _("This step ID is executing a different request."), step_id=step.id
                 )
         if run.status != "open":
             raise RunClosed(
@@ -703,10 +703,10 @@ class RunEngine:
                 next_tool="run_step",
             )
         if set(step.goal_ids) - {goal.id for goal in run.goals}:
-            raise InvalidBinding("The step references an unknown goal.")
+            raise InvalidBinding(_("The step references an unknown goal."))
         if run.origin == "mcp" and run.goals and not step.goal_ids:
             raise AnalysisContractError(
-                "Link this step to at least one requested goal.", next_tool="run_step"
+                _("Link this step to at least one requested goal."), next_tool="run_step"
             )
         if step.exploration and run.recipe_snapshot:
             if (
@@ -715,12 +715,12 @@ class RunEngine:
                 or not run.recipe_invocation.completed
             ):
                 raise MethodNotAllowed(
-                    "Finish the Recipe successfully before adding exploration steps."
+                    _("Finish the Recipe successfully before adding exploration steps.")
                 )
         step = step.model_copy(update={"id": step.id or f"step_{len(run.steps) + 1}"})
         if any(record.step.id == step.id for record in run.steps):
             raise InvalidBinding(
-                "This step ID is already recorded. Inspect the existing result before continuing.",
+                _("This step ID is already recorded. Inspect the existing result before continuing."),
                 run_id=run_id,
                 step_id=step.id,
             )
@@ -764,7 +764,7 @@ class RunEngine:
             run = await self._owned(run_id, caller)
             active(run, step_id)
             if run.running:
-                raise RunBusy("A query is already running.")
+                raise RunBusy(_("A query is already running."))
             run.running, run.error = (
                 RunningJob(kind="step", method=run.steps[-1].step.method),
                 None,
@@ -785,7 +785,7 @@ class RunEngine:
         async with self._scope_locks.setdefault(run_id, asyncio.Lock()):
             run = await self._owned(run_id, caller)
             if run.running:
-                raise RunBusy("Wait for the active query to finish.")
+                raise RunBusy(_("Wait for the active query to finish."))
             finish(self, run, step_id, req, author)
             await self.store.save(run)
             if (
@@ -815,7 +815,7 @@ class RunEngine:
         run = await self._owned(run_id, caller)
         if run.active_skill_step:
             raise RunBusy(
-                "Finish or refuse the active Skill step before completing the Run."
+                _("Finish or refuse the active Skill step before completing the Run.")
             )
         attaching = (
             run.status == "completed"
@@ -830,7 +830,7 @@ class RunEngine:
             )
         if run.running:
             raise RunBusy(
-                "Wait for the running step before completing the analysis",
+                _("Wait for the running step before completing the analysis"),
                 run_id=run_id,
             )
         unavailable_without_query = bool(
@@ -846,7 +846,7 @@ class RunEngine:
         )
         if run.needs_input and not unavailable_without_query:
             raise InvalidBinding(
-                "Resolve the pending analysis period before completing the Run."
+                _("Resolve the pending analysis period before completing the Run.")
             )
         unsupported_only = bool(
             run.goals and conclusion and conclusion.goal_outcomes and not run.steps
@@ -876,7 +876,7 @@ class RunEngine:
             for i in finding.step_indices
         ):
             raise InvalidBinding(
-                "Conclusion evidence must reference recorded step indices"
+                _("Conclusion evidence must reference recorded step indices")
             )
         if run.goals:
             from .goals import validate_outcomes
@@ -977,7 +977,7 @@ class RunEngine:
                             query.status = "interrupted"
                             query.error = {
                                 "code": "INTERRUPTED",
-                                "message": "Server restarted during this Skill query; use a new query ID to retry.",
+                                "message": _("Server restarted during this Skill query; use a new query ID to retry."),
                             }
                             query.finished_at = _now()
             for attempt in run.query_attempts:

@@ -64,3 +64,22 @@ Run `make format-methods` and include relevant test results in your PR. Include
 screenshots for screen changes and inputs with expected results for analysis changes.
 See [CONTRIBUTING.md](https://github.com/haechangcho/decision-layer/blob/main/CONTRIBUTING.md)
 for issue reports and review expectations.
+
+## UI layout verification
+
+Run `npm --prefix web run test:e2e -- ui-layout-audit.spec.ts` with the local
+Web server running. The shared-console audit covers 1440px desktop, 817px compact
+and 390px mobile layouts with controlled API fixtures. It checks the five main
+pages, Method/Recipe details, shared-login chrome, long names, query/SQL insets,
+local code scrolling, copy feedback and modal focus/escape behavior. Existing
+product scenarios also cover loading, empty, denied, retry, Recipe editing and
+Run evidence flows.
+
+A visible heading alone does not establish a usable layout. Query evidence tests
+must assert heading/code alignment and the card's inner spacing. List tests check
+column positions; page tests check that controls stay within the viewport. Keep
+technical records unchanged when improving their presentation. Review captured
+screenshots as well as assertions, including the installed Vite console after
+building and deploying an image; Next development pages alone are insufficient.
+Run one Playwright command at a time, or give concurrent runs separate `--output`
+directories so their traces and screenshots cannot overwrite each other.

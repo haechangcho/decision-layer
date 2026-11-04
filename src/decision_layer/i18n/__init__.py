@@ -43,6 +43,10 @@ def set_locale(locale: str):
     return _locale.set(locale)
 
 
+def reset_locale(token) -> None:
+    _locale.reset(token)
+
+
 def get_locale() -> str:
     return _locale.get()
 

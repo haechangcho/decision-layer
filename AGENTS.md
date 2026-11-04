@@ -85,6 +85,11 @@ Statistical and causal Methods (OLS, CEM, DiD) are reusable primitives within th
 
 ## Development behavior
 
+Keep default UI views concise: results, queries, SQL and primary actions first.
+Omit generic disclaimers, routine successful checks, duplicate headings and
+single-item selection panels. Keep raw evidence available on demand, and show
+actual errors and data-specific limitations without changing execution checks.
+
 Before implementing a large feature:
 
 1. Identify which core object it belongs to.

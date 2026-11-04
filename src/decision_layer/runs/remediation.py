@@ -1,4 +1,5 @@
 """Owner-reviewed semantic requirements, not generated semantic definitions."""
+from ..i18n import _
 import asyncio
 from datetime import datetime, timezone
 
@@ -11,7 +12,7 @@ async def record_blocked(engine, caller, req, origin):
     """Save a diagnosis in one write; no data queries or invented analytical results."""
     from .goals import validate_outcomes
     if len({goal.id for goal in req.goals}) != len(req.goals):
-        raise InvalidBinding("Goal IDs must be unique.")
+        raise InvalidBinding(_("Goal IDs must be unique."))
     # An existing question-scoped Run may have supported goals and partial results.
     lock_id = req.run_id or new_id("run")
     async with engine._scope_locks.setdefault(lock_id, asyncio.Lock()):
@@ -19,7 +20,7 @@ async def record_blocked(engine, caller, req, origin):
             run = await engine._owned(req.run_id, caller)
             ensure_idle(run)
             if run.status != "open" or run.plan.question != req.question or run.goals != req.goals:
-                raise InvalidBinding("Use the existing open Run's original question and goals.")
+                raise InvalidBinding(_("Use the existing open Run's original question and goals."))
         else:
             run = Run(id=lock_id, origin=origin, caller=caller, author=req.author,
                 goals=req.goals, interactive=True, plan=AnalysisPlan(question=req.question))
@@ -27,29 +28,29 @@ async def record_blocked(engine, caller, req, origin):
         validate_outcomes(run, req.conclusion)
         if any(not finding.step_indices or any(index < 0 or index >= len(run.steps) for index in finding.step_indices)
                for finding in req.conclusion.findings):
-            raise InvalidBinding("Conclusion findings must link to recorded steps.")
+            raise InvalidBinding(_("Conclusion findings must link to recorded steps."))
         if run.steps and not req.conclusion.findings:
-            raise InvalidBinding("Keep evidence-linked findings for the steps already executed.")
+            raise InvalidBinding(_("Keep evidence-linked findings for the steps already executed."))
         unresolved = {outcome.goal_id: outcome for outcome in req.conclusion.goal_outcomes if outcome.status != "supported"}
         if not unresolved or any(not outcome.reason_code for outcome in unresolved.values()):
-            raise InvalidBinding("Record a classified reason for each unresolved goal.")
+            raise InvalidBinding(_("Record a classified reason for each unresolved goal."))
         if not req.run_id and req.conclusion.findings:
-            raise InvalidBinding("A blocked analysis without executed steps cannot record findings.")
+            raise InvalidBinding(_("A blocked analysis without executed steps cannot record findings."))
         gaps = {gap.goal_id: gap for gap in req.semantic_gaps}
         if len(gaps) != len(req.semantic_gaps):
-            raise InvalidBinding("Record at most one semantic proposal per goal.")
+            raise InvalidBinding(_("Record at most one semantic proposal per goal."))
         semantic = {goal_id for goal_id, outcome in unresolved.items() if outcome.reason_code == "semantic_missing"}
         existing = {goal_id for item in run.remediations for goal_id in [item.goal_id, *item.related_goal_ids]}
         covered = {goal_id for gap in gaps.values() for goal_id in [gap.goal_id, *gap.related_goal_ids]}
         if sum(1 + len(gap.related_goal_ids) for gap in gaps.values()) != len(covered):
-            raise InvalidBinding("Combine shared requirements in one proposal; a goal cannot appear twice.")
+            raise InvalidBinding(_("Combine shared requirements in one proposal; a goal cannot appear twice."))
         if covered - semantic or semantic - (covered | existing):
-            raise InvalidBinding("Semantic gaps need evidence and typed requirements; other failure reasons must not create model proposals.")
+            raise InvalidBinding(_("Semantic gaps need evidence and typed requirements; other failure reasons must not create model proposals."))
         if len(run.remediations) + len(gaps) > 12:
-            raise InvalidBinding("A Run may contain at most 12 model improvement records.")
+            raise InvalidBinding(_("A Run may contain at most 12 model improvement records."))
         for gap in gaps.values():
             if {gap.goal_id, *gap.related_goal_ids} & existing:
-                raise InvalidBinding("This goal already has a proposal. Review it rather than overwriting it.")
+                raise InvalidBinding(_("This goal already has a proposal. Review it rather than overwriting it."))
             run.remediations.append(RunRemediation(id=new_id("fix"), **gap.model_dump(),
                 events=[event(caller, "proposed", origin=origin, proposal=gap.model_dump(mode="json"))]))
         run.conclusion = req.conclusion.model_copy(update={"source": "caller"})
@@ -65,10 +66,10 @@ async def record_blocked(engine, caller, req, origin):
 def find(run, remediation_id, revision):
     item = next((item for item in run.remediations if item.id == remediation_id), None)
     if item is None:
-        raise InvalidBinding("Unknown model improvement record.")
+        raise InvalidBinding(_("Unknown model improvement record."))
     if item.revision != revision:
         from .engine import RunBusy
-        raise RunBusy("The improvement record changed. Reload it before continuing.")
+        raise RunBusy(_("The improvement record changed. Reload it before continuing."))
     return item
 
 
@@ -83,9 +84,9 @@ async def create(engine, caller, run_id, req):
         ensure_idle(run)
         goal = next((goal for goal in run.goals if goal.id == req.goal_id), None)
         if goal is None or set(req.related_goal_ids) - {goal.id for goal in run.goals}:
-            raise InvalidBinding("An improvement must address a recorded goal.")
+            raise InvalidBinding(_("An improvement must address a recorded goal."))
         if len(run.remediations) >= 12:
-            raise InvalidBinding("A Run may contain at most 12 model improvement records.")
+            raise InvalidBinding(_("A Run may contain at most 12 model improvement records."))
         item = RunRemediation(id=new_id("fix"), **req.model_dump(),
             events=[event(caller, "proposed", origin=run.origin, proposal=req.model_dump(mode="json"))])
         run.remediations.append(item)
@@ -96,7 +97,7 @@ async def create(engine, caller, run_id, req):
 def ensure_idle(run):
     if run.running or run.preview:
         from .engine import RunBusy
-        raise RunBusy("Wait for execution to finish; previews cannot manage model improvements.")
+        raise RunBusy(_("Wait for execution to finish; previews cannot manage model improvements."))
 
 
 async def review(engine, caller, run_id, remediation_id, req):
@@ -115,7 +116,7 @@ async def review(engine, caller, run_id, remediation_id, req):
 
 async def check(engine, creds, caller, item):
     if item.status != "confirmed":
-        raise InvalidBinding("Review and confirm the model improvement before checking it.")
+        raise InvalidBinding(_("Review and confirm the model improvement before checking it."))
     refresh = getattr(engine.provider, "refresh_catalog", engine.provider.discover)
     catalog = await refresh(creds)
     results = []
@@ -169,14 +170,14 @@ async def retry(engine, creds, caller, run_id, remediation_id, req, origin, wait
         item.revision += 1
         await engine.store.save(run)
         if not snapshot["ready"]:
-            raise InvalidBinding("Model requirements are not yet visible or compatible.", checks=snapshot)
+            raise InvalidBinding(_("Model requirements are not yet visible or compatible."), checks=snapshot)
         if req.question and req.question != run.plan.question:
-            raise InvalidBinding("A linked retry must keep the original question.")
+            raise InvalidBinding(_("A linked retry must keep the original question."))
         if req.goals:
             before = {goal.id: (goal.description, goal.required_capabilities, goal.interpretation) for goal in run.goals}
             after = {goal.id: (goal.description, goal.required_capabilities, goal.interpretation) for goal in req.goals}
             if before != after:
-                raise InvalidBinding("A linked retry must keep the original goals and interpretation; only semantic references may change.")
+                raise InvalidBinding(_("A linked retry must keep the original goals and interpretation; only semantic references may change."))
         # Do not replay old literal selections or silently rebind references to a new model.
         scope = dict(run.plan.scope)
         scope.pop("inputs", None)  # Runtime targets must be supplied again, not remembered from old data.

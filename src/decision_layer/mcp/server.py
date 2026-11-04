@@ -77,6 +77,8 @@ def instructions() -> str:
     )
     parts = [
         _(SECTIONS["intro"]),
+        _("Write user-facing purposes, findings and conclusions in {language} unless the user requests another language. Keep semantic identifiers, queries and source code unchanged.",
+          language=_("Korean") if LOCALE == "ko" else _("English")),
         _(
             "Start one Run with the original question. Execute every Method with run_step on that run_id, supplying a purpose. Finish with complete_run and evidence-linked findings. Even a single Method needs a Run."
         ),

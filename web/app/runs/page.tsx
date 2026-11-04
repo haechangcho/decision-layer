@@ -46,9 +46,9 @@ export default function RunsPage() {
         {search && <button type="button" aria-label={t("Clear search")} title={t("Clear search")} onClick={() => setSearch("")}><X size={15} /></button>}
       </label><select className={styles.originSelect} aria-label={t("Run origin")} value={origin} onChange={(event) => setOrigin(event.target.value)}>
         <option value="all">{t("All origins")}</option><option value="mcp">{t("MCP run")}</option><option value="web">{t("Web run")}</option><option value="api">{t("API run")}</option><option value="python">{t("Python run")}</option>
-      </select><span className={styles.libraryCount}>{t("{count} results", { count: shown.length })}</span></div>
+      </select><span className={styles.libraryCount}>{data ? t("{count} results", { count: shown.length }) : t("Loading…")}</span></div>
       <div className={styles.libraryFilters} role="group" aria-label={t("Run status")}>
-        {[["all", t("All")], ["open", t("In progress · waiting")], ["completed", t("Done")], ["failed", t("Failed")]].map(([value, label]) => <button type="button" key={value} aria-pressed={status === value} onClick={() => setStatus(value)}>{label} <span>{count(value)}</span></button>)}
+        {[["all", t("All")], ["open", t("In progress · waiting")], ["completed", t("Done")], ["failed", t("Failed")]].map(([value, label]) => <button type="button" key={value} aria-pressed={status === value} onClick={() => setStatus(value)}>{label} <span>{data ? count(value) : "—"}</span></button>)}
       </div>
       <div className={`${styles.libraryColumns} ${styles.runColumns}`} aria-hidden="true"><span>{t("Question and result")}</span><span>{t("Run time")}</span><span>{t("Status")}</span><span /></div>
       {loading && !data ? <LoadingState /> : shown.map((run) => <div key={run.id} className={styles.libraryItem}><Link href={`/runs/${run.id}`} className={`${styles.libraryRow} ${styles.runRow}`}>

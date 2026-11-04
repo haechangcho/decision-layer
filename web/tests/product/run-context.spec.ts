@@ -23,12 +23,12 @@ test.beforeEach(async ({ page }) => {
 test("historical original purpose is separated from current scope and comparison meaning", async ({ page }, info) => {
   await page.route("**/api/runs/context-run", route => route.fulfill({ json: run }));
   await page.goto("/runs/context-run");
-  const graph = page.getByRole("region", { name: "실행 그래프" });
+  const graph = page.locator("#run-step-detail > p").first();
   await expect(graph).not.toContainText(step.purpose);
   await expect(page.getByText("등록 당시 단계 설명", { exact: true })).toBeVisible();
   await expect(page.getByText("이번 실행 기간", { exact: true })).toBeVisible();
-  await expect(page.getByText(/구성원별 값의 단순 평균이 아닙니다/)).toBeVisible();
-  await expect(page.getByText(/표본 건수가 있더라도 이 Method는 유의성을 검정하지 않습니다/)).toBeVisible();
+  await expect(page.getByText(/구성원 값의 단순 평균이 아닙니다/)).toBeVisible();
+  await expect(page.getByText(/표본 건수가 있어도 통계적 유의성이나 인과관계는 검정하지 않습니다/)).toBeVisible();
   await expect(page.getByRole("cell", { name: "비교 집단 (대상 제외)", exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath("comparison-context.png"), fullPage: true });
 });
@@ -37,7 +37,7 @@ test("explicit procedural purposes are not treated as historical intent", async 
   await page.route("**/api/runs/context-run", route => route.fulfill({ json: { ...run, steps: [{ ...run.steps[0],
     step: { ...step, purpose: "선택한 집단을 비교 집단과 비교", purpose_context: "procedure" } }] } }));
   await page.goto("/runs/context-run");
-  await expect(page.getByRole("region", { name: "실행 그래프" })).toContainText("선택한 집단을 비교 집단과 비교");
+  await expect(page.locator("#run-step-detail > p").first()).toContainText("선택한 집단을 비교 집단과 비교");
   await expect(page.getByText("등록 당시 단계 설명", { exact: true })).toHaveCount(0);
 });
 
@@ -49,7 +49,7 @@ test("Recipe reuse shows the current goal rather than historical dates and avoid
     ] },
   } }));
   await page.goto("/runs/context-run");
-  await expect(page.getByRole("region", { name: "실행 그래프" })).toContainText("이번 기간 최고 집단을 나머지 집단과 비교");
+  await expect(page.locator("#run-step-detail > p").first()).toContainText("이번 기간 최고 집단을 나머지 집단과 비교");
   await expect(page.getByRole("region", { name: "Recipe 등록" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Recipe로 등록", exact: true })).toHaveCount(0);
   const actions = page.locator('footer[aria-label="실행 기록 작업"]');

@@ -2883,3 +2883,43 @@ Authoring and execution still require the exact installed Method/version and fai
 before querying when it is missing. No alias, automatic Recipe rewrite or fallback
 resurrects a removed implementation. New user-published versions retain the normal
 version registry; this removes bundled history, not the provenance/version model.
+
+## ADR-132 — Localized runtime messages and inspectable query evidence (2026-11-03)
+
+Run errors, checks, warnings and artifact labels use the canonical request locale,
+including agent-guided Skill queries and completion. Worker jobs inherit that
+locale. MCP instructions ask agents to write purposes, findings and conclusions in
+the configured language unless the user requests another language. This is guidance
+for agent prose, not guaranteed translation. Semantic identifiers, queries, code,
+user input and authored narratives remain unchanged.
+
+The Web shares the backend catalog to display known historical system messages in
+the chosen UI language without rewriting stored Runs. Unknown text stays verbatim.
+An AST regression check rejects untranslated literals at Run message sinks. English
+remains the default; this release does not impose the PoC deployment's language.
+
+Skill query inspection shows the recorded provider request and compiled SQL beside
+its result. Cube's internal DL `_view` routing marker is excluded from the copyable
+Cube API request and retained in the raw record. Compiled SQL is the provider's
+execution-time compilation response, not an executed-statement trace. Missing SQL
+is reported rather than reconstructed by re-executing historical queries.
+
+## ADR-133 — Concise default inspection (2026-11-03)
+
+Default Run inspection presents results, queries, compiled SQL and actions without
+generic Skill caveats or routine query-scope passes. Only known fixed notices are
+suppressed, including historical Korean/English forms. Unknown warnings, failed
+checks and errors remain visible. The canonical API, validation and stored Run are
+unchanged; complete evidence remains in the original request inspectors.
+
+A single query needs no selection panel. Mirrored query-result artifacts do not
+create a duplicate additional-results tab. Recipe registration and sharing use
+compact actions. Responsive catalog inspectors retain keyboard navigation, focus
+restoration and locally scrolling query text. Development and packaged UI share
+these components.
+
+The 0.1.0a16 release promotes common UI, localization, query retrieval checks and
+Complete Journey model improvements from the PoC work. Customer deployment files,
+OIDC login, MCP OAuth, per-person Cube token issuance and PoC permission settings
+remain on `poc/deployment`. The standard release retains its existing local/demo
+access model and refuses shared deployment.

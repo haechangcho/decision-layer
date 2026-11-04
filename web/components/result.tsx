@@ -3,6 +3,7 @@
 // Renders any Result by artifact shape, not by Method: tables for row lists, key/value
 // grids for objects. A new Method's output shows up without a new component.
 
+import { isRoutineSkillNotice, useRuntimeMessage } from "@/lib/runtime-messages";
 import { InspectorDialog } from "@/components/inspector-dialog";
 import type { Artifact, Result, SemanticObject, Validation } from "@/lib/api";
 import { timeSeriesData } from "@/lib/artifact-data";
@@ -133,6 +134,7 @@ function Value({ value, titles, depth = 0 }: { value: unknown; titles: Titles; d
 
 export function ArtifactView({ artifact, titles, expanded = false, showTitle = true }: { artifact: Artifact; titles: Titles; expanded?: boolean; showTitle?: boolean }) {
   const t = useT();
+  const runtime = useRuntimeMessage();
   const [fullOpen, setFullOpen] = useState(false);
   if (artifact.type === "estimate" && artifact.data && typeof artifact.data === "object") {
     const data = artifact.data as Record<string, unknown>;
@@ -170,7 +172,7 @@ export function ArtifactView({ artifact, titles, expanded = false, showTitle = t
     const displayedRows = populationComparison && isRowList(rows) ? rows.map((row, index) => ({ ...row,
       value: populationLabel(index, row.value, t) })) : rows;
     if (isRowList(displayedRows)) return <section className="artifact">
-      {showTitle && <h4>{artifact.title || (artifactNames[artifact.type] ? t(artifactNames[artifact.type]) : artifact.type)}</h4>}
+      {showTitle && <h4>{(artifact.title ? runtime(artifact.title) : null) || (artifactNames[artifact.type] ? t(artifactNames[artifact.type]) : artifact.type)}</h4>}
       {populationComparison && <div className="result-note"><p><strong>{t("Comparison basis")}</strong> {t("Each value uses the metric definition for the whole group, not an average of member values.")}</p><p>{t("Only peers use the selected conditions. Both groups exclude the subject and keep shared filters and dates.")}</p>{data.statistical_judgement === "not_tested" && <p><strong>{t("Numeric comparison only")}</strong> {t("No significance or causality test is performed, even with sample counts.")}</p>}</div>}
       <DataTable rows={displayedRows} titles={titles} columns={["value", "metric", "count", "share_of_count", "difference_from_subject"].filter((key) => key in displayedRows[0])} />
       {!expanded && <><button type="button" className="ghost" onClick={() => setFullOpen(true)}>{t("View full result")}</button><InspectorDialog title={t("Full analysis result")} open={fullOpen} onClose={() => setFullOpen(false)}><Value value={data} titles={titles} /></InspectorDialog></>}
@@ -178,7 +180,7 @@ export function ArtifactView({ artifact, titles, expanded = false, showTitle = t
   }
   return (
     <section className="artifact">
-      {showTitle && <h4>{artifact.title || (artifactNames[artifact.type] ? t(artifactNames[artifact.type]) : artifact.type)}</h4>}
+      {showTitle && <h4>{(artifact.title ? runtime(artifact.title) : null) || (artifactNames[artifact.type] ? t(artifactNames[artifact.type]) : artifact.type)}</h4>}
       <Value value={artifact.data} titles={titles} />
     </section>
   );
@@ -186,13 +188,14 @@ export function ArtifactView({ artifact, titles, expanded = false, showTitle = t
 
 export function ValidationList({ items }: { items: Validation[] }) {
   const t = useT();
+  const runtime = useRuntimeMessage();
   const important = items.filter((item) => item.status !== "pass");
   if (!important.length) return null;
   return (
     <ul className="validation">
       {important.map((v, i) => (
         <li key={i} className={v.status}><b>{(name => name ? t(name) : v.validator.replaceAll("_", " "))(({ freshness: "Data freshness", complete_period: "Analysis period", non_empty: "Data present", min_count: "Sample size", overlap: "Group comparability" } as Record<string, string>)[v.validator])}</b> {v.code === "DATA_STALE" && typeof v.details?.latest === "string" && typeof v.details?.end === "string"
-          ? t("Data ends on {latest}; results through {end} may be incomplete.", { latest: v.details.latest, end: v.details.end }) : v.message}</li>
+          ? t("Data ends on {latest}; results through {end} may be incomplete.", { latest: v.details.latest, end: v.details.end }) : runtime(v.message)}</li>
       ))}
     </ul>
   );
@@ -200,6 +203,7 @@ export function ValidationList({ items }: { items: Validation[] }) {
 
 export function ResultView({ result, titles, showRunLink = true, showEvidence = true, expanded = false, showPrimaryTitle = true }: { result: Result; titles: Titles; showRunLink?: boolean; showEvidence?: boolean; expanded?: boolean; showPrimaryTitle?: boolean }) {
   const t = useT();
+  const runtime = useRuntimeMessage();
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [additionalOpen, setAdditionalOpen] = useState(false);
   const statusLabel = t({ success: "Analysis complete", needs_input: "More input needed", refused: "Not comparable", failed: "Failed" }[result.status]);
@@ -223,7 +227,7 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
           <div className="hint">{t("Set {field} to one of these values and rerun.", { field: result.needs_input.field })}</div>
         </div>
       )}
-      {!expanded && result.warnings.length > 0 && <ul className="warnings">{result.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>}
+      {!expanded && result.warnings.length > 0 && <ul className="warnings">{result.warnings.filter(warning => !isRoutineSkillNotice(warning)).map((w, i) => <li key={i}>{runtime(w)}</li>)}</ul>}
       {!expanded && <ValidationList items={result.validation} />}
       {result.primary && <ArtifactView artifact={result.primary} titles={titles} expanded={expanded} showTitle={showPrimaryTitle} />}
       {!expanded && supportingArtifacts.length > 0 && <><button type="button" className="ghost" onClick={() => setAdditionalOpen(true)}>{t("Additional analysis results")} ({supportingArtifacts.length})</button><InspectorDialog title={t("Additional analysis results")} open={additionalOpen} onClose={() => setAdditionalOpen(false)}>

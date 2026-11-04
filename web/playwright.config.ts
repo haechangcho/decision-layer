@@ -13,6 +13,7 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
+    { name: "compact", testMatch: /ui-layout-audit\.spec\.ts/, use: { viewport: { width: 817, height: 863 } } },
     { name: "desktop", use: { viewport: { width: 1440, height: 1000 } } },
     { name: "mobile", use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
   ],

@@ -28,11 +28,11 @@ export function ProjectMenu() {
       document.removeEventListener("keydown", escape);
     };
   }, []);
-  if (!data) return null;
+  if (!data?.name) return null;
   return <details className="app-project" ref={menu}>
     <summary aria-label={t("Project {name}", { name: data.name })}><FolderOpen size={15} /><span>{data.name}</span><ChevronDown size={14} /></summary>
     <div className="app-project-popover">
-      <small>{t("Current project")}</small><strong>{data.name}</strong>
+      <small>{t("Current project")}</small><strong className="app-project-name">{data.name}</strong>
       {data.path && <><small>{t("File location")}</small><code>{data.path}</code></>}
       <Link href="/sources" onClick={() => { if (menu.current) menu.current.open = false; }}>{t("Open connection settings")}</Link>
     </div>

@@ -99,3 +99,52 @@ def test_api_speaks_the_requested_language(cube_meta):
     r = c.post(f"/methods/{name}:run", headers={"Accept-Language": "ko"},
                json={"bindings": {}, "scope": {"date_range": list(Q3)}}).json()
     assert HANGUL.search(r["error"]["message"])
+
+
+def test_run_runtime_messages_cannot_bypass_translation():
+    """Guard the message sinks, not just the strings already wrapped in _()."""
+    def raw_text(value):
+        if isinstance(value, ast.Constant) and isinstance(value.value, str) and value.value.strip():
+            yield value
+        elif isinstance(value, (ast.List, ast.Tuple)):
+            for item in value.elts:
+                yield from raw_text(item)
+        elif isinstance(value, ast.IfExp):
+            yield from raw_text(value.body)
+            yield from raw_text(value.orelse)
+        elif isinstance(value, ast.JoinedStr):
+            yield value
+
+    hits = []
+    for path in (SRC / 'runs').glob('*.py'):
+        for node in ast.walk(ast.parse(path.read_text())):
+            values = []
+            if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
+                values += node.exc.args[:1]
+            if isinstance(node, ast.Call):
+                values += [k.value for k in node.keywords if k.arg in {'message', 'warnings', 'title'}]
+                if (isinstance(node.func, ast.Attribute) and node.func.attr == 'append'
+                        and isinstance(node.func.value, ast.Attribute) and node.func.value.attr == 'warnings'):
+                    values += node.args
+            if isinstance(node, ast.Assign) and any(isinstance(t, ast.Attribute) and t.attr == 'warnings' for t in node.targets):
+                values.append(node.value)
+            if isinstance(node, ast.Dict):
+                values += [v for k, v in zip(node.keys, node.values) if isinstance(k, ast.Constant) and k.value == 'message']
+            for value in values:
+                hits += [f'{path.relative_to(SRC)}:{literal.lineno}' for literal in raw_text(value)]
+    assert not hits, 'Run messages must use _() and a catalog entry: ' + ', '.join(hits)
+
+
+def test_mcp_instructions_request_the_configured_narrative_language(monkeypatch):
+    from decision_layer.i18n import reset_locale
+    for locale in ('en', 'ko'):
+        monkeypatch.setattr(mcp_server, 'LOCALE', locale)
+        context = set_locale(locale)
+        try:
+            text = mcp_server.instructions()
+            if locale == 'ko':
+                assert '분석 목적, 발견 사항, 결론은 한국어로 작성' in text
+            else:
+                assert 'conclusions in English' in text
+        finally:
+            reset_locale(context)

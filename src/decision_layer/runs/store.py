@@ -176,4 +176,4 @@ def open_store(url: str | None) -> RunStore:
         return SqliteRunStore(url.removeprefix("sqlite:///"))
     if url.startswith(("postgresql://", "postgres://")):
         return PostgresRunStore(url)
-    raise ValueError(f"Unsupported DL_DATABASE_URL scheme: {url.split('://')[0]}://…")
+    raise ValueError(_("Unsupported DL_DATABASE_URL scheme: {scheme}://…", scheme=url.split('://')[0]))

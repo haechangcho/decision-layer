@@ -14,10 +14,7 @@ export function RunAnswer({ run, warnings, onSelect }: { run: Run; warnings: Val
   const original = useRef<HTMLDialogElement>(null);
   const authored = run.conclusion && run.conclusion.source !== "execution" ? run.conclusion : null;
   const findings = authored?.findings ?? run.steps.map((record, index) => ({ text: stepFinding(record, t), step_indices: [index] }));
-  if (!authored && !run.summary) return <section className={styles.runProgressSummary} aria-label={t("Analysis answer")}>
-    <p>{run.running ? t("Analysis is running.") : run.steps.length ? t("Review the results, then write a conclusion.") : t("No analysis steps have run yet.")}</p>
-    {warnings.length > 0 && <ValidationList items={warnings} />}
-  </section>;
+  if (!authored && !run.summary) return warnings.length > 0 ? <section className={styles.runProgressSummary} aria-label={t("Analysis answer")}><ValidationList items={warnings} /></section> : null;
   return <section className={styles.runAnswer} aria-label={t("Analysis answer")}>
     <div className={styles.runAnswerHeading}><h2>{t(authored ? "Analysis conclusion" : run.steps.length ? "Summary of step results" : "Analysis status")}</h2>{authored && <span>{run.conclusion_author?.client_name === "Decision Layer Web" ? t("Written by a user") : run.origin === "mcp" && run.conclusion_author?.client_name ? t("Written by AI") : ""}</span>}</div>
     {authored ? <p>{authored.answer}</p> : <p>{t(run.running ? "The analysis is in progress." : run.steps.length ? "No structured conclusion to the question was recorded. You can review the results of the steps that ran." : "No analysis steps have run yet.")}</p>}

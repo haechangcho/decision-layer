@@ -94,7 +94,7 @@ test("a calculated validation refusal does not block procedure registration", as
   await page.goto("/runs/validation-refusal");
   const register = page.getByRole("button", { name: "Recipe로 등록", exact: true });
   await expect(register).toBeEnabled();
-  await expect(page.getByText(/보조 비교로 자동 전환하지 않습니다/)).toBeVisible();
+  await expect(page.getByText(/대체 비교 없이 중단합니다/)).toBeVisible();
   await expect(page.getByRole("link", { name: "편집해서 저장" })).toHaveAttribute("href", /step=0&step=1/);
   await register.click();
   await expect(page.getByRole("heading", { name: "Recipe 초안을 저장했습니다" })).toBeVisible();
@@ -317,7 +317,7 @@ test("a one-period trend leads with the answer and keeps audit details folded", 
   await expect(page.locator("details[open]")).toHaveCount(0);
   await expect(page.getByRole("columnheader", { name: "지급 건수" })).toBeVisible();
   await expect(page.getByText("기간이 하나뿐이라 증가·감소 추이는 판단할 수 없습니다.")).toBeVisible();
-  await expect(page.getByRole("region", { name: "분석 답변" }).getByText(/데이터가 2026-06-04까지만 있어/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "분석 답변" }).getByText("데이터는 2026-06-04까지 있습니다. 2026-06-30까지의 결과는 불완전할 수 있습니다.")).toBeVisible();
   await expect(page.getByText("periods: 1 rows")).not.toBeVisible();
   await expect(page.getByText("largest period-over-period move per series")).toHaveCount(0);
   await expect(page.getByText(metric, { exact: true })).not.toBeVisible();

@@ -11,6 +11,17 @@ export const LOCALES: Locale[] = ["en", "ko"];
 const KEY = "decision-layer.locale";
 
 const ko: Record<string, string> = {
+  "Compiled SQL {number}": "컴파일 SQL {number}",
+  "Copy SQL {number}": "SQL {number} 복사",
+  "Recorded query evidence": "기록된 조회 근거",
+  "Cube query and compiled SQL": "Cube 쿼리와 컴파일 SQL",
+  "Recorded provider request and compiled SQL": "기록된 요청과 컴파일 SQL",
+  "Recorded provider request · SQL not recorded": "기록된 요청 · SQL 기록 없음",
+  "Cube query": "Cube 쿼리",
+  "Provider request": "시맨틱 레이어 요청",
+  "Compiled SQL": "컴파일 SQL",
+  "Compiled SQL was not recorded for this query.": "이 조회에는 컴파일 SQL이 기록되어 있지 않습니다.",
+  "Compiled by the provider at execution time. Parameter values, if absent, were not recorded.": "실행 당시 시맨틱 레이어가 반환한 컴파일 결과입니다. 바인딩 값이 표시되지 않으면 해당 기록에 저장되지 않은 것입니다.",
   "Read-only.": "읽기 전용입니다.",
   "Edit the project's SKILL.md file.": "프로젝트의 SKILL.md를 수정하세요.",
   "Edit the project's method.py file.": "프로젝트의 method.py를 수정하세요.",
