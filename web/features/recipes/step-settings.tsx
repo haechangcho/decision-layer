@@ -83,7 +83,7 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
     return <ParameterField key={`${name}:${reference}`} objects={objects} name={name} spec={spec} value={value} disabled={fixed(name)} fieldPath={path} dataType={objects.find(object => object.ref === reference)?.data_type} oppositeValue={subject ? parameterValue(subject[0]) : undefined} error={fieldError?.field === path ? fieldError.message : undefined} onChange={value => param(name, value)} />;
   };
   const roleField = ([name, role]: [string, RoleSpec]) => {
-    const label = role.label || (skill && name === "dimensions" ? t("Dimensions to explore") : roleLabels[name] ? t(roleLabels[name]) : name);
+    const label = role.label || (skill && name === "dimensions" ? t("Categories to explore") : roleLabels[name] ? t(roleLabels[name]) : name);
     const inherited = step.bindings[name] === "$scope.primary_metric" ? objects.find(o => o.ref === recipe.semantic_scope.primary_metric)?.title || t("Not selected")
       : step.bindings[name] === "$scope.preferred_dimensions" ? recipe.semantic_scope.preferred_dimensions.map(ref => objects.find(o => o.ref === ref)?.title || ref).join(" → ") || t("Not selected") : undefined;
     const path = `steps[${stepIndex}].bindings.${name}`;
@@ -161,10 +161,10 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
     {roles.filter(([name, role]) => !optionalRoles.some(([key]) => key === name) && (role.required || role.exclusive_group || step.bindings[name] || role.default_binding === "unit_count" && metricObject?.metric_kind === "average")).map(roleField)}
     {Object.entries(manifest.parameters).filter(([,spec])=>spec.type==="filters"&&spec.ui_group!=="hidden"&&visible(spec)).map(parameterField)}
     {optionalRoles.length > 0 && <section className={s.optionalInputs}>
-      <button type="button" className={s.optionalToggle} aria-expanded={showOptional || optionalError} onClick={() => setShowOptional(value => !value)}>{t("Optional analysis inputs")}<ChevronDown size={15} aria-hidden="true" /></button>
-      {!showOptional && !optionalError && <p className={s.nodeStatus}>{optionalRoles.filter(([name]) => refs(step.bindings[name]).length).map(([name, role]) => `${role.label || (name === "dimensions" ? t("Dimensions to explore") : roleLabels[name] ? t(roleLabels[name]) : name)}: ${refs(step.bindings[name]).map(ref => ref.startsWith("$") ? t("Shared breakdown dimensions") : objects.find(object => object.ref === ref)?.title || ref).join(", ")}`).join(" · ") || t("Leave blank to let AI choose dimensions from the catalog.")}</p>}
+      <button type="button" className={s.optionalToggle} aria-expanded={showOptional || optionalError} onClick={() => setShowOptional(value => !value)}>{t("Items to explore (optional)")}<ChevronDown size={15} aria-hidden="true" /></button>
+      {!showOptional && !optionalError && <p className={s.nodeStatus}>{optionalRoles.filter(([name]) => refs(step.bindings[name]).length).map(([name, role]) => `${role.label || (name === "dimensions" ? t("Categories to explore") : roleLabels[name] ? t(roleLabels[name]) : name)}: ${refs(step.bindings[name]).map(ref => ref.startsWith("$") ? t("Shared breakdown dimensions") : objects.find(object => object.ref === ref)?.title || ref).join(", ")}`).join(" · ") || t("Leave blank to let AI choose relevant items for the question.")}</p>}
       {(showOptional || optionalError) && <div className={s.fields}>
-        <p className={s.nodeStatus}>{t("Suggested dimensions; list order does not set execution order.")}</p>
+        <p className={s.nodeStatus}>{t("Choose additional metrics or categories to explore.")}</p>
         {optionalRoles.map(roleField)}
       </div>}
     </section>}

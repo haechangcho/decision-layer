@@ -82,17 +82,17 @@ test("Skill steps keep instructions primary and let both saved and new steps cho
   await page.goto("/recipes/metric-review/edit");
   await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByLabel("이 단계의 분석 지시", {exact: true})).toBeVisible();
-  await expect(page.getByText("살펴볼 차원: 분류", {exact: true})).toBeVisible();
-  await page.getByRole("button", {name: "분석 대상 설정 (선택)", exact: true}).click();
-  await expect(page.getByLabel("살펴볼 차원", {exact: true})).toBeVisible();
-  await page.getByRole("button", {name: "살펴볼 차원 1 삭제", exact: true}).click();
-  await page.getByLabel("살펴볼 차원", {exact: true}).selectOption(dimension);
+  await expect(page.getByText("나눠 볼 기준: 분류", {exact: true})).toBeVisible();
+  await page.getByRole("button", {name: "함께 볼 항목 (선택)", exact: true}).click();
+  await expect(page.getByLabel("나눠 볼 기준", {exact: true})).toBeVisible();
+  await page.getByRole("button", {name: "나눠 볼 기준 1 삭제", exact: true}).click();
+  await page.getByLabel("나눠 볼 기준", {exact: true}).selectOption(dimension);
   await page.getByRole("button", {name: "분석 도구 추가", exact: true}).click();
   await page.getByRole("button", {name: /그룹별 분석/}).click();
   await page.getByLabel("이 단계의 분석 지시", {exact: true}).fill("선택한 기준으로 분포를 살펴보고 다음 대상을 정한다.");
-  await page.getByRole("button", {name: "분석 대상 설정 (선택)", exact: true}).click();
-  await page.getByLabel("살펴볼 차원", {exact: true}).selectOption(dimension);
-  await expect(page.getByText("AI가 참고할 차원입니다. 실행 순서는 정하지 않습니다.")).toBeVisible();
+  await page.getByRole("button", {name: "함께 볼 항목 (선택)", exact: true}).click();
+  await page.getByLabel("나눠 볼 기준", {exact: true}).selectOption(dimension);
+  await expect(page.getByText("추가로 살펴볼 지표나 나눠 볼 기준을 선택하세요.")).toBeVisible();
   if (info.project.name === "desktop") {
     await page.setViewportSize({width:811,height:863});
     await expect.poll(async () => {
