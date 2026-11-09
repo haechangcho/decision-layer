@@ -80,7 +80,7 @@ test("Skill steps keep instructions primary and let both saved and new steps cho
       dimensions: {kind: "dimension", multiple: true, required: false} }, parameters: {} };
   await page.route("**/api/methods", route => route.fulfill({json: [skill]}));
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByLabel("이 단계의 분석 지시", {exact: true})).toBeVisible();
   await expect(page.getByText("살펴볼 차원: 지급 유형", {exact: true})).toBeVisible();
   await page.getByRole("button", {name: "분석 대상 설정 (선택)", exact: true}).click();
@@ -97,7 +97,7 @@ test("Skill steps keep instructions primary and let both saved and new steps cho
     await page.setViewportSize({width:811,height:863});
     await expect.poll(async () => {
       const graph = await page.getByRole("region", {name:"Recipe 그래프"}).boundingBox();
-      const nodes = await page.locator(".react-flow__node").all();
+      const nodes = await page.locator("[data-workflow-step]").all();
       if (!graph) return false;
       for (const node of nodes) {
         const box = await node.boundingBox();
@@ -138,7 +138,7 @@ test("comparison groups use generic typed controls and reset on criterion change
     { ref: score, kind: "measure", title: "이전 구매금액", data_type: "number" },
   ] } }));
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByLabel("대상 그룹", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("비교 그룹", { exact: true })).toContainText("아니요 · 반대 그룹");
   const targetBox = await page.getByLabel("대상 그룹", { exact: true }).boundingBox();
@@ -190,7 +190,7 @@ for (const automatic of [true, false]) test(`average count connection is ${autom
     return route.fulfill({ json: recipe });
   });
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByLabel("표본 건수 지표", { exact: true })).toHaveCount(0);
   if (!automatic) {
     await expect(page.getByText(/평균을 비교하려면 같은 분석 단위의 건수를 연결하세요/)).toBeVisible();
@@ -229,7 +229,7 @@ test("write a two-step Recipe with purpose, metric and dimensions only", async (
   await expect(page.getByLabel("정렬 기준")).not.toBeVisible();
   await expect.poll(async () => page.locator('[aria-label="Recipe 그래프"]').evaluate(canvas => {
     const frame = canvas.getBoundingClientRect();
-    return [...canvas.querySelectorAll('.react-flow__node')].every(node => {
+    return [...canvas.querySelectorAll('[data-workflow-step]')].every(node => {
       const bounds = node.getBoundingClientRect();
       return bounds.top >= frame.top && bounds.bottom <= frame.bottom;
     });
@@ -258,7 +258,7 @@ test("write a two-step Recipe with purpose, metric and dimensions only", async (
 test("step metric override is deliberate and can return to the Recipe metric", async ({ page }) => {
   const state = await mockApi(page, existing());
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByRole("button", { name: "지표 변경", exact: true })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "분석 지표" })).toHaveCount(0);
   await page.getByRole("button", { name: "지표 변경", exact: true }).click();
@@ -279,7 +279,7 @@ test("Recipe-fixed parameters stay preserved outside basic editing", async ({ pa
   const locked: Recipe = { ...existing(), method_parameters: { "query.drilldown": { fixed: { top_n: 7 }, runtime_allowed: ["drill_path"] } } };
   const state = await mockApi(page, locked);
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByText("실행 제약은 코드 보기에서 수정하세요.", {exact:true})).toBeVisible();
   await expect(page.getByLabel("표시할 그룹 수")).toHaveCount(0);
   await page.getByRole("button", { name: "분석 절차 정보" }).click();
@@ -315,7 +315,7 @@ test("YAML edits update the graph and graph edits refresh YAML", async ({ page }
   await page.getByLabel("Recipe YAML").fill("name: insurance-review\ndescription: 새 분석 절차\n");
   await page.getByRole("button", { name: "YAML 적용" }).click();
   await expect(page.getByLabel("어떤 질문에 사용하는 분석인가요?")).toHaveValue("새 분석 절차");
-  await expect(page.locator('.react-flow__node[data-id="scope"]')).toContainText("새 분석 절차");
+  await expect(page.locator('[data-workflow-step="scope"]')).toContainText("새 분석 절차");
   await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("그래프에서 수정");
   await expect(page.getByLabel("Recipe YAML")).toContainText("description: 그래프에서 수정");
   await page.getByLabel("Recipe YAML").fill("name: insurance-review\ndescription: 덮어쓰기 시도\n");
@@ -331,7 +331,7 @@ test("a hidden-setting save error opens code for repair", async ({ page }, info)
     error: { code: "INVALID_RECIPE_EDIT", message: "top_n must be at least 1.", details: { field: "steps[0].params.top_n" } },
   } }));
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await codeEdit(page, recipe => { recipe.steps[0].params.top_n = 0; });
   await save(page);
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -345,7 +345,7 @@ test("save review summarizes changed fields without raw JSON", async ({ page }, 
   await mockApi(page, existing());
   await page.goto("/recipes/insurance-review/edit");
   await page.getByLabel("어떤 질문에 사용하는 분석인가요?").fill("지급액 변화 확인");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await codeEdit(page, recipe => { recipe.steps[0].params.top_n = 8; });
   await page.getByRole("button", { name: "초안 저장", exact: true }).click();
   const dialog = page.getByRole("dialog");
@@ -373,7 +373,7 @@ test("preview an unsaved step, poll a 202 job, and inspect its result", async ({
     } }],
   } }));
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByLabel("미리보기 시작일")).not.toBeVisible();
   await expect(page.getByLabel("미리보기 기간 지정")).toHaveCount(0);
   await page.getByRole("button", { name: "결과 확인", exact: true }).click();
@@ -400,13 +400,13 @@ test("a preview stopped by an earlier step returns to that step", async ({ page 
     } }],
   } }));
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:1"]').click();
+  await page.locator('[data-workflow-step="step:1"]').click();
   await expect(page.getByLabel("미리보기 시작일")).toHaveCount(0);
   await page.getByRole("button", { name: "결과 확인", exact: true }).click();
   await page.getByRole("button", { name: "이 조건으로 확인", exact: true }).click();
   await expect(page.getByText("1단계에서 미리보기가 멈췄습니다.")).toBeVisible();
   await page.getByRole("button", { name: "1단계 설정 확인" }).click();
-  await expect(page.locator('.react-flow__node[data-id="step:0"]')).toHaveClass(/selected/);
+  await expect(page.locator('[data-workflow-step="step:0"]')).toHaveAttribute("aria-current", "step");
 });
 
 test("editing an existing step-specific metric preserves its override", async ({ page }) => {
@@ -414,7 +414,7 @@ test("editing an existing step-specific metric preserves its override", async ({
   before.steps[0].bindings.metric = alternateMetric;
   const state = await mockApi(page, before);
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.locator('[class*="metricSummary"]').getByText("청구 건수", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "지표 변경", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "분석 절차 정보" }).click();
@@ -436,7 +436,7 @@ test("editing purpose preserves hidden options, scope and procedure", async ({ p
 test("restore one advanced default without clearing other explicit values", async ({ page }) => {
   const state = await mockApi(page, existing());
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await codeEdit(page, recipe => { delete recipe.steps[0].params.top_n; });
   await save(page);
   await expect.poll(() => state.submission()?.recipe.version).toBe("1.0.1");
@@ -454,7 +454,7 @@ test("a contributed Method generates labels, catalog inputs and conditional opti
     },
   }] }));
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByLabel("허용 차이")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "집단 검토", exact: true })).toBeVisible();
   await page.getByLabel("나눠 볼 영역", { exact: true }).selectOption(dimension);
@@ -476,7 +476,7 @@ test("unavailable pinned settings stop loading and can be retried without changi
       : { json: { ...methods[1], version: "1.0.0" } });
   });
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   const settingsError = page.locator("aside").last().getByRole("alert");
   await expect(settingsError).toContainText("The recorded Method version is not installed.");
   await page.screenshot({ path: info.outputPath("unavailable-pinned-settings.png"), fullPage: true });
@@ -493,7 +493,7 @@ test("drilldown exposes one effective dimension, not engine options", async ({ p
   const state = await mockApi(page, existing());
   await page.route("**/api/methods", route => route.fulfill({ json: methods.map(method => method.name === "query.drilldown" ? { ...method, roles: { ...method.roles, dimensions: { kind: "dimension", required: true, multiple: true, label: "나눠 볼 항목", editor_parameter: "next_dimension" } }, parameters: { ...method.parameters, next_dimension: { type: "string", semantic_kind: "dimension", semantic_role: "dimensions", ui_group: "hidden" } } } : method) }));
   await page.goto("/recipes/insurance-review/edit");
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   const inspector = page.locator("aside").last();
   await expect(inspector.getByRole("combobox")).toHaveCount(1);
   await expect(page.getByLabel("나눠 볼 항목", { exact: true })).toHaveValue(dimension);
@@ -546,7 +546,7 @@ test("Method link tests ordinary column roles without saving or inventing a metr
   await page.goto("/recipes/new?method=workshop.rank_columns");
   await page.getByLabel("분석할 지표", {exact:true}).selectOption(metric);
   releaseMethods();
-  await page.locator('.react-flow__node[data-id="step:0"]').click();
+  await page.locator('[data-workflow-step="step:0"]').click();
   await page.getByLabel("value", {exact:true}).selectOption(metric);
   await page.getByLabel("group", {exact:true}).selectOption(dimension);
   await page.getByRole("button", {name:"결과 확인",exact:true}).click();
@@ -559,4 +559,13 @@ test("Method link tests ordinary column roles without saving or inventing a metr
   expect(submitted!.scope.date_range).toEqual(["2026-09-01","2026-09-30"]);
   expect(submitted!.scope.time_dimension).toBe("cube://local/fact_accident/payment_dt");
   expect(saves).toBe(0);
+});
+
+test("a purpose-only edit remains visible when reviewing the draft", async ({ page }) => {
+  await mockApi(page, existing());
+  await page.goto("/recipes/insurance-review/edit");
+  await page.locator('[data-workflow-step="step:0"]').click();
+  await page.getByRole("textbox", {name:"이 단계에서 확인할 내용",exact:true}).fill("변화가 큰 항목을 확인합니다.");
+  await page.getByRole("button", {name:"초안 저장",exact:true}).click();
+  await expect(page.getByRole("dialog", {name:"초안 저장"}).getByText(/변화가 큰 항목을 확인합니다/)).toBeVisible();
 });

@@ -41,3 +41,16 @@
 .previewStopped{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line);font-size:13px}
 .policyEditor{display:grid;gap:12px;padding:12px 0;border-top:1px solid var(--line)}.policyEditor h3{margin:0;font-size:13px}.policyRow{display:grid;gap:8px;padding:6px 0}.policyAllowed{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .reviewNotice{border-left:3px solid #a36819;background:#fff8ec;padding:11px 15px;margin-bottom:14px;color:#47391f;font-size:12px;line-height:1.6}.reviewNotice strong{font-size:13px}.reviewNotice a{display:inline-flex;align-items:center;gap:4px;color:var(--accent);margin-left:12px}.reviewNotice p{margin:5px 0 0}
+
+/* The workflow uses one bounded canvas, with the same readable list on small panes. */
+.page .workspace{grid-template-columns:minmax(0,1fr) minmax(300px,400px);align-items:start;min-height:0;border:0;gap:18px}
+.page .workspace .canvas{height:auto;min-height:0;background:transparent;position:sticky;top:84px;scroll-margin-top:145px}
+.page .workspace .inspector{max-height:none;overflow:visible;border:1px solid var(--line);border-radius:10px;scroll-margin-top:145px;padding:22px;background:var(--panel)}
+.page .node{width:260px;height:148px;min-height:0;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:9px;padding:15px;border:1px solid var(--dl-border-strong);border-radius:10px;background:var(--panel);color:var(--text);text-align:left;cursor:pointer}
+.page .node.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft),var(--dl-shadow)}
+.page .node strong{font-size:14px;line-height:1.5;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.page .node .nodeStatus{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:1.6}
+.page .canvasEmpty{position:static;margin-top:12px;padding:16px;background:var(--panel);border:1px dashed var(--line);border-radius:8px}
+.stepNavigation{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:20px}
+.stepNavigation>div{display:flex;gap:6px}.stepNavigation .inspectorBack{align-self:center}
+@media(max-width:1100px){.page .workspace{display:flex;flex-direction:column;gap:14px}.page .workspace .canvas{position:relative;top:0;width:100%;height:auto}.page .workspace .inspector{width:100%;max-height:none}}

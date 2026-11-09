@@ -28,6 +28,7 @@ function stepChanges(before: PlanStep | undefined, after: PlanStep | undefined, 
   if (!before || !after) return [];
   const changes: string[] = [];
   if (before.method !== after.method) changes.push(`${t("{step} Method", { step: prefix })} · ${methodName(before.method, t)} → ${methodName(after.method, t)}`);
+  if (before.purpose !== after.purpose) changes.push(`${prefix} ${t("Analysis purpose")} · ${show(before.purpose)} → ${show(after.purpose)}`);
   for (const field of new Set([...Object.keys(before.bindings), ...Object.keys(after.bindings)])) {
     if (!equal(before.bindings[field], after.bindings[field]))
       changes.push(`${prefix} ${field === "metric" ? t("Analysis metric") : field === "dimensions" ? t("Breakdown order") : field} · ${show(before.bindings[field])} → ${show(after.bindings[field])}`);

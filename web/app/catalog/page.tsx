@@ -19,7 +19,6 @@ function getCube(ref: string) {
 export default function CatalogPage() {
   const t = useT();
   const [compact, setCompact] = useState(false);
-  const [technicalOpen, setTechnicalOpen] = useState(false);
   const [metrics, setMetrics] = useState<CatalogMetric[]>([]);
   const [selected, setSelected] = useState<CatalogMetric | null>(null);
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
@@ -59,12 +58,7 @@ export default function CatalogPage() {
   }
 
   useEffect(() => { void loadCatalog(); }, []);
-  useEffect(() => {
-    if (!mobileDetailOpen) return;
-    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setMobileDetailOpen(false); };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [mobileDetailOpen]);
+
 
   const shown = useMemo(() => metrics.filter((metric) => {
     const haystack = `${metric.title} ${metric.ref} ${metric.description ?? ""} ${metric.cube}`.toLowerCase();
@@ -81,14 +75,16 @@ export default function CatalogPage() {
   }
 
   const detailContent = selected ? <>          {selected.description && <p className={styles.description}>{selected.description}</p>}
-          <button type="button" className="ghost" onClick={() => setTechnicalOpen(true)}>{t("View technical details")}</button><InspectorDialog title={t("Metric technical details")} open={technicalOpen} onClose={() => setTechnicalOpen(false)}><div className={styles.reference}><span>{t("Metric reference")}</span><code>{selected.ref}</code></div>
-            {selected.ratio_parts?.length ? <div className={styles.reference}><span>{t("Numerator / denominator")}</span><code>{selected.ratio_parts.join(" / ")}</code></div> : null}
-            {selected.entity && <div className={styles.reference}><span>{t("Analysis unit reference")}</span><code>{selected.entity}</code></div>}</InspectorDialog>
           <div className={styles.readinessTitle}><Info size={16} /><strong>{t("Confirmed in the model")}</strong></div>
           {!selected.checks ? <p className={styles.help}>{t("Model details unavailable. Execution will check the required inputs.")}</p> : <ul className={styles.checks}>
             <li><span>{t("Time dimension")}</span><strong>{selected.checks.time.status === "ready" ? t("Registered") : t("Not confirmed")}</strong></li>
             {(selected.metric_kind === "ratio" || selected.checks.decomposition.status !== "not_applicable") && <li><span>{t("Numerator / denominator")}</span><strong>{selected.checks.decomposition.status === "ready" ? t("Registered") : t("Not confirmed")}</strong></li>}
           </ul>}
+          <dl className={styles.technical}>
+            <div><dt>{t("Metric reference")}</dt><dd><code>{selected.ref}</code></dd></div>
+            {selected.ratio_parts?.length ? <div><dt>{t("Numerator / denominator")}</dt><dd>{selected.ratio_parts.map(ref => <code key={ref}>{ref}</code>)}</dd></div> : null}
+            {selected.entity && <div><dt>{t("Analysis unit reference")}</dt><dd><code>{selected.entity}</code></dd></div>}
+          </dl>
           <Link className={styles.primaryButton} href={methodHref(selected)}>{t("Create Recipe")} <ArrowRight size={16} /></Link>
 </> : <div className={styles.noSelection}>{t("Choose a metric from the list.")}</div>;
 
@@ -120,7 +116,7 @@ export default function CatalogPage() {
         {shown.length === 0 && <div className={styles.noResults}><Search size={22} /><strong>{t("No metrics match")}</strong><button onClick={() => setSearch("")}>{t("Reset search")}</button></div>}
       </section>
 
-      {compact ? <InspectorDialog title={selected?.title ?? t("Metric details")} open={mobileDetailOpen} onClose={() => setMobileDetailOpen(false)}><div className={styles.dialogDetail}>{detailContent}</div></InspectorDialog>
+      {compact ? <InspectorDialog size="compact" title={selected?.title ?? t("Metric details")} open={mobileDetailOpen} onClose={() => setMobileDetailOpen(false)}><div className={styles.dialogDetail}>{detailContent}</div></InspectorDialog>
         : <aside className={styles.detail} aria-label={t("Metric details")}>{selected && <><span className={styles.largeIcon}><Activity size={20} /></span><h2>{selected.title}</h2></>}{detailContent}</aside>}
     </div>}
   </div>;

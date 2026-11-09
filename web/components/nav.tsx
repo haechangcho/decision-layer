@@ -9,7 +9,7 @@ import { getToken, setToken, type SourceConfig } from "@/lib/api";
 import { useApi } from "@/lib/hooks";
 import { LOCALES, Locale, useLocale, useT } from "@/lib/i18n";
 
-const LINKS = [["/recipes", "Recipes", "Recipes", BookOpen], ["/catalog", "Metric catalog", "Metrics", LayoutGrid], ["/methods", "Methods", "Methods", Workflow], ["/runs", "Runs", "Runs", History]] as const;
+const LINKS = [["/catalog", "Metric catalog", "Metrics", LayoutGrid], ["/recipes", "Recipes", "Recipes", BookOpen], ["/methods", "Methods", "Methods", Workflow], ["/runs", "Runs", "Runs", History]] as const;
 
 export function Nav({ context }: { context?: ReactNode }) {
   const path = usePathname();

@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
+from .core.titles import RunTitle
 from .core.periods import PeriodChoice, checked_range
 
 from .core.models import AnalysisGoal, ExecutionAuthor, Filter, Recipe, RecipeReview, RecipeSelection, RunConclusion, SemanticRequirement, SemanticModelDraft
@@ -29,6 +30,7 @@ class ScopeIn(BaseModel):
 
 
 class MethodRunRequest(BaseModel):
+    title: RunTitle | None = None
     method_version: str | None = None
     author: ExecutionAuthor | None = None
     question: str | None = None
@@ -42,6 +44,7 @@ class MethodRunRequest(BaseModel):
 
 
 class RunStartRequest(BaseModel):
+    title: RunTitle | None = None
     guide: str | None = None
     author: ExecutionAuthor | None = None
     recipe: str | None = None                      # name, name@version or recipe://name@version
@@ -129,6 +132,18 @@ class RunCompleteRequest(BaseModel):
     author: ExecutionAuthor | None = None
 
 
+class RunTitleRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    title: RunTitle
+    base_revision: int = Field(ge=0)
+
+class RunConclusionReview(BaseModel):
+    model_config = {"extra": "forbid"}
+    conclusion: RunConclusion
+    base_revision: int = Field(ge=0)
+    reason: str = Field(min_length=1, max_length=1200, pattern=r"\S")
+    author: ExecutionAuthor | None = None
+
 class RunShareRequest(BaseModel):
     subjects: list[str] = Field(default_factory=list)   # [] = private again
 
@@ -161,6 +176,7 @@ class RemediationRetryRequest(RunStartRequest):
 
 
 class BlockedAnalysisRequest(BaseModel):
+    title: RunTitle | None = None
     model_config = {"extra": "forbid"}
     run_id: str | None = None
     question: str = Field(min_length=1, max_length=4000, pattern=r"\S")

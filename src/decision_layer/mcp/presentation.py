@@ -164,6 +164,10 @@ def _compact_run(run: dict) -> dict:
     )
     out = {
         "run_id": run["id"],
+        "title": run.get("title"),
+        "title_revision": run.get("title_revision", 0),
+        "conclusion_revision": len(run.get("conclusion_history", [])),
+        "conclusion_history": run.get("conclusion_history", []),
         "status": run["status"],
         "recipe": run["plan"].get("recipe"),
         "run_url": env("DL_WEB_URL", "http://localhost:3000").rstrip("/")

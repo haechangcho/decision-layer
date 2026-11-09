@@ -22,7 +22,7 @@ async def record_blocked(engine, caller, req, origin):
             if run.status != "open" or run.plan.question != req.question or run.goals != req.goals:
                 raise InvalidBinding(_("Use the existing open Run's original question and goals."))
         else:
-            run = Run(id=lock_id, origin=origin, caller=caller, author=req.author,
+            run = Run(id=lock_id, origin=origin, caller=caller, author=req.author, title=req.title,
                 goals=req.goals, interactive=True, plan=AnalysisPlan(question=req.question))
             engine._prepare_scope(run, req.scope.as_dict())
         validate_outcomes(run, req.conclusion)
@@ -190,7 +190,7 @@ async def retry(engine, creds, caller, run_id, remediation_id, req, origin, wait
         new = await engine.start(creds, caller, recipe=req.recipe, question=run.plan.question,
             scope=scope, goals=req.goals or run.goals, author=req.author, origin=origin,
             recipe_selection=req.recipe_selection, recipe_review=req.recipe_review,
-            interactive=True, wait=wait,
+            interactive=True, wait=wait, title=req.title,
             retry_of=RunRetryLink(run_id=run.id, remediation_id=item.id,
                 remediation_revision=item.revision, checked_at=snapshot["at"],
                 requirements=item.requirements))

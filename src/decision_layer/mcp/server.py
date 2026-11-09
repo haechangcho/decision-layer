@@ -27,6 +27,8 @@ from ..core.models import (
     RecipeSelection,
     RunConclusion,
 )
+from ..core.titles import RunTitle
+from ..service import RunConclusionReview
 from ..core.periods import PeriodChoice
 from ..service import (
     BlockedAnalysisRequest,
@@ -88,6 +90,7 @@ def instructions() -> str:
             else []
         ),
         _(SECTIONS["record_question"]),
+        _(SECTIONS["analysis_limits"]),
         _(SECTIONS["conclude"]),
         _(SECTIONS["attribution"]),
         rules,
@@ -294,8 +297,10 @@ async def start_run(
     *,
     goals: list[AnalysisGoal],
     recipe_review: list[RecipeReview] | None = None,
+    title: RunTitle | None = None,
 ) -> dict:
     body = {
+        "title": title,
         "recipe": recipe,
         "question": question,
         "author": _author(author, ctx),
@@ -361,8 +366,10 @@ async def start_analysis(
     goals: list[AnalysisGoal],
     recipe_review: list[RecipeReview] | None = None,
     guide: str | None = None,
+    title: RunTitle | None = None,
 ) -> dict:
     body = {
+        "title": title,
         "recipe": None,
         "guide": guide,
         "question": question,
@@ -696,6 +703,16 @@ if not RECIPES:
     ):
         mcp.remove_tool(tool)
 
+
+@mcp.tool(description=_("Rename your own analysis record without changing its original question or results. Use title_revision from get_run as base_revision. Supply a concise title in the user's language."))
+async def rename_run(run_id: str, title: RunTitle, base_revision: int) -> dict:
+    return _compact_run(await _call("PATCH", f"/runs/{run_id}/title", json={"title": title, "base_revision": base_revision}))
+
+@mcp.tool(description=_("Correct a completed Run conclusion using recorded step evidence. Preserve the earlier conclusion and record the correction reason. Use conclusion_revision from get_run as base_revision."))
+async def review_run_conclusion(run_id: str, review: RunConclusionReview, ctx: Context | None = None) -> dict:
+    body = review.model_dump(mode="json")
+    body["author"] = _author(review.author, ctx)
+    return _compact_run(await _call("POST", f"/runs/{run_id}/conclusion-reviews", json=body))
 
 def main() -> None:
     mcp.run("stdio")

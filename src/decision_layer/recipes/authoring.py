@@ -159,7 +159,7 @@ def validate_recipe(recipe: Recipe, registry=registry, *, allow_uninstalled_vers
                 raise _invalid(f"{key} is required.", f"steps[{i}].params.{key}")
             if is_dynamic(value):
                 expressions(value, f"steps[{i}].params.{key}")
-                if isinstance(value, dict) and value.get("source") == "step" and param.type != "drill_path":
+                if isinstance(value, dict) and value.get("source") == "step" and not (param.type == "drill_path" and value.get("project", "path") != "filters" or param.type == "filters" and value.get("project") == "filters"):
                     raise _invalid("A group selection requires a group-condition input.", f"steps[{i}].params.{key}")
                 if isinstance(value, dict) and value.get("source") == "input" and recipe.inputs[value["name"]].type != param.type:
                     raise _invalid("Runtime input type does not match the Method parameter.", f"steps[{i}].params.{key}")

@@ -12,7 +12,7 @@ export function RunDelete({ run, onDeleted, compact = false }: { run: Run; onDel
   const id = useId();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const label = run.plan.question || run.recipe_snapshot?.description || t("this run");
+  const label = run.title || run.recipe_snapshot?.description || t("this run");
 
   function close() {
     if (!busy) dialog.current?.close();

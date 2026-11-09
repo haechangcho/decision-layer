@@ -1,0 +1,11 @@
+.heading { display:flex; align-items:baseline; gap:10px; min-width:0; }
+.heading h1 { min-width:0; }
+.edit { display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:32px; height:32px; padding:0; border:0; border-radius:4px; color:var(--muted); background:transparent; cursor:pointer; }
+.edit:hover { background:var(--bg); color:var(--text); }
+.edit:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.edit:disabled { opacity:.4; cursor:default; }
+.form { display:grid; gap:20px; }
+.form label { display:grid; gap:8px; font-size:13px; }
+.form input { width:100%; min-width:0; }
+.form p { margin:0; color:var(--bad); font-size:13px; }
+.actions { display:flex; justify-content:flex-end; gap:8px; }

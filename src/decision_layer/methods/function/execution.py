@@ -166,6 +166,7 @@ def prepare_inputs(rows_by_name, inputs, resolved=None):
 
             data[name] = pd.DataFrame(rows, columns=columns)
             data[name].attrs["semantic_refs"] = contract.get("semantic_refs", {})
+            data[name].attrs["filters"] = contract.get("filters", [])
         else:
             data[name] = rows
     return data, column_args, validation

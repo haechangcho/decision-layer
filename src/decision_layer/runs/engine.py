@@ -282,6 +282,7 @@ class RunEngine:
         recipe_review: list[RecipeReview] | None = None,
         retry_of: RunRetryLink | None = None,
         guide: str | None = None,
+        title: str | None = None,
     ) -> Run:
         if origin == "mcp" and not (question and question.strip()):
             raise AnalysisContractError(
@@ -420,6 +421,7 @@ class RunEngine:
             *(Filter.model_validate(f) for f in scope.get("filters") or []),
         ]
         run = Run(
+            title=title,
             id=new_id("run"),
             caller=caller,
             origin=origin,
@@ -908,6 +910,7 @@ class RunEngine:
         question: str | None = None,
         author: ExecutionAuthor | None = None,
         preview: bool = False,
+        title: str | None = None,
     ) -> tuple[Run, Result | None]:
         if origin == "mcp":
             raise AnalysisContractError(
@@ -920,6 +923,7 @@ class RunEngine:
             step.method, step.method_version
         )  # unknown names fail before anything is stored
         run = Run(
+            title=title,
             id=new_id("run"),
             caller=caller,
             origin=origin,
@@ -1000,6 +1004,44 @@ class RunEngine:
         run.shared_with = sorted(set(subjects))
         await self.store.save(run)
         return run
+
+    async def rename(self, caller: CallerInfo, run_id: str, title: str, base_revision: int) -> Run:
+        from ..core.titles import RunTitle
+        from pydantic import TypeAdapter
+        from .errors import RunTitleConflict
+
+        async with self._scope_locks.setdefault(run_id, asyncio.Lock()):
+            run = await self._owned(run_id, caller)
+            if run.running:
+                raise RunBusy(_("Wait for the current analysis to finish before renaming its run"), run_id=run_id)
+            if run.title_revision != base_revision:
+                raise RunTitleConflict(_("The title has changed. Reload the record and try again."), run_id=run_id)
+            run.title = TypeAdapter(RunTitle).validate_python(title)
+            run.title_revision += 1
+            await self.store.save(run)
+            return run
+
+    async def revise_conclusion(self, caller, run_id, conclusion, base_revision, reason, author=None):
+        async with self._scope_locks.setdefault(run_id, asyncio.Lock()):
+            run = await self._owned(run_id, caller)
+            if run.running or run.active_skill_step or run.status != 'completed':
+                raise RunBusy(_("Complete the analysis before reviewing its conclusion."))
+            if len(run.conclusion_history) != base_revision:
+                from .errors import RunConclusionConflict
+                raise RunConclusionConflict(_("The conclusion has changed. Reload before reviewing."))
+            from .goals import validate_outcomes
+            validate_outcomes(run, conclusion)
+            if any(not f.step_indices for f in conclusion.findings):
+                raise InvalidBinding(_("Conclusion evidence must reference recorded step indices"))
+            if any(index < 0 or index >= len(run.steps) for f in conclusion.findings for index in f.step_indices):
+                raise InvalidBinding(_("Conclusion evidence must reference recorded step indices"))
+            run.conclusion_history.append({'conclusion':run.conclusion.model_dump(mode='json') if run.conclusion else None,
+                'summary':run.summary, 'conclusion_author':run.conclusion_author.model_dump(mode='json') if run.conclusion_author else None, 'by':caller.subject, 'at':_now().isoformat(), 'reason':reason})
+            run.conclusion = conclusion.model_copy(update={'source':'caller'})
+            run.conclusion_author = author
+            run.summary = conclusion.answer
+            await self.store.save(run)
+            return run
 
     async def delete(self, caller: CallerInfo, run_id: str) -> None:
         run = await self._owned(run_id, caller)

@@ -341,3 +341,13 @@
 }
 
 .runDraftActions .secondaryLink { display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 12px; background:transparent; color:var(--muted); font-size:12px; }
+
+.runQuestion { margin:0 0 28px; padding:16px 20px; border-left:3px solid var(--line); background:#fafafa; }
+.runQuestion h2 { margin:0 0 8px; font-size:12px; color:var(--muted); font-weight:600; }
+.runQuestion p { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.75; }
+
+.runStepNavigation{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.runStepNavigation>div{display:flex;gap:8px}.runStepNavigation button{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:6px 9px;background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:6px;font-size:12px;cursor:pointer}
+.runStepNavigation button:hover:not(:disabled){background:var(--hover);color:var(--text)}.runStepNavigation button:disabled{opacity:.4;cursor:default}.runStepDetail{scroll-margin-top:145px}
+
+.runRevision{padding:18px 0;border-bottom:1px solid var(--line);line-height:1.8}.runRevision h3{font-size:13px}.runRevision p{overflow-wrap:anywhere}

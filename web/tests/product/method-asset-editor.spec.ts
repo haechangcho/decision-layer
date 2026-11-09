@@ -114,11 +114,11 @@ test("unsaved edits survive read mode and navigation can be cancelled or saved",
   await expect(page.getByText("미저장 변경이 남아 있습니다. 편집을 이어서 저장하세요.")).toBeVisible();
   await page.getByRole("button",{name:"편집 이어서",exact:true}).click();
   await expect(page.getByRole("textbox",{name:"Skill Markdown 원본",exact:true})).toContainText("내가 작성한 변경");
-  await page.getByRole("link",{name:"분석 방법",exact:true}).last().click();
+  await page.getByRole("link",{name:"분석 도구",exact:true}).last().click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.getByRole("button",{name:"계속 편집",exact:true}).click();
   await expect(page).toHaveURL(`/methods/${f.name}`);
-  await page.getByRole("link",{name:"분석 방법",exact:true}).last().click();
+  await page.getByRole("link",{name:"분석 도구",exact:true}).last().click();
   await page.getByRole("button",{name:"저장하고 이동",exact:true}).click();
   await expect(page).toHaveURL("/methods");expect(f.saves[0].content).toContain("내가 작성한 변경");
 });

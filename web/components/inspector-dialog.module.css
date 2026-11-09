@@ -8,3 +8,13 @@
 .body { min-width:0; padding:28px; overflow-wrap:anywhere; }
 .body pre { max-width:100%; overflow:auto; padding:18px; border-radius:10px; background:var(--bg); font:12px/1.8 ui-monospace,monospace; }
 @media(max-width:700px) { .dialog { width:calc(100vw - 20px); max-height:calc(100dvh - 20px); border-radius:14px; }.dialog>header { padding:18px; }.body { padding:18px; } }
+
+.dialog.compact { width:min(600px,calc(100vw - 40px)); }
+.dialog.wide { width:calc(100vw - 32px); max-height:calc(100dvh - 32px); }
+.wide>header span { display:none; }
+.wide>header { padding:16px 20px; }
+.wide h2 { margin:0; font-size:18px; }
+.wide .body { padding:16px; }
+.compact>header span { display:none; }
+.compact h2 { margin:0; font-size:19px; line-height:1.5; }
+@media(max-width:700px) { .dialog.compact { width:calc(100vw - 24px); } }

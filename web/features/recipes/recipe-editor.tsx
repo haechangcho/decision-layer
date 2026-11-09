@@ -4,7 +4,8 @@ import { useT } from "@/lib/i18n";
 import { useMemo, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Background, Controls, ReactFlow, applyNodeChanges, type Edge, type Node } from "@xyflow/react";
+import { type Edge, type Node } from "@xyflow/react";
+import { WorkflowCanvas, type WorkflowItem } from "@/components/workflow-canvas";
 import { ArrowLeft, ArrowRight, ArrowDown, ArrowUp, Check, Code2, Play, Plus, Save, Search, Trash2, Undo2, X } from "lucide-react";
 import "@xyflow/react/dist/style.css";
 import { api, type MethodManifest, type PlanStep, type Recipe, type RecipeCandidate, type Run, type SourceReadiness } from "@/lib/api";
@@ -20,7 +21,7 @@ import { suggestedDateRange, suggestedTimeDimension } from "@/lib/semantic-dates
 import s from "@/components/analysis-canvas.module.css";
 
 import { blank, bump, refs, newName, previewDates, explainError, validationField, roleLabels, type FieldError } from "./editor-model";
-import { nodeTypes, FitRecipe } from "./recipe-nodes";
+import { nodeTypes } from "./recipe-nodes";
 import { RefField } from "./recipe-fields";
 import { StepSettings } from "./step-settings";
 
@@ -34,7 +35,6 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   const [recipe, setRecipe] = useState<Recipe>(() => initial || blank());
   const [saved, setSaved] = useState<Recipe | undefined>(initial);
   const [selected, setSelected] = useState(-1);
-  const [positions, setPositions] = useState<Node[]>([]);
   const [adding, setAdding] = useState(false);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
@@ -225,7 +225,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       let id = 1; while (recipe.steps.some(step => step.id === `step_${id}`)) id++;
       await configure({ ...recipe, steps: [...recipe.steps, { id: `step_${id}`, method, bindings: {}, params: {} }] }, recipe.steps.length);
     } else change({ ...recipe, allowed_methods: [...recipe.allowed_methods, method] });
-    setSelected(steps.length); setAdding(false); setPositions([]);
+    setSelected(steps.length); setAdding(false);
   }
   function updateSteps(next: PlanStep[]) {
     const seen = new Set<string>();
@@ -235,7 +235,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
       if (expressions.some(expression => !seen.has(expression.split(".")[1])) || sources.some(source => !seen.has(source.step_id))) { setError(t("Update dependent steps before reordering or deleting.")); return false; }
       if (step.id) seen.add(step.id);
     }
-    change({ ...recipe, steps: next }); setPositions([]); return true;
+    change({ ...recipe, steps: next }); return true;
   }
   function stepDetail(step: PlanStep): string {
     const dimensions = step.bindings.dimensions;
@@ -252,21 +252,30 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   }
   const nodes: Node[] = [
     { id: "scope", type: "recipe", position: { x: 200, y: 20 }, data: { scope: true, kind: t("Analysis subject"), label: recipe.semantic_scope.primary_metric ? title(recipe.semantic_scope.primary_metric) : t("Choose a metric"), detail: recipe.description || t("Enter the analysis purpose") } },
-    ...steps.map((step, i) => ({ id: `step:${i}`, type: "recipe", position: { x: pipeline ? 200 : 40 + (i % 2) * 300, y: pipeline ? 200 + i * 180 : 220 + Math.floor(i / 2) * 180 }, data: { kind: pipeline ? `STEP ${i + 1} · ${step.id || ""}` : t("Available Method"), label: displayMethod(step.method), detail: pipeline ? stepDetail(step) : step.method } })),
-  ].map(n => ({ ...n, ...positions.find(p => p.id === n.id), data: n.data, selected: n.id === (selected < 0 ? "scope" : `step:${selected}`) }));
+    ...steps.map((step, i) => ({ id: `step:${i}`, type: "recipe", position: { x: pipeline ? 200 : 40 + (i % 2) * 300, y: pipeline ? 200 + i * 180 : 220 + Math.floor(i / 2) * 180 }, data: { kind: pipeline ? t("Step {number}", { number:i + 1 }) : t("Available Method"), label: displayMethod(step.method), detail: pipeline ? step.purpose || stepDetail(step) : methods?.find(method => method.name === step.method)?.description || "" } })),
+  ].map(n => ({ ...n, selected: n.id === (selected < 0 ? "scope" : `step:${selected}`) }));
   const edges: Edge[] = steps.map((step, i) => {
     const fromPrevious = i > 0 && Object.values(step.params).some(value => value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, unknown>).source === "step" && (value as Record<string, unknown>).step_id === steps[i - 1].id);
     return { id: `edge:${i}`, source: pipeline && i > 0 ? `step:${i - 1}` : "scope", target: `step:${i}`,
-      label: t(pipeline ? fromPrevious ? "Selected from the previous result" : "Next step" : "Allowed"), style: { stroke: "var(--dl-border-strong)", strokeWidth: 2 } };
+      data:{resultTransfer:fromPrevious}, style: { stroke: fromPrevious ? "var(--accent)" : "var(--dl-border-strong)", strokeWidth: fromPrevious ? 2 : 1.5, strokeDasharray:fromPrevious?undefined:"4 4" } };
   });
   if (pipeline) steps.forEach((step, i) => {
     const sourceIds = new Set(Object.values(step.params).flatMap(value => value && typeof value === "object" && !Array.isArray(value) && (value as Record<string, unknown>).source === "step" ? [String((value as Record<string, unknown>).step_id)] : []));
     sourceIds.forEach(id => {
       const from = steps.findIndex(item => item.id === id);
       if (from < 0 || from === i - 1) return;
-      edges.push({ id: `selection:${from}:${i}`, source: `step:${from}`, target: `step:${i}`, sourceHandle: "selection-out", targetHandle: "selection-in", type: "smoothstep", label: t("Uses step {number} result", { number: from + 1 }), style: { stroke: "var(--accent)", strokeDasharray: "4 4" } });
+      edges.push({ id: `selection:${from}:${i}`, source: `step:${from}`, target: `step:${i}`, sourceHandle: "selection-out", targetHandle: "selection-in", type: "smoothstep", data:{resultTransfer:true}, style: { stroke: "var(--accent)", strokeDasharray: "4 4" } });
     });
   });
+  const workflowItems:WorkflowItem[]=nodes.map((node,index)=>({id:node.id,number:index||undefined,title:String(node.data.label),description:String(node.data.detail),eyebrow:String(node.data.kind)}));
+  function chooseStep(id:string) {
+    setSelected(id === "scope" ? -1 : Number(id.split(":")[1]));setAdding(false);
+    if(window.matchMedia("(max-width: 1100px)").matches)requestAnimationFrame(()=>inspector.current?.scrollIntoView({behavior:"smooth",block:"start"}));
+  }
+  function openMethods() {
+    setAdding(true);setSearch("");
+    if(window.matchMedia("(max-width: 1100px)").matches)requestAnimationFrame(()=>inspector.current?.scrollIntoView({behavior:"smooth",block:"start"}));
+  }
   const nextVersion = saved ? bump(saved.version) : recipe.version;
   function writeError(cause: unknown) {
     const field = validationField(cause);
@@ -300,7 +309,7 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   return <div className={s.page}>
     <header className={s.header}><div><Link className={s.back} href="/recipes"><ArrowLeft size={14} />{t("Recipes")}</Link><h1>{saved ? t("Edit analysis procedure") : t("New analysis procedure")}</h1><span className={s.nodeStatus}>{dirty ? t("Unsaved changes") : t("v{version} · {status}", { version: saved?.version, status: saved?.status === "draft" ? t("Draft") : t("Published") })}</span></div><div className={s.actions}>
       <button type="button" className={s.secondary} aria-pressed={yamlOpen} onClick={() => setYamlOpen(!yamlOpen)}><Code2 size={16} />{yamlOpen ? t("Close code") : t("View code")}</button>
-      {dirty && saved && <button className={s.secondary} title={t("Revert to the saved version")} onClick={() => { setRecipe(saved); setSelected(-1); setPositions([]); setFieldError(null); }}><Undo2 size={16} />{t("Revert")}</button>}
+      {dirty && saved && <button className={s.secondary} title={t("Revert to the saved version")} onClick={() => { setRecipe(saved); setSelected(-1); setFieldError(null); }}><Undo2 size={16} />{t("Revert")}</button>}
       {dirty && steps.length > 0 && <button disabled={busy || !recipe.semantic_scope.primary_metric} onClick={() => { setError(""); setDialog(true); }}><Save size={16} />{t("Save draft")}</button>}
       {!dirty && saved?.status === "draft" && <button disabled={busy} onClick={() => { setError(""); setPublishDialog(true); }}><Check size={16} />{t("Review for publishing")}</button>}
       {!dirty && saved?.status !== "draft" && saved && <button disabled={busy} onClick={() => router.push(`/recipes/${encodeURIComponent(recipe.name)}`)}><Play size={16} />{t("Run analysis")}</button>}
@@ -310,12 +319,14 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
     {error && !dialog && <p className={s.error} role="alert">{error}</p>}
     {!!recipe.origin_runs?.length && <div className={s.reviewNotice}><strong>{t("Analysis procedure taken from a run")}</strong><Link href={`/runs/${recipe.origin_runs[0]}`}>{t("View original run")} <ArrowRight size={14} /></Link><p>{recipe.steps.length}{t("steps / dates are chosen at execution")}</p>{!!reviewNotes.length && <p>{t("Review fixed groups and dates. Use a previous result to select groups on each run.")}</p>}</div>}
     {fieldError && <p className={s.error} role="alert">{t("Check before saving:")} {fieldError.message}</p>}
-    <div className={s.toolbar}><span className={s.recipeMode}>{pipeline ? t("Analysis procedure · {count} steps", { count: steps.length }) : t("Analyses for exploration · {count}", { count: steps.length })}</span>{steps.length > 0 && <button disabled={!recipe.semantic_scope.primary_metric} onClick={() => { setAdding(true); setSearch(""); }}><Plus size={16} />{pipeline ? t("Add analysis step") : t("Add allowed Method")}</button>}</div>
+    <div className={s.toolbar}><span className={s.recipeMode}>{pipeline ? t("Analysis procedure · {count} steps", { count: steps.length }) : t("Analyses for exploration · {count}", { count: steps.length })}</span>{steps.length > 0 && <button disabled={!recipe.semantic_scope.primary_metric} onClick={openMethods}><Plus size={16} />{pipeline ? t("Add analysis step") : t("Add allowed Method")}</button>}</div>
     <div className={s.workspace}>
-      <section className={s.canvas} aria-label={t("Recipe graph")}><ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} onNodesChange={changes => setPositions(applyNodeChanges(changes, nodes))} onNodeClick={(_, node) => { setSelected(node.id === "scope" ? -1 : Number(node.id.split(":")[1])); setAdding(false); }} nodesConnectable={false} deleteKeyCode={null} fitView minZoom={.25} maxZoom={1.1}><FitRecipe count={steps.length} /><Background color="var(--dl-border-strong)" gap={20} /><Controls showInteractive={false} /></ReactFlow>
-        {!steps.length && <div className={s.canvasEmpty}>{recipe.semantic_scope.primary_metric ? <button onClick={() => setAdding(true)}><Plus size={16} />{t("Add the first analysis")}</button> : <button onClick={() => metricSelect.current?.focus()}>{t("Choose a metric")} <ArrowRight size={16} /></button>}</div>}
+      <section id="recipe-analysis-path" className={s.canvas} aria-label={t("Recipe graph")}>
+        <WorkflowCanvas label={t("Analysis procedure steps")} items={workflowItems} nodes={nodes} edges={edges} nodeTypes={nodeTypes} selected={selected<0?"scope":`step:${selected}`} onSelect={chooseStep}/>
+        {!steps.length && <div className={s.canvasEmpty}>{recipe.semantic_scope.primary_metric ? <button onClick={openMethods}><Plus size={16} />{t("Add the first analysis")}</button> : <button onClick={() => metricSelect.current?.focus()}>{t("Choose a metric")} <ArrowRight size={16} /></button>}</div>}
       </section>
-      <aside ref={inspector} className={s.inspector}>
+      <aside ref={inspector} className={s.inspector} aria-label={t("Step settings")}>
+        <nav className={s.stepNavigation} aria-label={t("Step navigation")}><button type="button" className={s.inspectorBack} onClick={()=>document.getElementById("recipe-analysis-path")?.scrollIntoView({behavior:"smooth",block:"start"})}><ArrowLeft size={14}/>{t("All steps")}</button><div><button type="button" className={s.icon} aria-label={t("Previous step")} disabled={selected<0} onClick={()=>chooseStep(selected===0?"scope":`step:${selected-1}`)}><ArrowLeft size={15}/></button><button type="button" className={s.icon} aria-label={t("Next step")} disabled={selected>=steps.length-1} onClick={()=>chooseStep(`step:${selected+1}`)}><ArrowRight size={15}/></button></div></nav>
         {adding ? <><h2>{t("Choose a Method")}</h2><label className={s.search}><Search size={16} /><input aria-label={t("Search Methods")} value={search} placeholder={t("trend, by group, matched")} onChange={e => setSearch(e.target.value)} /></label><div className={s.choices}>{(methods || []).filter(m => (pipeline || !recipe.allowed_methods.includes(m.name)) && `${displayMethod(m.name)} ${m.name} ${m.description}`.toLowerCase().includes(search.toLowerCase())).map(m => <button key={m.name} onClick={() => add(m.name)}><span>{displayMethod(m.name)}</span><Plus size={16} /><small>{m.description}</small></button>)}</div><button className={s.secondary} onClick={() => setAdding(false)}>{t("Cancel")}</button></> : !active ? <div className={s.fields}>
           <h2>{t("Analysis procedure details")}</h2><p className={s.nodeStatus}>{t("Connect Methods in order and describe each step.")}</p><label>{t("Which question is this analysis for?")}<textarea rows={2} value={recipe.routing.objective || recipe.description} placeholder={t("e.g. check changes in the metric and find the largest contributors")} onChange={e => change({ ...recipe, description: e.target.value, routing: { ...recipe.routing, objective: e.target.value } })} /></label>
           <RefField label={t("Metric to analyze")} selectRef={metricSelect} value={recipe.semantic_scope.primary_metric} objects={objects.filter(o => o.kind === "measure")} fieldPath="semantic_scope.primary_metric" error={fieldError?.field === "semantic_scope.primary_metric" ? fieldError.message : undefined} onChange={v => change({ ...recipe, name: recipe.name || newName(String(v)), semantic_scope: { ...recipe.semantic_scope, primary_metric: String(v) } })} />

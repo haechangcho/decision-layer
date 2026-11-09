@@ -24,7 +24,7 @@ export function MethodExecutions({ method }: { method: MethodManifest }) {
         const status = step.result.status;
         const label = status === "success" ? t("Execution succeeded") : status === "refused" ? t("Stopped by checks") : status === "failed" ? t("Execution failed") : step.skill?.status === "awaiting_agent" ? t("Waiting for AI") : t("Waiting for input");
         return <Link key={`${run.id}:${index}`} href={`/runs/${run.id}`}>
-          <span><strong>{label}</strong><small>{run.plan.question || t("Analysis test")}</small>
+          <span><strong>{label}</strong><small>{run.title || t("Analysis test")}</small>
             <small>{new Date(step.started_at).toLocaleString()} / {t("{checks} checks / {queries} recorded queries", { checks: step.result.validation.length, queries: step.skill ? step.skill.queries.length : step.result.provenance.queries.length })}</small></span>
           <ArrowUpRight size={17} />
         </Link>;

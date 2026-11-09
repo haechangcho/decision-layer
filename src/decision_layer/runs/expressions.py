@@ -12,7 +12,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from ..core.errors import DecisionLayerError
-from ..core.models import Recipe, Result, RuntimeInputSource, StepSelectionSource
+from ..core.models import Recipe, Result, RuntimeInputSource, StepSelectionSource, Filter
 from ..i18n import _
 
 
@@ -52,12 +52,21 @@ def resolve(value: Any, recipe: Recipe | None, results: dict[str, Result],
                 raise UnresolvedExpression(_("The earlier step has no complete eligible selection."), field=field,
                                            step_id=ref.step_id, output=ref.output)
             candidate = output.candidates[0]
-            if len(output.candidates) > 1 and candidate.score == output.candidates[1].score:
+            count = min(ref.count if ref.select == "top" else 1, len(output.candidates))
+            if len(output.candidates) > count and output.candidates[count - 1].score == output.candidates[count].score:
                 raise AmbiguousSelection(_("The leading groups are tied. Choose an explicit group before continuing."),
                                          field=field, step_id=ref.step_id,
-                                         candidates=[item.model_dump(mode="json") for item in output.candidates if item.score == candidate.score])
+                                         candidates=[item.model_dump(mode="json") for item in output.candidates if item.score == output.candidates[count - 1].score])
             path = [condition.model_dump(mode="json") for condition in candidate.path]
-            resolved = path if ref.project == "path" else path[-1:] if ref.project == "condition" else path[:-1]
+            if ref.project == "filters":
+                groups = output.candidates[:count]
+                filters = [item.filters or [Filter(member=c.member, operator='equals', values=[c.value]) for c in item.path] for item in groups]
+                prefix, leaf = filters[0][:-1], filters[0][-1]
+                if any(items[:-1] != prefix or items[-1].member != leaf.member or items[-1].operator != 'equals' or len(items[-1].values) != 1 for items in filters):
+                    raise UnresolvedExpression(_("Selected groups do not share one filter context."), field=field)
+                resolved = [item.model_dump(mode="json") for item in prefix] + [{"member": leaf.member, "operator": "equals", "values": [items[-1].values[0] for items in filters]}]
+            else:
+                resolved = path if ref.project == "path" else path[-1:] if ref.project == "condition" else path[:-1]
         else:
             return {k: resolve(v, recipe, results, inputs, evidence, f"{field}.{k}") for k, v in value.items()}
         if evidence is not None:
@@ -66,6 +75,7 @@ def resolve(value: Any, recipe: Recipe | None, results: dict[str, Result],
                 entry["selection"] = {"rank_by": output.rank_by, "direction": output.direction,
                                       "score": candidate.score, "eligible_groups": len(output.candidates),
                                       "complete": output.complete, "method": result.provenance.method}
+                entry["selection"]["selected_count"] = count
             evidence.append(entry)
         return resolved
     return value

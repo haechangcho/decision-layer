@@ -178,6 +178,14 @@ export function ArtifactView({ artifact, titles, expanded = false, showTitle = t
       {!expanded && <><button type="button" className="ghost" onClick={() => setFullOpen(true)}>{t("View full result")}</button><InspectorDialog title={t("Full analysis result")} open={fullOpen} onClose={() => setFullOpen(false)}><Value value={data} titles={titles} /></InspectorDialog></>}
     </section>;
   }
+  if (isRowList(artifact.data)) {
+    const columnLabels = Object.fromEntries((artifact.columns ?? []).map(column =>
+      [column.name, titles.get(column.ref)?.title ?? labelFor(column.name, titles, t)]));
+    return <section className="artifact">
+      {showTitle && <h4>{(artifact.title ? runtime(artifact.title) : null) || (artifactNames[artifact.type] ? t(artifactNames[artifact.type]) : artifact.type)}</h4>}
+      <DataTable rows={artifact.data} titles={titles} columnLabels={columnLabels} />
+    </section>;
+  }
   return (
     <section className="artifact">
       {showTitle && <h4>{(artifact.title ? runtime(artifact.title) : null) || (artifactNames[artifact.type] ? t(artifactNames[artifact.type]) : artifact.type)}</h4>}

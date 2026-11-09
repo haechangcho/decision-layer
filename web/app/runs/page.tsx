@@ -16,7 +16,7 @@ import { RunDelete } from "@/features/runs/run-delete";
 import { RunProcedure } from "@/features/runs/run-procedure";
 import styles from "../library.module.css";
 
-const displayName = (run: Run, t: Translate) => run.recipe_snapshot?.description || run.recipe_snapshot?.name || run.plan.recipe?.replace("recipe://", "") || (run.steps[0] ? methodName(run.steps[0].step.method, t) : t("Run analysis"));
+const displayName = (run: Run, t: Translate) => run.title || run.recipe_snapshot?.description || run.recipe_snapshot?.name || run.plan.recipe?.replace("recipe://", "") || (run.steps[0] ? methodName(run.steps[0].step.method, t) : t("Run analysis"));
 const methodNames = (run: Run, t: Translate) => [...new Set(run.steps.map(step => methodName(step.step.method, t)))].join(" · ");
 const runStatusLabel = (run: Run, t: Translate) => run.status === "completed" ? t("Done") : run.status === "failed" ? t("Failed") : run.running ? t("In progress")
   : run.needs_input || run.steps.at(-1)?.result.status === "needs_input" ? t("Input needed")
@@ -50,9 +50,9 @@ export default function RunsPage() {
       <div className={styles.libraryFilters} role="group" aria-label={t("Run status")}>
         {[["all", t("All")], ["open", t("In progress · waiting")], ["completed", t("Done")], ["failed", t("Failed")]].map(([value, label]) => <button type="button" key={value} aria-pressed={status === value} onClick={() => setStatus(value)}>{label} <span>{data ? count(value) : "—"}</span></button>)}
       </div>
-      <div className={`${styles.libraryColumns} ${styles.runColumns}`} aria-hidden="true"><span>{t("Question and result")}</span><span>{t("Run time")}</span><span>{t("Status")}</span><span /></div>
+      <div className={`${styles.libraryColumns} ${styles.runColumns}`} aria-hidden="true"><span>{t("Analysis and result")}</span><span>{t("Run time")}</span><span>{t("Status")}</span><span /></div>
       {loading && !data ? <LoadingState /> : shown.map((run) => <div key={run.id} className={styles.libraryItem}><Link href={`/runs/${run.id}`} className={`${styles.libraryRow} ${styles.runRow}`}>
-        <span className={styles.libraryName}><strong>{run.plan.question || displayName(run, t)}</strong>{run.conclusion?.source !== "execution" && run.conclusion?.answer && <span className={styles.runListSummary}>{run.conclusion.answer}</span>}<span className={styles.runMetadata}><RunProcedure run={run} /><small>{runOriginLabel(run.origin, t)}</small><small>{t("{count} steps", { count: run.steps.length })}</small></span></span>
+        <span className={styles.libraryName}><strong>{displayName(run, t)}</strong>{run.conclusion?.source !== "execution" && run.conclusion?.answer && <span className={styles.runListSummary}>{run.conclusion.answer}</span>}<span className={styles.runMetadata}><RunProcedure run={run} /><small>{runOriginLabel(run.origin, t)}</small><small>{t("{count} steps", { count: run.steps.length })}</small></span></span>
         <span className={styles.libraryMetric}>{new Date(run.created_at).toLocaleString()}</span>
         <span className={`${styles.libraryState} ${run.status === "completed" ? styles.libraryStateComplete : run.status === "failed" ? styles.libraryStateFailed : styles.libraryStateOpen}`}>{runStatusLabel(run, t)}</span>
         <ArrowRight size={17} className={styles.libraryArrow} />

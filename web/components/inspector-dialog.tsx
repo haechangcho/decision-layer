@@ -6,8 +6,8 @@ import { X } from "lucide-react";
 import styles from "./inspector-dialog.module.css";
 
 /** Secondary evidence stays in context without displacing the main workspace. */
-export function InspectorDialog({ title, open, onClose, children }: {
-  title: string; open: boolean; onClose: () => void; children: ReactNode;
+export function InspectorDialog({ title, open, onClose, children, size = "default" }: {
+  title: string; open: boolean; onClose: () => void; children: ReactNode; size?: "default" | "compact" | "wide";
 }) {
   const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -22,7 +22,7 @@ export function InspectorDialog({ title, open, onClose, children }: {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = previous; };
   }, [open]);
-  return <dialog ref={dialog} className={styles.dialog} aria-label={title} onClose={event => { if (event.target === event.currentTarget) onClose(); }}>
+  return <dialog ref={dialog} className={`${styles.dialog}${size !== "default" ? ` ${styles[size]}` : ""}`} aria-label={title} onClose={event => { if (event.target === event.currentTarget) onClose(); }}>
     <header><div><span>DECISION LAYER</span><h2>{title}</h2></div><button type="button" aria-label={t("Close")} onClick={() => dialog.current?.close()}><X size={20} /></button></header>
     <div className={styles.body}>{children}</div>
   </dialog>;

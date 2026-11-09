@@ -14,6 +14,7 @@ from ..i18n import _
 from fastapi import APIRouter
 from .dependencies import Caller, Creds, JobFailed, NoResult, accepted, run_origin, waited, require_recipe_permission
 
+from ..service import RunTitleRequest, RunConclusionReview
 from ..recipes.authoring import check_recipe_semantics
 
 def create_router(settings, provider, recipes, engine):
@@ -26,7 +27,7 @@ def create_router(settings, provider, recipes, engine):
         run = await engine.start(creds, caller, recipe=req.recipe, question=req.question, scope=req.scope.as_dict(),
                                  wait=waited(settings, wait), origin=run_origin(request), author=req.author,
                                  goals=req.goals, recipe_selection=req.recipe_selection,
-                                 recipe_review=req.recipe_review, interactive=req.interactive, guide=req.guide)
+                                 recipe_review=req.recipe_review, interactive=req.interactive, guide=req.guide, title=req.title)
         return JSONResponse(status_code=202, content=run.model_dump(mode="json")) if run.running else run
 
     @router.get("/runs", response_model=list[Run])
@@ -129,6 +130,14 @@ def create_router(settings, provider, recipes, engine):
     async def run_delete(run_id: str, caller: Caller) -> Response:
         await engine.delete(caller, run_id)
         return Response(status_code=204)
+
+    @router.patch("/runs/{run_id}/title", response_model=Run)
+    async def run_title(run_id: str, req: RunTitleRequest, caller: Caller) -> Run:
+        return await engine.rename(caller, run_id, req.title, req.base_revision)
+
+    @router.post("/runs/{run_id}/conclusion-reviews", response_model=Run)
+    async def conclusion_review(run_id: str, req: RunConclusionReview, caller: Caller) -> Run:
+        return await engine.revise_conclusion(caller, run_id, req.conclusion, req.base_revision, req.reason, req.author)
 
     @router.get("/runs/{run_id}/result", response_model=Result, responses={202: {"description": "still running"}})
     async def run_result(run_id: str, creds: Creds, caller: Caller):

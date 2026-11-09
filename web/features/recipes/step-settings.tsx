@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Undo2 } from "lucide-react";
 import { api, type MethodManifest, type ParamSpec, type PlanStep, type Recipe, type RoleSpec, type SemanticObject } from "@/lib/api";
-import { declaredPath, selectionLabel, sourceLabel } from "./step-input-source";
+import { StepInputSource, declaredPath, selectionLabel, sourceLabel } from "./step-input-source";
 import { explainError, parameterLabel, refs, roleLabels, roleObjects, type FieldError } from "./editor-model";
 import { ParameterField, RefField } from "./recipe-fields";
 import groupsStyle from "@/components/group-input.module.css";
@@ -22,7 +22,7 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
   const fixed = (name: string) => Object.hasOwn(policy?.fixed ?? {}, name);
   const parameterValue = (name: string) => fixed(name) ? policy!.fixed[name] : step.params[name];
   const visible = (spec: ParamSpec) => !spec.visible_when || (parameterValue(spec.visible_when.parameter) ?? manifest.parameters[spec.visible_when.parameter]?.default) === spec.visible_when.equals;
-  const basicParameters = Object.entries(manifest.parameters).filter(([, spec]) => visible(spec) && (spec.ui_group === "basic" || spec.required && spec.ui_group !== "hidden") && spec.meaning !== "analysis_scope");
+  const basicParameters = Object.entries(manifest.parameters).filter(([, spec]) => visible(spec) && (spec.ui_group === "basic" || spec.required && spec.ui_group !== "hidden") && spec.meaning !== "analysis_scope" && spec.type !== "filters");
   const describeSource = (value: unknown, spec: ParamSpec) => {
     if (value && typeof value === "object" && !Array.isArray(value)) {
       const ref = value as { source?: string; step_id?: string; project?: string; name?: string };
@@ -71,6 +71,11 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
   const parameterField = ([name, spec]: [string, ParamSpec]) => {
     const path = `steps[${stepIndex}].params.${name}`;
     const value = parameterValue(name);
+    if (spec.type === "filters") return <div key={name} className={s.refField} data-recipe-field={path}>
+      <StepInputSource value={value} onChange={next=>param(name,next)} steps={recipe.steps.slice(0,stepIndex)} methods={methods} inputs={recipe.inputs} type="filters" label={spec.label||parameterLabel(name,t)} disabled={fixed(name)} parameter={name} spec={spec} titles={new Map(objects.map(object=>[object.ref,object]))} literal={[]}/>
+      {!sourceLabel(value,t)&&<ParameterField name={name} spec={spec} value={value} onChange={next=>param(name,next)} disabled={fixed(name)} objects={objects}/>}
+      {fieldError?.field===path&&<small role="alert">{fieldError.message}</small>}
+    </div>;
     const boundRole = spec.semantic_role ? roleAlternatives(spec.semantic_role).find(([key]) => step.bindings[key])?.[0] : undefined;
     const reference = boundRole ? step.bindings[boundRole] : undefined;
     const subject = Object.entries(manifest.parameters).find(([, item]) => item.type === "group" && item.semantic_role === spec.semantic_role && item.meaning === "comparison_subject");
@@ -151,6 +156,7 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
       {!usesRecipeMetric && <button type="button" className={s.secondary} onClick={() => { bind("metric", "$scope.primary_metric"); setEditingMetric(false); }}><Undo2 size={13} />{t("Use the Recipe metric")}</button>}
     </>}
     {context.map((text, index) => <p key={index} className={s.nodeStatus}>{text}</p>)}
+    {Object.entries(manifest.parameters).filter(([,spec])=>spec.type==="filters"&&spec.ui_group!=="hidden"&&visible(spec)).map(parameterField)}
     {policy && <p className={s.nodeStatus}>{t("Edit execution limits in the code view.")}</p>}
     {roles.filter(([name, role]) => !optionalRoles.some(([key]) => key === name) && (role.required || role.exclusive_group || step.bindings[name] || role.default_binding === "unit_count" && metricObject?.metric_kind === "average")).map(roleField)}
     {optionalRoles.length > 0 && <section className={s.optionalInputs}>

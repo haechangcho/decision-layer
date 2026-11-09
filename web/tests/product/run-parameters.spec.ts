@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
   } }));
 });
 
-test("long Run graphs keep step cards readable and the last step selectable", async ({ page }) => {
+test("long Run histories support readable lists and focused result navigation", async ({ page }) => {
   await page.route("**/api/runs/long-graph", route => route.fulfill({ json: {
     id: "long-graph", plan: { question: "여러 방법으로 매출을 조사해줘", scope: {} },
     steps: Array.from({ length: 6 }, (_, index) => ({ ...step,
@@ -40,18 +40,22 @@ test("long Run graphs keep step cards readable and the last step selectable", as
     created_at: "2026-10-05T10:00:00Z",
   } }));
   await page.goto("/runs/long-graph");
-  const graph = page.getByRole("region", { name: "실행 그래프" });
-  const first = graph.locator(".react-flow__node-step").first();
-  await expect.poll(async () => (await first.boundingBox())?.width ?? 0).toBeGreaterThanOrEqual(239);
-  await expect(graph.locator(".react-flow__pane")).toHaveCSS("touch-action", "pan-y");
-  const canvas = graph.locator(".react-flow").locator("..").locator("..");
-  await canvas.hover();
-  await page.mouse.wheel(0, 400);
-  await expect.poll(() => canvas.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
-  const last = graph.getByRole("button", { name: "6단계 시간에 따른 변화 결과 보기" });
-  await last.click();
-  await expect(page.getByText("6 / 6단계", { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const graph=page.getByRole("region", {name:"실행 그래프"});
+  await graph.getByRole("button", {name:"단계 목록",exact:true}).click();
+  const cards=graph.locator('[data-workflow-step^="run-step:"]');
+  await expect(cards).toHaveCount(6);
+  await cards.last().click();
+  await expect(page.getByText("6 / 6단계", {exact:true})).toBeVisible();
+  await page.getByRole("button", {name:"이전 단계",exact:true}).click();
+  await expect(page.getByText("5 / 6단계", {exact:true})).toBeVisible();
+  await page.getByRole("button", {name:"전체 단계",exact:true}).click();
+  await graph.getByRole("button", {name:"크게 보기",exact:true}).click();
+  const expanded=page.getByRole("dialog", {name:"분석 단계"});
+  await expect(expanded).toBeVisible();
+  await expanded.getByRole("button", {name:"선택 단계",exact:true}).click();
+  await expect(expanded.getByRole("toolbar", {name:"흐름도 탐색"})).toBeVisible();
+  await expanded.getByRole("button", {name:"닫기",exact:true}).click();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
 });
 
 test("one-click registration supports inline retry without a popup", async ({ page }, info) => {
@@ -128,7 +132,7 @@ test("Run shows applied values and their sources on demand", async ({ page }, in
   await expect(page.getByRole("tabpanel")).toContainText("v1.0.0");
   await expect(page.getByText("method://query.trend@1.0.0")).not.toBeVisible();
   await page.getByRole("button", { name: "원본 기록 보기" }).click();
-  await expect(page.getByRole("dialog", { name: "원본 실행 기록" })).toContainText("method://query.trend@1.0.0");
+  await expect(page.getByRole("dialog", { name: "원본 분석 기록" })).toContainText("method://query.trend@1.0.0");
   await page.keyboard.press("Escape");
   await page.getByRole("tab", { name: "사용한 설정" }).click();
   await expect(page.getByText("시간 단위")).toBeVisible();
@@ -152,7 +156,7 @@ test("Run list distinguishes waiting, blocked and running analyses", async ({ pa
     { ...base, id: "awaiting-conclusion", steps: [step] },
   ] }));
   await page.goto("/runs");
-  const list = page.getByRole("region", { name: "실행 기록 목록" });
+  const list = page.getByRole("region", { name: "분석 기록 목록" });
   for (const label of ["대기 중", "입력 필요", "중단", "진행 중", "결론 대기"]) await expect(list.getByText(label, { exact: true })).toHaveCount(1);
 });
 
@@ -180,7 +184,7 @@ test("an unfinished MCP analysis keeps its graph and requires review before regi
   await page.goto("/runs/question-analysis");
   await expect(page.getByRole("heading", { name: question })).toBeVisible();
   await expect(page.getByText("결론 대기", { exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "실행 그래프" }).locator(".react-flow__node-step")).toHaveCount(3);
+  await expect(page.getByRole("region", { name: "실행 그래프" }).locator('[data-workflow-step^="run-step:"]')).toHaveCount(3);
   const register = page.getByRole("button", { name: "Recipe로 등록", exact: true });
   await expect(register).toBeDisabled();
   await expect(page.getByRole("textbox", {name:/Conclusion|결론/})).toHaveCount(0);
@@ -204,7 +208,7 @@ test("MCP runs are identifiable and filterable without claiming approval", async
   await page.route("**/api/runs/mcp-example", route => route.fulfill({ json: { ...base, id: "mcp-example", origin: "mcp" } }));
   await page.goto("/runs");
   await page.getByRole("combobox", { name: "실행 출처" }).selectOption("mcp");
-  const list = page.getByRole("region", { name: "실행 기록 목록" });
+  const list = page.getByRole("region", { name: "분석 기록 목록" });
   await expect(list.getByRole("link")).toHaveCount(1);
   await expect(list).toContainText("MCP 실행");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -290,7 +294,7 @@ test("missing catalog names do not expose semantic URIs in the result", async ({
   await page.getByRole("tab", { name: "출처", exact: true }).click();
   await expect(page.getByText("cube://local/dim_customer/count", { exact: true })).not.toBeVisible();
   await page.getByRole("button", { name: "원본 기록 보기" }).click();
-  await expect(page.getByRole("dialog", { name: "원본 실행 기록" })).toContainText("cube://local/dim_customer/count");
+  await expect(page.getByRole("dialog", { name: "원본 분석 기록" })).toContainText("cube://local/dim_customer/count");
 });
 
 test("a one-period trend leads with the answer and keeps audit details folded", async ({ page }, info) => {
@@ -367,6 +371,6 @@ test("successful Run steps can be reviewed as a Recipe draft", async ({ page }) 
   await page.goto("/runs/promotion-test");
   await page.getByRole("link", { name: "편집해서 저장" }).click();
   await expect(page).toHaveURL(/\/recipes\/new\?from_run=promotion-test&step=0&step=1/);
-  await expect(page.getByText("실행 기록에서 가져온 분석 절차")).toBeVisible();
+  await expect(page.getByText("분석 기록에서 가져온 분석 절차")).toBeVisible();
   await expect(page.getByRole("link", { name: /원본 실행 보기/ })).toHaveAttribute("href", "/runs/promotion-test");
 });

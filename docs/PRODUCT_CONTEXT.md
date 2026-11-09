@@ -37,6 +37,16 @@ Skills remain reference material. Reading prose never verifies its claims. A Rec
 configures Methods according to an organization's investigation procedure. Do not
 create a new Method when existing capabilities and a Recipe are sufficient.
 
+Ranked Method results can explicitly pass the first or top N groups as filters to
+the next Recipe step, retaining the selected branch's parent conditions. A boundary
+tie requires an explicit choice. Reusing the Recipe for another period recomputes
+the ranking rather than retaining previously selected group names.
+
+Runs keep a short editable title separately from the original question. A completed
+Run's conclusion can be corrected against its recorded steps; the prior conclusion,
+author and correction reason remain in history. Corrections do not rerun queries or
+change execution evidence.
+
 ## Users and development experience
 
 Analysts reuse Recipes and inspect results. Senior analysts encode procedures.

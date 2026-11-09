@@ -2923,3 +2923,35 @@ Complete Journey model improvements from the PoC work. Customer deployment files
 OIDC login, MCP OAuth, per-person Cube token issuance and PoC permission settings
 remain on `poc/deployment`. The standard release retains its existing local/demo
 access model and refuses shared deployment.
+
+## ADR-144 — Promote reusable analysis and inspection improvements from PoC (2026-11-09)
+
+Promote general product behavior independently of PoC identity and deployment
+configuration. Runs gain a short editable title, separate original question and
+revision-checked conclusion corrections. MCP callers supply a concise title when
+starting an analysis; a bounded deterministic fallback supports callers that omit
+it without adding a server-side model dependency. Conclusion corrections retain
+the previous conclusion and author, correction actor, timestamp and reason. They
+must reference existing steps and pass the same outcome checks; no query, step,
+version or original question is rewritten. Existing owner checks remain authoritative.
+
+Registered Methods can declare typed selection outputs through ordinary function
+registration. A Recipe filters parameter may explicitly consume the first or top N
+ranked candidates. Preserve inherited parent filters, require complete selections,
+refuse a tie at the selection boundary and reject incompatible filter contexts.
+Do not infer arbitrary filter logic or merge unrelated branches. Runtime resolution
+and recorded handoff evidence are shared by every interface. Another period
+recomputes the selected groups from that period's actual results.
+
+Run inspection and Recipe editing share responsive lists and diagrams with zoom,
+fit, expanded inspection and step navigation. Catalog details use one inspector.
+The Method library distinguishes analysis instructions and Python functions with
+usage, source and executed-version history through the existing `/methods` API.
+There is no new tool object, approval workflow, team database or DAG runtime.
+
+PoC OIDC, Authentik synchronization, groups, team permissions, customer assets,
+deployment files and generated-code trials remain excluded. The standard product's
+local access model and shared-deployment refusal remain unchanged. The public
+Complete Journey example demonstrates ranking, parent-filter handoff and observed
+daily concentration; descriptive concentration does not establish causality,
+significance or source completeness.

@@ -58,7 +58,7 @@ export interface ParamSpec {
   meaning?: "analysis_scope" | "comparison_subject" | "comparison_population" | "period" | "option";
   semantic_kind?: Kind | null;
   semantic_role?: string | null;
-  source_policy?: { allowed: ("literal" | "input" | "step")[]; default: "literal" | "previous_result" | "parameter_parents" | "runtime_input"; project: "path" | "condition" | "parents"; parameter?: string | null } | null;
+  source_policy?: { allowed: ("literal" | "input" | "step")[]; default: "literal" | "previous_result" | "parameter_parents" | "runtime_input"; project: "path" | "condition" | "parents" | "filters"; parameter?: string | null } | null;
   visible_when?: { parameter: string; equals: string | boolean | number } | null;
 }
 
@@ -168,6 +168,9 @@ export interface SkillExecution {
 }
 
 export interface Run {
+  title?: string;
+  title_revision?: number;
+  conclusion_history?: { conclusion: Run["conclusion"]; summary?: string | null; by?: string | null; at: string; reason: string }[];
   active_skill_step?: string | null;
   method_guides?: MethodGuide[];
   remediations?: RunRemediation[];

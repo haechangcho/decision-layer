@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from .ids import SemanticRefStr, VersionedRefStr
 from .periods import ExecutionPolicy, PeriodChoice, checked_range
+from .titles import RunTitle, fallback_title
 from ..i18n import _
 
 # ── Semantic catalog ────────────────────────────────────────────────────────
@@ -210,7 +211,7 @@ class DataInput(BaseModel):
 class InputSourcePolicy(BaseModel):
     allowed: list[Literal["literal", "input", "step"]] = Field(default_factory=lambda: ["literal", "input"])
     default: Literal["literal", "previous_result", "parameter_parents", "runtime_input"] = "literal"
-    project: Literal["path", "condition", "parents"] = "path"
+    project: Literal["path", "condition", "parents", "filters"] = "path"
     parameter: str | None = None
 
 
@@ -467,6 +468,7 @@ class SelectionCondition(BaseModel):
 
 
 class SelectionCandidate(BaseModel):
+    filters: list[Filter] = Field(default_factory=list)
     path: list[SelectionCondition] = Field(min_length=1)
     score: float = Field(allow_inf_nan=False)
 
@@ -494,8 +496,17 @@ class StepSelectionSource(BaseModel):
     source: Literal["step"]
     step_id: str
     output: str = "ranked_groups"
-    select: Literal["first"] = "first"
-    project: Literal["path", "condition", "parents"] = "path"
+    select: Literal["first", "top"] = "first"
+    count: int = Field(default=1, ge=1, le=20)
+    project: Literal["path", "condition", "parents", "filters"] = "path"
+
+    @model_validator(mode="after")
+    def valid_projection(self):
+        if self.select == "top" and self.project != "filters":
+            raise ValueError("Multiple groups require a filters projection")
+        if self.select == "first" and self.count != 1:
+            raise ValueError("first selects exactly one group")
+        return self
 
 
 class RuntimeInputSource(BaseModel):
@@ -682,6 +693,9 @@ class RunningJob(BaseModel):
 
 
 class Run(BaseModel):
+    title: RunTitle | None = None
+    title_revision: int = Field(default=0, ge=0)
+    conclusion_history: list[dict[str, Any]] = Field(default_factory=list)
     id: str
     plan: AnalysisPlan
     origin: Literal["unknown", "python", "api", "web", "mcp"] = "unknown"
@@ -724,6 +738,8 @@ class Run(BaseModel):
     @model_validator(mode="after")
     def ensure_conclusion(self) -> Run:
         """Normalize old terminal Runs and give non-narrated execution a truthful summary."""
+        if self.title is None:
+            self.title = fallback_title(self.plan.question or (self.recipe_snapshot.description if self.recipe_snapshot else None) or _("Analysis result"))
         if self.conclusion is not None or self.status == "open":
             return self
         successful = sum(record.result.status == "success" for record in self.steps)

@@ -18,6 +18,14 @@ class RunBusy(DecisionLayerError):
     http_status = 409
 
 
+class RunTitleConflict(DecisionLayerError):
+    code = "RUN_TITLE_CONFLICT"
+    http_status = 409
+
+class RunConclusionConflict(DecisionLayerError):
+    code = "RUN_CONCLUSION_CONFLICT"
+    http_status = 409
+
 class MethodNotAllowed(DecisionLayerError):
     code = "METHOD_NOT_ALLOWED"
     http_status = 403

@@ -45,7 +45,7 @@ test("editor preserves a selected source and prevents removing its upstream step
   const dynamic = { ...recipe, status: "published", steps: steps.map((step, i) => i === 1 ? { ...step, params: { drill_path: source("groups", "path") } } : step) };
   await page.route("**/api/recipes/rule-test/edit", route => route.fulfill({ json: dynamic }));
   await page.goto("/recipes/rule-test/edit");
-  const nodes = page.locator(".react-flow__node-recipe");
+  const nodes = page.locator("[data-workflow-step]");
   await expect(nodes).toHaveCount(4);
   await nodes.nth(2).click();
   await expect(page.getByLabel("분석 범위 설정 방식")).toHaveCount(0);
@@ -61,7 +61,7 @@ test("nested source summaries describe the selected member and its parent popula
   const dynamic = { ...recipe, status: "published", steps: steps.map((step, index) => index === 1 ? { ...step, params: { drill_path: source("groups", "path") } } : index === 2 ? { ...step, params: { subject: source("members", "condition"), peers: source("members", "parents") } } : step) };
   await page.route("**/api/recipes/rule-test/edit", route => route.fulfill({ json: dynamic }));
   await page.goto("/recipes/rule-test/edit");
-  await page.locator('.react-flow__node[data-id="step:2"]').click();
+  await page.locator('[data-workflow-step="step:2"]').click();
   await expect(page.getByText(/2단계에서 이 단계의 정렬 기준으로 선택한 매장 · 실행마다/)).toBeVisible();
   await expect(page.getByText(/선택한 매장과 같은 부문 · 실행마다/)).toBeVisible();
   await expect(page.getByLabel("비교 대상 설정 방식")).toHaveCount(0);

@@ -34,7 +34,7 @@ test.beforeEach(async ({ page }) => {
 test("root opens Recipes and a catalog metric starts a prefilled Recipe", async ({ page }, info) => {
   await page.goto("/");
   await expect(page).toHaveURL(/\/recipes$/);
-  await expect(page.getByRole("heading", { name: /Recipes|레시피/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Recipes|분석 절차/ })).toBeVisible();
   await page.goto("/catalog");
   await expect(page.getByRole("heading", { name: "지표 탐색" })).toBeVisible();
   await page.screenshot({ path: info.outputPath("catalog.png"), fullPage: true });
@@ -65,7 +65,7 @@ test("drafts are separate from the executable analysis library", async ({ page }
   await page.route("**/api/recipes:drafts", route => route.fulfill({ json: [draft] }));
   await page.goto("/recipes");
   await expect(page.getByRole("region", { name: "작성 중인 초안" })).toContainText("반품 분석 초안");
-  await expect(page.getByRole("region", { name: /Recipes|레시피/ })).not.toContainText("반품 분석 초안");
+  await expect(page.getByRole("region", { name: /Recipes|분석 절차/ })).not.toContainText("반품 분석 초안");
   await page.getByRole("region", { name: "작성 중인 초안" }).getByRole("link", { name: /반품 분석 초안/ }).click();
   await expect(page).toHaveURL(/\/recipes\/review-draft\/edit$/);
 });
@@ -107,7 +107,7 @@ test("token-free local Cube does not ask for a user token", async ({ page }) => 
 test("legacy design route returns to the product entry and mobile has no overflow", async ({ page }) => {
   await page.goto("/design");
   await expect(page).toHaveURL(/\/recipes$/);
-  await expect(page.getByRole("heading", { name: /Recipes|레시피/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Recipes|분석 절차/ })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 

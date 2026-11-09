@@ -40,15 +40,15 @@ test("language switching updates libraries, catalog, project navigation and API 
   await setup(page);
   await page.goto(`${prefix}/methods`);
   await expect(page.getByRole("heading", { name: "Methods", exact: true })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Python Methods" })).toContainText("OLS regression");
+  await expect(page.getByRole("link", { name: /OLS regression/ })).toContainText("OLS regression");
   await page.getByRole("textbox", { name: "Search Methods", exact: true }).fill("OLS regression");
   const reloaded = page.waitForRequest(request => request.url().endsWith("/api/methods") && request.headers()["accept-language"] === "ko");
   await language(page, "ko");
   await reloaded;
   // Search includes localized fallback labels and is recomputed on locale changes.
-  await expect(page.getByRole("region", { name: "Python 분석 방법" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /OLS 회귀분석/ })).toHaveCount(0);
   await page.getByRole("textbox", { name: "분석 방법 검색", exact: true }).fill("");
-  await expect(page.getByRole("region", { name: "Python 분석 방법" })).toContainText("OLS 회귀분석");
+  await expect(page.getByRole("link", { name: /OLS 회귀분석/ })).toContainText("OLS 회귀분석");
   await language(page, "en");
   await noKoreanUI(page);
   const project = page.locator(".app-project summary");
@@ -58,7 +58,7 @@ test("language switching updates libraries, catalog, project navigation and API 
     await page.keyboard.press("Escape");
   }
   for (const [path, english, korean] of [
-    ["/recipes", "Recipes", "레시피"], ["/runs", "Runs", "실행 기록"],
+    ["/recipes", "Recipes", "분석 절차"], ["/runs", "Runs", "분석 기록"],
     ["/catalog", "Metric catalog", "지표 탐색"], ["/sources", "Semantic layer connection", "시맨틱 레이어 연결"],
   ]) {
     await page.goto(`${prefix}${path}`);

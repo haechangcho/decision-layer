@@ -1,4 +1,5 @@
 "use client";
+import s from "@/components/analysis-canvas.module.css";
 
 import type { MethodManifest, ParamSpec, PlanStep, Result, SemanticObject } from "@/lib/api";
 import { type Translate, useT } from "@/lib/i18n";
@@ -56,6 +57,7 @@ export function sourceLabel(value: unknown, t: Translate, steps: PlanStep[] = []
   if (ref.source !== "step") return null;
   const index = steps.findIndex(step => step.id === ref.step_id);
   const origin = index >= 0 ? t("Step {number}", { number: index + 1 }) : t("the previous step");
+  if (ref.project === "filters") return t("Filters from the top {count} groups in {origin} · selected again at run time", {count:Number(ref.count||1),origin});
   return t(ref.project === "condition" ? "Subject found in {origin} · selected again at run time"
     : ref.project === "parents" ? "Group sharing the conditions of the subject found in {origin} · selected again at run time"
     : "Analyze within the subject found in {origin} · selected again at run time", { origin });
@@ -72,16 +74,16 @@ export function StepInputSource({ value, onChange, steps, methods, inputs, type,
   const selected = ref?.source === "step" ? `step:${ref.step_id}:${ref.project || "path"}` : ref?.source === "input" ? `input:${ref.name}` : "fixed";
   const change = (value: string) => {
     const [kind, id, project] = value.split(":");
-    onChange(kind === "step" ? { source: "step", step_id: id, output: methods.find(method => method.name === steps.find(step => step.id === id)?.method)?.selection_outputs?.[0] || "ranked_groups", select: "first", project }
+    onChange(kind === "step" ? { source: "step", step_id: id, output: methods.find(method => method.name === steps.find(step => step.id === id)?.method)?.selection_outputs?.[0] || "ranked_groups", select: "first", count:1, project }
       : kind === "input" ? { source: "input", name: id } : literal ?? []);
   };
   const allowed = spec?.source_policy?.allowed ?? ["literal", "input", "step"];
-  const options = [...(allowed.includes("literal") ? [{ value: "fixed", label: t("Use the conditions set here") }] : []), ...(type === "drill_path" && allowed.includes("step") ? choices.flatMap(step => {
+  const options = [...(allowed.includes("literal") ? [{ value: "fixed", label: t("Use the conditions set here") }] : []), ...(["drill_path", "filters"].includes(type) && allowed.includes("step") ? choices.flatMap(step => {
       const observed = observedSteps?.find(item => item.id === step.id) ?? step;
       const depth = Array.isArray(observed.params.drill_path) ? observed.params.drill_path.length + 1 : 1;
-      const projects = spec?.source_policy ? [spec.source_policy.project] : parameter === "subject" ? ["condition"] : parameter === "drill_path" ? ["path"] : parameter === "peers" ? [depth > 1 ? "parents" : "path"] : ["path", "condition", "parents"];
+      const projects = type === "filters" ? ["filters"] : spec?.source_policy ? [spec.source_policy.project] : parameter === "subject" ? ["condition"] : parameter === "drill_path" ? ["path"] : parameter === "peers" ? [depth > 1 ? "parents" : "path"] : ["path", "condition", "parents"];
       if (ref?.source === "step" && ref.step_id === step.id && !projects.includes(String(ref.project))) projects.push(String(ref.project));
       return projects.map(project => ({ value: `step:${step.id}:${project}`, label: t("From step {number}: {selection}", { number: steps.indexOf(step) + 1, selection: selectionLabel(step, project, methods, t, { titles, steps, observedSteps, results }) }) }));
     }) : []), ...(allowed.includes("input") ? Object.entries(inputs ?? {}).filter(([, spec]) => spec.type === type).map(([name, spec]) => ({ value: `input:${name}`, label: t("Runtime input · {name}", { name: spec.label || spec.description || name }) })) : [])];
-  return <label>{t("{label} source", { label })}<select aria-label={t("{label} source", { label })} disabled={disabled} value={selected} onChange={event => change(event.target.value)}>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>;
+  return <div className={s.refField}><label>{t("{label} source", { label })}<select aria-label={t("{label} source", { label })} disabled={disabled} value={selected} onChange={event => change(event.target.value)}>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{ref?.source === "step" && ref.project === "filters" && <label>{t("Number of ranked groups")}<input type="number" min={1} max={20} step={1} disabled={disabled} value={Number(ref.count||1)} onChange={event=>{const count=Number(event.target.value);if(Number.isInteger(count)&&count>=1&&count<=20)onChange({...ref,select:count===1?"first":"top",count});}}/></label>}</div>;
 }

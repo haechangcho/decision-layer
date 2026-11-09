@@ -42,6 +42,7 @@ class PythonMethod(Method):
         option_checks=(),
         provides=(),
         label=None,
+        selection_outputs=(),
     ):
         self.manifest, self.adapters = compile_function(
             fn,
@@ -58,6 +59,9 @@ class PythonMethod(Method):
             label=label,
         )
         self.fn = fn
+        if len(set(selection_outputs)) != len(selection_outputs) or any(not isinstance(key,str) or not key.isidentifier() for key in selection_outputs):
+            raise ValueError("Selection outputs must have distinct identifier names")
+        self.manifest.selection_outputs = list(selection_outputs)
         self.inputs = self.manifest.data_inputs
         self.checks = tuple(checks)
         self.option_checks = tuple(option_checks)
@@ -125,6 +129,7 @@ def python_method(
     option_checks=(),
     provides=(),
     label=None,
+    selection_outputs=(),
 ) -> Method:
     """Register ordinary Python separately from data access. Scalar defaults infer option types.
 
@@ -151,4 +156,5 @@ def python_method(
         option_checks=option_checks,
         provides=provides,
         label=label or "",
+        selection_outputs=selection_outputs,
     )

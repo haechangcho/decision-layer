@@ -1,3 +1,4 @@
+import { createContext, createElement, useContext, type ReactNode } from "react";
 import type { Translate } from "./i18n";
 
 const names: Record<string, string> = {
@@ -27,3 +28,7 @@ const summaries: Record<string, string> = {
   "stats.binary_matching": "Match observations with similar conditions and compare their outcomes.",
 };
 export const methodSummary = (method: { name: string; description: string }, t: Translate) => summaries[method.name] ? t(summaries[method.name]) : method.description;
+
+const MethodLabels = createContext<{name:string;label?:string;description?:string}[]>([]);
+export function MethodNamesProvider({methods,children}:{methods:{name:string;label?:string;description?:string}[];children:ReactNode}) { return createElement(MethodLabels.Provider,{value:methods},children); }
+export function useMethodName(t:Translate) { const methods=useContext(MethodLabels);return (name:string)=>{const method=methods.find(item=>item.name===name);return method?.label || (method && !names[name] ? method.description : null) || methodName(name,t);}; }

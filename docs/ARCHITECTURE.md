@@ -66,6 +66,12 @@ Ordinary `Column` and `DataInput` declarations compile to the shared manifest an
 
 `methods/function/registration.py` compiles registration, `inputs.py` connects query columns to function inputs, and `execution.py` validates data and calls the function. Calculations receive no provider client or credentials.
 
+`python_method(..., selection_outputs=[...])` declares typed result selections.
+Ordinary DataFrames retain resolved query filters in `attrs['filters']` so a Method
+can include the parent context in each selection candidate. Recipe input sources
+can project the first or top N candidates as filters; `runs/expressions.py` checks
+completeness, boundary ties and a shared filter context before the next query.
+
 Team projects place `decision-layer.yaml`, `methods/` and `recipes/` at the root. Version 2 configuration separates the project name from Python source paths. Each project has a private import namespace, restored before loading its calculation in a spawned server worker. Version 1 projects keep their original package layout (ADR-120). Python sessions, CLI and server startup share `project.py`. The builtin registry
 uses the same two starter Skill files as new projects, keeping one current
 procedure definition (ADR-124). Package defaults and new projects share two Skill files and two ordinary Python calculations with separate checks and local tests. Their configuration disables built-in defaults; older configurations use the same current package defaults. Package updates never rewrite user-owned definitions (ADR-116). Legacy module-loading settings remain supported.
@@ -92,6 +98,18 @@ External AI clients drive Skill execution. `runs/skills.py` validates structured
 Recipes are versioned YAML. A separate Run store retains execution-time Methods, Recipes, inputs, queries and results. Stores support memory, SQLite and PostgreSQL. Version changes do not rewrite historical evidence. Removed builtin code and versions cannot be rerun; stored Recipe files remain inspectable and require explicit revision before execution (ADR-128).
 
 `methods/source.py` captures executed source and hashes. It does not archive every external dependency or dynamic import.
+
+Run titles use a separate revision from conclusions. Canonical title and conclusion
+correction endpoints reuse existing owner checks and reject stale revisions. A
+conclusion correction retains the previous text, author, actor, time and reason;
+recorded steps and original questions remain unchanged. REST and MCP share these
+engine operations. The Web renders history without treating linked evidence as
+proof of an authored claim.
+
+`web/components/workflow-canvas.tsx` provides shared Run/Recipe step lists and
+diagrams. Layout, zoom and expanded inspection are presentation only; they never
+change execution order or create a workflow engine. The Method library continues
+to use `/methods`, with no separate tool registry or permission model.
 
 The optional Method editor uses `methods/assets.py` for drafts and immutable releases. It does not overwrite installed Git files or synchronize with Git automatically. Missing pinned versions and conflicting installed/managed sources under the same version are not silently replaced.
 

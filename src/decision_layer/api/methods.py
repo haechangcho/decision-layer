@@ -108,7 +108,7 @@ def create_router(settings, engine):
         scope = req.scope.as_dict()
         scope["filters"] = [*(scope.get("filters") or []), *[item.model_dump(mode="json") for item in req.filters]]
         run, result = await engine.adhoc(creds, caller, PlanStep(method=name, method_version=req.method_version, bindings=bindings, params=req.params),
-                                         scope, wait=waited(settings, wait), origin=run_origin(request), question=req.question, author=req.author)
+                                         scope, wait=waited(settings, wait), origin=run_origin(request), question=req.question, author=req.author, title=req.title)
         return result if result is not None else accepted(run)
 
     return router
