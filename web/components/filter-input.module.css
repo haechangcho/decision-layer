@@ -1,0 +1,14 @@
+.editor { display:grid; gap:14px; min-width:0; margin:0; padding:0; border:0; }
+.editor legend { padding:0; margin-bottom:8px; font-size:13px; font-weight:600; }
+.hint { margin:0; color:var(--muted); font-size:12px; line-height:1.6; overflow-wrap:anywhere; }
+.condition { display:grid; gap:12px; min-width:0; padding:14px; border:1px solid var(--line); border-radius:8px; background:var(--bg); }
+.heading { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.heading strong { font-size:12px; font-weight:600; }
+.condition label,.values { display:grid; gap:7px; min-width:0; font-size:12px; }
+.condition select,.condition input { width:100%; min-width:0; min-height:38px; font:inherit; }
+.valueRow { display:flex; align-items:center; gap:6px; min-width:0; }
+.editor .remove { flex:0 0 30px; display:grid; place-items:center; min-height:30px; padding:5px; border:0; background:transparent; color:var(--muted); }
+.editor .remove:hover { background:var(--hover); color:var(--text); }
+.editor .textButton { justify-self:start; display:inline-flex; align-items:center; gap:5px; min-height:28px; padding:0; border:0; background:transparent; color:var(--link); font-size:12px; }
+.editor .add { justify-self:start; display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-size:12px; }
+.incomplete { margin:0; color:var(--warning); font-size:12px; line-height:1.6; }

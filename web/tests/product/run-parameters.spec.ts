@@ -46,9 +46,9 @@ test("long Run histories support readable lists and focused result navigation", 
   await expect(cards).toHaveCount(6);
   await cards.last().click();
   await expect(page.getByText("6 / 6단계", {exact:true})).toBeVisible();
-  await page.getByRole("button", {name:"이전 단계",exact:true}).click();
+  await cards.nth(4).click();
   await expect(page.getByText("5 / 6단계", {exact:true})).toBeVisible();
-  await page.getByRole("button", {name:"전체 단계",exact:true}).click();
+  await expect(page.getByRole("navigation", {name:"단계 이동",exact:true})).toHaveCount(0);
   await graph.getByRole("button", {name:"크게 보기",exact:true}).click();
   const expanded=page.getByRole("dialog", {name:"분석 단계"});
   await expect(expanded).toBeVisible();

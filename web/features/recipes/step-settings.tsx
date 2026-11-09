@@ -73,6 +73,7 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
     const value = parameterValue(name);
     if (spec.type === "filters") return <div key={name} className={s.refField} data-recipe-field={path}>
       <StepInputSource value={value} onChange={next=>param(name,next)} steps={recipe.steps.slice(0,stepIndex)} methods={methods} inputs={recipe.inputs} type="filters" label={spec.label||parameterLabel(name,t)} disabled={fixed(name)} parameter={name} spec={spec} titles={new Map(objects.map(object=>[object.ref,object]))} literal={[]}/>
+      {!!value && typeof value === "object" && !Array.isArray(value) && (value as { source?: string }).source === "step" && <p className={s.nodeStatus}>{t("Use the earlier step's top groups at run time, keeping their parent conditions.")}</p>}
       {!sourceLabel(value,t)&&<ParameterField name={name} spec={spec} value={value} onChange={next=>param(name,next)} disabled={fixed(name)} objects={objects}/>}
       {fieldError?.field===path&&<small role="alert">{fieldError.message}</small>}
     </div>;
@@ -83,8 +84,8 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
   };
   const roleField = ([name, role]: [string, RoleSpec]) => {
     const label = role.label || (skill && name === "dimensions" ? t("Dimensions to explore") : roleLabels[name] ? t(roleLabels[name]) : name);
-    const inherited = name === "metric" ? objects.find(o => o.ref === recipe.semantic_scope.primary_metric)?.title || t("Not selected")
-      : name === "dimensions" ? recipe.semantic_scope.preferred_dimensions.map(ref => objects.find(o => o.ref === ref)?.title || ref).join(" → ") || t("Not selected") : undefined;
+    const inherited = step.bindings[name] === "$scope.primary_metric" ? objects.find(o => o.ref === recipe.semantic_scope.primary_metric)?.title || t("Not selected")
+      : step.bindings[name] === "$scope.preferred_dimensions" ? recipe.semantic_scope.preferred_dimensions.map(ref => objects.find(o => o.ref === ref)?.title || ref).join(" → ") || t("Not selected") : undefined;
     const path = `steps[${stepIndex}].bindings.${name}`;
     if (role.default_binding === "unit_count") {
       if (metricObject?.metric_kind !== "average") return step.bindings[name] ? <div key={name} className={groupsStyle.countIssue}><p>{t("The previous count link cannot be used with the changed metric.")}</p><button type="button" className={s.secondary} onClick={() => { const bindings = { ...step.bindings }; delete bindings[name]; onChange({ ...step, bindings }); }}>{t("Remove previous count link")}</button></div> : null;
@@ -156,9 +157,9 @@ export function StepSettings({ step, manifest, onChange, objects, recipe, stepIn
       {!usesRecipeMetric && <button type="button" className={s.secondary} onClick={() => { bind("metric", "$scope.primary_metric"); setEditingMetric(false); }}><Undo2 size={13} />{t("Use the Recipe metric")}</button>}
     </>}
     {context.map((text, index) => <p key={index} className={s.nodeStatus}>{text}</p>)}
-    {Object.entries(manifest.parameters).filter(([,spec])=>spec.type==="filters"&&spec.ui_group!=="hidden"&&visible(spec)).map(parameterField)}
     {policy && <p className={s.nodeStatus}>{t("Edit execution limits in the code view.")}</p>}
     {roles.filter(([name, role]) => !optionalRoles.some(([key]) => key === name) && (role.required || role.exclusive_group || step.bindings[name] || role.default_binding === "unit_count" && metricObject?.metric_kind === "average")).map(roleField)}
+    {Object.entries(manifest.parameters).filter(([,spec])=>spec.type==="filters"&&spec.ui_group!=="hidden"&&visible(spec)).map(parameterField)}
     {optionalRoles.length > 0 && <section className={s.optionalInputs}>
       <button type="button" className={s.optionalToggle} aria-expanded={showOptional || optionalError} onClick={() => setShowOptional(value => !value)}>{t("Optional analysis inputs")}<ChevronDown size={15} aria-hidden="true" /></button>
       {!showOptional && !optionalError && <p className={s.nodeStatus}>{optionalRoles.filter(([name]) => refs(step.bindings[name]).length).map(([name, role]) => `${role.label || (name === "dimensions" ? t("Dimensions to explore") : roleLabels[name] ? t(roleLabels[name]) : name)}: ${refs(step.bindings[name]).map(ref => ref.startsWith("$") ? t("Shared breakdown dimensions") : objects.find(object => object.ref === ref)?.title || ref).join(", ")}`).join(" · ") || t("Leave blank to let AI choose dimensions from the catalog.")}</p>}

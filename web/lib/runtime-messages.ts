@@ -26,6 +26,7 @@ const routineSkillNotices = new Set([
   "Returned rows are a bounded query result, not proof of complete population, appropriate peers or causal validity.",
   "Skill adherence, peer suitability, source completeness and causal assumptions are not verified. Only recorded query checks executed.",
   "Bound metrics, period, inherited population and provider query checks executed.",
+  "Input checks do not establish source completeness, metric equivalence or causal identification.",
 ]);
 export function isRoutineSkillNotice(message: string): boolean {
   return routineSkillNotices.has(runtimeMessage("en", message));

@@ -6,6 +6,7 @@ import { Plus, X } from "lucide-react";
 import type { ParamSpec, SemanticObject } from "@/lib/api";
 import { ParamInput } from "@/components/forms";
 import { GroupInput } from "@/components/group-input";
+import { FilterInput } from "@/components/filter-input";
 import { sourceLabel } from "./step-input-source";
 import { parameterLabel, refs } from "./editor-model";
 import s from "@/components/analysis-canvas.module.css";
@@ -30,6 +31,7 @@ export function ParameterField({ name, spec, value, onChange, disabled = false, 
   const source = sourceLabel(current, t);
   if (source) return <p>{source}</p>;
   if (typeof current === "string" && current.startsWith("$")) return <div className={s.refField}><span>{label}</span><code className={s.expression}>{current}</code></div>;
+  if (spec.type === "filters") return <div data-recipe-field={fieldPath}><FilterInput label={label} value={current} objects={objects} onChange={onChange} disabled={disabled}/>{error && <small className={s.fieldError} role="alert">{error}</small>}</div>;
   if (spec.type === "group") return <fieldset className={s.fields} disabled={disabled} data-recipe-field={fieldPath}><GroupInput label={label} spec={spec} value={current} dataType={dataType} oppositeValue={oppositeValue} onChange={onChange} />{error && <small className={s.fieldError} role="alert">{error}</small>}</fieldset>;
   if (spec.type === "drill_path") {
     const items = Array.isArray(current) ? current as { member: string; value: unknown }[] : [];

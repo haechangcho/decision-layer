@@ -83,7 +83,11 @@ export function StepInputSource({ value, onChange, steps, methods, inputs, type,
       const depth = Array.isArray(observed.params.drill_path) ? observed.params.drill_path.length + 1 : 1;
       const projects = type === "filters" ? ["filters"] : spec?.source_policy ? [spec.source_policy.project] : parameter === "subject" ? ["condition"] : parameter === "drill_path" ? ["path"] : parameter === "peers" ? [depth > 1 ? "parents" : "path"] : ["path", "condition", "parents"];
       if (ref?.source === "step" && ref.step_id === step.id && !projects.includes(String(ref.project))) projects.push(String(ref.project));
-      return projects.map(project => ({ value: `step:${step.id}:${project}`, label: t("From step {number}: {selection}", { number: steps.indexOf(step) + 1, selection: selectionLabel(step, project, methods, t, { titles, steps, observedSteps, results }) }) }));
+      return projects.map(project => ({ value: `step:${step.id}:${project}`, label: project === "filters"
+        ? t("Use top groups from step {number} · {method}", { number: steps.indexOf(step) + 1, method: methods.find(method => method.name === step.method)?.label || step.method })
+        : t("From step {number}: {selection}", { number: steps.indexOf(step) + 1, selection: selectionLabel(step, project, methods, t, { titles, steps, observedSteps, results }) }) }));
     }) : []), ...(allowed.includes("input") ? Object.entries(inputs ?? {}).filter(([, spec]) => spec.type === type).map(([name, spec]) => ({ value: `input:${name}`, label: t("Runtime input · {name}", { name: spec.label || spec.description || name }) })) : [])];
+  if (!options.some(option => option.value === selected)) options.push({ value: selected, label: sourceLabel(value, t) || t("Previous source needs checking") });
+  if (options.length <= 1 && selected === "fixed") return null;
   return <div className={s.refField}><label>{t("{label} source", { label })}<select aria-label={t("{label} source", { label })} disabled={disabled} value={selected} onChange={event => change(event.target.value)}>{options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>{ref?.source === "step" && ref.project === "filters" && <label>{t("Number of ranked groups")}<input type="number" min={1} max={20} step={1} disabled={disabled} value={Number(ref.count||1)} onChange={event=>{const count=Number(event.target.value);if(Number.isInteger(count)&&count>=1&&count<=20)onChange({...ref,select:count===1?"first":"top",count});}}/></label>}</div>;
 }

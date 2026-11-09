@@ -47,4 +47,4 @@ export const roleLabels: Record<string, string> = {
   metric: "Analysis metric", related: "Related metrics", dimensions: "Breakdown order", conditions: "Comparison conditions",
   treatment: "Comparison subject", treatment_measure: "Comparison basis metric", entity: "Analysis unit",
 };
-export const parameterLabel = (name: string, t: Translate) => ({ subject: t("Comparison subject"), peers: t("Peer group conditions"), drill_path: t("Analysis scope"), granularity: t("Time unit"), vs_previous: t("Compare with the previous period of equal length"), top_n: t("Groups to show"), min_count: t("Minimum group count"), rank_by: t("Ranked by") } as Record<string, string>)[name] || name;
+export const parameterLabel = (name: string, t: Translate) => ({ filters: t("Query conditions"), subject: t("Comparison subject"), peers: t("Peer group conditions"), drill_path: t("Analysis scope"), granularity: t("Time unit"), vs_previous: t("Compare with the previous period of equal length"), top_n: t("Groups to show"), min_count: t("Minimum group count"), rank_by: t("Ranked by") } as Record<string, string>)[name] || name;
