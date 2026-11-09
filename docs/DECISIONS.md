@@ -2955,3 +2955,10 @@ local access model and shared-deployment refusal remain unchanged. The public
 Complete Journey example demonstrates ranking, parent-filter handoff and observed
 daily concentration; descriptive concentration does not establish causality,
 significance or source completeness.
+
+MCP discovery lists show capabilities and input roles without the internal
+interpretation classification. Full manifests and execution results retain that
+classification and its existing claim checks. Listing instructions omit generic
+causality disclaimers and unrelated industry assumptions; absence of a saved
+domain Recipe alone is not evidence that registered Methods cannot answer a
+question against the connected semantic model.

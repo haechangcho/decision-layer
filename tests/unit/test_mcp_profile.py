@@ -261,13 +261,18 @@ def test_semantic_input_maps_forward_to_canonical_run_step(monkeypatch):
 def test_method_listing_uses_shared_api_and_profile(monkeypatch):
     s = load(monkeypatch, DL_MCP_METHODS="query.aggregate", DL_LOCALE="en")
     async def call(method, path, **kwargs):
-        assert (method, path) == ("GET", "/methods")
+        assert method == "GET"
         def manifest(name):
             return {"name": name, "description": "Reviewed analysis", "interpretation": "association", "roles": {}}
+        if path == "/methods/query.aggregate":
+            return manifest("query.aggregate")
+        assert path == "/methods"
         return [manifest("query.aggregate"), manifest("stats.ols")]
     monkeypatch.setattr(s, "_call", call)
     result = asyncio.run(s.list_methods())
     assert [method["name"] for method in result["methods"]] == ["query.aggregate"]
+    assert "interpretation" not in result["methods"][0]
+    assert asyncio.run(s.describe_method("query.aggregate"))["interpretation"] == "association"
     assert not hasattr(s, "find_methods")
     monkeypatch.delenv("DL_MCP_METHODS")
     importlib.reload(s)

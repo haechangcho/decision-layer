@@ -79,6 +79,7 @@ def instructions() -> str:
     )
     parts = [
         _(SECTIONS["intro"]),
+        _(SECTIONS["discovery"]),
         _("Write user-facing purposes, findings and conclusions in {language} unless the user requests another language. Keep semantic identifiers, queries and source code unchanged.",
           language=_("Korean") if LOCALE == "ko" else _("English")),
         _(
@@ -161,7 +162,6 @@ async def list_methods() -> dict:
             {
                 "name": m["name"],
                 "description": m["description"],
-                "interpretation": m["interpretation"],
                 "provides": m.get("provides", []),
                 "implementation": m.get("implementation", "python"),
                 "roles": {
