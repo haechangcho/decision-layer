@@ -171,7 +171,7 @@
 .runTabPanel :global(.kvrow:has(.kv)) { grid-template-columns:1fr; padding-top:16px; gap:6px; }
 .runTabPanel :global(.kv.nested .kvrow) { grid-template-columns:200px minmax(0,1fr); }
 @media(max-width:700px) { .runTabPanel :global(.kv.nested .kvrow) { grid-template-columns:minmax(0,1fr) minmax(70px,.6fr); }.runTabPanel :global(.kvrow:has(.kv)) { grid-template-columns:1fr; } }
-.runFinding { display:block; font-size:20px; line-height:1.4; overflow-wrap:anywhere; }
+.runFinding { display:block; margin-bottom:20px; font-size:20px; line-height:1.4; overflow-wrap:anywhere; }
 .runFilterSummary { margin-top:24px; font-size:13px; }.runFilterSummary p { color:var(--muted); }
 .spinning { animation:run-spin 1s linear infinite; }@keyframes run-spin { to { transform:rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .spinning { animation:none; } }

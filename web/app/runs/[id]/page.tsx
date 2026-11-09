@@ -92,6 +92,7 @@ export default function RunPage() {
     ((!run.needs_input && run.steps.length > 0) || (!!run.goals?.length && !run.steps.length));
   const canShare = mine && !run.preview && !run.caller.subject?.startsWith("service:");
   const selectedStep = run.steps[current];
+  const selectedFinding = selectedStep ? stepFinding(selectedStep, t) : "";
   const queryArtifacts = new Set(selectedStep?.skill?.queries.flatMap(query => query.result?.primary ? [JSON.stringify(query.result.primary)] : []) ?? []);
   const additional = selectedStep?.result.artifacts.filter(artifact => (!Array.isArray(artifact.data) || artifact.data.length > 0) && !queryArtifacts.has(JSON.stringify(artifact))) ?? [];
   const stepChecks = selectedStep?.result.validation.filter(item => item.status !== "pass" || !isRoutineSkillNotice(item.message)) ?? [];
@@ -127,7 +128,7 @@ export default function RunPage() {
         ['settings', t("Settings used")], ['queries', t("{n} queries", { n: selectedStep.skill ? selectedStep.skill.queries.length : selectedStep.result.provenance.queries.length })], ['sources', t("Sources")]
       ]).map(([value,label]) => ({value,label}))} />
       <div id={`run-panel-${tab}`} role="tabpanel" aria-labelledby={`run-tab-${tab}`} className={styles.runTabPanel}>
-        {tab === "result" && <>{!selectedStep.result.primary?.title || selectedStep.result.primary.title !== stepFinding(selectedStep, t) ? <strong className={styles.runFinding}>{stepFinding(selectedStep, t)}</strong> : null}<RunResultChart artifact={selectedStep.result.primary} />
+        {tab === "result" && <>{selectedFinding && selectedFinding !== t("View result") && selectedFinding !== selectedStep.result.primary?.title ? <strong className={styles.runFinding}>{selectedFinding}</strong> : null}<RunResultChart artifact={selectedStep.result.primary} />
           <ResultView result={selectedStep.skill && selectedStep.result.primary ? { ...selectedStep.result, primary: { ...selectedStep.result.primary, title: t("Query results") } } : selectedStep.result} titles={byRef} showRunLink={false} showEvidence={false} expanded /></>}
         {tab === "settings" && <><RunSettings record={selectedStep} titles={byRef} manifest={manifests?.find(m => m.name === selectedStep.step.method)} /><div className={styles.runTechnical}><h3>{t("Shared analysis scope")}</h3><dl><div><dt>{t("Analysis period")}</dt><dd>{scope.date_range?.join(" ~ ") || t("All periods")}</dd></div><div><dt>{t("Date basis")}</dt><dd>{timeTitle || t("Not set")}</dd></div></dl></div>{scope.filters?.length ? <div className={styles.runFilterSummary}><strong>{t("Shared filters")}</strong><p>{readableValue(scope.filters, byRef, t)}</p></div> : null}</>}
         {tab === "queries" && (selectedStep.skill ? <SkillQueryActivity key={current} skill={selectedStep.skill} titles={byRef} /> : <RunQueries result={selectedStep.result} />)}

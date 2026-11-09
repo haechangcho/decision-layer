@@ -1023,6 +1023,7 @@ const ko: Record<string, string> = {
   "Apply YAML": "YAML 적용",
   "Reload from the graph": "그래프에서 다시 불러오기",
   "Preview result": "미리보기 결과",
+  "Preview conditions": "미리보기 조건",
   "View execution evidence": "실행 근거 보기",
   "Running step {done}/{total} · {seconds} s": "{done}/{total}단계 실행 중 · {seconds}초",
   "The preview stopped at step {number}.": "{number}단계에서 미리보기가 멈췄습니다.",

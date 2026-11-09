@@ -13,6 +13,7 @@ import { type Translate, useT } from "@/lib/i18n";
 import { populationLabel } from "@/lib/run-story";
 import { RunQueries, RunSources } from "@/features/runs/run-evidence";
 import styles from "./result-table.module.css";
+import viewStyles from "./result-view.module.css";
 
 type Titles = Map<string, SemanticObject>;
 
@@ -218,8 +219,11 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
     ? (result.primary.data as Record<string, unknown>) : null;
   const leading = breakdown && isRowList(breakdown.rows) ? breakdown.rows[0] : null;
   const supportingArtifacts = result.artifacts.filter((artifact) => !Array.isArray(artifact.data) || artifact.data.length > 0);
+  const warnings = result.warnings.filter(warning => !isRoutineSkillNotice(warning));
+  const hasAdditional = !expanded && supportingArtifacts.length > 0;
+  const hasEvidence = showEvidence && !!(result.provenance.method || result.provenance.semantic_refs.length || result.provenance.queries.length);
   return (
-    <div className="result">
+    <div className={`result ${viewStyles.view}`}>
       {(result.status !== "success" || (showRunLink && result.run_id)) && <div className="row">
         {result.status !== "success" && <span className={`status ${result.status}`}>{statusLabel}</span>}
         {showRunLink && result.run_id && <a href={`/runs/${result.run_id}`}>{t("Open run")}</a>}
@@ -234,17 +238,21 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
           <div className="hint">{t("Set {field} to one of these values and rerun.", { field: result.needs_input.field })}</div>
         </div>
       )}
-      {!expanded && result.warnings.length > 0 && <ul className="warnings">{result.warnings.filter(warning => !isRoutineSkillNotice(warning)).map((w, i) => <li key={i}>{runtime(w)}</li>)}</ul>}
+      {!expanded && warnings.length > 0 && <ul className="warnings">{warnings.map((w, i) => <li key={i}>{runtime(w)}</li>)}</ul>}
       {!expanded && <ValidationList items={result.validation} />}
       {result.primary && <ArtifactView artifact={result.primary} titles={titles} expanded={expanded} showTitle={showPrimaryTitle} />}
-      {!expanded && supportingArtifacts.length > 0 && <><button type="button" className="ghost" onClick={() => setAdditionalOpen(true)}>{t("Additional analysis results")} ({supportingArtifacts.length})</button><InspectorDialog title={t("Additional analysis results")} open={additionalOpen} onClose={() => setAdditionalOpen(false)}>
+      {(hasAdditional || hasEvidence) && <div className={viewStyles.actions}>
+        {hasAdditional && <button type="button" className="ghost" onClick={() => setAdditionalOpen(true)}>{t("Additional analysis results")} ({supportingArtifacts.length})</button>}
+        {hasEvidence && <button type="button" className="ghost" onClick={() => setEvidenceOpen(true)}>{t("Execution evidence")}{result.provenance.queries.length > 0 ? ` / ${t("{n} queries", { n: result.provenance.queries.length })}` : ""}</button>}
+      </div>}
+      {hasAdditional && <InspectorDialog title={t("Additional analysis results")} open={additionalOpen} onClose={() => setAdditionalOpen(false)}>
         {supportingArtifacts.map((a, i) => <ArtifactView key={i} artifact={a} titles={titles} />)}
-      </InspectorDialog></>}
-      {showEvidence && (result.provenance.method || result.provenance.semantic_refs.length || result.provenance.queries.length) ? <><button type="button" className="ghost" onClick={() => setEvidenceOpen(true)}>{t("Execution evidence")}{result.provenance.queries.length > 0 ? ` / ${t("{n} queries", { n: result.provenance.queries.length })}` : ""}</button><InspectorDialog title={t("Execution evidence")} open={evidenceOpen} onClose={() => setEvidenceOpen(false)}>
+      </InspectorDialog>}
+      {hasEvidence && <InspectorDialog title={t("Execution evidence")} open={evidenceOpen} onClose={() => setEvidenceOpen(false)}>
         {result.validation.filter((item) => item.status === "pass").length > 0 && <p className="muted">{t("Passed validation:")} {result.validation.filter((item) => item.status === "pass").map((item) => item.validator).join(", ")}</p>}
         <RunSources result={result} titles={titles} />
         <RunQueries result={result} />
-      </InspectorDialog></> : null}
+      </InspectorDialog>}
     </div>
   );
 }
