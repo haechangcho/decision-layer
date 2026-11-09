@@ -27,7 +27,7 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/sources/current/readiness", (route) => route.fulfill({ json: readiness }));
   await page.route("**/api/methods/query.*", async (route) => {
     const name = new URL(route.request().url()).pathname.split("/").at(-1) ?? "query.trend";
-    await route.fulfill({ json: { name, version: "1.0.0", kind: "query", description: "Metric analysis", roles: { metric: { kind: "measure", required: true, multiple: false, description: "Metric to analyze" } }, parameters: {}, execution: "semantic_pushdown", interpretation: "descriptive", outputs: ["time_series"] } });
+    await route.fulfill({ json: { name, version: "1.0.0", kind: "query", description: "Metric analysis", roles: { metric: { kind: "measure", required: true, multiple: false, description: "Metric to analyze" } }, parameters: {}, execution: "semantic_pushdown",  outputs: ["time_series"] } });
   });
 });
 
@@ -131,7 +131,7 @@ test("find a Recipe, run it with its recommended time dimension, and inspect evi
     id: "journey-run", status: "completed", plan: { scope: requestScope ?? {} }, recipe_snapshot: recipe,
     caller: { subject: "analyst", groups: [] }, shared_with: [], created_at: new Date().toISOString(), validation: [],
     steps: [{ step: { id: "trend", method: "query.trend", bindings: { metric: objects[1].ref }, params: { granularity: "month" } },
-      method: "method://query.trend@1.0.0", result: { status: "success", interpretation: "descriptive", warnings: [], validation: [],
+      method: "method://query.trend@1.0.0", result: { status: "success",  warnings: [], validation: [],
         primary: { type: "table", title: "매출 추이", data: [{ month: "2026-09", revenue: 140 }] }, artifacts: [],
         provenance: { method: "method://query.trend@1.0.0", semantic_refs: [objects[1].ref], queries: [{ native_query: "SELECT revenue", rows: 1, elapsed_ms: 4 }] } },
       started_at: new Date().toISOString(), finished_at: new Date().toISOString() }],

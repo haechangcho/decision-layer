@@ -4,7 +4,7 @@ import korean from "../../../src/decision_layer/i18n/ko.json";
 const ref = "cube://journey/campaign_household_outcomes/post_sales_mean";
 const stamp = "2026-10-15T10:00:00Z";
 const manifest = { name: "analysis.drilldown", version: "1.0.0", implementation: "skill", agent_executable: true,
-  kind: "query", description: "Inspect metric groups", interpretation: "association", execution: "agent_guided",
+  kind: "query", description: "Inspect metric groups",  execution: "agent_guided",
   roles: {}, parameters: {}, outputs: ["table"] };
 const guide = { name: manifest.name, version: "1.0.0", sha256: "a".repeat(64), enforcement: "advisory",
   markdown: "Query actual groups; never infer causation.", suggested_methods: [] };

@@ -147,7 +147,6 @@ def compile_function(
         roles=roles,
         parameters=params,
         execution="dataframe",
-        interpretation="association",
         requires_period=True,
         requires_packages=packages,
         outputs=["table", "estimate"] if output == "auto" else [output],

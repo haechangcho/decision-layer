@@ -56,7 +56,7 @@ class SkillMethod(Method):
             suggested_methods=header.suggested_methods)
         self.manifest = MethodManifest(name=header.name, version=header.version,
             description=header.description, implementation="skill", execution="agent_guided",
-            kind="query", interpretation="association", roles=roles, parameters=parameters,
+            kind="query", roles=roles, parameters=parameters,
             agent_executable=header.query_execution, requires_period=header.query_execution,
             requires_capabilities=["aggregate_queries"] if header.query_execution else [],
             selection_outputs=["selected_group"] if header.query_execution else [],

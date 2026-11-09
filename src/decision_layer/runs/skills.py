@@ -105,7 +105,7 @@ async def query(engine, creds, run, step_id, req, author=None):
         refs = list(dict.fromkeys([*spec.measures,*spec.dimensions, spec.time.dimension,*(f.member for f in spec.filters)]))
         checks = [ValidationResult(validator="skill.query_scope@1",code="QUERY_SCOPE", status="pass",
                                   message=_("Bound metrics, period, inherited population and provider query checks executed."))]
-        item.result = Result(status="success", interpretation="association", primary=Artifact(type="table",data=rows,columns=columns,title=req.purpose),
+        item.result = Result(status="success", primary=Artifact(type="table",data=rows,columns=columns,title=req.purpose),
             validation=checks, warnings=[_("Returned rows are a bounded query result, not proof of complete population, appropriate peers or causal validity.")],
             provenance=Provenance(method=record.method,semantic_refs=refs,queries=ctx.queries),run_id=run.id,step_id=step_id)
         item.status = "success"
@@ -160,7 +160,6 @@ def finish(engine, run, step_id, req, author=None):
         result.primary = Artifact(type="table", title=_("Recorded Skill query results"),data=rows)
     result.status = "success" if req.status == "completed" else "refused"
     result.needs_input = None
-    result.interpretation = "association"
     result.provides = []  # No analytical capability is certified by reading prose.
     result.warnings = [_("Skill adherence, peer suitability, source completeness and causal assumptions are not verified. Only recorded query checks executed.")]
     if any(q.status != "success" for q in queries):

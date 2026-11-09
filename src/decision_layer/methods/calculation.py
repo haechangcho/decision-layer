@@ -20,7 +20,7 @@ from .output import Estimate, Table
 class InputTable(BaseModel):
     """Map calculation column names to runtime binding roles, never SQL formulas.
 
-    Example: measures={"sales": "metric"}, dimensions={"department": "group"}.
+    Example: measures={"value": "metric"}, dimensions={"category": "group"}.
     Callers bind metric/group to references discovered from their provider.
     """
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -146,7 +146,7 @@ class CalculationMethod(Method):
         self.fn, self.table, self.output, self.adapt = fn, table.model_copy(deep=True), output, adapt
         self.validators = tuple(validators)
         self.manifest = MethodManifest(name=name, version=version, description=inspect.getdoc(fn) or name,
-            kind="stats", execution="dataframe", interpretation="association", roles=roles, parameters=parameters,
+            kind="stats", execution="dataframe", roles=roles, parameters=parameters,
             outputs=[output.artifact_type], requires_packages=packages, requires_period=requires_period,
             requires_capabilities=["entity_grain_queries" if table.entity else "aggregate_queries"])
 

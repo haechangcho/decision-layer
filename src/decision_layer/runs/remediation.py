@@ -174,10 +174,10 @@ async def retry(engine, creds, caller, run_id, remediation_id, req, origin, wait
         if req.question and req.question != run.plan.question:
             raise InvalidBinding(_("A linked retry must keep the original question."))
         if req.goals:
-            before = {goal.id: (goal.description, goal.required_capabilities, goal.interpretation) for goal in run.goals}
-            after = {goal.id: (goal.description, goal.required_capabilities, goal.interpretation) for goal in req.goals}
+            before = {goal.id: (goal.description, goal.required_capabilities) for goal in run.goals}
+            after = {goal.id: (goal.description, goal.required_capabilities) for goal in req.goals}
             if before != after:
-                raise InvalidBinding(_("A linked retry must keep the original goals and interpretation; only semantic references may change."))
+                raise InvalidBinding(_("A linked retry must keep the original goals; only semantic references may change."))
         # Do not replay old literal selections or silently rebind references to a new model.
         scope = dict(run.plan.scope)
         scope.pop("inputs", None)  # Runtime targets must be supplied again, not remembered from old data.

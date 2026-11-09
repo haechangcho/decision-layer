@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const step = { id: "compare", method: "query.peer_comparison", purpose: "7~9월 최고 집단을 비교한다.",
   bindings: { metric: "cube://sample/operations/rate" }, params: {} };
-const result = { status: "success", interpretation: "descriptive", primary: { type: "breakdown_table", title: "집단 비교",
+const result = { status: "success",  primary: { type: "breakdown_table", title: "집단 비교",
   data: { metric: step.bindings.metric, subject: [{ member: "cube://sample/operations/team", value: "A" }],
     benchmark_aggregation: "semantic_provider", statistical_judgement: "not_tested", rows: [
       { value: "대상", metric: 10, count: 100, difference_from_subject: 0 },
@@ -43,7 +43,7 @@ test("explicit procedural purposes are not treated as historical intent", async 
 
 test("Recipe reuse shows the current goal rather than historical dates and avoids duplicate registration", async ({ page }) => {
   await page.route("**/api/runs/context-run", route => route.fulfill({ json: { ...run,
-    goals: [{ id: "compare", description: "이번 기간 최고 집단을 나머지 집단과 비교", semantic_refs: [], required_capabilities: [], interpretation: "descriptive" }],
+    goals: [{ id: "compare", description: "이번 기간 최고 집단을 나머지 집단과 비교", semantic_refs: [], required_capabilities: [] }],
     conclusion: { answer: "비교했습니다.", findings: [], limitations: [], goal_outcomes: [
       { goal_id: "compare", status: "supported", step_indices: [0], reason: "" },
     ] },

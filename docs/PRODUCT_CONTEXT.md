@@ -119,7 +119,7 @@ BI/dashboard building, generic scheduling/DAG engines and custom frontend plugin
 See [Architecture](ARCHITECTURE.md) for current code ownership and
 [Decisions](DECISIONS.md) for detailed accepted behavior.
 
-Method authoring exposes ordinary typed Python arguments and native statistical-library APIs. Current statistical experiments report association with unverified identification assumptions; assumption checkboxes are not evidence. Semantic validation, execution bounds and provenance remain mandatory (ADR-084).
+Method authoring exposes ordinary typed Python arguments and native statistical-library APIs. Authors do not maintain a shared interpretation classification. Method-specific checks, recorded outputs and evidence determine which conclusions are supported; semantic validation, execution bounds and provenance remain mandatory (ADR-145).
 
 ## Default MVP Methods
 

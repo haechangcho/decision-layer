@@ -92,7 +92,6 @@ async def test_ols_uses_entity_and_injects_column_list():
     }
     assert not OLS.manifest.parameters
     assert OLS.manifest.roles["entity_id"].kind == "entity"
-    assert trial.result.interpretation == "association"
 
 
 @pytest.mark.parametrize(

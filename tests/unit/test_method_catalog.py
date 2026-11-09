@@ -104,7 +104,7 @@ def test_ambiguous_capability_declarations_fail_early(provides):
     with pytest.raises(ValueError, match="provides"):
 
         @method(
-            "test.bad", version="1.0.0", interpretation="association", provides=provides
+            "test.bad", version="1.0.0", provides=provides
         )
         async def bad(ctx) -> Table:
             return Table([])
@@ -116,7 +116,7 @@ def test_invalid_dependency_and_ambiguous_optional_type_fail_early():
         @method(
             "test.bad",
             version="1.0.0",
-            interpretation="association",
+
             requires_packages={"pandas": "=>2"},
         )
         async def bad(ctx) -> Table:
@@ -124,7 +124,7 @@ def test_invalid_dependency_and_ambiguous_optional_type_fail_early():
 
     with pytest.raises(ValueError, match="one non-null"):
 
-        @method("test.bad", version="1.0.0", interpretation="association")
+        @method("test.bad", version="1.0.0")
         async def bad_union(ctx, *, value: str | int | None = None) -> Table:
             return Table([])
 

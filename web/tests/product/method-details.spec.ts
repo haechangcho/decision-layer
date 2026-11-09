@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const manifest = { name: "example.group_metric", version: "1.0.0", kind: "query",
   description: "Retrieve the largest governed metric values by a grouping dimension.",
-  interpretation: "association", execution: "semantic_pushdown", outputs: ["table"],
+   execution: "semantic_pushdown", outputs: ["table"],
   roles: { metric: { kind: "measure", required: true, multiple: false, description: "" } },
   parameters: { limit: { type: "integer", required: false, default: 5, description: "" } } };
 

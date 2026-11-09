@@ -66,7 +66,6 @@ async def test_ols_list_columns_match_native_statsmodels_and_known_slope():
     assert trial.result.primary.data["coefficients"]["confounders_0"] == pytest.approx(
         3
     )
-    assert trial.result.interpretation == "association"
     mapping = json.loads(trial.result.provenance.runtime["python.resolved_inputs"])[
         "data"
     ]

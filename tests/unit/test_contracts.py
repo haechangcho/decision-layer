@@ -57,7 +57,7 @@ def test_models_roundtrip():
 
     manifest = MethodManifest(name="query.drilldown", version="1.0.0", kind="query", description="",
                               roles={"metric": RoleSpec(kind="measure"), "dimensions": RoleSpec(kind="dimension", multiple=True)},
-                              execution="semantic_pushdown", interpretation="descriptive", outputs=["breakdown_table"])
+                              execution="semantic_pushdown", outputs=["breakdown_table"])
     roundtrip(manifest)
 
     recipe = Recipe(name="return_rate_investigation", version="1.0.0", description="",
@@ -68,7 +68,7 @@ def test_models_roundtrip():
     plan = AnalysisPlan(question="반품률이 왜 높아?", recipe="recipe://return-rate-investigation@1.0.0",
                         resolved={"primary_metric": R},
                         steps=[PlanStep(method="query.drilldown", bindings={"metric": R, "dimensions": [CATEGORY]})])
-    result = Result(status="success", interpretation="descriptive",
+    result = Result(status="success",
                     primary=Artifact(type="breakdown_table", data=[{"category": "여성의류", "value": 16.73}]),
                     validation=[ValidationResult(validator="non_empty", status="pass", code="OK", message="")],
                     provenance=Provenance(method="method://query/drilldown@1.0.0", semantic_refs=[R, CATEGORY]))

@@ -4,7 +4,7 @@ import inspect
 from functools import update_wrapper
 from typing import Annotated, Literal, get_args, get_origin, get_type_hints
 from pydantic import TypeAdapter
-from ..core.models import Filter, Interpretation, MethodManifest, ParamSpec, RoleSpec
+from ..core.models import Filter, MethodManifest, ParamSpec, RoleSpec
 from .base import Method, MethodOutput
 from .inputs import AnalysisDesign, Equality, SemanticRole
 from .output import Estimate, Table, TimeSeries
@@ -69,7 +69,7 @@ def _parameter(annotation, default):
 
 
 class FunctionMethod(Method):
-    def __init__(self, fn, name, version, *, interpretation, kind, execution, provides,
+    def __init__(self, fn, name, version, *, kind, execution, provides,
                  requires_packages, requires_period):
         if not inspect.iscoroutinefunction(fn):
             raise ValueError("Method functions must be async; pure computation can use ordinary helpers")
@@ -109,7 +109,7 @@ class FunctionMethod(Method):
         self.fn, self.output = fn, output
         self.manifest = MethodManifest(name=name, version=version, kind=kind,
             description=inspect.getdoc(fn) or name, roles=roles, parameters=params,
-            interpretation=interpretation, execution=execution, outputs=[output.artifact_type],
+            execution=execution, outputs=[output.artifact_type],
             provides=list(provides or []), requires_packages=requires_packages or {},
             requires_period=requires_period,
             requires_capabilities=["entity_grain_queries"] if any(role.kind == "entity" for role in roles.values()) else [])
@@ -125,14 +125,14 @@ class FunctionMethod(Method):
         return result
 
 
-def method(name: str, *, version: str, interpretation: Interpretation = "association",
+def method(name: str, *, version: str,
            kind: Literal["query", "stats", "causal"] = "query",
            execution: Literal["semantic_pushdown", "dataframe"] = "semantic_pushdown",
            provides: list[str] | None = None, requires_packages: dict[str, str] | None = None,
            requires_period: bool = False):
     """Compile a reviewed function; callers explicitly register it in their registry."""
     def decorate(fn):
-        return FunctionMethod(fn, name, version, interpretation=interpretation, kind=kind,
+        return FunctionMethod(fn, name, version, kind=kind,
                               execution=execution, provides=provides,
                               requires_packages=requires_packages, requires_period=requires_period)
     return decorate

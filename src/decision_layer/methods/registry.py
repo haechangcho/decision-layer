@@ -156,7 +156,6 @@ class MethodRegistry:
         evidence.runtime["decision-layer"] = __version__
         return Result(
             status="refused" if failed else "success",
-            interpretation=method.manifest.interpretation,
             provides=provided if not failed and out.primary is not None else [],
             primary=out.primary, artifacts=out.artifacts, warnings=out.warnings,
             validation=out.validation, provenance=evidence, selections=out.selections,

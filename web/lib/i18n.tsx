@@ -95,7 +95,6 @@ const ko: Record<string, string> = {
   "Variable to examine": "관계를 살펴볼 변수",
   "Other variables to account for": "함께 고려할 다른 변수",
   "Code files": "코드 파일",
-  "Association — observational summaries and relationships": "Association — 관측 데이터의 요약과 관계 분석",
   "Model improvements": "데이터 모델 보완",
   "What to change": "수정할 내용",
   "Suggested YAML": "추천 YAML",
@@ -363,7 +362,6 @@ const ko: Record<string, string> = {
   "Cube user token required": "Cube 토큰 필요",
   "Using a token": "토큰 사용 중",
   "Service credentials": "서비스 자격 증명",
-  "Interpretation: {level}": "해석 수준: {level}",
   "Set {field} to one of these values and rerun.": "{field}에 위 값 중 하나를 넣고 다시 실행하세요.",
   "Show {n} executed queries": "실행한 쿼리 {n}개 보기",
   "Hide {n} executed queries": "실행한 쿼리 {n}개 숨기기",
@@ -885,7 +883,6 @@ const ko: Record<string, string> = {
   "Analysis complete": "분석 완료",
   "More input needed": "추가 입력 필요",
   "Additional analysis results": "추가 분석 결과",
-  "Interpretation scope: {scope}": "해석 범위: {scope}",
   "descriptive analysis": "기술 분석",
   "Passed validation:": "통과한 검증:",
   // Recipe editor — step settings

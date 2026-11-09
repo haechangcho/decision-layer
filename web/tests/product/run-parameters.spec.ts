@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const step = {
-  step: { id: "trend", method: "query.trend", bindings: { metric: "cube://local/insurance/payout" },
+  step: { id: "trend", method: "query.trend", bindings: { metric: "cube://local/observations/value" },
     params: { granularity: "month", vs_previous: false } },
   method: "method://query.trend@1.0.0",
   result: { status: "success", primary: null, artifacts: [], warnings: [], validation: [],
@@ -10,7 +10,7 @@ const step = {
 };
 
 const candidateRecipe = { name: "draft", version: "1.0.0", description: "Review the procedure", status: "draft", origin_runs: ["provenance-test"],
-  routing: { use_for: [], do_not_use_for: [] }, semantic_scope: { primary_metric: "cube://local/insurance/payout", related_metrics: [], preferred_dimensions: [], required_filters: [] },
+  routing: { use_for: [], do_not_use_for: [] }, semantic_scope: { primary_metric: "cube://local/observations/value", related_metrics: [], preferred_dimensions: [], required_filters: [] },
   mode: "pipeline", steps: [step.step], allowed_methods: [], validators: [], limits: { max_steps: 12, max_queries: 30 } };
 
 test.beforeEach(async ({ page }) => {
@@ -19,7 +19,7 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/me", route => route.fulfill({ json: { subject: "alice" } }));
   await page.route("**/api/runs/*/recipe-candidate?*", route => route.fulfill({ json: { recipe: candidateRecipe, source_run_id: "provenance-test", selected_steps: [0], review_notes: [] } }));
   await page.route("**/api/runs/provenance-test", route => route.fulfill({ json: {
-    id: "provenance-test", plan: { question: "지급액이 왜 변했나?", scope: {} }, steps: [{ ...step,
+    id: "provenance-test", plan: { question: "지표 값이 왜 변했나?", scope: {} }, steps: [{ ...step,
       parameter_sources: { granularity: "method_default", vs_previous: "recipe" } }],
     caller: { subject: "alice", groups: [] }, shared_with: [], status: "completed", validation: [],
     created_at: "2026-10-01T10:00:00Z",
@@ -117,10 +117,10 @@ test("a refusal before calculation still requires editing", async ({ page }) => 
 });
 
 test("Run shows applied values and their sources on demand", async ({ page }, info) => {
-  await page.route("**/api/semantic/catalog", route => route.fulfill({ json: { objects: [{ ref: "cube://local/insurance/payout", title: "지급액", kind: "measure" }], hierarchies: {} } }));
+  await page.route("**/api/semantic/catalog", route => route.fulfill({ json: { objects: [{ ref: "cube://local/observations/value", title: "지표 값", kind: "measure" }], hierarchies: {} } }));
   await page.goto("/runs/provenance-test");
-  await expect(page.getByRole("heading", { name: "지급액이 왜 변했나?", exact: true })).toBeVisible();
-  await expect(page.getByText("지급액", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "지표 값이 왜 변했나?", exact: true })).toBeVisible();
+  await expect(page.getByText("지표 값", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("region", { name: "실행 그래프" })).toHaveCount(0);
   await expect(page.locator("#run-step-detail")).toBeVisible();
   await expect(page.getByLabel("공유할 사용자 ID")).not.toBeVisible();
@@ -251,7 +251,7 @@ test("structured answers link to evidence and distinguish product from model", a
   await page.route("**/api/runs/structured", route => route.fulfill({ json: {
     id: "structured", origin: "mcp", plan: { question: "조건을 맞춰도 차이가 있나?", scope: {} },
     steps: [{ ...step, author: { client_name: "Example Client", client_version: "2.0", client_source: "protocol", model_id: "example-model", model_source: "client_reported" },
-      result: { ...step.result, primary: { type: "estimate", data: { metric: "cube://local/insurance/payout", target: { label: "A" }, comparison: { label: "B" }, raw: { target: 10, comparison: 12, difference: -2 }, matched: { target: 11, comparison: 12, difference: -1 } } },
+      result: { ...step.result, primary: { type: "estimate", data: { metric: "cube://local/observations/value", target: { label: "A" }, comparison: { label: "B" }, raw: { target: 10, comparison: 12, difference: -2 }, matched: { target: 11, comparison: 12, difference: -1 } } },
         artifacts: [{ type: "balance", title: "비교 표본", data: { target_retention: 0.968, target_units: 100 } }],
         validation: [{ validator: "comparability", status: "pass", code: "OK", message: "비교 조건 충족" }] } }],
     conclusion: { answer: "조건을 맞춘 뒤에도 차이가 남았습니다.", findings: [{ text: "대상 집단의 값이 더 낮았습니다.", step_indices: [0] }], limitations: ["관찰 비교이며 원인으로 단정할 수 없습니다."] },
@@ -298,28 +298,28 @@ test("missing catalog names do not expose semantic URIs in the result", async ({
 });
 
 test("a one-period trend leads with the answer and keeps audit details folded", async ({ page }, info) => {
-  const metric = "cube://local/fact_payment/total_payment_amt";
-  const count = "cube://local/fact_payment/count";
+  const metric = "cube://local/observations/value";
+  const count = "cube://local/observations/count";
   await page.route("**/api/semantic/catalog", route => route.fulfill({ json: { objects: [
-    { ref: metric, title: "지급결정금액 합계", kind: "measure" }, { ref: count, title: "지급 건수", kind: "measure" },
+    { ref: metric, title: "지표 합계", kind: "measure" }, { ref: count, title: "관측 건수", kind: "measure" },
   ], hierarchies: {} } }));
   await page.route("**/api/runs/readable-trend", route => route.fulfill({ json: {
-    id: "readable-trend", origin: "mcp", plan: { question: "6월 지급액은 얼마인가?", scope: { date_range: ["2026-06-01", "2026-06-30"] } },
-    steps: [{ ...step, step: { ...step.step, bindings: { metric } }, result: { ...step.result, interpretation: "descriptive",
+    id: "readable-trend", origin: "mcp", plan: { question: "6월 지표 값은 얼마인가?", scope: { date_range: ["2026-06-01", "2026-06-30"] } },
+    steps: [{ ...step, step: { ...step.step, bindings: { metric } }, result: { ...step.result,
       primary: { type: "time_series", title: "amount over time", data: { metric, units: { [metric]: count },
         rows: [{ period: "2026-06-01", [metric]: 860160000, [`${metric}#units`]: 384 }] } },
       artifacts: [{ type: "table", title: "largest period-over-period move per series", data: [] }],
       validation: [{ validator: "non_empty", status: "pass", code: "OK", message: "periods: 1 rows" },
         { validator: "freshness", status: "warning", code: "DATA_STALE", message: "Data only reaches June 4", details: { latest: "2026-06-04", end: "2026-06-30" } }],
-      provenance: { ...step.result.provenance, semantic_refs: [metric], queries: [{ native_query: { measures: ["fact_payment.total_payment_amt"] }, rows: 1, elapsed_ms: 4 }] } } }],
+      provenance: { ...step.result.provenance, semantic_refs: [metric], queries: [{ native_query: { measures: ["observations.value"] }, rows: 1, elapsed_ms: 4 }] } } }],
     caller: { subject: "alice", groups: [] }, shared_with: [], status: "completed", validation: [], created_at: "2026-10-01T10:00:00Z",
   } }));
   await page.goto("/runs/readable-trend");
-  await expect(page.getByRole("heading", { name: "6월 지급액은 얼마인가?" })).toBeVisible();
-  await expect(page.getByText("지급결정금액 합계", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "6월 지표 값은 얼마인가?" })).toBeVisible();
+  await expect(page.getByText("지표 합계", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("860,160,000").first()).toBeVisible();
   await expect(page.locator("details[open]")).toHaveCount(0);
-  await expect(page.getByRole("columnheader", { name: "지급 건수" })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "관측 건수" })).toBeVisible();
   await expect(page.getByText("기간이 하나뿐이라 증가·감소 추이는 판단할 수 없습니다.")).toBeVisible();
   await expect(page.getByRole("region", { name: "분석 답변" }).getByText("데이터는 2026-06-04까지 있습니다. 2026-06-30까지의 결과는 불완전할 수 있습니다.")).toBeVisible();
   await expect(page.getByText("periods: 1 rows")).not.toBeVisible();
@@ -362,8 +362,8 @@ test("successful Run steps can be reviewed as a Recipe draft", async ({ page }) 
   await page.route("**/api/runs/promotion-test/recipe-candidate?*", route => route.fulfill({ json: {
     recipe: { name: "analysis-test", version: "1.0.0", status: "draft", description: "반품률 변화",
       origin_runs: ["promotion-test"], mode: "pipeline", routing: { use_for: [], do_not_use_for: [] },
-      semantic_scope: { primary_metric: "cube://local/insurance/payout", related_metrics: [], preferred_dimensions: [], required_filters: [] },
-      steps: [{ id: "step_1", method: "query.trend", bindings: { metric: "cube://local/insurance/payout" }, params: {} }],
+      semantic_scope: { primary_metric: "cube://local/observations/value", related_metrics: [], preferred_dimensions: [], required_filters: [] },
+      steps: [{ id: "step_1", method: "query.trend", bindings: { metric: "cube://local/observations/value" }, params: {} }],
       allowed_methods: [], validators: [], limits: { max_steps: 12, max_queries: 30 } },
     source_run_id: "promotion-test", selected_steps: [0], review_notes: [],
   } }));

@@ -54,7 +54,7 @@ class Lookup(Method):
             "direction": ParamSpec(type="enum", enum=["asc", "desc"], default="desc"),
         },
         execution="semantic_pushdown",
-        interpretation="descriptive",
+
         outputs=["table", "sample_summary"],
         provides=["metric_lookup"],
     )
@@ -110,7 +110,7 @@ class Series(Method):
             "drill_path": PATH,
         },
         execution="semantic_pushdown",
-        interpretation="descriptive",
+
         outputs=["table", "estimate"],
         provides=["time_series"],
     )
@@ -167,7 +167,7 @@ class Groups(Method):
             "vs_previous": ParamSpec(type="boolean", default=False),
         },
         execution="semantic_pushdown",
-        interpretation="descriptive",
+
         outputs=["breakdown_table"],
         provides=["group_breakdown"],
         selection_outputs=["ranked_groups"],
@@ -268,7 +268,7 @@ class Peers(Method):
             "min_count": ParamSpec(type="integer", default=1, minimum=1),
         },
         execution="semantic_pushdown",
-        interpretation="descriptive",
+
         outputs=["table"],
         provides=["peer_comparison"],
     )
@@ -302,7 +302,7 @@ class ComparisonContract(Method):
         version="1.0.0",
         description="Test contract",
         execution="semantic_pushdown",
-        interpretation="descriptive",
+
         outputs=["table"],
         roles={
             "metric": METRIC,

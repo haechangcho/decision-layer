@@ -64,6 +64,8 @@ Methods are listed and described directly from the registry. AI reads their desc
 
 Ordinary `Column` and `DataInput` declarations compile to the shared manifest and input contract. Web, REST and MCP consume that manifest; new Methods do not require separate screens or execution rules.
 
+Method manifests, goals and results have no shared interpretation classification (ADR-145). Recipe compatibility and goal completion use semantic references, declared result capabilities and successful recorded evidence. Input validation and Method-specific checks remain in the same canonical execution path.
+
 `methods/function/registration.py` compiles registration, `inputs.py` connects query columns to function inputs, and `execution.py` validates data and calls the function. Calculations receive no provider client or credentials.
 
 `python_method(..., selection_outputs=[...])` declares typed result selections.

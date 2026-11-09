@@ -17,7 +17,6 @@ async def test_native_pandas_function_matches_direct_call_and_retains_ties():
     result = (await session.run("workshop.native_rank", metric=METRIC, group=DIMENSION,
                                scope=Scope(DATES, DATE))).result
     assert result.primary.data == expected.to_dict(orient="records")
-    assert result.interpretation == "association"
     assert all(item.status == "pass" for item in result.validation)
     assert result.provenance.queries
     assert '"value":"metric"' in result.provenance.runtime["calculation.input_mapping"]

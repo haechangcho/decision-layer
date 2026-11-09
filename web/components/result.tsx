@@ -7,7 +7,6 @@ import { isRoutineSkillNotice, useRuntimeMessage } from "@/lib/runtime-messages"
 import { InspectorDialog } from "@/components/inspector-dialog";
 import type { Artifact, Result, SemanticObject, Validation } from "@/lib/api";
 import { timeSeriesData } from "@/lib/artifact-data";
-import { isAssociation } from "@/lib/interpretation";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { type Translate, useT } from "@/lib/i18n";
@@ -242,7 +241,6 @@ export function ResultView({ result, titles, showRunLink = true, showEvidence = 
         {supportingArtifacts.map((a, i) => <ArtifactView key={i} artifact={a} titles={titles} />)}
       </InspectorDialog></>}
       {showEvidence && (result.provenance.method || result.provenance.semantic_refs.length || result.provenance.queries.length) ? <><button type="button" className="ghost" onClick={() => setEvidenceOpen(true)}>{t("Execution evidence")}{result.provenance.queries.length > 0 ? ` / ${t("{n} queries", { n: result.provenance.queries.length })}` : ""}</button><InspectorDialog title={t("Execution evidence")} open={evidenceOpen} onClose={() => setEvidenceOpen(false)}>
-        {result.interpretation && <p className="muted">{t("Interpretation scope: {scope}", { scope: isAssociation(result.interpretation) ? t("Association — observational summaries and relationships") : result.interpretation })}</p>}
         {result.validation.filter((item) => item.status === "pass").length > 0 && <p className="muted">{t("Passed validation:")} {result.validation.filter((item) => item.status === "pass").map((item) => item.validator).join(", ")}</p>}
         <RunSources result={result} titles={titles} />
         <RunQueries result={result} />

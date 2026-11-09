@@ -15,7 +15,7 @@ from decision_layer.testing import FixtureProvider, QueryFixture
 from examples.methods.authoring.sample_data import METRIC, DIMENSION, DATE, DATES, fixture_provider
 
 
-@method("example.authored", version="1.0.0", interpretation="association")
+@method("example.authored", version="1.0.0")
 async def grouped(ctx, *, metric: Measure, group: Dimension,
                   limit: Annotated[int, Field(ge=1, le=100)] = 5) -> Table:
     """Retrieve a metric by a governed grouping dimension."""
@@ -38,7 +38,6 @@ async def test_signature_generates_contract_and_three_call_styles():
         session.register(grouped)
         trial = await session.run(grouped, scope=Scope(DATES, DATE), **arguments)
         assert trial.result.status == "success"
-        assert trial.result.interpretation == "association"
         assert trial.result.primary.data == [{"metric": 30, "group": "A"}, {"metric": 20, "group": "B"}, {"metric": 10, "group": "C"}]
         assert trial.attempts[0].spec.time.date_range == DATES
         provider.assert_consumed()
@@ -62,10 +61,10 @@ async def test_invalid_inputs_issue_no_queries(arguments):
 
 def test_registration_rejects_unsupported_contracts_and_bad_defaults():
     with pytest.raises(ValueError, match="annotation"):
-        @method("example.bad", version="1.0.0", interpretation="descriptive")
+        @method("example.bad", version="1.0.0")
         async def wrong(ctx, *, config: dict) -> Table:
             return Table([])
-    @method("example.bad_default", version="1.0.0", interpretation="descriptive")
+    @method("example.bad_default", version="1.0.0")
     async def bad_default(ctx, *, limit: Annotated[int, Field(ge=1)] = 0) -> Table:
         return Table([])
     from decision_layer.methods import MethodRegistry
@@ -74,7 +73,7 @@ def test_registration_rejects_unsupported_contracts_and_bad_defaults():
 
 
 async def test_shared_filters_labels_and_comparison_periods():
-    @method("example.filtered", version="1.0.0", interpretation="descriptive")
+    @method("example.filtered", version="1.0.0")
     async def filtered(ctx, *, metric: Measure, baseline: DateRange) -> Table:
         await ctx.aggregate(measures={"metric": metric}, label="current")
         data = await ctx.aggregate(measures={"metric": metric}, period=baseline,
@@ -95,7 +94,7 @@ async def test_shared_filters_labels_and_comparison_periods():
 
 
 async def test_current_period_expansion_and_entity_ref_are_refused():
-    @method("example.expand", version="1.0.0", interpretation="descriptive")
+    @method("example.expand", version="1.0.0")
     async def expand(ctx, *, metric: Measure) -> Table:
         data = await ctx.aggregate(measures={"metric": metric}, period=("2026-08-01", "2026-09-30"))
         return Table.from_dataset(data)
@@ -107,7 +106,7 @@ async def test_current_period_expansion_and_entity_ref_are_refused():
 
 
 async def test_missing_dependency_refuses_before_queries():
-    @method("example.optional", version="1.0.0", interpretation="descriptive",
+    @method("example.optional", version="1.0.0",
             requires_packages={"decision-layer-nonexistent-test-package": ">=1"})
     async def optional(ctx, *, metric: Measure) -> Table:
         return Table.from_dataset(await ctx.aggregate(measures={"metric": metric}))
@@ -159,7 +158,7 @@ def test_plain_tables_and_historical_artifacts_need_no_column_metadata():
 
 async def test_legacy_time_series_method_contract_still_executes():
     from tests.support.methods.cases import scenarios, M, DATE, JAN_FEB
-    @method("example.legacy_series", version="1.0.0", interpretation="descriptive")
+    @method("example.legacy_series", version="1.0.0")
     async def legacy_series(ctx, *, metric: Measure) -> TimeSeries:
         data = await ctx.aggregate(measures={"metric": metric}, time_granularity="month")
         return TimeSeries.from_dataset(data, require_non_empty=True)

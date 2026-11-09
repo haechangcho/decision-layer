@@ -4,7 +4,7 @@ import { expect, test, type Page } from "@playwright/test";
 const prefix = process.env.DL_TEST_UI_PREFIX || "";
 const stamp = "2026-02-01T00:00:00Z";
 const metric = { ref: "cube://shop/customers/revenue", kind: "measure", title: "Revenue", data_type: "number", public: true };
-const python = { name: "stats.regression_adjustment", version: "2.0.0", kind: "stats", implementation: "python", execution: "dataframe", interpretation: "association", description: "Analyze observed relationships.",
+const python = { name: "stats.regression_adjustment", version: "2.0.0", kind: "stats", implementation: "python", execution: "dataframe",  description: "Analyze observed relationships.",
   roles: {}, parameters: {}, outputs: ["estimate"], data_inputs: { data: { measures: ["outcome"], dimensions: [], entity: "entity_id", columns: {}, column_args: ["outcome"], format: "dataframe", minimum_rows: 10, period_role: "current" } } };
 const skill = { ...python, name: "analysis.drilldown", implementation: "skill", agent_executable: true, data_inputs: {} };
 const guide = { name: skill.name, version: "2.0.0", sha256: "a".repeat(64), enforcement: "advisory", markdown: "# Review groups\nQuery the governed metric.", suggested_methods: [] };

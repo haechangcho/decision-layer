@@ -148,7 +148,6 @@ async def execute_step(
         run.active_skill_step = step.id
         result = Result(
             status="needs_input",
-            interpretation="association",
             needs_input={
                 "reason_code": "AGENT_EXECUTION_REQUIRED",
                 "next_tool": "run_skill_query",

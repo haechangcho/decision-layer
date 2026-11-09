@@ -1,7 +1,6 @@
 """Check result contracts, not the truth of caller-written sentences."""
 from ..i18n import _
 from ..methods import InvalidBinding
-from ..core.interpretation import supports_interpretation
 
 
 def validate_outcomes(run, conclusion):
@@ -17,8 +16,7 @@ def validate_outcomes(run, conclusion):
         if outcome.status == "supported":
             successful = [record.result for record in records if record.result.status == "success" and record.result.primary is not None]
             matching = [result for result in successful
-                        if supports_interpretation(goal.interpretation, result.interpretation)
-                        and set(goal.semantic_refs) <= set(result.provenance.semantic_refs)]
+                        if set(goal.semantic_refs) <= set(result.provenance.semantic_refs)]
             provided = set().union(*(set(result.provides) for result in matching))
             refs = set().union(*(set(result.provenance.semantic_refs) for result in matching))
             if not matching or not set(goal.required_capabilities) <= provided or not set(goal.semantic_refs) <= refs:

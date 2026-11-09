@@ -81,7 +81,6 @@ export interface MethodManifest {
   roles: Record<string, RoleSpec>;
   parameters: Record<string, ParamSpec>;
   execution: string;
-  interpretation: string;
   outputs: string[];
   selection_outputs?: string[];
   requires_period?: boolean;
@@ -99,7 +98,6 @@ export interface Validation { validator: string; status: "pass" | "warning" | "f
 export interface Result {
   provides?: string[];
   status: "success" | "needs_input" | "refused" | "failed";
-  interpretation?: string | null;
   primary?: Artifact | null;
   artifacts: Artifact[];
   warnings: string[];
@@ -206,7 +204,7 @@ export interface Run {
   finished_at?: string | null;
 }
 
-export interface AnalysisGoal { id: string; description: string; semantic_refs: string[]; required_capabilities: string[]; interpretation: string }
+export interface AnalysisGoal { id: string; description: string; semantic_refs: string[]; required_capabilities: string[] }
 export interface SemanticRequirement { description: string; kind: Kind; ref?: string | null; data_type?: string | null; metric_kind?: string | null; needs_entity?: boolean; needs_time?: boolean }
 export interface RunRemediation {
   id: string; goal_id: string; reason: string; evidence: string; proposal: string;

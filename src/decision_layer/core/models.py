@@ -240,7 +240,6 @@ class ParamSpec(BaseModel):
 
 ArtifactType = Literal["estimate", "interval", "table", "breakdown_table", "contribution_table",
                        "coefficient_table", "balance", "sample_summary", "time_series", "warning"]
-Interpretation = Literal["association", "causal_conditional", "descriptive", "associational"]
 
 
 class MethodGuide(BaseModel):
@@ -266,7 +265,6 @@ class MethodManifest(BaseModel):
     agent_executable: bool = False
     requires_capabilities: list[str] = Field(default_factory=list)
     requires_packages: dict[str, str] = Field(default_factory=dict)
-    interpretation: Interpretation                 # ADR-019
     outputs: list[ArtifactType]
     provides: list[str] = Field(default_factory=list)
     provides_when: dict[str, list[str]] = Field(default_factory=dict)
@@ -449,7 +447,6 @@ class Provenance(BaseModel):
 class Result(BaseModel):
     kind: Literal["analysis_result"] = "analysis_result"
     status: Literal["success", "needs_input", "refused", "failed"]
-    interpretation: Interpretation | None = None
     provides: list[str] = Field(default_factory=list)
     primary: Artifact | None = None
     artifacts: list[Artifact] = Field(default_factory=list)
@@ -542,7 +539,6 @@ class AnalysisGoal(BaseModel):
     description: str = Field(min_length=1, max_length=400)
     semantic_refs: list[SemanticRefStr] = Field(default_factory=list, max_length=20)
     required_capabilities: list[str] = Field(default_factory=list, max_length=8)
-    interpretation: Interpretation = "descriptive"
 
 
 class GoalOutcome(BaseModel):
@@ -734,6 +730,17 @@ class Run(BaseModel):
     conclusion_author: ExecutionAuthor | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     finished_at: datetime | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def load_stored_goals(cls, value):
+        """Read stored goals after contract fields are retired; API inputs stay strict."""
+        if isinstance(value, dict) and isinstance(value.get("goals"), list):
+            value = {**value, "goals": [
+                {key: item for key, item in goal.items() if key in AnalysisGoal.model_fields}
+                if isinstance(goal, dict) else goal for goal in value["goals"]
+            ]}
+        return value
 
     @model_validator(mode="after")
     def ensure_conclusion(self) -> Run:

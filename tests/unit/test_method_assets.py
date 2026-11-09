@@ -38,7 +38,6 @@ async def test_plain_function_matches_direct_pandas_and_records_implementation()
     assert result.primary.data == rank_groups(pd.DataFrame({"value": [30,20,20], "group": ["A","B","C"]})).to_dict(orient="records")
     assert result.provenance.runtime['python.function_sha256'] != 'unavailable'
     assert result.provenance.queries and all(v.status == "pass" for v in result.validation)
-    assert result.interpretation == "association"
 
 
 async def test_multiple_inputs_use_explicit_periods_and_executable_cross_input_check():

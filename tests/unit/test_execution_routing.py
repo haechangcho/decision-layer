@@ -28,9 +28,9 @@ def setup(cube_meta, tmp_path):
     return RunEngine(provider, store, MemoryRunStore()), provider
 
 
-def goal(name="lookup", capability="metric_lookup", metric=AMOUNT, interpretation="descriptive"):
+def goal(name="lookup", capability="metric_lookup", metric=AMOUNT):
     return AnalysisGoal(id=name, description="Answer the requested part", semantic_refs=[metric],
-                        required_capabilities=[capability], interpretation=interpretation)
+                        required_capabilities=[capability])
 
 
 def lookup(**extra):
@@ -46,10 +46,10 @@ def recipe(name="lookup-procedure", metric=AMOUNT, method="test.lookup", **extra
 
 async def test_lookup_records_scope_and_can_be_promoted(setup):
     engine, provider = setup
-    run = await engine.start(CREDS, ME, recipe=None, question="Sales by department?", scope=SCOPE, goals=[goal(interpretation="association")])
+    run = await engine.start(CREDS, ME, recipe=None, question="Sales by department?", scope=SCOPE, goals=[goal()])
     run, result = await engine.step(CREDS, ME, run.id, lookup(goal_ids=["lookup"]))
     assert result.status == "success" and result.provides == ["metric_lookup"]
-    assert result.interpretation == "descriptive" and not result.selections
+    assert not result.selections
     assert result.primary.data[0][CAT] == "B"
     assert result.primary.data[0][AMOUNT] == 10000000
     assert result.artifacts[0].data["population_complete"] is False
@@ -215,8 +215,7 @@ async def test_partial_candidate_never_claims_causal_coverage(setup):
     engine, provider = setup
     rec = recipe()
     engine.recipes.save(rec, None)
-    goals = [goal(), goal("effect", "new_causal_estimator", interpretation="causal_conditional")]
-    goals[0].interpretation = "association"
+    goals = [goal(), goal("effect", "new_causal_estimator")]
     result = await search_recipes(engine.recipes, provider, CREDS, "Sales and causal effect?", goals, {}, 5)
     candidate = result["candidates"][0]
     assert candidate["covered_goal_ids"] == ["lookup"] and candidate["conflicts"]

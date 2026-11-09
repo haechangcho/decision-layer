@@ -100,7 +100,7 @@ test("authored time-series aliases render through the shared chart and table", a
 });
 
 test("monthly Table metadata renders a trend without a TimeSeries output", async ({ page }, info) => {
-  const tableResult = { ...result, interpretation: "association", primary: { type: "table",
+  const tableResult = { ...result,  primary: { type: "table",
     data: [{ time: "2026-01-01", sales: 20 }, { time: "2026-02-01", sales: 30 }],
     columns: [
       { name: "time", ref: "cube://sample/orders/date", role: "time", granularity: "month" },

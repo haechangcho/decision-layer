@@ -430,6 +430,8 @@ The Web app may manage these objects, but must not become the only durable store
 
 ## ADR-019 — Method semantics control allowed interpretation
 
+Classification fields and compatibility checks are superseded by ADR-145. The original decision below is retained as historical rationale.
+
 **Status:** Accepted
 
 ### Decision
@@ -1519,6 +1521,8 @@ outputs both render through shared Web helpers. Python, REST and MCP receive the
 same canonical rows and column metadata, with validation and provenance intact.
 
 ## ADR-086 — Association for observational Method interpretation
+
+Superseded by ADR-145: the classification metadata and its compatibility rules have been removed from current contracts.
 
 **Status:** Accepted (2026-10-14). Refines the preferred interpretation labels.
 
@@ -2962,3 +2966,31 @@ classification and its existing claim checks. Listing instructions omit generic
 causality disclaimers and unrelated industry assumptions; absence of a saved
 domain Recipe alone is not evidence that registered Methods cannot answer a
 question against the connected semantic model.
+
+
+## ADR-145 — Remove shared interpretation classification (2026-11-09)
+
+At the user's explicit request, remove `interpretation` from Method registration,
+manifests, analysis goals and results. Delete its enum, Python/Web compatibility
+helpers, routing/completion checks, MCP guidance and UI labels. This supersedes
+the metadata portions of ADR-019 and ADR-086 and the classification retention
+described in ADR-144. Authors no longer choose or maintain a shared claim category.
+
+Method selection and goal completion still require actual successful results,
+declared capabilities, matching semantic references and valid recorded evidence.
+Method-specific input/data checks, execution budgets, source definitions, query
+provenance and data-specific limitations remain authoritative. Removing a label
+does not validate an authored conclusion or change a calculation.
+
+Existing stored Runs remain readable without rewriting their raw evidence. The
+Run loader projects stored goal dictionaries onto the current goal fields, while
+new API goal inputs still reject unknown fields. Existing extra manifest/result
+fields are ignored by the normal model loader. New responses and MCP schemas do
+not expose the retired classification. Custom Method declarations using the
+removed keyword must drop it; no silent registration compatibility option remains.
+
+Common code, instructions and UI must not assume a customer's industry or derive
+analysis availability from an example domain. Replace insurance-specific UI test
+fixtures and the common calculation documentation example with neutral metric,
+category and date names. Business definitions in explicitly loaded sample or user
+semantic models remain source-owned; the framework does not rewrite those assets.

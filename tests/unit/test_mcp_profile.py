@@ -263,7 +263,7 @@ def test_method_listing_uses_shared_api_and_profile(monkeypatch):
     async def call(method, path, **kwargs):
         assert method == "GET"
         def manifest(name):
-            return {"name": name, "description": "Reviewed analysis", "interpretation": "association", "roles": {}}
+            return {"name": name, "description": "Reviewed analysis",  "roles": {}}
         if path == "/methods/query.aggregate":
             return manifest("query.aggregate")
         assert path == "/methods"
@@ -272,7 +272,7 @@ def test_method_listing_uses_shared_api_and_profile(monkeypatch):
     result = asyncio.run(s.list_methods())
     assert [method["name"] for method in result["methods"]] == ["query.aggregate"]
     assert "interpretation" not in result["methods"][0]
-    assert asyncio.run(s.describe_method("query.aggregate"))["interpretation"] == "association"
+    assert "interpretation" not in asyncio.run(s.describe_method("query.aggregate"))
     assert not hasattr(s, "find_methods")
     monkeypatch.delenv("DL_MCP_METHODS")
     importlib.reload(s)

@@ -103,7 +103,7 @@ async def test_authored_recipe_preview_uses_the_same_query_and_result():
 
 async def test_materialization_width_refuses_before_query():
     from decision_layer.methods import Measure, Table, method
-    @method("example.too_wide", version="1.0.0", interpretation="descriptive")
+    @method("example.too_wide", version="1.0.0")
     async def too_wide(ctx, *, outcome: Measure) -> Table:
         data = await ctx.aggregate(measures={f"alias_{i}": outcome for i in range(101)})
         return Table.from_dataset(data)

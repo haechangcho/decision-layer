@@ -13,7 +13,7 @@ class ExampleMethod(Method):
         description="Contribution example: read a governed metric without redefining it.",
         roles={"metric": RoleSpec(kind="measure", label="Metric", default_binding="primary_metric")},
         parameters={"limit": ParamSpec(type="integer", default=1, minimum=1, maximum=10)},
-        execution="semantic_pushdown", interpretation="descriptive", outputs=["estimate"],
+        execution="semantic_pushdown", outputs=["estimate"],
         provides=["metric_lookup"],
     )
 
