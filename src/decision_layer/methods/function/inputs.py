@@ -43,10 +43,14 @@ async def query_inputs(ctx, inputs, roles, bindings, params):
             query.retrieval_complete is True for query in data.dataset.provenance
         )
         if spec.require_complete and not retrieval_complete:
-            raise Refused("Complete retrieval is required but was not established for this input")
+            raise Refused(
+                "Complete retrieval is required but was not established for this input"
+            )
         aliases = {alias: ref for pairs in data.roles.values() for alias, ref in pairs}
         resolved[name] = {
-            "filters": [item.model_dump(mode="json") for item in data.dataset.spec.filters],
+            "filters": [
+                item.model_dump(mode="json") for item in data.dataset.spec.filters
+            ],
             "retrieval_complete": retrieval_complete if spec.require_complete else None,
             "columns": list(aliases),
             "semantic_refs": aliases,

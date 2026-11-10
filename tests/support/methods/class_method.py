@@ -27,7 +27,6 @@ class GroupMetric(Method):
             "limit": ParamSpec(type="integer", default=5, minimum=1, maximum=100),
         },
         execution="semantic_pushdown",
-
         outputs=["table"],
         provides=["group_metric_lookup"],
     )

@@ -59,7 +59,10 @@ class PythonMethod(Method):
             label=label,
         )
         self.fn = fn
-        if len(set(selection_outputs)) != len(selection_outputs) or any(not isinstance(key,str) or not key.isidentifier() for key in selection_outputs):
+        if len(set(selection_outputs)) != len(selection_outputs) or any(
+            not isinstance(key, str) or not key.isidentifier()
+            for key in selection_outputs
+        ):
             raise ValueError("Selection outputs must have distinct identifier names")
         self.manifest.selection_outputs = list(selection_outputs)
         self.inputs = self.manifest.data_inputs
