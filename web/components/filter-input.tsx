@@ -22,6 +22,11 @@ export function FilterInput({ label, value, objects, onChange, disabled = false 
     set: t("Has a value"), notSet: t("Has no value"),
   };
   const update = (index: number, patch: Partial<QueryFilter>) => onChange(filters.map((item, i) => i === index ? { ...item, ...patch } : item));
+  const addCondition = () => onChange([...filters, { member: "", operator: "equals", values: [] }]);
+  if (!filters.length) return <fieldset className={s.editor} disabled={disabled}>
+    <legend>{label}</legend>
+    <div className={s.emptyRow}><p className={s.hint}>{t("No conditions. Query all data in the selected period.")}</p><button type="button" className={s.add} onClick={addCondition}><Plus size={14}/>{t("Add condition")}</button></div>
+  </fieldset>;
   return <fieldset className={s.editor} disabled={disabled}>
     <legend>{label}</legend>
     <p className={s.hint}>{filters.length ? t("All conditions below must match. They are applied when querying data.") : t("No conditions. Query all data in the selected period.")}</p>
@@ -64,6 +69,6 @@ export function FilterInput({ label, value, objects, onChange, disabled = false 
       </section>;
     })}
     {filters.length > 0 && !completeFilters(filters, fields) && <p className={s.incomplete} role="status">{t("Complete each condition or remove it before saving or testing.")}</p>}
-    <button type="button" className={s.add} onClick={() => onChange([...filters, { member: "", operator: "equals", values: [] }])}><Plus size={14}/>{t("Add condition")}</button>
+    <button type="button" className={s.add} onClick={addCondition}><Plus size={14}/>{t("Add condition")}</button>
   </fieldset>;
 }

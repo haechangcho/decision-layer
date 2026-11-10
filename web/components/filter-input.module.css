@@ -12,3 +12,5 @@
 .editor .textButton { justify-self:start; display:inline-flex; align-items:center; gap:5px; min-height:28px; padding:0; border:0; background:transparent; color:var(--link); font-size:12px; }
 .editor .add { justify-self:start; display:inline-flex; align-items:center; gap:6px; padding:7px 10px; border:1px solid var(--line); background:var(--panel); color:var(--text); font-size:12px; }
 .incomplete { margin:0; color:var(--warning); font-size:12px; line-height:1.6; }
+.emptyRow { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; }
+.emptyRow .add { flex-shrink:0; }

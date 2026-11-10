@@ -69,7 +69,7 @@ async function codeEdit(page: Page, update: (recipe: Recipe) => void) {
   await page.getByRole("button", { name: "코드 닫기", exact: true }).click();
 }
 
-test("Skill steps keep instructions primary and let both saved and new steps choose optional dimensions", async ({ page }, info) => {
+test("Skill steps show data and guidance together and preserve optional dimensions", async ({ page }, info) => {
   const initial = existing();
   initial.semantic_scope.preferred_dimensions = [];
   initial.steps = [{ id: "inspect", method: "analysis.drilldown", method_version: "2.1.0",
@@ -82,15 +82,13 @@ test("Skill steps keep instructions primary and let both saved and new steps cho
   await page.goto("/recipes/metric-review/edit");
   await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByLabel("이 단계의 분석 지시", {exact: true})).toBeVisible();
-  await expect(page.getByText("나눠 볼 기준: 분류", {exact: true})).toBeVisible();
-  await page.getByRole("button", {name: "함께 볼 항목 (선택)", exact: true}).click();
+  await expect(page.getByRole("heading", {name: "함께 볼 항목 (선택)", exact: true})).toBeVisible();
   await expect(page.getByLabel("나눠 볼 기준", {exact: true})).toBeVisible();
   await page.getByRole("button", {name: "나눠 볼 기준 1 삭제", exact: true}).click();
   await page.getByLabel("나눠 볼 기준", {exact: true}).selectOption(dimension);
   await page.getByRole("button", {name: "분석 도구 추가", exact: true}).click();
   await page.getByRole("button", {name: /그룹별 분석/}).click();
   await page.getByLabel("이 단계의 분석 지시", {exact: true}).fill("선택한 기준으로 분포를 살펴보고 다음 대상을 정한다.");
-  await page.getByRole("button", {name: "함께 볼 항목 (선택)", exact: true}).click();
   await page.getByLabel("나눠 볼 기준", {exact: true}).selectOption(dimension);
   await expect(page.getByText("추가로 살펴볼 지표나 나눠 볼 기준을 선택하세요.")).toBeVisible();
   if (info.project.name === "desktop") {
@@ -376,7 +374,7 @@ test("preview an unsaved step, poll a 202 job, and inspect its result", async ({
   await page.locator('[data-workflow-step="step:0"]').click();
   await expect(page.getByLabel("미리보기 시작일")).not.toBeVisible();
   await expect(page.getByLabel("미리보기 기간 지정")).toHaveCount(0);
-  await page.getByRole("button", { name: "결과 확인", exact: true }).click();
+  await page.getByRole("button", { name: "미리보기 실행", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "단계 실행 중" })).toBeVisible();
   await expect(page.getByText("미리보기 결과")).toBeVisible();
   expect(submitted?.step_index).toBe(0);
@@ -401,9 +399,8 @@ test("a preview stopped by an earlier step returns to that step", async ({ page 
   } }));
   await page.goto("/recipes/metric-review/edit");
   await page.locator('[data-workflow-step="step:1"]').click();
-  await expect(page.getByLabel("미리보기 시작일")).toHaveCount(0);
-  await page.getByRole("button", { name: "결과 확인", exact: true }).click();
-  await page.getByRole("button", { name: "이 조건으로 확인", exact: true }).click();
+  await expect(page.getByLabel("미리보기 시작일")).toBeVisible();
+  await page.getByRole("button", { name: "미리보기 실행", exact: true }).click();
   await expect(page.getByText("1단계에서 미리보기가 멈췄습니다.")).toBeVisible();
   await page.getByRole("button", { name: "1단계 설정 확인" }).click();
   await expect(page.locator('[data-workflow-step="step:0"]')).toHaveAttribute("aria-current", "step");
@@ -481,11 +478,11 @@ test("unavailable pinned settings stop loading and can be retried without changi
   await expect(settingsError).toContainText("The recorded Method version is not installed.");
   await page.screenshot({ path: info.outputPath("unavailable-pinned-settings.png"), fullPage: true });
   await expect(page.getByRole("status").filter({ hasText: "분석 설정을 불러오는 중…" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "결과 확인", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "미리보기 실행", exact: true })).toBeDisabled();
   await page.getByRole("button", { name: "다시 시도", exact: true }).click();
   await expect(settingsError).toHaveCount(0);
   await expect(page.getByRole("button", { name: "지표 변경", exact: true })).toBeVisible();
-  await expect(page.getByText("이 단계의 고정 버전 · v1.0.0")).toBeVisible();
+  await expect(page.getByText("Python 함수 · v1.0.0", {exact:true})).toBeVisible();
   expect(requests).toBe(2);
 });
 
@@ -549,10 +546,9 @@ test("Method link tests ordinary column roles without saving or inventing a metr
   await page.locator('[data-workflow-step="step:0"]').click();
   await page.getByLabel("value", {exact:true}).selectOption(metric);
   await page.getByLabel("group", {exact:true}).selectOption(dimension);
-  await page.getByRole("button", {name:"결과 확인",exact:true}).click();
   await page.getByLabel("미리보기 시작일").fill("2026-09-01");
   await page.getByLabel("미리보기 종료일").fill("2026-09-30");
-  await page.getByRole("button", {name:"이 조건으로 확인",exact:true}).click();
+  await page.getByRole("button", {name:"미리보기 실행",exact:true}).click();
   await expect(page.getByText("미리보기 결과", {exact:true})).toBeVisible();
   expect(submitted!.recipe.steps[0].bindings).toEqual({value:metric,group:dimension});
   expect(submitted!.recipe.steps[0].method_version).toBe("1.0.0");
@@ -595,14 +591,14 @@ test("query conditions use catalog fields and edited filters never display an ol
   await expect(page.getByLabel("조회 조건 설정 방식")).toHaveCount(0);
   await page.getByRole("button", { name: "조건 추가", exact: true }).click();
   await expect(page.getByRole("button", { name: "초안 저장", exact: true })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "결과 확인", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "미리보기 실행", exact: true })).toBeDisabled();
   await page.getByLabel("조건 1 항목", { exact: true }).selectOption(dimension);
   await page.getByLabel("조건 1 값 1", { exact: true }).fill("A");
-  await page.getByRole("button", { name: "결과 확인", exact: true }).click();
+  await page.getByRole("button", { name: "미리보기 실행", exact: true }).click();
   await expect.poll(() => submitted?.steps[0].params.filters).toEqual([{ member: dimension, operator: "equals", values: ["A"] }]);
   await page.getByLabel("조건 1 값 1", { exact: true }).fill("B");
   release();
-  await expect(page.getByRole("button", { name: "결과 확인", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "미리보기 실행", exact: true })).toBeEnabled();
   await expect(page.getByRole("region", { name: "미리보기 결과" })).toHaveCount(0);
   await save(page);
   expect(state.submission()!.recipe.steps[0].params.filters).toEqual([{ member: dimension, operator: "equals", values: ["B"] }]);

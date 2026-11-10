@@ -61,7 +61,6 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   liveRecipe.current = recipe;
   const [previewIndex, setPreviewIndex] = useState(-1);
   const [previewBusy, setPreviewBusy] = useState(false);
-  const [previewFormOpen, setPreviewFormOpen] = useState(false);
   const [previewError, setPreviewError] = useState("");
   const [previewElapsed, setPreviewElapsed] = useState(0);
   const metricSelect = useRef<HTMLSelectElement>(null);
@@ -108,7 +107,6 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
   });
   const previewFiltersComplete = incompleteFilterStep < 0 || incompleteFilterStep > selected;
 
-  useEffect(() => { setPreviewFormOpen(false); }, [selected]);
   const displayMethod = (name: string) => methods?.find(method => method.name === name)?.label || methodName(name, t);
   const missingRoles = activeManifest ? Object.entries(activeManifest.roles).filter(([name, role]) => {
     if (role.exclusive_group) {
@@ -340,34 +338,34 @@ export function RecipeEditor({ initial }: { initial?: Recipe }) {
           <h2>{t("Analysis procedure details")}</h2><p className={s.nodeStatus}>{t("Connect Methods in order and describe each step.")}</p><label>{t("Which question is this analysis for?")}<textarea rows={2} value={recipe.routing.objective || recipe.description} placeholder={t("e.g. check changes in the metric and find the largest contributors")} onChange={e => change({ ...recipe, description: e.target.value, routing: { ...recipe.routing, objective: e.target.value } })} /></label>
           <RefField label={t("Metric to analyze")} selectRef={metricSelect} value={recipe.semantic_scope.primary_metric} objects={objects.filter(o => o.kind === "measure")} fieldPath="semantic_scope.primary_metric" error={fieldError?.field === "semantic_scope.primary_metric" ? fieldError.message : undefined} onChange={v => change({ ...recipe, name: recipe.name || newName(String(v)), semantic_scope: { ...recipe.semantic_scope, primary_metric: String(v) } })} />
         </div> : <div className={s.fields}>
-          <div className={s.inspectorHeading}><span className={s.eyebrow}>{pipeline ? `STEP ${selected + 1}` : "ALLOWED METHOD"}</span><div className={s.actions}>
+          <div className={s.stepHeader}><div className={s.stepIdentity}>
+            {pipeline && <span className={s.stepNumber}>{selected + 1}</span>}
+            <div className={s.stepTitle}><h2>{displayMethod(active.method)}</h2><div className={s.stepMeta}>
+              <span>{activeManifest && t(activeManifest.implementation === "skill" ? "Analysis instructions" : "Python function")}{active.method_version && `${activeManifest ? " · " : ""}v${active.method_version}`}</span>
+              <Link href={`/methods/${encodeURIComponent(active.method)}`} target="_blank" rel="noopener noreferrer">{t("View analysis tool")}</Link>
+            </div></div>
+          </div><div className={s.stepTools}>
             {pipeline && <><button className={s.icon} disabled={selected === 0} title={t("Move up")} aria-label={t("Move up")} onClick={() => { const next = [...recipe.steps]; [next[selected - 1], next[selected]] = [next[selected], next[selected - 1]]; if (updateSteps(next)) setSelected(selected - 1); }}><ArrowUp size={16} /></button><button className={s.icon} disabled={selected === steps.length - 1} title={t("Move down")} aria-label={t("Move down")} onClick={() => { const next = [...recipe.steps]; [next[selected + 1], next[selected]] = [next[selected], next[selected + 1]]; if (updateSteps(next)) setSelected(selected + 1); }}><ArrowDown size={16} /></button></>}
             <button className={s.icon} title={t("Delete step")} aria-label={t("Delete step")} onClick={() => pipeline ? updateSteps(recipe.steps.filter((_, i) => i !== selected)) : change({ ...recipe, allowed_methods: recipe.allowed_methods.filter((_, i) => i !== selected) })}><Trash2 size={16} /></button>
           </div></div>
-          <div className={s.stepTitle}>
-            <h2>{displayMethod(active.method)}</h2>
-            {active.method_version && <p className={s.stepVersion}>{t("Pinned version for this step / v")}{active.method_version}</p>}
-          </div>
           {needsPinnedManifest && pinnedError && <p className={s.error} role="alert">{pinnedError.message} <button type="button" className={s.secondary} onClick={reloadPinnedManifest}>{t("Retry")}</button></p>}
           {pipeline && active.method_version && latestManifest && active.method_version !== latestManifest.version && <button type="button" className={s.secondary} disabled={busy} onClick={() => configure({ ...recipe, steps:recipe.steps.map((step,index) => index===selected ? { ...step, method_version:latestManifest.version, bindings:{}, params:{} } : step) },selected)}>v{latestManifest.version}  {t("Apply and reset input settings")}</button>}
           {pipeline && activeManifest ? <StepSettings key={`${selected}-${active.method}-${active.method_version || "latest"}`} step={active} manifest={activeManifest} methods={methods ?? []} objects={objects} recipe={recipe} stepIndex={selected} fieldError={fieldError} onChange={step => change({ ...recipe, steps: recipe.steps.map((s, i) => i === selected ? step : s) })} /> : !pipeline ? <p className={s.dependency}>{t("In MCP, each result guides the next step and its inputs.")}</p> : !settingsError && <p role="status">{t("Loading analysis settings…")}</p>}
           {pipeline && <section className={s.previewSection} aria-label={t("Check result")}>
-            {previewFormOpen && <h3>{t("Preview conditions")}</h3>}
-            {previewFormOpen && <>
+            <h3>{t("Preview")}</h3>
               <RecipeRuntimeInputs specs={recipe.inputs ?? {}} values={previewInputs} onChange={setPreviewInputs} objects={objects} />
               {previewWithPeriod && (timeOptions.length > 1 || !selectedTime) && <label>{t("Date basis")}<select aria-label={t("Preview date dimension")} value={selectedTime} onChange={event => setPreviewTimeDimension(event.target.value)}><option value="">{t("Choose…")}</option>{timeOptions.map(object => <option value={object.ref} key={object.ref}>{object.title}</option>)}</select></label>}
               {previewWithPeriod && <div className={s.previewDates}><label>{t("Start date")}<input type="date" aria-label={t("Preview start date")} value={previewRange[0]} onChange={event => choosePreviewDates([event.target.value, previewRange[1]])} /></label><label>{t("End date")}<input type="date" aria-label={t("Preview end date")} value={previewRange[1]} onChange={event => choosePreviewDates([previewRange[0], event.target.value])} /></label></div>}
               {previewDatesInvalid && <p className={s.error} role="alert">{t("Check the start and end dates.")}</p>}
               {previewWithPeriod && !selectedTime && <p className={s.nodeStatus}>{t("Choose a date dimension.")}</p>}
-            </>}
             {missingRoles.length > 0 && <p className={s.nodeStatus}>{t("Choose {fields}.", { fields: missingRoles.map(([name, role]) => role.label || (roleLabels[name] ? t(roleLabels[name]) : name)).join(", ") })}</p>}
-            <button type="button" className={s.secondary} disabled={previewBusy || !activeManifest || missingRoles.length > 0 || !recipe.semantic_scope.primary_metric || !previewFiltersComplete || previewFormOpen && (previewDatesInvalid || previewWithPeriod && !selectedTime)} onClick={() => { if (!previewFormOpen && (previewWithPeriod || Object.keys(recipe.inputs ?? {}).length)) setPreviewFormOpen(true); else void startPreview(); }}><Play size={15} />{previewBusy ? t("Checking…") : previewFormOpen ? t("Check with these conditions") : t("Check result")}</button>
+            <button type="button" disabled={previewBusy || !activeManifest || missingRoles.length > 0 || !recipe.semantic_scope.primary_metric || !previewFiltersComplete || previewDatesInvalid || previewWithPeriod && !selectedTime} onClick={() => void startPreview()}><Play size={15} />{previewBusy ? t("Checking…") : t("Run preview")}</button>
             {previewError && <p className={s.error} role="alert">{previewError} <Link href="/sources">{t("Check connection")}</Link></p>}
           </section>}
         </div>}
         {!adding && <footer className={s.inspectorActions}>
           {!recipe.semantic_scope.primary_metric && <p className={s.nodeStatus}>{t("Choose a metric above to add an analysis tool.")}</p>}
-          <button type="button" disabled={busy || !recipe.semantic_scope.primary_metric} onClick={openMethods}><Plus size={16}/>{pipeline ? t("Add analysis tool") : t("Add allowed Method")}</button>
+          <button type="button" className={s.addTool} disabled={busy || !recipe.semantic_scope.primary_metric} onClick={openMethods}><Plus size={16}/>{pipeline ? t("Add analysis tool") : t("Add allowed Method")}</button>
         </footer>}
       </aside>
     </div>
